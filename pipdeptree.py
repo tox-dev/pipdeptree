@@ -82,7 +82,7 @@ def render_tree(pkgs, list_all):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Dependency tree for python packages')
+    parser = argparse.ArgumentParser(description='Dependency tree of the installed python packages')
     parser.add_argument('-a', '--all', action='store_true', help='list all deps at top level')
     parser.add_argument('-l', '--local-only',
                         action='store_true', help=(
