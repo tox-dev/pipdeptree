@@ -11,7 +11,7 @@ problem.
 To give you a brief idea here is the output of `pipdeptree` compared
 to `pip freeze`
 
-.. source-code:: bash
+.. code-block:: bash
 
     $ pip freeze
     Flask==0.10.1
@@ -29,7 +29,7 @@ to `pip freeze`
     slugify==0.0.1
     wsgiref==0.1.2
 
-.. source-code:: bash
+.. code-block:: bash
 
     $ python pipdeptree.py
     wsgiref==0.1.2
