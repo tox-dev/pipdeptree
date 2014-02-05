@@ -3,7 +3,7 @@ import pickle
 from pipdeptree import req_version, non_top_pkg_name, render_tree
 
 
-with open('tests/pkgs.pickle') as f:
+with open('tests/pkgs.pickle', 'rb') as f:
     pkgs = pickle.load(f)
 
 
