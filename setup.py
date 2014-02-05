@@ -7,7 +7,7 @@ with open('./README.rst') as f:
 
 setup(
     name='pipdeptree',
-    version='0.1',
+    version='0.2',
     author='Vineet Naik',
     author_email='naikvin@gmail.com',
     url='https://github.com/naiquevin/pipdeptree',
