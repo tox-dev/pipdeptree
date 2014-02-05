@@ -27,7 +27,7 @@ def top_pkg_name(pkg):
     :rtype     : string
 
     """
-    return '{}=={}'.format(pkg.key, pkg.version)
+    return '{}=={}'.format(pkg.project_name, pkg.version)
 
 
 def non_top_pkg_name(req, pkg):
@@ -51,7 +51,7 @@ def non_top_pkg_name(req, pkg):
     if not vers:
         return req.key
     ver_str = ', '.join(['{}: {}'.format(k, v) for k, v in vers])
-    return '{} [{}]'.format(req.key, ver_str)
+    return '{} [{}]'.format(req.project_name, ver_str)
 
 
 def render_tree(pkgs, list_all):
