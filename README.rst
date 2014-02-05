@@ -20,8 +20,8 @@ Installation
 Usage and examples
 ------------------
 
-To give you a brief idea here is the output of ``pipdeptree`` compared
-with ``pip freeze``:
+To give you a brief idea, here is the output of ``pipdeptree``
+compared with ``pip freeze``:
 
 .. code-block:: bash
 
@@ -77,7 +77,7 @@ If you wish to track only the top level packages in your
     slugify==0.0.1
     redis==2.9.1
     
-    $ pipdeptree.py | grep -P '^[\w0-9\-=.]+' > requirements.txt
+    $ pipdeptree | grep -P '^[\w0-9\-=.]+' > requirements.txt
 
 
 Usage
