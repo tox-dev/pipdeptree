@@ -90,8 +90,10 @@ def main():
                             'current virtualenv, if in a virtualenv'
                         ))
     args = parser.parse_args()
-    print(render_tree(pip.get_installed_distributions(local_only=args.local_only),
-                      list_all=args.all))
+    default_skip = ['setuptools', 'pip', 'python', 'distribute']
+    packages = pip.get_installed_distributions(local_only=args.local_only,
+                                               skip=default_skip+['pipdeptree'])
+    print(render_tree(packages, list_all=args.all))
     return 0
 
 
