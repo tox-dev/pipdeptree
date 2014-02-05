@@ -31,27 +31,27 @@ def test_req_version():
 def test_non_top_pkg_name():
     flask_p = pkg_index['flask']
     flask_r = find_req('flask', 'flask-script')
-    assert non_top_pkg_name(flask_r, flask_p) == 'flask [installed: 0.10.1]'
+    assert non_top_pkg_name(flask_r, flask_p) == 'Flask [installed: 0.10.1]'
 
     markupsafe_p = pkg_index['markupsafe']
     markupsafe_jinja2_r = find_req('markupsafe', 'jinja2')
-    assert non_top_pkg_name(markupsafe_jinja2_r, markupsafe_p) == 'markupsafe [installed: 0.18]'
+    assert non_top_pkg_name(markupsafe_jinja2_r, markupsafe_p) == 'MarkupSafe [installed: 0.18]'
 
     markupsafe_mako_r = find_req('markupsafe', 'mako')
-    assert non_top_pkg_name(markupsafe_mako_r, markupsafe_p) == 'markupsafe [required: >=0.9.2, installed: 0.18]'
+    assert non_top_pkg_name(markupsafe_mako_r, markupsafe_p) == 'MarkupSafe [required: >=0.9.2, installed: 0.18]'
 
 
 def test_render_tree_only_top():
     tree_str = render_tree(pkgs, False)
     lines = set(tree_str.split('\n'))
-    assert 'flask-script==0.6.6' in lines
-    assert '  - sqlalchemy [required: >=0.7.3, installed: 0.9.1]' in lines
+    assert 'Flask-Script==0.6.6' in lines
+    assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
     assert 'itsdangerous==0.23' not in lines
 
 
 def test_render_tree_list_all():
     tree_str = render_tree(pkgs, True)
     lines = set(tree_str.split('\n'))
-    assert 'flask-script==0.6.6' in lines
-    assert '  - sqlalchemy [required: >=0.7.3, installed: 0.9.1]' in lines
+    assert 'Flask-Script==0.6.6' in lines
+    assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
     assert 'itsdangerous==0.23' in lines
