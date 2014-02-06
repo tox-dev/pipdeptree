@@ -16,6 +16,12 @@ Installation
 
     $ pip install pipdeptree
 
+.. note:: Needs to be installed inside every virtualenv
+
+If you want to use ``pipdeptree`` to view dependency tree of packages
+inside a virtualenv, then it needs to be installed inside that env
+even if it's already installed globally.
+
 
 Usage and examples
 ------------------
