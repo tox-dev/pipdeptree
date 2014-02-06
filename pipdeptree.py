@@ -87,8 +87,8 @@ def main():
     parser.add_argument('-a', '--all', action='store_true', help='list all deps at top level')
     parser.add_argument('-l', '--local-only',
                         action='store_true', help=(
-                            'list only the installations local to the '
-                            'current virtualenv, if in a virtualenv'
+                            'If in a virtualenv that has global access '
+                            'donot show globally installed packages'
                         ))
     args = parser.parse_args()
     default_skip = ['setuptools', 'pip', 'python', 'distribute']
