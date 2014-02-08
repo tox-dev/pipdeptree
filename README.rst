@@ -99,8 +99,8 @@ Usage
     optional arguments:
       -h, --help        show this help message and exit
       -a, --all         list all deps at top level
-      -l, --local-only  list only the installations local to the current
-                        virtualenv, if in a virtualenv
+      -l, --local-only  If in a virtualenv that has global access donot show
+                        globally installed packages
 
 
 Known Issues
