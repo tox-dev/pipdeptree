@@ -66,6 +66,7 @@ def render_tree(pkgs, list_all):
     non_top = set(flatten((x.key for x in p.requires())
                           for p in pkgs))
     top = [p for p in pkgs if p.key not in non_top]
+
     def aux(pkg, indent=0):
         if indent > 0:
             result = [' '*indent +
@@ -78,13 +79,17 @@ def render_tree(pkgs, list_all):
             result += list(flatten([aux(d, indent=indent+2)
                                     for d in pkg_deps]))
         return result
+
     lines = flatten([aux(p) for p in (pkgs if list_all else top)])
     return '\n'.join(lines)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Dependency tree of the installed python packages')
-    parser.add_argument('-a', '--all', action='store_true', help='list all deps at top level')
+    parser = argparse.ArgumentParser(description=(
+        'Dependency tree of the installed python packages'
+    ))
+    parser.add_argument('-a', '--all', action='store_true',
+                        help='list all deps at top level')
     parser.add_argument('-l', '--local-only',
                         action='store_true', help=(
                             'If in a virtualenv that has global access '
@@ -92,8 +97,9 @@ def main():
                         ))
     args = parser.parse_args()
     default_skip = ['setuptools', 'pip', 'python', 'distribute']
+    skip = default_skip + ['pipdeptree']
     packages = pip.get_installed_distributions(local_only=args.local_only,
-                                               skip=default_skip+['pipdeptree'])
+                                               skip=skip)
     print(render_tree(packages, list_all=args.all))
     return 0
 
