@@ -54,7 +54,15 @@ def non_top_pkg_name(req, pkg):
     return '{} [{}]'.format(pkg.project_name, ver_str)
 
 
-def render_tree(pkgs, list_all):
+def top_pkg_src(pkg):
+    return str(pip.FrozenRequirement.from_dist(pkg, [])).strip()
+
+
+def non_top_pkg_src(_, pkg):
+    return top_pkg_src(pkg)
+
+
+def render_tree(pkgs, freeze, list_all):
     """Renders a package dependency tree
 
     :param pkgs     : list of pkg_resources.Distribution
@@ -67,13 +75,18 @@ def render_tree(pkgs, list_all):
                           for p in pkgs))
     top = [p for p in pkgs if p.key not in non_top]
 
+    if freeze:
+        top_pkg_str, non_top_pkg_str = top_pkg_src, non_top_pkg_src
+    else:
+        top_pkg_str, non_top_pkg_str = top_pkg_name, non_top_pkg_name
+
     def aux(pkg, indent=0):
         if indent > 0:
             result = [' '*indent +
                       '- ' +
-                      non_top_pkg_name(pkg, pkg_index.get(pkg.key))]
+                      non_top_pkg_str(pkg, pkg_index.get(pkg.key))]
         else:
-            result = [top_pkg_name(pkg)]
+            result = [top_pkg_str(pkg)]
         if pkg.key in pkg_index:
             pkg_deps = pkg_index[pkg.key].requires()
             result += list(flatten([aux(d, indent=indent+2)
@@ -88,6 +101,8 @@ def main():
     parser = argparse.ArgumentParser(description=(
         'Dependency tree of the installed python packages'
     ))
+    parser.add_argument('-f', '--freeze', action='store_true',
+                        help='Print names so as to write freeze files')
     parser.add_argument('-a', '--all', action='store_true',
                         help='list all deps at top level')
     parser.add_argument('-l', '--local-only',
@@ -100,7 +115,7 @@ def main():
     skip = default_skip + ['pipdeptree']
     packages = pip.get_installed_distributions(local_only=args.local_only,
                                                skip=skip)
-    print(render_tree(packages, list_all=args.all))
+    print(render_tree(packages, freeze=args.freeze, list_all=args.all))
     return 0
 
 

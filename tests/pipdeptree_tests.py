@@ -1,6 +1,6 @@
 import pickle
 
-from pipdeptree import req_version, non_top_pkg_name, render_tree
+from pipdeptree import req_version, render_tree, non_top_pkg_name
 
 
 with open('tests/pkgs.pickle', 'rb') as f:
@@ -42,16 +42,27 @@ def test_non_top_pkg_name():
 
 
 def test_render_tree_only_top():
-    tree_str = render_tree(pkgs, False)
+    tree_str = render_tree(pkgs, False, False)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
+    assert 'Lookupy==0.1' in lines
     assert 'itsdangerous==0.23' not in lines
 
 
 def test_render_tree_list_all():
-    tree_str = render_tree(pkgs, True)
+    tree_str = render_tree(pkgs, False, True)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
+    assert 'Lookupy==0.1' in lines
     assert 'itsdangerous==0.23' in lines
+
+
+def test_render_tree_freeze():
+    tree_str = render_tree(pkgs, True, False)
+    lines = set(tree_str.split('\n'))
+    assert 'Flask-Script==0.6.6' in lines
+    assert '  - SQLAlchemy==0.9.1' in lines
+    assert '-e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
+    assert 'itsdangerous==0.23' not in lines

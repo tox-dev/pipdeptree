@@ -35,12 +35,14 @@ compared with ``pip freeze``:
     Flask==0.10.1
     Flask-Script==0.6.6
     Jinja2==2.7.2
+    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master
     Mako==0.9.1
     MarkupSafe==0.18
     SQLAlchemy==0.9.1
     Werkzeug==0.9.4
     alembic==0.6.2
     argparse==1.2.1
+    ipython==2.0.0
     itsdangerous==0.23
     psycopg2==2.5.2
     redis==2.9.1
@@ -52,6 +54,7 @@ And now see what ``pipdeptree`` outputs,
 .. code-block:: bash
 
     $ pipdeptree
+    Lookupy==0.1
     wsgiref==0.1.2
     argparse==1.2.1
     psycopg2==2.5.2
@@ -59,31 +62,57 @@ And now see what ``pipdeptree`` outputs,
       - Flask [installed: 0.10.1]
         - Werkzeug [required: >=0.7, installed: 0.9.4]
         - Jinja2 [required: >=2.4, installed: 2.7.2]
-          - markupsafe [installed: 0.18]
+          - MarkupSafe [installed: 0.18]
         - itsdangerous [required: >=0.21, installed: 0.23]
     alembic==0.6.2
       - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]
       - Mako [installed: 0.9.1]
         - MarkupSafe [required: >=0.9.2, installed: 0.18]
+    ipython==2.0.0
     slugify==0.0.1
     redis==2.9.1
 
 
+Using pipdeptree to write requirements.txt file
+-----------------------------------------------
+
 If you wish to track only the top level packages in your
-``requirements.txt`` file, you could use grep as follows,
+``requirements.txt`` file, it's possible to do so using `pipdeptree`
+by grep-ing only the top-level lines from the output,
 
 .. code-block:: bash
 
-    $ pipdeptree | grep -P '^[\w0-9\-=.]+'
+    $ pipdeptree | grep -P '^\w+'
+    Lookupy==0.1
     wsgiref==0.1.2
     argparse==1.2.1
     psycopg2==2.5.2
     Flask-Script==0.6.6
     alembic==0.6.2
+    ipython==2.0.0
+    slugify==0.0.1
+    redis==2.9.1
+
+There is a problem here though. The output doesn't mention anything
+about `Lookupy` being installed as an editable package (refer to the
+output of `pip freeze` above) and information about it's source is
+lost. To fix this, `pipdeptree` must be run with a `-f` or `--freeze`
+flag.
+
+.. code-block:: bash
+
+    $ pipdeptree -f | grep -P '^[\w0-9\-=.]+'
+    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master
+    wsgiref==0.1.2
+    argparse==1.2.1
+    psycopg2==2.5.2
+    Flask-Script==0.6.6
+    alembic==0.6.2
+    ipython==2.0.0
     slugify==0.0.1
     redis==2.9.1
     
-    $ pipdeptree | grep -P '^[\w0-9\-=.]+' > requirements.txt
+    $ $ pipdeptree -f | grep -P '^[\w0-9\-=.]+' > requirements.txt
 
 
 Usage
