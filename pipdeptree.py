@@ -11,8 +11,9 @@ flatten = chain.from_iterable
 def req_version(req):
     """Builds the version string for the requirement instance
 
-    :param req : representing requirement
-    :rtype     : string or NoneType
+    :param req: requirement object
+    :returns: the version in desired format
+    :rtype: string or NoneType
 
     """
     return ''.join(req.specs[0]) if req.specs else None
@@ -21,10 +22,13 @@ def req_version(req):
 def top_pkg_name(pkg):
     """Builds the package name for top level package
 
-    The format is the same that's used by `pip freeze`
+    This just prints the name and the version of the package which may
+    not necessarily match with the output of `pip freeze` which also
+    includes info such as VCS source for editable packages
 
-    :param pkg : pkg_resources.Distribution
-    :rtype     : string
+    :param pkg: pkg_resources.Distribution
+    :returns: the package name and version in the desired format
+    :rtype: string
 
     """
     return '{}=={}'.format(pkg.project_name, pkg.version)
@@ -37,9 +41,10 @@ def non_top_pkg_name(req, pkg):
     version as well as the version required by it's parent package
     will be specified with it's name
 
-    :param req : requirements instance
-    :param pkg : pkg_resources.Distribution
-    :rtype     : string
+    :param req: requirements instance
+    :param pkg: pkg_resources.Distribution
+    :returns: the package name and version in the desired format
+    :rtype: string
 
     """
     vers = []
@@ -55,19 +60,36 @@ def non_top_pkg_name(req, pkg):
 
 
 def top_pkg_src(pkg):
+    """Returns the frozen package name
+
+    The may or may not be the same as the package name.
+
+    :param pkg: pkg_resources.Distribution
+    :returns: frozen name of the package
+    :rtype: string
+
+    """
     return str(pip.FrozenRequirement.from_dist(pkg, [])).strip()
 
 
-def non_top_pkg_src(_, pkg):
+def non_top_pkg_src(_req, pkg):
+    """FIXME! briefly describe function
+
+    :param _req: the requirements instance
+    :param pkg: pkg_resources.Distribution
+    :returns: frozen name of the package
+    :rtype: string
+
+    """
     return top_pkg_src(pkg)
 
 
 def render_tree(pkgs, freeze, list_all):
     """Renders a package dependency tree
 
-    :param pkgs     : list of pkg_resources.Distribution
-    :param list_all : boolean
-    :rtype          : string
+    :param pkgs: list of pkg_resources.Distribution
+    :param list_all: boolean
+    :rtype: string
 
     """
     pkg_index = {p.key: p for p in pkgs}
