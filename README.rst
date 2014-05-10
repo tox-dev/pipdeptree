@@ -77,7 +77,7 @@ Using pipdeptree to write requirements.txt file
 -----------------------------------------------
 
 If you wish to track only the top level packages in your
-``requirements.txt`` file, it's possible to do so using `pipdeptree`
+``requirements.txt`` file, it's possible to do so using ``pipdeptree``
 by grep-ing only the top-level lines from the output,
 
 .. code-block:: bash
@@ -94,10 +94,10 @@ by grep-ing only the top-level lines from the output,
     redis==2.9.1
 
 There is a problem here though. The output doesn't mention anything
-about `Lookupy` being installed as an editable package (refer to the
-output of `pip freeze` above) and information about it's source is
-lost. To fix this, `pipdeptree` must be run with a `-f` or `--freeze`
-flag.
+about ``Lookupy`` being installed as an editable package (refer to the
+output of ``pip freeze`` above) and information about it's source is
+lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
+``--freeze`` flag.
 
 .. code-block:: bash
 
@@ -111,7 +111,7 @@ flag.
     ipython==2.0.0
     slugify==0.0.1
     redis==2.9.1
-    
+
     $ $ pipdeptree -f | grep -P '^[\w0-9\-=.]+' > requirements.txt
 
 
@@ -120,13 +120,13 @@ Usage
 
 .. code-block:: bash
 
-    $ pipdeptree -h
-    usage: pipdeptree [-h] [-a] [-l]
+    usage: pipdeptree.py [-h] [-f] [-a] [-l]
 
     Dependency tree of the installed python packages
 
     optional arguments:
       -h, --help        show this help message and exit
+      -f, --freeze      Print names so as to write freeze files
       -a, --all         list all deps at top level
       -l, --local-only  If in a virtualenv that has global access donot show
                         globally installed packages
