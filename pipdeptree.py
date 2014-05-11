@@ -133,12 +133,23 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
     top = [p for p in pkgs if p.key not in non_top]
 
     def aux(pkg, indent=0):
+        # In this function, pkg can either be a Distribution or
+        # Requirement instance
         if indent > 0:
-            result = [' '*indent +
-                      '- ' +
-                      non_top_pkg_str(pkg, pkg_index.get(pkg.key))]
+            # this is definitely a Requirement (due to positive
+            # indent) so we need to find the Distribution instance for
+            # it from the pkg_index
+            dist = pkg_index.get(pkg.key)
+            # FixMe! Some dependencies are not present in the result of
+            # `pip.get_installed_distributions`
+            # eg. `testresources`. This is a hack around it.
+            name = pkg.project_name if dist is None else non_top_pkg_str(pkg, dist)
+            result = [' '*indent+'- '+name]
         else:
             result = [top_pkg_str(pkg)]
+
+        # FixMe! in case of some pkg not present in list of all
+        # packages, eg. `testresources`, this will fail
         if pkg.key in pkg_index:
             pkg_deps = pkg_index[pkg.key].requires()
             result += list(flatten([aux(d, indent=indent+2)
