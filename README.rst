@@ -2,11 +2,16 @@ pipdeptree
 ==========
 
 ``pipdeptree`` is a command line utility for displaying the python
-packages installed in an environment in form of a dependency
+packages installed in an virtualenv in form of a dependency
 tree. Since ``pip freeze`` shows all dependencies as a flat list,
 finding out which are the top level packages and which packages do
-they depend on requires some effort. This utility tries to solve this
-problem.
+they depend on requires some effort. It can also be tedious to resolve
+conflicting dependencies because ``pip`` doesn't yet have true
+dependency resolution (more on this later). This utility tries to
+solve these problem.
+
+To some extent, this tool is inspired by ``lein deps :tree`` command
+of `Leiningen <http://leiningen.org/>`_.
 
 
 Installation
@@ -54,6 +59,10 @@ And now see what ``pipdeptree`` outputs,
 .. code-block:: bash
 
     $ pipdeptree
+    Warning!!! Possible confusing dependencies found:
+    * Mako==0.9.1 -> MarkupSafe [required: >=0.9.2, installed: 0.18]
+      Jinja2==2.7.2 -> MarkupSafe [installed: 0.18]
+    ------------------------------------------------------------------------
     Lookupy==0.1
     wsgiref==0.1.2
     argparse==1.2.1
@@ -71,6 +80,19 @@ And now see what ``pipdeptree`` outputs,
     ipython==2.0.0
     slugify==0.0.1
     redis==2.9.1
+
+
+What's with the warning about confusing dependencies?
+-----------------------------------------------------
+
+As seen in the above output, ``pipdeptree`` by default warns about
+possible confusing dependencies. Any package that's specified as a
+dependency of multiple packages with a different version is considered
+as a possible confusing dependency. This is helpful because ``pip``
+`doesn't have true dependency resolution
+<https://github.com/pypa/pip/issues/988>`_ yet. The warning is printed
+to stderr instead of stdout and it can be completely disabled by using
+the ``--nowarn`` flag.
 
 
 Using pipdeptree to write requirements.txt file
@@ -101,7 +123,7 @@ lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 
 .. code-block:: bash
 
-    $ pipdeptree -f | grep -P '^[\w0-9\-=.]+'
+    $ pipdeptree -f --nowarn | grep -P '^[\w0-9\-=.]+'
     -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master
     wsgiref==0.1.2
     argparse==1.2.1
@@ -112,7 +134,7 @@ lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
     slugify==0.0.1
     redis==2.9.1
 
-    $ $ pipdeptree -f | grep -P '^[\w0-9\-=.]+' > requirements.txt
+    $ pipdeptree -f --nowarn | grep -P '^[\w0-9\-=.]+' > requirements.txt
 
 
 Usage
@@ -120,7 +142,7 @@ Usage
 
 .. code-block:: bash
 
-    usage: pipdeptree.py [-h] [-f] [-a] [-l]
+    usage: pipdeptree.py [-h] [-f] [-a] [-l] [-w]
 
     Dependency tree of the installed python packages
 
@@ -130,6 +152,7 @@ Usage
       -a, --all         list all deps at top level
       -l, --local-only  If in a virtualenv that has global access donot show
                         globally installed packages
+      -w, --nowarn      Inhibit warnings about possibly confusing packages
 
 
 Known Issues
