@@ -1,5 +1,7 @@
+from __future__ import print_function
 import sys
 from itertools import chain
+from collections import defaultdict
 import argparse
 
 import pip
@@ -73,7 +75,7 @@ def top_pkg_src(pkg):
 
 
 def non_top_pkg_src(_req, pkg):
-    """FIXME! briefly describe function
+    """Returns frozen package name for non top level package
 
     :param _req: the requirements instance
     :param pkg: pkg_resources.Distribution
@@ -84,23 +86,51 @@ def non_top_pkg_src(_req, pkg):
     return top_pkg_src(pkg)
 
 
-def render_tree(pkgs, freeze, list_all):
-    """Renders a package dependency tree
+def has_multi_versions(reqs):
+    vers = (req_version(r) for r in reqs)
+    return len(set(vers)) > 1
 
-    :param pkgs: list of pkg_resources.Distribution
-    :param list_all: boolean
-    :rtype: string
+
+def confusing_deps(req_map):
+    """Returns group of dependencies that are possibly confusing
+
+    eg. if pkg1 requires pkg3>=1.0 and pkg2 requires pkg3>=1.0,<=2.0
+
+    :param dict req_map: mapping of pkgs with the list of their deps
+    :returns: groups of dependencies paired with their top level pkgs
+    :rtype: list of list of pairs
+
+    """
+    deps= defaultdict(list)
+    for p, rs in req_map.iteritems():
+        for r in rs:
+            deps[r.key].append((p, r))
+    return [ps for r, ps in deps.iteritems()
+            if len(ps) > 1
+            and has_multi_versions(d for p, d in ps)]
+
+
+def render_tree(pkgs, pkg_index, req_map, list_all,
+                top_pkg_str, non_top_pkg_str):
+    """Renders a package dependency tree as a string
+
+    :param list pkgs: pkg_resources.Distribution instances
+    :param dict pkg_index: mapping of pkgs with their respective keys
+    :param dict req_map: mapping of pkgs with the list of their deps
+    :param bool list_all: whether to show globally installed pkgs
+                          if inside a virtualenv with global access
+    :param function top_pkg_str: function to render a top level
+                                 package as string
+    :param function non_top_pkg_str: function to render a non-top
+                                     level package as string
+    :returns: dependency tree encoded as string
+    :rtype: str
 
     """
     pkg_index = {p.key: p for p in pkgs}
-    non_top = set(flatten((x.key for x in p.requires())
-                          for p in pkgs))
+    req_map = {p: p.requires() for p in pkgs}
+    non_top = set(r.key for r in flatten(req_map.values()))
     top = [p for p in pkgs if p.key not in non_top]
-
-    if freeze:
-        top_pkg_str, non_top_pkg_str = top_pkg_src, non_top_pkg_src
-    else:
-        top_pkg_str, non_top_pkg_str = top_pkg_name, non_top_pkg_name
 
     def aux(pkg, indent=0):
         if indent > 0:
@@ -132,12 +162,47 @@ def main():
                             'If in a virtualenv that has global access '
                             'donot show globally installed packages'
                         ))
+    parser.add_argument('-w', '--nowarn', action='store_true',
+                        help=(
+                            'Inhibit warnings about possibly '
+                            'confusing packages'
+                        ))
     args = parser.parse_args()
+
     default_skip = ['setuptools', 'pip', 'python', 'distribute']
     skip = default_skip + ['pipdeptree']
-    packages = pip.get_installed_distributions(local_only=args.local_only,
-                                               skip=skip)
-    print(render_tree(packages, freeze=args.freeze, list_all=args.all))
+    pkgs = pip.get_installed_distributions(local_only=args.local_only,
+                                           skip=skip)
+
+    pkg_index = {p.key: p for p in pkgs}
+    req_map = {p: p.requires() for p in pkgs}
+
+    # show warnings about possibly confusing deps if found and
+    # warnings are enabled
+    if not args.nowarn:
+        confusing = confusing_deps(req_map)
+        if confusing:
+            print('Warning!!! Possible confusing dependencies found:', file=sys.stderr)
+            for xs in confusing:
+                for i, (p, d) in enumerate(xs):
+                    pkg = top_pkg_name(p)
+                    req = non_top_pkg_name(d, pkg_index[d.key])
+                    tmpl = '  {} -> {}' if i > 0 else '* {} -> {}'
+                    print(tmpl.format(pkg, req), file=sys.stderr)
+            print('-'*72, file=sys.stderr)
+
+    if args.freeze:
+        top_pkg_str, non_top_pkg_str = top_pkg_src, non_top_pkg_src
+    else:
+        top_pkg_str, non_top_pkg_str = top_pkg_name, non_top_pkg_name
+
+    tree = render_tree(pkgs,
+                       pkg_index=pkg_index,
+                       req_map=req_map,
+                       list_all=args.all,
+                       top_pkg_str=top_pkg_str,
+                       non_top_pkg_str=non_top_pkg_str)
+    print(tree)
     return 0
 
 

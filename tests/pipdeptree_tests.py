@@ -1,6 +1,8 @@
 import pickle
 
-from pipdeptree import req_version, render_tree, non_top_pkg_name
+from pipdeptree import (req_version, render_tree,
+                        top_pkg_name, non_top_pkg_name,
+                        top_pkg_src, non_top_pkg_src)
 
 
 with open('tests/pkgs.pickle', 'rb') as f:
@@ -8,6 +10,7 @@ with open('tests/pkgs.pickle', 'rb') as f:
 
 
 pkg_index = {p.key: p for p in pkgs}
+req_map = {p: p.requires() for p in pkgs}
 
 
 def find_req(req, parent):
@@ -42,7 +45,8 @@ def test_non_top_pkg_name():
 
 
 def test_render_tree_only_top():
-    tree_str = render_tree(pkgs, False, False)
+    tree_str = render_tree(pkgs, pkg_index, req_map, False,
+                           top_pkg_name, non_top_pkg_name)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
@@ -51,7 +55,8 @@ def test_render_tree_only_top():
 
 
 def test_render_tree_list_all():
-    tree_str = render_tree(pkgs, False, True)
+    tree_str = render_tree(pkgs, pkg_index, req_map, True,
+                           top_pkg_name, non_top_pkg_name)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
@@ -60,7 +65,8 @@ def test_render_tree_list_all():
 
 
 def test_render_tree_freeze():
-    tree_str = render_tree(pkgs, True, False)
+    tree_str = render_tree(pkgs, pkg_index, req_map, False,
+                           top_pkg_src, non_top_pkg_src)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy==0.9.1' in lines
