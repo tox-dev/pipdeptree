@@ -9,8 +9,8 @@ with open('tests/pkgs.pickle', 'rb') as f:
     pkgs = pickle.load(f)
 
 
-pkg_index = {p.key: p for p in pkgs}
-req_map = {p: p.requires() for p in pkgs}
+pkg_index = dict([(p.key, p) for p in pkgs])  # {p.key: p for p in pkgs}
+req_map = dict([(p, p.requires()) for p in pkgs])  # {p: p.requires() for p in pkgs}
 
 
 def find_req(req, parent):
