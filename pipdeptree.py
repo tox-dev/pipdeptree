@@ -131,6 +131,7 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
     req_map = {p: p.requires() for p in pkgs}
     non_top = set(r.key for r in flatten(req_map.values()))
     top = [p for p in pkgs if p.key not in non_top]
+    pkgs_processed = set()
 
     def aux(pkg, indent=0):
         # In this function, pkg can either be a Distribution or
@@ -150,8 +151,9 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
 
         # FixMe! in case of some pkg not present in list of all
         # packages, eg. `testresources`, this will fail
-        if pkg.key in pkg_index:
+        if pkg.key in pkg_index and pkg not in pkgs_processed:
             pkg_deps = pkg_index[pkg.key].requires()
+            pkgs_processed.add(pkg)
             result += list(flatten([aux(d, indent=indent+2)
                                     for d in pkg_deps]))
         return result
