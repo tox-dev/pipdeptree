@@ -67,7 +67,14 @@ def test_render_tree_list_all():
 def test_render_tree_freeze():
     tree_str = render_tree(pkgs, pkg_index, req_map, False,
                            top_pkg_src, non_top_pkg_src)
-    lines = set(tree_str.split('\n'))
+    lines = set()
+    for line in tree_str.split('\n'):
+        # Workaround for https://github.com/pypa/pip/issues/1867
+        # When hash randomization is enabled, pip can return different names
+        # for git editables from run to run
+        line = line.replace('origin/master', 'master')
+        line = line.replace('origin/HEAD', 'master')
+        lines.add(line)
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy==0.9.1' in lines
     assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
