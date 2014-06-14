@@ -33,7 +33,7 @@ def top_pkg_name(pkg):
     :rtype: string
 
     """
-    return '{}=={}'.format(pkg.project_name, pkg.version)
+    return '{0}=={1}'.format(pkg.project_name, pkg.version)
 
 
 def non_top_pkg_name(req, pkg):
@@ -57,8 +57,8 @@ def non_top_pkg_name(req, pkg):
         vers.append(('installed', pkg.version))
     if not vers:
         return req.key
-    ver_str = ', '.join(['{}: {}'.format(k, v) for k, v in vers])
-    return '{} [{}]'.format(pkg.project_name, ver_str)
+    ver_str = ', '.join(['{0}: {1}'.format(k, v) for k, v in vers])
+    return '{0} [{1}]'.format(pkg.project_name, ver_str)
 
 
 def top_pkg_src(pkg):
@@ -127,8 +127,8 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
     :rtype: str
 
     """
-    pkg_index = {p.key: p for p in pkgs}
-    req_map = {p: p.requires() for p in pkgs}
+    pkg_index = dict((p.key, p) for p in pkgs)
+    req_map = dict((p, p.requires()) for p in pkgs)
     non_top = set(r.key for r in flatten(req_map.values()))
     top = [p for p in pkgs if p.key not in non_top]
 
@@ -185,8 +185,8 @@ def main():
     pkgs = pip.get_installed_distributions(local_only=args.local_only,
                                            skip=skip)
 
-    pkg_index = {p.key: p for p in pkgs}
-    req_map = {p: p.requires() for p in pkgs}
+    pkg_index = dict((p.key, p) for p in pkgs)
+    req_map = dict((p, p.requires()) for p in pkgs)
 
     # show warnings about possibly confusing deps if found and
     # warnings are enabled
@@ -198,7 +198,7 @@ def main():
                 for i, (p, d) in enumerate(xs):
                     pkg = top_pkg_name(p)
                     req = non_top_pkg_name(d, pkg_index[d.key])
-                    tmpl = '  {} -> {}' if i > 0 else '* {} -> {}'
+                    tmpl = '  {0} -> {1}' if i > 0 else '* {0} -> {1}'
                     print(tmpl.format(pkg, req), file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
