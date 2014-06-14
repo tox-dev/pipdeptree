@@ -6,3 +6,6 @@ build/
 dist/
 .tox/
 tests/virtualenvs/equimapper/
+.coverage
+coverage.xml
+htmlcov/
