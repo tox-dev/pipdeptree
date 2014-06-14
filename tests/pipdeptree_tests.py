@@ -5,7 +5,7 @@ from pipdeptree import (req_version, render_tree,
                         top_pkg_src, non_top_pkg_src)
 
 
-with open('tests/pkgs.pickle', 'rb') as f:
+with open('tests/virtualenvs/dummy.pickle', 'rb') as f:
     pkgs = pickle.load(f)
 
 
@@ -70,5 +70,5 @@ def test_render_tree_freeze():
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy==0.9.1' in lines
-    assert '-e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
+    assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
     assert 'itsdangerous==0.23' not in lines

@@ -30,7 +30,7 @@ sS'platform'
 p14
 NsS'location'
 p15
-S'/home/vineet/.virtualenvs/equimapper/src/lookupy'
+S'.tox/dummy/src/lookupy'
 p16
 sS'py_version'
 p17
@@ -45,7 +45,7 @@ p21
 g16
 sS'egg_info'
 p22
-S'/home/vineet/.virtualenvs/equimapper/src/lookupy/Lookupy.egg-info'
+S'.tox/dummy/src/lookupy/Lookupy.egg-info'
 p23
 sbsbag1
 (g2
@@ -66,7 +66,7 @@ S'2.5.2'
 p29
 sg14
 Nsg15
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages'
+S'.tox/dummy/lib/python2.7/site-packages'
 p30
 sg17
 S'2.7'
@@ -79,7 +79,7 @@ p32
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/psycopg2-2.5.2-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/psycopg2-2.5.2-py2.7.egg-info'
 p34
 sbsbag1
 (g2
@@ -112,7 +112,7 @@ p42
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/Werkzeug-0.9.4-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/Werkzeug-0.9.4-py2.7.egg-info'
 p44
 sbsbag1
 (g2
@@ -145,7 +145,7 @@ p52
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/Flask-0.10.1-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/Flask-0.10.1-py2.7.egg-info'
 p54
 sbsbag1
 (g2
@@ -178,7 +178,7 @@ p62
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/Mako-0.9.1-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/Mako-0.9.1-py2.7.egg-info'
 p64
 sbsbag1
 (g2
@@ -211,7 +211,7 @@ p72
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/MarkupSafe-0.18-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/MarkupSafe-0.18-py2.7.egg-info'
 p74
 sbsbag1
 (g2
@@ -244,7 +244,7 @@ p82
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/Flask_Script-0.6.6-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/Flask_Script-0.6.6-py2.7.egg-info'
 p84
 sbsbag1
 (g2
@@ -277,7 +277,7 @@ p92
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/alembic-0.6.2-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/alembic-0.6.2-py2.7.egg-info'
 p94
 sbsbag1
 (g2
@@ -1360,7 +1360,7 @@ p501
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/ipython-2.0.0-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/ipython-2.0.0-py2.7.egg-info'
 p503
 sbsbag1
 (g2
@@ -1393,7 +1393,7 @@ p511
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/itsdangerous-0.23-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/itsdangerous-0.23-py2.7.egg-info'
 p513
 sbsbag1
 (g2
@@ -1426,7 +1426,7 @@ p521
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/SQLAlchemy-0.9.1-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/SQLAlchemy-0.9.1-py2.7.egg-info'
 p523
 sbsbag1
 (g2
@@ -1459,7 +1459,7 @@ p531
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/slugify-0.0.1-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/slugify-0.0.1-py2.7.egg-info'
 p533
 sbsbag1
 (g2
@@ -1492,7 +1492,7 @@ p541
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/Jinja2-2.7.2-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/Jinja2-2.7.2-py2.7.egg-info'
 p543
 sbsbag1
 (g2
@@ -1525,6 +1525,6 @@ p551
 g21
 g30
 sg22
-S'/home/vineet/.virtualenvs/equimapper/lib/python2.7/site-packages/redis-2.9.1-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/redis-2.9.1-py2.7.egg-info'
 p553
 sbsba.
