@@ -79,3 +79,33 @@ def test_render_tree_freeze():
     assert '  - SQLAlchemy==0.9.1' in lines
     assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
     assert 'itsdangerous==0.23' not in lines
+
+
+def test_render_tree_cyclic_dependency():
+    with open('tests/cyclic_deps.pickle', 'rb') as f:
+        cyclic_pkgs = pickle.load(f)
+
+    list_all = True
+
+    tree_str = render_tree(cyclic_pkgs, pkg_index, req_map, list_all,
+                           top_pkg_name, non_top_pkg_name)
+    lines = set(tree_str.split('\n'))
+    assert 'CircularDependencyA==0.0.0' in lines
+    assert '  - CircularDependencyB [installed: 0.0.0]' in lines
+    assert 'CircularDependencyB==0.0.0' in lines
+    assert '  - CircularDependencyA [installed: 0.0.0]' in lines
+
+
+def test_render_tree_freeze_cyclic_dependency():
+    with open('tests/cyclic_deps.pickle', 'rb') as f:
+        cyclic_pkgs = pickle.load(f)
+
+    list_all = True
+
+    tree_str = render_tree(cyclic_pkgs, pkg_index, req_map, list_all,
+                           top_pkg_src, non_top_pkg_src)
+    lines = set(tree_str.split('\n'))
+    assert 'CircularDependencyA==0.0.0' in lines
+    assert '  - CircularDependencyB==0.0.0' in lines
+    assert 'CircularDependencyB==0.0.0' in lines
+    assert '  - CircularDependencyA==0.0.0' in lines
