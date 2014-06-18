@@ -5,12 +5,22 @@ from pipdeptree import (req_version, render_tree,
                         top_pkg_src, non_top_pkg_src)
 
 
-with open('tests/virtualenvs/dummy.pickle', 'rb') as f:
-    pkgs = pickle.load(f)
+def venv_fixture(pickle_file):
+    """Loads required virtualenv pkg data from a pickle file
+
+    :param pickle_file: path to a .pickle file
+    :returns: a tuple of pkgs, pkg_index, req_map
+    :rtype: tuple
+
+    """
+    with open(pickle_file, 'rb') as f:
+        pkgs = pickle.load(f)
+        pkg_index = {p.key: p for p in pkgs}
+        req_map = {p: p.requires() for p in pkgs}
+        return pkgs, pkg_index, req_map
 
 
-pkg_index = dict([(p.key, p) for p in pkgs])  # {p.key: p for p in pkgs}
-req_map = dict([(p, p.requires()) for p in pkgs])  # {p: p.requires() for p in pkgs}
+pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/dummy.pickle')
 
 
 def find_req(req, parent):
@@ -82,8 +92,7 @@ def test_render_tree_freeze():
 
 
 def test_render_tree_cyclic_dependency():
-    with open('tests/cyclic_deps.pickle', 'rb') as f:
-        cyclic_pkgs = pickle.load(f)
+    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/cyclic_deps.pickle')
 
     list_all = True
 
@@ -97,8 +106,7 @@ def test_render_tree_cyclic_dependency():
 
 
 def test_render_tree_freeze_cyclic_dependency():
-    with open('tests/cyclic_deps.pickle', 'rb') as f:
-        cyclic_pkgs = pickle.load(f)
+    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/cyclic_deps.pickle')
 
     list_all = True
 
