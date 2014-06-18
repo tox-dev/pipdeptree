@@ -15,8 +15,8 @@ def venv_fixture(pickle_file):
     """
     with open(pickle_file, 'rb') as f:
         pkgs = pickle.load(f)
-        pkg_index = {p.key: p for p in pkgs}
-        req_map = {p: p.requires() for p in pkgs}
+        pkg_index = dict((p.key, p) for p in pkgs)
+        req_map = dict((p, p.requires()) for p in pkgs)
         return pkgs, pkg_index, req_map
 
 
