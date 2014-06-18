@@ -130,7 +130,10 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
     non_top = set(r.key for r in flatten(req_map.values()))
     top = [p for p in pkgs if p.key not in non_top]
 
-    def aux(pkg, indent=0):
+    def aux(pkg, indent=0, chain=None):
+        if chain is None:
+            chain = [pkg.project_name]
+
         # In this function, pkg can either be a Distribution or
         # Requirement instance
         if indent > 0:
@@ -150,12 +153,29 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
         # packages, eg. `testresources`, this will fail
         if pkg.key in pkg_index:
             pkg_deps = pkg_index[pkg.key].requires()
-            result += list(flatten([aux(d, indent=indent+2)
-                                    for d in pkg_deps]))
+            filtered_deps = [
+                aux(d, indent=indent+2, chain=chain+[d.project_name])
+                for d in pkg_deps
+                if d.project_name not in chain]
+            result += list(flatten(filtered_deps))
         return result
 
     lines = flatten([aux(p) for p in (pkgs if list_all else top)])
     return '\n'.join(lines)
+
+
+def cyclic_deps(pkgs, pkg_index):
+    def aux(pkg, chain):
+        if pkg.key in pkg_index:
+            for d in pkg_index[pkg.key].requires():
+                if d.project_name in chain:
+                    yield ' => '.join([str(p) for p in chain] + [str(d)])
+                else:
+                    for cycle in aux(d, chain=chain+[d.project_name]):
+                        yield cycle
+
+    for cycle in flatten([aux(p, chain=[]) for p in pkgs]):
+        yield cycle
 
 
 def main():
@@ -199,6 +219,12 @@ def main():
                     tmpl = '  {0} -> {1}' if i > 0 else '* {0} -> {1}'
                     print(tmpl.format(pkg, req), file=sys.stderr)
             print('-'*72, file=sys.stderr)
+
+        cyclic = cyclic_deps(pkgs, pkg_index)
+        if cyclic:
+            print('Warning!! Cyclic dependencies found:', file=sys.stderr)
+            for xs in cyclic:
+                print('- {0}'.format(xs))
 
     if args.freeze:
         top_pkg_str, non_top_pkg_str = top_pkg_src, non_top_pkg_src
