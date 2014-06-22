@@ -21,12 +21,6 @@ Installation
 
     $ pip install pipdeptree
 
-.. note:: Needs to be installed inside every virtualenv
-
-If you want to use ``pipdeptree`` to view dependency tree of packages
-inside a virtualenv, then it needs to be installed inside that env
-even if it's already installed globally.
-
 
 Usage and examples
 ------------------
@@ -95,6 +89,27 @@ to stderr instead of stdout and it can be completely disabled by using
 the ``--nowarn`` flag.
 
 
+Warnings about circular dependencies
+------------------------------------
+
+In case any of the packages have circular dependencies (eg. package A
+depending upon package B and package B depending upon package A), then
+``pipdeptree`` will print warnings about that as well.
+
+.. code-block:: bash
+
+    $ pipdeptree
+    Warning!!! Cyclic dependencies found:
+    - CircularDependencyA => CircularDependencyB => CircularDependencyA
+    - CircularDependencyB => CircularDependencyA => CircularDependencyB
+    ------------------------------------------------------------------------
+    wsgiref==0.1.2
+    argparse==1.2.1
+
+As with the confusing dependencies warnings, these are printed to
+stderr and can be disabled using the ``--nowarn`` flag.
+
+
 Using pipdeptree to write requirements.txt file
 -----------------------------------------------
 
@@ -158,13 +173,39 @@ Usage
 Known Issues
 ------------
 
-One thing you might have noticed already is that ``flask`` is shown as
-a dependency of ``flask-script``, which although correct, sounds a bit
-odd. ``flask-script`` is being used here *because* we are using
-``flask`` and not the other way around. Same with ``sqlalchemy`` and
-``alembic``.  I haven't yet thought about a possible solution to this!
-(May be if libs that are "extensions" could be distinguished from the
-ones that are "dependencies". Suggestions are welcome.)
+* To work with packages installed inside a virtualenv, pipdeptree also
+  needs to be installed in the same virtualenv even if it's already
+  installed globally.
+
+* One thing you might have noticed already is that ``flask`` is shown
+  as a dependency of ``flask-script``, which although correct, sounds
+  a bit odd. ``flask-script`` is being used here *because* we are
+  using ``flask`` and not the other way around. Same with
+  ``sqlalchemy`` and ``alembic``.  I haven't yet thought about a
+  possible solution to this!  (May be if libs that are "extensions"
+  could be distinguished from the ones that are
+  "dependencies". Suggestions are welcome.)
+
+
+Runnings Tests (for contributors)
+---------------------------------
+
+Tests require some dummy virtualenvs to be created. If you run them
+using `tox <http://tox.readthedocs.org/en/latest/>`_, then that will
+take care of creating the virtualenvs, so it's recommended that you
+run the tests using ``tox`` for the first time.
+
+.. code-block:: bash
+
+    $ pip install tox
+    $ tox
+
+Thereafter, you may use either `pytest <http://pytest.org/latest/>`_
+or `nose <https://nose.readthedocs.org/en/latest/>`_ to run them.
+
+However, before pushing the code or sending pull requests it's
+recommended to run ``tox`` once so that tests are run on all
+environments.
 
 
 License
