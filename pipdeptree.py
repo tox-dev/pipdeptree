@@ -101,7 +101,7 @@ def confusing_deps(req_map):
     :rtype: list of list of pairs
 
     """
-    deps= defaultdict(list)
+    deps = defaultdict(list)
     for p, rs in req_map.iteritems():
         for r in rs:
             deps[r.key].append((p, r))
@@ -165,6 +165,15 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
 
 
 def cyclic_deps(pkgs, pkg_index):
+    """Generator that produces cyclic dependencies
+
+    :param list pkgs: pkg_resources.Distribution instances
+    :param dict pkg_index: mapping of pkgs with their respective keys
+    :returns: generator that yields str representation of cyclic
+              dependencies
+    :rtype: generator
+
+    """
     def aux(pkg, chain):
         if pkg.key in pkg_index:
             for d in pkg_index[pkg.key].requires():
