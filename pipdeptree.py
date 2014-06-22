@@ -231,9 +231,10 @@ def main():
 
         cyclic = cyclic_deps(pkgs, pkg_index)
         if cyclic:
-            print('Warning!! Cyclic dependencies found:', file=sys.stderr)
+            print('Warning!!! Cyclic dependencies found:', file=sys.stderr)
             for xs in cyclic:
-                print('- {0}'.format(xs))
+                print('- {0}'.format(xs), file=sys.stderr)
+            print('-'*72, file=sys.stderr)
 
     if args.freeze:
         top_pkg_str, non_top_pkg_str = top_pkg_src, non_top_pkg_src
