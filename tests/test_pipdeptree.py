@@ -92,7 +92,7 @@ def test_render_tree_freeze():
 
 
 def test_render_tree_cyclic_dependency():
-    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/cyclic_deps.pickle')
+    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclic_deps.pickle')
 
     list_all = True
 
@@ -106,7 +106,7 @@ def test_render_tree_cyclic_dependency():
 
 
 def test_render_tree_freeze_cyclic_dependency():
-    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/cyclic_deps.pickle')
+    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclic_deps.pickle')
 
     list_all = True
 
