@@ -102,10 +102,10 @@ def confusing_deps(req_map):
 
     """
     deps = defaultdict(list)
-    for p, rs in req_map.iteritems():
+    for p, rs in req_map.items():
         for r in rs:
             deps[r.key].append((p, r))
-    return [ps for r, ps in deps.iteritems()
+    return [ps for r, ps in deps.items()
             if len(ps) > 1
             and has_multi_versions(d for p, d in ps)]
 
