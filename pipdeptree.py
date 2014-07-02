@@ -1,6 +1,6 @@
 from __future__ import print_function
 import sys
-from itertools import chain
+from itertools import chain, tee
 from collections import defaultdict
 import argparse
 
@@ -187,6 +187,24 @@ def cyclic_deps(pkgs, pkg_index):
         yield cycle
 
 
+def peek_into(iterator):
+    """Peeks into an iterator to check if it's empty
+
+    :param iterator: an iterator
+    :returns: tuple of boolean representing whether the iterator is
+              empty or not and the iterator itself.
+    :rtype: tuple
+
+    """
+    a, b = tee(iterator)
+    is_empty = False
+    try:
+        a.next()
+    except StopIteration:
+        is_empty = True
+    return is_empty, b
+
+
 def main():
     parser = argparse.ArgumentParser(description=(
         'Dependency tree of the installed python packages'
@@ -229,8 +247,8 @@ def main():
                     print(tmpl.format(pkg, req), file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
-        cyclic = cyclic_deps(pkgs, pkg_index)
-        if cyclic:
+        is_empty, cyclic = peek_into(cyclic_deps(pkgs, pkg_index))
+        if not is_empty:
             print('Warning!!! Cyclic dependencies found:', file=sys.stderr)
             for xs in cyclic:
                 print('- {0}'.format(xs), file=sys.stderr)
