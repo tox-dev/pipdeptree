@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.4.1
+-----
+
+* Fix: Show warning about cyclic deps only if found
+
 0.4
 ---
 

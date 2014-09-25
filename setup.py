@@ -12,7 +12,7 @@ if sys.version_info < (2, 7):
 
 setup(
     name='pipdeptree',
-    version='0.4',
+    version='0.4.1',
     author='Vineet Naik',
     author_email='naikvin@gmail.com',
     url='https://github.com/naiquevin/pipdeptree',
