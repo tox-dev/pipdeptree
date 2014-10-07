@@ -199,7 +199,7 @@ def peek_into(iterator):
     a, b = tee(iterator)
     is_empty = False
     try:
-        a.next()
+        next(a)
     except StopIteration:
         is_empty = True
     return is_empty, b
