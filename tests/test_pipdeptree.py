@@ -2,7 +2,7 @@ import pickle
 
 from pipdeptree import (req_version, render_tree,
                         top_pkg_name, non_top_pkg_name,
-                        top_pkg_src, non_top_pkg_src)
+                        top_pkg_src, non_top_pkg_src, peek_into)
 
 
 def venv_fixture(pickle_file):
@@ -117,3 +117,12 @@ def test_render_tree_freeze_cyclic_dependency():
     assert '  - CircularDependencyB==0.0.0' in lines
     assert 'CircularDependencyB==0.0.0' in lines
     assert '  - CircularDependencyA==0.0.0' in lines
+
+
+def test_peek_into():
+    r1, g1 = peek_into(i for i in [])
+    assert r1
+    assert len(list(g1)) == 0
+    r2, g2 = peek_into(i for i in range(100))
+    assert not r2
+    assert len(list(g2)) == 100
