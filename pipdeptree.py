@@ -241,6 +241,8 @@ def main():
             print('Warning!!! Possible confusing dependencies found:', file=sys.stderr)
             for xs in confusing:
                 for i, (p, d) in enumerate(xs):
+                    if d.key in skip:
+                        continue
                     pkg = top_pkg_name(p)
                     req = non_top_pkg_name(d, pkg_index[d.key])
                     tmpl = '  {0} -> {1}' if i > 0 else '* {0} -> {1}'
