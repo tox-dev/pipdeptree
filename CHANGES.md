@@ -1,6 +1,12 @@
 Changelog
 =========
 
+0.4.2
+-----
+
+* Fix Python 3.x incompatibility (`next()` instead of `.next()`)
+* Suppress error if a dep is in skipped packages
+
 0.4.1
 -----
 
