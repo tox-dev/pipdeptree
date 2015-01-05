@@ -22,6 +22,9 @@ setup(
     install_requires=install_requires,
     py_modules=['pipdeptree'],
     entry_points={
+        'pip.command.v1': [
+            'deptree = pipdeptree:DepTreePipCommand',
+        ],
         'console_scripts': [
             'pipdeptree = pipdeptree:main'
         ]
