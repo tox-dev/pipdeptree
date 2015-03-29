@@ -26,7 +26,7 @@ sS'platform'
 p12
 NsS'location'
 p13
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/src/lookupy'
+S'.tox/dummy/src/lookupy'
 p14
 sS'py_version'
 p15
@@ -41,7 +41,7 @@ p19
 g14
 sS'egg_info'
 p20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/src/lookupy/Lookupy.egg-info'
+S'.tox/dummy/src/lookupy/Lookupy.egg-info'
 p21
 sbsbag1
 (g2
@@ -63,7 +63,7 @@ S'2.5.2'
 p28
 sg12
 Nsg13
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages'
+S'.tox/dummy/lib/python2.7/site-packages'
 p29
 sg15
 S'2.7'
@@ -76,7 +76,7 @@ p31
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/psycopg2-2.5.2-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/psycopg2-2.5.2-py2.7.egg-info'
 p33
 sbsbag1
 (g2
@@ -109,7 +109,7 @@ p41
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/Werkzeug-0.9.4-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/Werkzeug-0.9.4-py2.7.egg-info'
 p43
 sbsbag1
 (g2
@@ -142,7 +142,7 @@ p51
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/Flask-0.10.1-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/Flask-0.10.1-py2.7.egg-info'
 p53
 sbsbag1
 (g2
@@ -175,7 +175,7 @@ p61
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/Mako-0.9.1-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/Mako-0.9.1-py2.7.egg-info'
 p63
 sbsbag1
 (g2
@@ -208,7 +208,7 @@ p71
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/MarkupSafe-0.18-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/MarkupSafe-0.18-py2.7.egg-info'
 p73
 sbsbag1
 (g2
@@ -241,7 +241,7 @@ p81
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/Flask_Script-0.6.6-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/Flask_Script-0.6.6-py2.7.egg-info'
 p83
 sbsbag1
 (g2
@@ -274,7 +274,7 @@ p91
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/alembic-0.6.2-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/alembic-0.6.2-py2.7.egg-info'
 p93
 sbsbag1
 (g2
@@ -307,7 +307,7 @@ p101
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/itsdangerous-0.23-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/itsdangerous-0.23-py2.7.egg-info'
 p103
 sbsbag1
 (g2
@@ -340,7 +340,7 @@ p111
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/SQLAlchemy-0.9.1-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/SQLAlchemy-0.9.1-py2.7.egg-info'
 p113
 sbsbag1
 (g2
@@ -373,7 +373,7 @@ p121
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/gnureadline-6.3.3-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/gnureadline-6.3.3-py2.7.egg-info'
 p123
 sbsbag1
 (g2
@@ -406,7 +406,7 @@ p131
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/slugify-0.0.1-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/slugify-0.0.1-py2.7.egg-info'
 p133
 sbsbag1
 (g2
@@ -439,7 +439,7 @@ p141
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/Jinja2-2.7.2-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/Jinja2-2.7.2-py2.7.egg-info'
 p143
 sbsbag1
 (cpip._vendor.pkg_resources
@@ -472,7 +472,7 @@ p151
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/ipython-2.0.0.dist-info'
+S'.tox/dummy/lib/python2.7/site-packages/ipython-2.0.0.dist-info'
 p153
 sbsbag1
 (g2
@@ -505,6 +505,6 @@ p161
 g19
 g29
 sg20
-S'/home/vineet/python/projects/pipdeptree/.tox/dummy/lib/python2.7/site-packages/redis-2.9.1-py2.7.egg-info'
+S'.tox/dummy/lib/python2.7/site-packages/redis-2.9.1-py2.7.egg-info'
 p163
 sbsba.

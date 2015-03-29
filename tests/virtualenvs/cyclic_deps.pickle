@@ -30,7 +30,7 @@ sS'platform'
 p14
 NsS'location'
 p15
-S'/home/vineet/python/projects/pipdeptree/.tox/cyclic_deps/lib/python2.7/site-packages'
+S'.tox/cyclic_deps/lib/python2.7/site-packages'
 p16
 sS'py_version'
 p17
@@ -47,7 +47,7 @@ p22
 g16
 sS'egg_info'
 p23
-S'/home/vineet/python/projects/pipdeptree/.tox/cyclic_deps/lib/python2.7/site-packages/CircularDependencyB-0.0.0-py2.7.egg-info'
+S'.tox/cyclic_deps/lib/python2.7/site-packages/CircularDependencyB-0.0.0-py2.7.egg-info'
 p24
 sbsbag1
 (g2
@@ -80,6 +80,6 @@ p32
 g22
 g16
 sg23
-S'/home/vineet/python/projects/pipdeptree/.tox/cyclic_deps/lib/python2.7/site-packages/CircularDependencyA-0.0.0-py2.7.egg-info'
+S'.tox/cyclic_deps/lib/python2.7/site-packages/CircularDependencyA-0.0.0-py2.7.egg-info'
 p34
 sbsba.
