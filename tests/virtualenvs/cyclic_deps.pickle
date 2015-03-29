@@ -13,14 +13,14 @@ Rp5
 (dp6
 S'project_name'
 p7
-S'CircularDependencyA'
+S'CircularDependencyB'
 p8
 sS'precedence'
 p9
 I-1
 sS'_key'
 p10
-S'circulardependencya'
+S'circulardependencyb'
 p11
 sS'_version'
 p12
@@ -30,7 +30,7 @@ sS'platform'
 p14
 NsS'location'
 p15
-S'.tox/cyclic_deps/lib/python2.7/site-packages'
+S'/home/vineet/python/projects/pipdeptree/.tox/cyclic_deps/lib/python2.7/site-packages'
 p16
 sS'py_version'
 p17
@@ -47,7 +47,7 @@ p22
 g16
 sS'egg_info'
 p23
-S'.tox/cyclic_deps/lib/python2.7/site-packages/CircularDependencyA-0.0.0-py2.7.egg-info'
+S'/home/vineet/python/projects/pipdeptree/.tox/cyclic_deps/lib/python2.7/site-packages/CircularDependencyB-0.0.0-py2.7.egg-info'
 p24
 sbsbag1
 (g2
@@ -56,12 +56,12 @@ Ntp25
 Rp26
 (dp27
 g7
-S'CircularDependencyB'
+S'CircularDependencyA'
 p28
 sg9
 I-1
 sg10
-S'circulardependencyb'
+S'circulardependencya'
 p29
 sg12
 S'0.0.0'
@@ -80,6 +80,6 @@ p32
 g22
 g16
 sg23
-S'.tox/cyclic_deps/lib/python2.7/site-packages/CircularDependencyB-0.0.0-py2.7.egg-info'
+S'/home/vineet/python/projects/pipdeptree/.tox/cyclic_deps/lib/python2.7/site-packages/CircularDependencyA-0.0.0-py2.7.egg-info'
 p34
 sbsba.
