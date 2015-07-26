@@ -111,7 +111,7 @@ def confusing_deps(req_map):
 
 
 def render_tree(pkgs, pkg_index, req_map, list_all,
-                top_pkg_str, non_top_pkg_str):
+                top_pkg_str, non_top_pkg_str, bullets=True):
     """Renders a package dependency tree as a string
 
     :param list pkgs: pkg_resources.Distribution instances
@@ -123,6 +123,8 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
                                  package as string
     :param function non_top_pkg_str: function to render a non-top
                                      level package as string
+    :param bool bullets: whether or not to show bullets for child
+                         dependencies [default: True]
     :returns: dependency tree encoded as string
     :rtype: str
 
@@ -144,8 +146,8 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
             # FixMe! Some dependencies are not present in the result of
             # `pip.get_installed_distributions`
             # eg. `testresources`. This is a hack around it.
-            name = pkg.project_name if dist is None else non_top_pkg_str(pkg, dist)
-            result = [' '*indent+'- '+name]
+            name = pkg.project_name if dist is None else non_top_pkg_str(pkg, dist)            
+            result = [' '*indent + ('-' if bullets else ' ') + ' ' + name]
         else:
             result = [top_pkg_str(pkg)]
 
@@ -266,7 +268,8 @@ def main():
                        req_map=req_map,
                        list_all=args.all,
                        top_pkg_str=top_pkg_str,
-                       non_top_pkg_str=non_top_pkg_str)
+                       non_top_pkg_str=non_top_pkg_str,
+                       bullets=not args.freeze)
     print(tree)
     return 0
 
