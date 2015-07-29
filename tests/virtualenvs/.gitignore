@@ -1,0 +1,3 @@
+*.pickle
+testenv/
+cyclicenv/

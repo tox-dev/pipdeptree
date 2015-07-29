@@ -20,15 +20,15 @@ def venv_fixture(pickle_file):
         return pkgs, pkg_index, req_map
 
 
-pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/dummy.pickle')
+pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/testenv.pickle')
 
 
 def find_req(req, parent):
     """Helper to get the requirement object from it's parent package
 
-    :param req    : string
-    :param parent : pkg_resources.Distribution instance
-    :rtype        : instance of requirement frozen set
+    :param req: string
+    :param parent: pkg_resources.Distribution instance
+    :rtype: instance of requirement frozen set
 
     """
     return [r for r in pkg_index[parent].requires() if r.key == req][0]
@@ -92,10 +92,8 @@ def test_render_tree_freeze():
 
 
 def test_render_tree_cyclic_dependency():
-    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclic_deps.pickle')
-
+    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
     list_all = True
-
     tree_str = render_tree(cyclic_pkgs, pkg_index, req_map, list_all,
                            top_pkg_name, non_top_pkg_name)
     lines = set(tree_str.split('\n'))
@@ -106,10 +104,8 @@ def test_render_tree_cyclic_dependency():
 
 
 def test_render_tree_freeze_cyclic_dependency():
-    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclic_deps.pickle')
-
+    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
     list_all = True
-
     tree_str = render_tree(cyclic_pkgs, pkg_index, req_map, list_all,
                            top_pkg_src, non_top_pkg_src)
     lines = set(tree_str.split('\n'))
