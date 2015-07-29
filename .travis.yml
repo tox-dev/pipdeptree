@@ -12,3 +12,4 @@ before_install: make test-env
 install: pip install .
 script: py.test -v
 after_script: make clean clean-env
+sudo: false
