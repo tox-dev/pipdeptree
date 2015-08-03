@@ -7,6 +7,9 @@ import argparse
 import pip
 
 
+__version__ = '0.4.2'
+
+
 flatten = chain.from_iterable
 
 
