@@ -1,6 +1,10 @@
 pipdeptree
 ==========
 
+.. image:: https://travis-ci.org/naiquevin/pipdeptree.svg?branch=master
+   :target: https://travis-ci.org/naiquevin/pipdeptree
+
+
 ``pipdeptree`` is a command line utility for displaying the python
 packages installed in an virtualenv in form of a dependency
 tree. Since ``pip freeze`` shows all dependencies as a flat list,
@@ -196,22 +200,30 @@ Known Issues
 Runnings Tests (for contributors)
 ---------------------------------
 
-Tests require some dummy virtualenvs to be created. If you run them
-using `tox <http://tox.readthedocs.org/en/latest/>`_, then that will
-take care of creating the virtualenvs, so it's recommended that you
-run the tests using ``tox`` for the first time.
+Tests can be run against all version of python using `tox
+<http://tox.readthedocs.org/en/latest/>`_ as follows:
 
 .. code-block:: bash
 
-    $ pip install tox
-    $ tox
+    $ make test-tox
 
-Thereafter, you may use either `pytest <http://pytest.org/latest/>`_
-or `nose <https://nose.readthedocs.org/en/latest/>`_ to run them.
+This assumes that you have python versions 2.6, 2.7, 3.2, 3.3 and 3.4
+installed on your machine. (See more: tox.ini)
 
-However, before pushing the code or sending pull requests it's
-recommended to run ``tox`` once so that tests are run on all
-environments.
+Or if you don't want to install all the versions of python but want to
+run tests quickly against Python2.7 only:
+
+.. code-block:: bash
+
+    $ make test
+
+Tests require some virtualenvs to be created, so another assumption is
+that you have ``virtualenv`` installed.
+
+Before pushing the code or sending pull requests it's recommended to
+run ``make test-tox`` once so that tests are run on all environments.
+
+(See more: Makefile)
 
 
 License
