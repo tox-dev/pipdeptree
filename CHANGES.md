@@ -1,6 +1,16 @@
 Changelog
 =========
 
+0.4.3
+-----
+
+* Add python support classifiers to setup.py
+* Include license and changelog in distribution tar ball
+* Removed bullets from output of pipdeptree if the `freeze` (-f) flag
+  is set.
+* Changes related to test setup and travis-ci integration.
+
+
 0.4.2
 -----
 
@@ -36,6 +46,3 @@ Changelog
 ---
 
 First version
-
-
-
