@@ -151,6 +151,12 @@ lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 
     $ pipdeptree -f --nowarn | grep -P '^[\w0-9\-=.]+' > requirements.txt
 
+The freeze flag will also not output the hyphens for child
+dependencies, so you could dump the complete output of ``pipdeptree
+-f`` to the requirements.txt file making the file human-friendly (due
+to indentations) as well as pip-friendly. (Take care of duplicate
+dependencies though)
+
 
 Usage
 -----
