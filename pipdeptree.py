@@ -5,6 +5,7 @@ from collections import defaultdict
 import argparse
 
 import pip
+from pip.basecommand import Command
 
 
 __version__ = '0.4.3'
@@ -210,7 +211,38 @@ def peek_into(iterator):
     return is_empty, b
 
 
-def main():
+class DepTreePipCommand(Command):
+    name = 'deptree'
+    usage = """
+      %prog [options]"""
+    summary = 'Display a dependency tree of the installed python packages'
+
+    def __init__(self, *args, **kw):
+        super(DepTreePipCommand, self).__init__(*args, **kw)
+
+        cmd_opts = self.cmd_opts
+        parser = get_parser()
+
+        for action in parser._actions:
+            if '--help' in action.option_strings:
+                continue
+            add_option_kwargs = {}
+            for key in ('dest', 'nargs', 'default', 'type',
+                        'choices', 'help', 'metavar'):
+                add_option_kwargs[key] = getattr(action, key)
+            if action.const is True:
+                add_option_kwargs['action'] = 'store_const'
+                add_option_kwargs['const'] = action.const
+                del add_option_kwargs['nargs']
+            cmd_opts.add_option(*action.option_strings, **add_option_kwargs)
+
+        self.parser.insert_option_group(0, cmd_opts)
+
+    def run(self, options, args):
+        do_deptree(args=options)
+
+
+def get_parser():
     parser = argparse.ArgumentParser(description=(
         'Dependency tree of the installed python packages'
     ))
@@ -228,8 +260,16 @@ def main():
                             'Inhibit warnings about possibly '
                             'confusing packages'
                         ))
-    args = parser.parse_args()
+    return parser
 
+
+def main():
+    parser = get_parser()
+    args = parser.parse_args()
+    do_deptree(args)
+
+
+def do_deptree(args):
     default_skip = ['setuptools', 'pip', 'python', 'distribute']
     skip = default_skip + ['pipdeptree']
     pkgs = pip.get_installed_distributions(local_only=args.local_only,
