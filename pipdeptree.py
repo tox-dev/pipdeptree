@@ -37,6 +37,7 @@ def top_pkg_name(pkg):
 
     """
     return '{0}=={1}'.format(pkg.project_name, pkg.version)
+
     
 def non_top_pkg_name(req, pkg):
     """Builds the package name for a non-top level package
@@ -62,6 +63,7 @@ def non_top_pkg_name(req, pkg):
     ver_str = ', '.join(['{0}: {1}'.format(k, v) for k, v in vers])
     return '{0} [{1}]'.format(pkg.project_name, ver_str)
 
+
 def non_bottom_pkg_name(pkg, req_pkg):
     """*(reverse mode)* Builds the package name for a non-bottom level package
 
@@ -77,6 +79,7 @@ def non_bottom_pkg_name(pkg, req_pkg):
     for r in pkg.requires():
         if r.key == req_pkg.key:
             return '{0} [requires {1}]'.format(top_pkg_name(pkg), r)
+
 
 def top_pkg_src(pkg):
     """Returns the frozen package name
@@ -101,9 +104,10 @@ def non_top_pkg_src(_req, pkg):
 
     """
     return top_pkg_src(pkg)
-    
+
+
 def non_bottom_pkg_src(pkg, _req_pkg):
-    """Returns frozen package name for non bottom level package
+    """*(reverse mode)* Returns frozen package name for non bottom level package
 
     :param pkg: pkg_resources.Distribution
     :param _req_pkg: pkg_resources.Distribution
@@ -162,7 +166,7 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
     """
     non_top = set(r.key for r in flatten(req_map.values()))
     top = [p for p in pkgs if p.key not in non_top]
-    
+
     if reverse:
         bottom = [k for k, r in req_map.items() if r == []]
         parents = defaultdict(list)
@@ -173,7 +177,7 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
     def aux(pkg, indent=0, chain=None, reverse=False):
         if chain is None:
             chain = [pkg.project_name]
-        
+
         # In this function, pkg can either be a Distribution or
         # Requirement instance
         if indent > 0:
