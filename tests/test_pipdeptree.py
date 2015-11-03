@@ -92,7 +92,7 @@ def test_render_tree_freeze():
     tree_str = render_tree(pkgs, pkg_index, req_map,
                            top_pkg_str=top_pkg_src,
                            non_top_pkg_str=non_top_pkg_src,
-                           non_bottom_pkg_str=non_bottom_pkg_str,
+                           non_bottom_pkg_str=non_bottom_pkg_src,
                            bullets=False)
     lines = set()
     for line in tree_str.split('\n'):
@@ -127,7 +127,7 @@ def test_render_tree_freeze_cyclic_dependency():
                            list_all=list_all,
                            top_pkg_str=top_pkg_src,
                            non_top_pkg_str=non_top_pkg_src,
-                           non_bottom_pkg_str=non_bottom_pkg_str)
+                           non_bottom_pkg_str=non_bottom_pkg_src)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
     assert '  - CircularDependencyB==0.0.0' in lines
@@ -141,7 +141,7 @@ def test_render_tree_only_top_reverse():
     lines = set(tree_str.split('\n'))
     assert '    - Flask-Script==0.6.6 [requires: Flask]' in lines
     assert '  - Flask==0.10.1 [requires: Werkzeug>=0.7]' in lines
-    assert '  - Flask==0.10.1 [requires: Jinja2>=2.4]' in lines
+    assert '    - Flask==0.10.1 [requires: Jinja2>=2.4]' in lines
     assert 'itsdangerous==0.23' in lines
 
 
@@ -160,7 +160,7 @@ def test_render_tree_freeze_reverse():
     tree_str = render_tree(pkgs, pkg_index, req_map,
                            top_pkg_str=top_pkg_src,
                            non_top_pkg_str=non_top_pkg_src,
-                           non_bottom_pkg_str=non_bottom_pkg_str,
+                           non_bottom_pkg_str=non_bottom_pkg_src,
                            bullets=False)
     lines = set()
     for line in tree_str.split('\n'):
