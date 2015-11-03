@@ -38,7 +38,7 @@ def top_pkg_name(pkg):
     """
     return '{0}=={1}'.format(pkg.project_name, pkg.version)
 
-    
+
 def non_top_pkg_name(req, pkg):
     """Builds the package name for a non-top level package
 
@@ -212,9 +212,7 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
             result += list(flatten(filtered_deps))
         return result
 
-    lines = flatten([aux(p, reverse=reverse) for p in (
-                     pkgs if list_all else top
-                     )])
+    lines = flatten([aux(p, reverse=reverse) for p in (pkgs if list_all else top)])
     return '\n'.join(lines)
 
 
