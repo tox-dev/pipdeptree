@@ -135,18 +135,12 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
     :rtype: str
 
     """
-    # Renamed to 'non_top_list', as is different format information to 'top'. The reverse of 'top' is now called 'non-top'
-    non_top_list = set(r.key for r in flatten(req_map.values()))
+    non_top = set(r.key for r in flatten(req_map.values()))
     # Rewritten so as to only iterate pkgs once
-    top = []
-    non_top = []
-    for p in pkgs:
-        if p.key not in non_top_list:
-            top.append(p)
-        else:
-            non_top.append(p)        
+    top = [p for p in pkgs if p.key not in non_top]
     
     if reverse:
+        bottom = [k for k, r in req_map.items() if r == []]
         parents = defaultdict(list)
         for p, rs in req_map.items():
             for r in rs:
@@ -187,7 +181,7 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
 
     lines = flatten([aux(p, reverse=reverse) for p in 
                      (pkgs if list_all else
-                     (top if not reverse else non_top))
+                     (top if not reverse else bottom))
                      ])
     return '\n'.join(lines)
 
