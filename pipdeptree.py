@@ -37,8 +37,7 @@ def top_pkg_name(pkg):
 
     """
     return '{0}=={1}'.format(pkg.project_name, pkg.version)
-
-
+    
 def non_top_pkg_name(req, pkg):
     """Builds the package name for a non-top level package
 
@@ -63,6 +62,21 @@ def non_top_pkg_name(req, pkg):
     ver_str = ', '.join(['{0}: {1}'.format(k, v) for k, v in vers])
     return '{0} [{1}]'.format(pkg.project_name, ver_str)
 
+def non_bottom_pkg_name(pkg, req_pkg):
+    """*(reverse mode)* Builds the package name for a non-bottom level package
+
+    For the dependents of the bottom level packages, the name and version installed
+    will be listed along with a requirement for the specified dependency
+
+    :param pkg: pkg_resources.Distribution
+    :param req_pkg: pkg_resources.Distribution
+    :returns: the package name, version and dependency requirement in the desired format
+    :rtype: string
+
+    """
+    for r in pkg.requires():
+        if r.key == req_pkg.key:
+            return '{0} [requires {1}]'.format(top_pkg_name(pkg), r)
 
 def top_pkg_src(pkg):
     """Returns the frozen package name
@@ -82,6 +96,17 @@ def non_top_pkg_src(_req, pkg):
 
     :param _req: the requirements instance
     :param pkg: pkg_resources.Distribution
+    :returns: frozen name of the package
+    :rtype: string
+
+    """
+    return top_pkg_src(pkg)
+    
+def non_bottom_pkg_src(pkg, _req_pkg):
+    """Returns frozen package name for non bottom level package
+
+    :param pkg: pkg_resources.Distribution
+    :param _req_pkg: pkg_resources.Distribution
     :returns: frozen name of the package
     :rtype: string
 
@@ -114,8 +139,8 @@ def confusing_deps(req_map):
 
 
 def render_tree(pkgs, pkg_index, req_map, list_all,
-                top_pkg_str, non_top_pkg_str, bullets=True,
-                reverse=False):
+                top_pkg_str, non_top_pkg_str, non_bottom_pkg_str,
+                bullets=True, reverse=False):
     """Renders a package dependency tree as a string
 
     :param list pkgs: pkg_resources.Distribution instances
@@ -143,12 +168,12 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
         parents = defaultdict(list)
         for p, rs in req_map.items():
             for r in rs:
-                if p not in parents[r.key]:
-                    parents[r.key].append(p)
+                parents[r.key].append(p)
 
     def aux(pkg, indent=0, chain=None, reverse=False):
         if chain is None:
             chain = [pkg.project_name]
+        
         # In this function, pkg can either be a Distribution or
         # Requirement instance
         if indent > 0:
@@ -162,7 +187,7 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
                 # eg. `testresources`. This is a hack around it.
                 name = pkg.project_name if dist is None else non_top_pkg_str(pkg, dist)            
             else:
-                name = top_pkg_str(pkg)
+                name = non_bottom_pkg_str(pkg, pkg_index[chain[-2].lower()])
             result = [' '*indent + ('-' if bullets else ' ') + ' ' + name]
         else:
             result = [top_pkg_str(pkg)]
@@ -182,8 +207,7 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
                      pkgs if list_all else (
                      top if not reverse else
                      bottom
-                     ))
-])
+                     ))])
     return '\n'.join(lines)
 
 
@@ -285,9 +309,9 @@ def main():
             print('-'*72, file=sys.stderr)
 
     if args.freeze:
-        top_pkg_str, non_top_pkg_str = top_pkg_src, non_top_pkg_src
+        top_pkg_str, non_top_pkg_str, non_bottom_pkg_str = top_pkg_src, non_top_pkg_src, non_bottom_pkg_src
     else:
-        top_pkg_str, non_top_pkg_str = top_pkg_name, non_top_pkg_name
+        top_pkg_str, non_top_pkg_str, non_bottom_pkg_str = top_pkg_name, non_top_pkg_name, non_bottom_pkg_name
 
     tree = render_tree(pkgs,
                        pkg_index=pkg_index,
@@ -295,6 +319,7 @@ def main():
                        list_all=args.all,
                        top_pkg_str=top_pkg_str,
                        non_top_pkg_str=non_top_pkg_str,
+                       non_bottom_pkg_str=non_bottom_pkg_str,
                        bullets=not args.freeze,
                        reverse=args.reverse
                        )
