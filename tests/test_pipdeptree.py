@@ -58,7 +58,7 @@ def test_non_top_pkg_name():
 def test_non_bottom_pkg_name():
     flask_script_p = pkg_index['flask-script']
     flask_script_r_k = 'flask'
-    assert non_bottom_pkg_name(flask_script_p, flask_script_r_k) == 'Flask-Script==0.10.1 [requires: Flask]'
+    assert non_bottom_pkg_name(flask_script_p, flask_script_r_k) == 'Flask-Script==0.6.6 [requires: Flask]'
 
     jinja2_p = pkg_index['jinja2']
     jinja2_r_k = 'markupsafe'
