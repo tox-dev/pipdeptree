@@ -114,7 +114,8 @@ def confusing_deps(req_map):
 
 
 def render_tree(pkgs, pkg_index, req_map, list_all,
-                top_pkg_str, non_top_pkg_str, bullets=True):
+                top_pkg_str, non_top_pkg_str, bullets=True,
+                reverse=False):
     """Renders a package dependency tree as a string
 
     :param list pkgs: pkg_resources.Distribution instances
@@ -128,28 +129,47 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
                                      level package as string
     :param bool bullets: whether or not to show bullets for child
                          dependencies [default: True]
+    :param bool reverse: reverse dependency tree to show which packages
+                         depend on dependencies
     :returns: dependency tree encoded as string
     :rtype: str
 
     """
-    non_top = set(r.key for r in flatten(req_map.values()))
-    top = [p for p in pkgs if p.key not in non_top]
-
-    def aux(pkg, indent=0, chain=None):
+    # Renamed to 'non_top_list', as is different format information to 'top'. The reverse of 'top' is now called 'non-top'
+    non_top_list = set(r.key for r in flatten(req_map.values()))
+    # Rewritten so as to only iterate pkgs once
+    top = []
+    non_top = []
+    for p in pkgs:
+        if p.key not in non_top_list:
+            top.append(p)
+        else:
+            non_top.append(p)        
+    
+    if reverse:
+        parents = defaultdict(list)
+        for p, rs in req_map.items():
+            for r in rs:
+                if p not in parents[r.key]:
+                    parents[r.key].append(p)
+    
+    def aux(pkg, indent=0, chain=None, reverse=False):
         if chain is None:
             chain = [pkg.project_name]
-
         # In this function, pkg can either be a Distribution or
         # Requirement instance
-        if indent > 0:
-            # this is definitely a Requirement (due to positive
-            # indent) so we need to find the Distribution instance for
-            # it from the pkg_index
-            dist = pkg_index.get(pkg.key)
-            # FixMe! Some dependencies are not present in the result of
-            # `pip.get_installed_distributions`
-            # eg. `testresources`. This is a hack around it.
-            name = pkg.project_name if dist is None else non_top_pkg_str(pkg, dist)            
+        if (indent > 0):
+            if not reverse:
+                # this is definitely a Requirement (due to positive
+                # indent) so we need to find the Distribution instance for
+                # it from the pkg_index
+                dist = pkg_index.get(pkg.key)
+                # FixMe! Some dependencies are not present in the result of
+                # `pip.get_installed_distributions`
+                # eg. `testresources`. This is a hack around it.
+                name = pkg.project_name if dist is None else non_top_pkg_str(pkg, dist)            
+            else:
+                name = top_pkg_str(pkg)
             result = [' '*indent + ('-' if bullets else ' ') + ' ' + name]
         else:
             result = [top_pkg_str(pkg)]
@@ -157,15 +177,18 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
         # FixMe! in case of some pkg not present in list of all
         # packages, eg. `testresources`, this will fail
         if pkg.key in pkg_index:
-            pkg_deps = pkg_index[pkg.key].requires()
+            pkg_deps = pkg_index[pkg.key].requires() if not reverse else parents[pkg.key]
             filtered_deps = [
-                aux(d, indent=indent+2, chain=chain+[d.project_name])
+                aux(d, indent=indent+2, chain=chain+[d.project_name], reverse=reverse)
                 for d in pkg_deps
                 if d.project_name not in chain]
             result += list(flatten(filtered_deps))
         return result
 
-    lines = flatten([aux(p) for p in (pkgs if list_all else top)])
+    lines = flatten([aux(p, reverse=reverse) for p in 
+                     (pkgs if list_all else
+                     (top if not reverse else non_top))
+                     ])
     return '\n'.join(lines)
 
 
@@ -228,6 +251,8 @@ def main():
                             'Inhibit warnings about possibly '
                             'confusing packages'
                         ))
+    parser.add_argument('-r', '--reverse', action='store_true',
+                        help='reverse dependency tree to show which packages depend on dependencies')
     args = parser.parse_args()
 
     default_skip = ['setuptools', 'pip', 'python', 'distribute']
@@ -272,7 +297,9 @@ def main():
                        list_all=args.all,
                        top_pkg_str=top_pkg_str,
                        non_top_pkg_str=non_top_pkg_str,
-                       bullets=not args.freeze)
+                       bullets=not args.freeze,
+                       reverse=args.reverse
+                       )
     print(tree)
     return 0
 
