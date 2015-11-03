@@ -78,7 +78,7 @@ def non_bottom_pkg_name(pkg, req_key):
     """
     for r in pkg.requires():
         if r.key == req_key:
-            return '{0} [requires {1}]'.format(top_pkg_name(pkg), r)
+            return '{0} [requires: {1}]'.format(top_pkg_name(pkg), r)
 
 
 def top_pkg_src(pkg):
@@ -142,9 +142,13 @@ def confusing_deps(req_map):
             and has_multi_versions(d for p, d in ps)]
 
 
-def render_tree(pkgs, pkg_index, req_map, list_all,
-                top_pkg_str, non_top_pkg_str, non_bottom_pkg_str,
-                bullets=True, reverse=False):
+def render_tree(pkgs, pkg_index, req_map,
+                list_all=False,
+                top_pkg_str=top_pkg_name,
+                non_top_pkg_str=non_top_pkg_name,
+                non_bottom_pkg_str=non_bottom_pkg_name,
+                bullets=True,
+                reverse=False):
     """Renders a package dependency tree as a string
 
     :param list pkgs: pkg_resources.Distribution instances

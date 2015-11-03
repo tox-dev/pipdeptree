@@ -55,8 +55,7 @@ def test_non_top_pkg_name():
 
 
 def test_render_tree_only_top():
-    tree_str = render_tree(pkgs, pkg_index, req_map, False,
-                           top_pkg_name, non_top_pkg_name)
+    tree_str = render_tree(pkgs, pkg_index, req_map)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
@@ -65,8 +64,8 @@ def test_render_tree_only_top():
 
 
 def test_render_tree_list_all():
-    tree_str = render_tree(pkgs, pkg_index, req_map, True,
-                           top_pkg_name, non_top_pkg_name)
+    tree_str = render_tree(pkgs, pkg_index, req_map,
+                           list_all=True)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
@@ -75,8 +74,10 @@ def test_render_tree_list_all():
 
 
 def test_render_tree_freeze():
-    tree_str = render_tree(pkgs, pkg_index, req_map, False,
-                           top_pkg_src, non_top_pkg_src, bullets=False)
+    tree_str = render_tree(pkgs, pkg_index, req_map,
+                           top_pkg_str=top_pkg_src,
+                           non_top_pkg_str=non_top_pkg_src,
+                           bullets=False)
     lines = set()
     for line in tree_str.split('\n'):
         # Workaround for https://github.com/pypa/pip/issues/1867
@@ -94,8 +95,8 @@ def test_render_tree_freeze():
 def test_render_tree_cyclic_dependency():
     cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
     list_all = True
-    tree_str = render_tree(cyclic_pkgs, pkg_index, req_map, list_all,
-                           top_pkg_name, non_top_pkg_name)
+    tree_str = render_tree(cyclic_pkgs, pkg_index, req_map
+                           list_all=list_all)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
     assert '  - CircularDependencyB [installed: 0.0.0]' in lines
@@ -106,13 +107,55 @@ def test_render_tree_cyclic_dependency():
 def test_render_tree_freeze_cyclic_dependency():
     cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
     list_all = True
-    tree_str = render_tree(cyclic_pkgs, pkg_index, req_map, list_all,
-                           top_pkg_src, non_top_pkg_src)
+    tree_str = render_tree(cyclic_pkgs, pkg_index, req_map,
+                           list_all=list_all,
+                           top_pkg_str=top_pkg_src,
+                           non_top_pkg_str=non_top_pkg_src)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
     assert '  - CircularDependencyB==0.0.0' in lines
     assert 'CircularDependencyB==0.0.0' in lines
     assert '  - CircularDependencyA==0.0.0' in lines
+
+
+def test_render_tree_only_top_reverse():
+    tree_str = render_tree(pkgs, pkg_index, req_map,
+                           reverse=True)
+    lines = set(tree_str.split('\n'))
+    assert 'SQLAlchemy==0.9.1' in lines
+    assert '  - Flask-Script==0.6.6 [requires: SQLAlchemy>=0.7.3]' in lines
+    assert 'Lookupy==0.1' in lines
+    assert 'itsdangerous==0.23' not in lines
+
+
+def test_render_tree_list_all_reverse():
+    tree_str = render_tree(pkgs, pkg_index, req_map,
+                           list_all=True,
+                           reverse=True)
+    lines = set(tree_str.split('\n'))
+    assert 'SQLAlchemy==0.9.1' in lines
+    assert '  - Flask-Script==0.6.6 [requires: SQLAlchemy>=0.7.3]' in lines
+    assert 'Lookupy==0.1' in lines
+    assert 'itsdangerous==0.23' in lines
+
+
+def test_render_tree_freeze_reverse():
+    tree_str = render_tree(pkgs, pkg_index, req_map,
+                           top_pkg_str=top_pkg_src,
+                           non_top_pkg_str=non_top_pkg_src,
+                           bullets=False)
+    lines = set()
+    for line in tree_str.split('\n'):
+        # Workaround for https://github.com/pypa/pip/issues/1867
+        # When hash randomization is enabled, pip can return different names
+        # for git editables from run to run
+        line = line.replace('origin/master', 'master')
+        line = line.replace('origin/HEAD', 'master')
+        lines.add(line)
+    assert 'SQLAlchemy==0.9.1' in lines
+    assert '    Flask-Script==0.6.6' in lines
+    assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
+    assert 'itsdangerous==0.23' not in lines
 
 
 def test_peek_into():
