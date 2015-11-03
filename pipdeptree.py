@@ -130,13 +130,12 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
     :param bool bullets: whether or not to show bullets for child
                          dependencies [default: True]
     :param bool reverse: reverse dependency tree to show which packages
-                         depend on dependencies
+                         depend on bottom-level dependencies
     :returns: dependency tree encoded as string
     :rtype: str
 
     """
     non_top = set(r.key for r in flatten(req_map.values()))
-    # Rewritten so as to only iterate pkgs once
     top = [p for p in pkgs if p.key not in non_top]
     
     if reverse:
@@ -146,13 +145,13 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
             for r in rs:
                 if p not in parents[r.key]:
                     parents[r.key].append(p)
-    
+
     def aux(pkg, indent=0, chain=None, reverse=False):
         if chain is None:
             chain = [pkg.project_name]
         # In this function, pkg can either be a Distribution or
         # Requirement instance
-        if (indent > 0):
+        if indent > 0:
             if not reverse:
                 # this is definitely a Requirement (due to positive
                 # indent) so we need to find the Distribution instance for
@@ -179,10 +178,12 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
             result += list(flatten(filtered_deps))
         return result
 
-    lines = flatten([aux(p, reverse=reverse) for p in 
-                     (pkgs if list_all else
-                     (top if not reverse else bottom))
-                     ])
+    lines = flatten([aux(p, reverse=reverse) for p in (
+                     pkgs if list_all else (
+                     top if not reverse else
+                     bottom
+                     ))
+])
     return '\n'.join(lines)
 
 
@@ -246,7 +247,10 @@ def main():
                             'confusing packages'
                         ))
     parser.add_argument('-r', '--reverse', action='store_true',
-                        help='reverse dependency tree to show which packages depend on dependencies')
+                        help=(
+                            'reverse dependency tree to show which '
+                            'packages depend on bottom-level dependencies'
+                        ))
     args = parser.parse_args()
 
     default_skip = ['setuptools', 'pip', 'python', 'distribute']
