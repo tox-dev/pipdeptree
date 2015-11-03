@@ -1,8 +1,9 @@
 import pickle
 
 from pipdeptree import (req_version, render_tree,
-                        top_pkg_name, non_top_pkg_name,
-                        top_pkg_src, non_top_pkg_src, peek_into)
+                        top_pkg_name, non_top_pkg_name, non_top_pkg_name
+                        top_pkg_src, non_top_pkg_src, non_top_pkg_src,
+                        peek_into)
 
 
 def venv_fixture(pickle_file):
@@ -91,6 +92,7 @@ def test_render_tree_freeze():
     tree_str = render_tree(pkgs, pkg_index, req_map,
                            top_pkg_str=top_pkg_src,
                            non_top_pkg_str=non_top_pkg_src,
+                           non_bottom_pkg_str=non_bottom_pkg_str,
                            bullets=False)
     lines = set()
     for line in tree_str.split('\n'):
@@ -124,7 +126,8 @@ def test_render_tree_freeze_cyclic_dependency():
     tree_str = render_tree(cyclic_pkgs, pkg_index, req_map,
                            list_all=list_all,
                            top_pkg_str=top_pkg_src,
-                           non_top_pkg_str=non_top_pkg_src)
+                           non_top_pkg_str=non_top_pkg_src,
+                           non_bottom_pkg_str=non_bottom_pkg_str)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
     assert '  - CircularDependencyB==0.0.0' in lines
@@ -157,6 +160,7 @@ def test_render_tree_freeze_reverse():
     tree_str = render_tree(pkgs, pkg_index, req_map,
                            top_pkg_str=top_pkg_src,
                            non_top_pkg_str=non_top_pkg_src,
+                           non_bottom_pkg_str=non_bottom_pkg_str,
                            bullets=False)
     lines = set()
     for line in tree_str.split('\n'):
