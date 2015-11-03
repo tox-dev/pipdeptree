@@ -64,7 +64,7 @@ def non_top_pkg_name(req, pkg):
     return '{0} [{1}]'.format(pkg.project_name, ver_str)
 
 
-def non_bottom_pkg_name(pkg, req_pkg):
+def non_bottom_pkg_name(pkg, req_key):
     """*(reverse mode)* Builds the package name for a non-bottom level package
 
     For the dependents of the bottom level packages, the name and version installed
@@ -77,7 +77,7 @@ def non_bottom_pkg_name(pkg, req_pkg):
 
     """
     for r in pkg.requires():
-        if r.key == req_pkg.key:
+        if r.key == req_key:
             return '{0} [requires {1}]'.format(top_pkg_name(pkg), r)
 
 
@@ -164,11 +164,11 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
     :rtype: str
 
     """
-    non_top = set(r.key for r in flatten(req_map.values()))
-    top = [p for p in pkgs if p.key not in non_top]
-
-    if reverse:
-        bottom = [k for k, r in req_map.items() if r == []]
+    if not reverse:
+        non_top = set(r.key for r in flatten(req_map.values()))
+        top = [p for p in pkgs if p.key not in non_top]
+    else:
+        top = [k for k, r in req_map.items() if r == []]
         parents = defaultdict(list)
         for p, rs in req_map.items():
             for r in rs:
@@ -186,12 +186,17 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
                 # indent) so we need to find the Distribution instance for
                 # it from the pkg_index
                 dist = pkg_index.get(pkg.key)
-                # FixMe! Some dependencies are not present in the result of
-                # `pip.get_installed_distributions`
-                # eg. `testresources`. This is a hack around it.
-                name = pkg.project_name if dist is None else non_top_pkg_str(pkg, dist)            
+                string_generator = non_top_pkg_str          
             else:
-                name = non_bottom_pkg_str(pkg, pkg_index[chain[-2].lower()])
+                # to find requirement in reverse, need to know it's name
+                # which is already held in the chain list
+                dist = chain[-2].lower()
+                string_generator = non_bottom_pkg_str
+
+            # FixMe! Some dependencies are not present in the result of
+            # `pip.get_installed_distributions`
+            # eg. `testresources`. This is a hack around it.
+            name = pkg.project_name if dist is None else string_generator(pkg, dist)
             result = [' '*indent + ('-' if bullets else ' ') + ' ' + name]
         else:
             result = [top_pkg_str(pkg)]
@@ -208,10 +213,8 @@ def render_tree(pkgs, pkg_index, req_map, list_all,
         return result
 
     lines = flatten([aux(p, reverse=reverse) for p in (
-                     pkgs if list_all else (
-                     top if not reverse else
-                     bottom
-                     ))])
+                     pkgs if list_all else top
+                     )])
     return '\n'.join(lines)
 
 
