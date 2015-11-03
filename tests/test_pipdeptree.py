@@ -95,7 +95,7 @@ def test_render_tree_freeze():
 def test_render_tree_cyclic_dependency():
     cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
     list_all = True
-    tree_str = render_tree(cyclic_pkgs, pkg_index, req_map
+    tree_str = render_tree(cyclic_pkgs, pkg_index, req_map,
                            list_all=list_all)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
