@@ -54,6 +54,20 @@ def test_non_top_pkg_name():
     assert non_top_pkg_name(markupsafe_mako_r, markupsafe_p) == 'MarkupSafe [required: >=0.9.2, installed: 0.18]'
 
 
+def test_non_bottom_pkg_name():
+    flask_script_p = pkg_index['flask-script']
+    flask_script_r_k = 'flask'
+    assert non_bottom_pkg_name(flask_script_p, flask_script_r_k) == 'Flask-Script==0.10.1 [requires: Flask]'
+
+    jinja2_p = pkg_index['jinja2']
+    jinja2_r_k = 'markupsafe'
+    assert non_bottom_pkg_name(jinja2_p, jinja2_r_k) == 'Jinja2==2.7.2 [requires: markupsafe]'
+
+    mako_p = pkg_index['mako']
+    mako_p_k = 'markupsafe'
+    assert non_bottom_pkg_name(mako_p, mako_p_k) == 'Mako==0.9.1 [requires: MarkupSafe>=0.9.2]'
+
+
 def test_render_tree_only_top():
     tree_str = render_tree(pkgs, pkg_index, req_map)
     lines = set(tree_str.split('\n'))
@@ -122,10 +136,10 @@ def test_render_tree_only_top_reverse():
     tree_str = render_tree(pkgs, pkg_index, req_map,
                            reverse=True)
     lines = set(tree_str.split('\n'))
-    assert 'SQLAlchemy==0.9.1' in lines
-    assert '  - Flask-Script==0.6.6 [requires: SQLAlchemy>=0.7.3]' in lines
-    assert 'Lookupy==0.1' in lines
-    assert 'itsdangerous==0.23' not in lines
+    assert '    - Flask-Script==0.6.6 [requires: Flask]' in lines
+    assert '  - Flask==0.10.1 [requires: Werkzeug>=0.7]' in lines
+    assert '  - Flask==0.10.1 [requires: Jinja2>=2.4]' in lines
+    assert 'itsdangerous==0.23' in lines
 
 
 def test_render_tree_list_all_reverse():
@@ -133,9 +147,9 @@ def test_render_tree_list_all_reverse():
                            list_all=True,
                            reverse=True)
     lines = set(tree_str.split('\n'))
-    assert 'SQLAlchemy==0.9.1' in lines
-    assert '  - Flask-Script==0.6.6 [requires: SQLAlchemy>=0.7.3]' in lines
-    assert 'Lookupy==0.1' in lines
+    assert '    - Flask-Script==0.6.6 [requires: Flask]' in lines
+    assert '  - Flask-Script==0.6.6 [requires: Flask]' in lines
+    assert 'Flask-Script==0.6.6' in lines
     assert 'itsdangerous==0.23' in lines
 
 
@@ -152,8 +166,8 @@ def test_render_tree_freeze_reverse():
         line = line.replace('origin/master', 'master')
         line = line.replace('origin/HEAD', 'master')
         lines.add(line)
-    assert 'SQLAlchemy==0.9.1' in lines
-    assert '    Flask-Script==0.6.6' in lines
+    assert 'Flask-Script==0.6.6' in lines
+    assert '        MarkupSafe==0.18' in lines
     assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
     assert 'itsdangerous==0.23' not in lines
 
