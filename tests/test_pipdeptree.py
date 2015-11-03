@@ -1,7 +1,7 @@
 import pickle
 
 from pipdeptree import (req_version, render_tree,
-                        top_pkg_name, non_top_pkg_name, non_top_pkg_name
+                        top_pkg_name, non_top_pkg_name, non_top_pkg_name,
                         top_pkg_src, non_top_pkg_src, non_top_pkg_src,
                         peek_into)
 
