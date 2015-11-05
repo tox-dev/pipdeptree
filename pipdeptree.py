@@ -39,6 +39,22 @@ def top_pkg_name(pkg):
     return '{0}=={1}'.format(pkg.project_name, pkg.version)
 
 
+def build_ver_str(pkg_name, vers):
+    """Builds the version string from a package name and dictionary of versions.
+    
+    Called by non_top_pkg_name and non_bottom_pkg_name.
+    
+    :param string pkg_name: Name of package
+    :param dict vers: Dictionary to append in {key: value,...] format
+    :returns: the package name and version(s)
+    :rtype: string
+    """
+    if not vers:
+        return req.key
+    ver_str = ', '.join(['{0}: {1}'.format(k, v) for k, v in vers])
+    return '{0} [{1}]'.format(pkg_name, ver_str)
+
+
 def non_top_pkg_name(req, pkg):
     """Builds the package name for a non-top level package
 
@@ -58,11 +74,7 @@ def non_top_pkg_name(req, pkg):
         vers.append(('required', req_ver))
     if pkg:
         vers.append(('installed', pkg.version))
-    if not vers:
-        return req.key
-    ver_str = ', '.join(['{0}: {1}'.format(k, v) for k, v in vers])
-    return '{0} [{1}]'.format(pkg.project_name, ver_str)
-
+    return build_ver_str(pkg.project_name, vers)
 
 def non_bottom_pkg_name(pkg, req_key):
     """*(reverse mode)* Builds the package name for a non-bottom level package
@@ -76,9 +88,16 @@ def non_bottom_pkg_name(pkg, req_key):
     :rtype: string
 
     """
-    for r in pkg.requires():
-        if r.key == req_key:
-            return '{0} [requires: {1}]'.format(top_pkg_name(pkg), r)
+    vers = []
+    if pkg:
+        vers.append(('installed', pkg.version))
+    for req in pkg.requires():
+        if req.key == req_key:
+            req_ver = req_version(req)
+            base_str = top_pkg_name(pkg)
+            if req_ver:
+                vers.append(('requires', req))
+    return build_ver_str(pkg.project_name, vers)
 
 
 def top_pkg_src(pkg):
