@@ -58,15 +58,15 @@ def test_non_top_pkg_name():
 def test_non_bottom_pkg_name():
     flask_script_p = pkg_index['flask-script']
     flask_script_r_k = 'flask'
-    assert non_bottom_pkg_name(flask_script_p, flask_script_r_k) == 'Flask-Script==0.6.6 [requires: Flask]'
+    assert non_bottom_pkg_name(flask_script_p, flask_script_r_k) == 'Flask-Script [installed: 0.6.6]'
 
     jinja2_p = pkg_index['jinja2']
     jinja2_r_k = 'markupsafe'
-    assert non_bottom_pkg_name(jinja2_p, jinja2_r_k) == 'Jinja2==2.7.2 [requires: markupsafe]'
+    assert non_bottom_pkg_name(jinja2_p, jinja2_r_k) == 'Jinja2 [installed: 2.7.2]'
 
     mako_p = pkg_index['mako']
     mako_p_k = 'markupsafe'
-    assert non_bottom_pkg_name(mako_p, mako_p_k) == 'Mako==0.9.1 [requires: MarkupSafe>=0.9.2]'
+    assert non_bottom_pkg_name(mako_p, mako_p_k) == 'Mako [installed: 0.9.1, requires: MarkupSafe>=0.9.2]'
 
 
 def test_render_tree_only_top():
@@ -139,9 +139,9 @@ def test_render_tree_only_top_reverse():
     tree_str = render_tree(pkgs, pkg_index, req_map,
                            reverse=True)
     lines = set(tree_str.split('\n'))
-    assert '    - Flask-Script==0.6.6 [requires: Flask]' in lines
-    assert '  - Flask==0.10.1 [requires: Werkzeug>=0.7]' in lines
-    assert '    - Flask==0.10.1 [requires: Jinja2>=2.4]' in lines
+    assert '    - Flask-Script [installed: 0.6.6]' in lines
+    assert '  - Flask [installed: 0.10.1, requires: Werkzeug>=0.7]' in lines
+    assert '    - Flask [installed: 0.10.1, requires: Jinja2>=2.4]' in lines
     assert 'itsdangerous==0.23' in lines
 
 
@@ -150,8 +150,8 @@ def test_render_tree_list_all_reverse():
                            list_all=True,
                            reverse=True)
     lines = set(tree_str.split('\n'))
-    assert '    - Flask-Script==0.6.6 [requires: Flask]' in lines
-    assert '  - Flask-Script==0.6.6 [requires: Flask]' in lines
+    assert '    - Flask-Script [installed: 0.6.6]' in lines
+    assert '  - Flask-Script [installed: 0.6.6]' in lines
     assert 'Flask-Script==0.6.6' in lines
     assert 'itsdangerous==0.23' in lines
 
