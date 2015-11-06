@@ -1,76 +1,40 @@
 import pickle
 
-from pipdeptree import (req_version, render_tree,
-                        top_pkg_name, non_top_pkg_name, non_bottom_pkg_name,
-                        top_pkg_src, non_top_pkg_src, non_bottom_pkg_src,
-                        peek_into)
-
-
-def venv_fixture(pickle_file):
-    """Loads required virtualenv pkg data from a pickle file
-
-    :param pickle_file: path to a .pickle file
-    :returns: a tuple of pkgs, pkg_index, req_map
-    :rtype: tuple
-
-    """
-    with open(pickle_file, 'rb') as f:
-        pkgs = pickle.load(f)
-        pkg_index = dict((p.key, p) for p in pkgs)
-        req_map = dict((p, p.requires()) for p in pkgs)
-        return pkgs, pkg_index, req_map
-
-
-pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/testenv.pickle')
-
-
-def find_req(req, parent):
-    """Helper to get the requirement object from it's parent package
-
-    :param req: string
-    :param parent: pkg_resources.Distribution instance
-    :rtype: instance of requirement frozen set
-
-    """
-    return [r for r in pkg_index[parent].requires() if r.key == req][0]
+from pipdeptree import pipdeptree, _peek_into
 
 
 def test_req_version():
-    sqlalchemy = find_req('sqlalchemy', 'alembic')
-    assert req_version(sqlalchemy) == '>=0.7.3'
-    mako = find_req('mako', 'alembic')
-    assert req_version(mako) is None
+    pdt = pipdeptree()
+    sqlalchemy = pdt.get_requirement_instance('alembic', 'sqlalchemy')
+    assert pdt.req_version(sqlalchemy) == '>=0.7.3'
+    mako = pdt.get_requirement_instance('alembic', 'mako')
+    assert pdt.req_version(mako) is None
+
+
+def test_top_pkg_name():
+    pdt = pipdeptree()
+    assert pdt.top_pkg_name('flask') == 'Flask==0.10.1'
+    assert pdt.top_pkg_name('markupsafe') == 'MarkupSafe==0.18'
+    assert pdt.top_pkg_name('jinja2') == 'Jinja2==2.7.2'
 
 
 def test_non_top_pkg_name():
-    flask_p = pkg_index['flask']
-    flask_r = find_req('flask', 'flask-script')
-    assert non_top_pkg_name(flask_r, flask_p) == 'Flask [installed: 0.10.1]'
-
-    markupsafe_p = pkg_index['markupsafe']
-    markupsafe_jinja2_r = find_req('markupsafe', 'jinja2')
-    assert non_top_pkg_name(markupsafe_jinja2_r, markupsafe_p) == 'MarkupSafe [installed: 0.18]'
-
-    markupsafe_mako_r = find_req('markupsafe', 'mako')
-    assert non_top_pkg_name(markupsafe_mako_r, markupsafe_p) == 'MarkupSafe [required: >=0.9.2, installed: 0.18]'
+    pdt = pipdeptree()
+    assert pdt.non_top_pkg_name('flask', 'flask-script') == 'Flask [installed: 0.10.1]'
+    assert pdt.non_top_pkg_name('markupsafe', 'jinja2') == 'MarkupSafe [installed: 0.18]'
+    assert pdt.non_top_pkg_name('markupsafe', 'mako') == 'MarkupSafe [required: >=0.9.2, installed: 0.18]'
 
 
 def test_non_bottom_pkg_name():
-    flask_script_p = pkg_index['flask-script']
-    flask_script_r_k = 'flask'
-    assert non_bottom_pkg_name(flask_script_p, flask_script_r_k) == 'Flask-Script [installed: 0.6.6]'
-
-    jinja2_p = pkg_index['jinja2']
-    jinja2_r_k = 'markupsafe'
-    assert non_bottom_pkg_name(jinja2_p, jinja2_r_k) == 'Jinja2 [installed: 2.7.2]'
-
-    mako_p = pkg_index['mako']
-    mako_p_k = 'markupsafe'
-    assert non_bottom_pkg_name(mako_p, mako_p_k) == 'Mako [installed: 0.9.1, requires: MarkupSafe>=0.9.2]'
+    pdt = pipdeptree()
+    assert pdt.non_bottom_pkg_name('flask-script', 'flask') == 'Flask-Script [installed: 0.6.6]'
+    assert pdt.non_bottom_pkg_name('jinja2', 'markupsafe') == 'Jinja2 [installed: 2.7.2]'
+    assert pdt.non_bottom_pkg_name('mako', 'markupsafe') == 'Mako [installed: 0.9.1, requires: MarkupSafe>=0.9.2]'
 
 
 def test_render_tree_only_top():
-    tree_str = render_tree(pkgs, pkg_index, req_map)
+    pdt = pipdeptree()
+    tree_str = pdt.render_tree()
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
@@ -79,8 +43,8 @@ def test_render_tree_only_top():
 
 
 def test_render_tree_list_all():
-    tree_str = render_tree(pkgs, pkg_index, req_map,
-                           list_all=True)
+    pdt = pipdeptree()
+    tree_str = pdt.render_tree(list_all=True)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
@@ -89,11 +53,8 @@ def test_render_tree_list_all():
 
 
 def test_render_tree_freeze():
-    tree_str = render_tree(pkgs, pkg_index, req_map,
-                           top_pkg_str=top_pkg_src,
-                           non_top_pkg_str=non_top_pkg_src,
-                           non_bottom_pkg_str=non_bottom_pkg_src,
-                           bullets=False)
+    pdt = pipdeptree()
+    tree_str = pdt.render_tree(bullets=False)
     lines = set()
     for line in tree_str.split('\n'):
         # Workaround for https://github.com/pypa/pip/issues/1867
@@ -109,10 +70,8 @@ def test_render_tree_freeze():
 
 
 def test_render_tree_cyclic_dependency():
-    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
-    list_all = True
-    tree_str = render_tree(cyclic_pkgs, pkg_index, req_map,
-                           list_all=list_all)
+    pdt = pipdeptree()
+    tree_str = pdt.render_tree()
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
     assert '  - CircularDependencyB [installed: 0.0.0]' in lines
@@ -121,13 +80,8 @@ def test_render_tree_cyclic_dependency():
 
 
 def test_render_tree_freeze_cyclic_dependency():
-    cyclic_pkgs, pkg_index, req_map = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
-    list_all = True
-    tree_str = render_tree(cyclic_pkgs, pkg_index, req_map,
-                           list_all=list_all,
-                           top_pkg_str=top_pkg_src,
-                           non_top_pkg_str=non_top_pkg_src,
-                           non_bottom_pkg_str=non_bottom_pkg_src)
+    pdt = pipdeptree()
+    tree_str = pdt.render_tree(bullets=False)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
     assert '  - CircularDependencyB==0.0.0' in lines
@@ -136,8 +90,8 @@ def test_render_tree_freeze_cyclic_dependency():
 
 
 def test_render_tree_only_top_reverse():
-    tree_str = render_tree(pkgs, pkg_index, req_map,
-                           reverse=True)
+    pdt = pipdeptree()
+    tree_str = pdt.render_tree(reverse=True)
     lines = set(tree_str.split('\n'))
     assert '    - Flask-Script [installed: 0.6.6]' in lines
     assert '  - Flask [installed: 0.10.1, requires: Werkzeug>=0.7]' in lines
@@ -146,9 +100,8 @@ def test_render_tree_only_top_reverse():
 
 
 def test_render_tree_list_all_reverse():
-    tree_str = render_tree(pkgs, pkg_index, req_map,
-                           list_all=True,
-                           reverse=True)
+    pdt = pipdeptree()
+    tree_str = pdt.render_tree(list_all=True, reverse=True)
     lines = set(tree_str.split('\n'))
     assert '    - Flask-Script [installed: 0.6.6]' in lines
     assert '  - Flask-Script [installed: 0.6.6]' in lines
@@ -157,11 +110,8 @@ def test_render_tree_list_all_reverse():
 
 
 def test_render_tree_freeze_reverse():
-    tree_str = render_tree(pkgs, pkg_index, req_map,
-                           top_pkg_str=top_pkg_src,
-                           non_top_pkg_str=non_top_pkg_src,
-                           non_bottom_pkg_str=non_bottom_pkg_src,
-                           bullets=False)
+    pdt = pipdeptree()
+    tree_str = pdt.render_tree(bullets=False, reverse=True)
     lines = set()
     for line in tree_str.split('\n'):
         # Workaround for https://github.com/pypa/pip/issues/1867
@@ -170,16 +120,16 @@ def test_render_tree_freeze_reverse():
         line = line.replace('origin/master', 'master')
         line = line.replace('origin/HEAD', 'master')
         lines.add(line)
-    assert 'Flask-Script==0.6.6' in lines
-    assert '        MarkupSafe==0.18' in lines
+    assert 'MarkupSafe==0.18' in lines
+    assert '        MarkupSafe==0.18' not in lines
     assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
-    assert 'itsdangerous==0.23' not in lines
+    assert 'itsdangerous==0.23' in lines
 
 
-def test_peek_into():
-    r1, g1 = peek_into(i for i in [])
+def test__peek_into():
+    r1, g1 = _peek_into(i for i in [])
     assert r1
     assert len(list(g1)) == 0
-    r2, g2 = peek_into(i for i in range(100))
+    r2, g2 = _peek_into(i for i in range(100))
     assert not r2
     assert len(list(g2)) == 100
