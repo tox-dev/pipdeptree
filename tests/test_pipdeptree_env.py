@@ -1,5 +1,3 @@
-import pickle
-
 from pipdeptree import pipdeptree, _peek_into
 
 

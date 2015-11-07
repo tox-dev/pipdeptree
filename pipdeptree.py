@@ -41,7 +41,7 @@ class pipdeptree(object):
     SKIP = DEFAULT_SKIP + ['pipdeptree']
     
     
-    def __init__(self, local_only=True):
+    def __init__(self, local_only=True, pkgs=None):
         """Initiated object, builds pkg_index and req_map
         
         :param bool local_only: If in a virtualenv that has global access,
@@ -49,8 +49,11 @@ class pipdeptree(object):
         
         """
         
-        self.pkgs = pip.get_installed_distributions(local_only=local_only,
-                                                    skip=self.SKIP)
+        if pkgs:
+            self.pkgs = pkgs
+        else:
+            self.pkgs = pip.get_installed_distributions(local_only=local_only,
+                                                        skip=self.SKIP)
         """List of packages imported from pip.
         
         {pkg_resources.Distribution, ...]
