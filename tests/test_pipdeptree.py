@@ -13,21 +13,21 @@ def test_req_version():
 
 def test_top_pkg_name():
     pdt = pipdeptree()
-    assert pdt.top_pkg_name('flask') == 'Flask==0.10.1'
+    assert pdt.top_pkg_name('alembic') == 'alembic==0.6.2'
     assert pdt.top_pkg_name('markupsafe') == 'MarkupSafe==0.18'
     assert pdt.top_pkg_name('jinja2') == 'Jinja2==2.7.2'
 
 
 def test_non_top_pkg_name():
     pdt = pipdeptree()
-    assert pdt.non_top_pkg_name('flask', 'flask-script') == 'Flask [installed: 0.10.1]'
+    assert pdt.non_top_pkg_name('mako', 'alembic') == 'Mako [installed: 0.9.1]'
     assert pdt.non_top_pkg_name('markupsafe', 'jinja2') == 'MarkupSafe [installed: 0.18]'
     assert pdt.non_top_pkg_name('markupsafe', 'mako') == 'MarkupSafe [required: >=0.9.2, installed: 0.18]'
 
 
 def test_non_bottom_pkg_name():
     pdt = pipdeptree()
-    assert pdt.non_bottom_pkg_name('flask-script', 'flask') == 'Flask-Script [installed: 0.6.6]'
+    assert pdt.non_bottom_pkg_name('alembic', 'sqlalchemy') == 'alembic [installed: 0.6.2, requires: SQLAlchemy>=0.7.3]'
     assert pdt.non_bottom_pkg_name('jinja2', 'markupsafe') == 'Jinja2 [installed: 2.7.2]'
     assert pdt.non_bottom_pkg_name('mako', 'markupsafe') == 'Mako [installed: 0.9.1, requires: MarkupSafe>=0.9.2]'
 
@@ -36,20 +36,20 @@ def test_render_tree_only_top():
     pdt = pipdeptree()
     tree_str = pdt.render_tree()
     lines = set(tree_str.split('\n'))
-    assert 'Flask-Script==0.6.6' in lines
+    assert 'alembic==0.6.2' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
     assert 'Lookupy==0.1' in lines
-    assert 'itsdangerous==0.23' not in lines
+    assert 'Mako==0.9.1' not in lines
 
 
 def test_render_tree_list_all():
     pdt = pipdeptree()
     tree_str = pdt.render_tree(list_all=True)
     lines = set(tree_str.split('\n'))
-    assert 'Flask-Script==0.6.6' in lines
+    assert 'Sphinx==1.3.1' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
     assert 'Lookupy==0.1' in lines
-    assert 'itsdangerous==0.23' in lines
+    assert 'Mako==0.9.1' in lines
 
 
 def test_render_tree_freeze():
@@ -63,17 +63,17 @@ def test_render_tree_freeze():
         line = line.replace('origin/master', 'master')
         line = line.replace('origin/HEAD', 'master')
         lines.add(line)
-    assert 'Flask-Script==0.6.6' in lines
+    assert 'alembic==0.6.2' in lines
     assert '    SQLAlchemy==0.9.1' in lines
     assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
-    assert 'itsdangerous==0.23' not in lines
+    assert 'Mako==0.9.1' not in lines
 
 
 def test_render_tree_cyclic_dependency():
     pdt = pipdeptree()
     tree_str = pdt.render_tree(list_all=True)
     lines = set(tree_str.split('\n'))
-    assert 'Sphinx==1.1.3' in lines
+    assert 'Sphinx==1.3.1' in lines
     assert '  - sphinx-rtd-theme [required: >=0.1, installed: 0.1.9]' in lines
     assert 'sphinx-rtd-theme==0.1.9' in lines
     assert '  - Sphinx [required: >=1.3, installed: 1.3.1]' in lines
@@ -83,30 +83,30 @@ def test_render_tree_freeze_cyclic_dependency():
     pdt = pipdeptree()
     tree_str = pdt.render_tree(list_all=True, bullets=False)
     lines = set(tree_str.split('\n'))
-    assert 'Sphinx==1.1.3' in lines
-    assert '    sphinx-rtd-theme [required: >=0.1, installed: 0.1.9]' in lines
+    assert 'Sphinx==1.3.1' in lines
+    assert '    sphinx-rtd-theme==0.1.9' in lines
     assert 'sphinx-rtd-theme==0.1.9' in lines
-    assert '    Sphinx [required: >=1.3, installed: 1.3.1]' in lines
+    assert '    Sphinx==1.3.1' in lines
 
 
 def test_render_tree_only_top_reverse():
     pdt = pipdeptree()
     tree_str = pdt.render_tree(reverse=True)
     lines = set(tree_str.split('\n'))
-    assert '    - Flask-Script [installed: 0.6.6]' in lines
-    assert '  - Flask [installed: 0.10.1, requires: Werkzeug>=0.7]' in lines
-    assert '    - Flask [installed: 0.10.1, requires: Jinja2>=2.4]' in lines
-    assert 'itsdangerous==0.23' in lines
+    assert '    - alembic [installed: 0.6.2]' in lines
+    assert '  - alembic [installed: 0.6.2, requires: SQLAlchemy>=0.7.3]' in lines
+    assert 'docutils==0.12' in lines
+    assert 'six==1.10.0' in lines
 
 
 def test_render_tree_list_all_reverse():
     pdt = pipdeptree()
     tree_str = pdt.render_tree(list_all=True, reverse=True)
     lines = set(tree_str.split('\n'))
-    assert '    - Flask-Script [installed: 0.6.6]' in lines
-    assert '  - Flask-Script [installed: 0.6.6]' in lines
-    assert 'Flask-Script==0.6.6' in lines
-    assert 'itsdangerous==0.23' in lines
+    assert '    - sphinx-rtd-theme [installed: 0.1.9, requires: sphinx>=1.3]' in lines
+    assert '  - sphinx-rtd-theme [installed: 0.1.9, requires: sphinx>=1.3]' in lines
+    assert 'Mako==0.9.1' in lines
+    assert 'alembic==0.6.2' in lines
 
 
 def test_render_tree_freeze_reverse():
@@ -120,10 +120,10 @@ def test_render_tree_freeze_reverse():
         line = line.replace('origin/master', 'master')
         line = line.replace('origin/HEAD', 'master')
         lines.add(line)
-    assert 'MarkupSafe==0.18' in lines
-    assert '        MarkupSafe==0.18' not in lines
+    assert '      sphinx-rtd-theme==0.1.9' in lines
+    assert '    Babel=2.1.1' not in lines
     assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
-    assert 'itsdangerous==0.23' in lines
+    assert 'six==1.10.0' in lines
 
 
 def test__peek_into():
