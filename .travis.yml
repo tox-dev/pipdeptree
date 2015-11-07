@@ -10,6 +10,6 @@ python:
   - "3.4"
 install:
   - pip install .
-  - pip install -r testenv_requirements.txt
+  - pip install -r tests/testenv_requirements.txt
 script:
   - nosetests
