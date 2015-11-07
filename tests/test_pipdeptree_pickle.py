@@ -1,4 +1,5 @@
 import pickle
+import sys
 
 import pip
 from pipdeptree import pipdeptree, _peek_into
@@ -15,7 +16,8 @@ def venv_fixture(pickle_file):
         return pickle.load(f)
 
 
-pkgs = venv_fixture('tests/testenv.pickle')
+pickle_file = 'tests/testenv{0}.pickle'.format(sys.version_info[0])
+pkgs = venv_fixture(pickle_file)
 
 
 def test_req_version():
