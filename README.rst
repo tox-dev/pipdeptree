@@ -178,6 +178,8 @@ Usage
       -l, --local-only  If in a virtualenv that has global access donot show
                         globally installed packages
       -w, --nowarn      Inhibit warnings about possibly confusing packages
+      -r, --reverse     reverse dependency tree to show which packages
+                        depend on bottom-level dependencies
 
 
 Known Issues

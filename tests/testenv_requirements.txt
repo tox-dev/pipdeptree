@@ -1,0 +1,16 @@
+Jinja2==2.7.2
+-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy
+Mako==0.9.1
+MarkupSafe==0.18
+SQLAlchemy==0.9.1
+alembic==0.6.2
+Sphinx==1.3.1
+colorama==0.3.3
+snowballstemmer==1.2.0
+sphinx-rtd-theme==0.1.9
+Babel==2.1.1
+pytz==2015.7
+Pygments==2.0.2
+alabaster==0.7.6
+six==1.10.0
+docutils==0.12
