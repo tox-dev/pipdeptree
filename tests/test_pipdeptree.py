@@ -71,22 +71,22 @@ def test_render_tree_freeze():
 
 def test_render_tree_cyclic_dependency():
     pdt = pipdeptree()
-    tree_str = pdt.render_tree()
+    tree_str = pdt.render_tree(list_all=True)
     lines = set(tree_str.split('\n'))
-    assert 'CircularDependencyA==0.0.0' in lines
-    assert '  - CircularDependencyB [installed: 0.0.0]' in lines
-    assert 'CircularDependencyB==0.0.0' in lines
-    assert '  - CircularDependencyA [installed: 0.0.0]' in lines
+    assert 'Sphinx==1.1.3' in lines
+    assert '  - sphinx-rtd-theme [required: >=0.1, installed: 0.1.9]' in lines
+    assert 'sphinx-rtd-theme==0.1.9' in lines
+    assert '  - Sphinx [required: >=1.3, installed: 1.3.1]' in lines
 
 
 def test_render_tree_freeze_cyclic_dependency():
     pdt = pipdeptree()
-    tree_str = pdt.render_tree(bullets=False)
+    tree_str = pdt.render_tree(list_all=True, bullets=False)
     lines = set(tree_str.split('\n'))
-    assert 'CircularDependencyA==0.0.0' in lines
-    assert '  - CircularDependencyB==0.0.0' in lines
-    assert 'CircularDependencyB==0.0.0' in lines
-    assert '  - CircularDependencyA==0.0.0' in lines
+    assert 'Sphinx==1.1.3' in lines
+    assert '    sphinx-rtd-theme [required: >=0.1, installed: 0.1.9]' in lines
+    assert 'sphinx-rtd-theme==0.1.9' in lines
+    assert '    Sphinx [required: >=1.3, installed: 1.3.1]' in lines
 
 
 def test_render_tree_only_top_reverse():
