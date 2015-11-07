@@ -8,7 +8,11 @@ python:
   - "3.2"
   - "3.3"
   - "3.4"
+  - "3.5"
+  - "3.5dev"
+  - "nightly"
 install:
+  - pip install -U pip setuptools
   - pip install .
   - pip install -r tests/testenv_requirements.txt
 script:
