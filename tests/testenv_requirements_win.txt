@@ -1,3 +1,4 @@
+ez_setup
 Flask==0.10.1
 Flask-Script==0.6.6
 Jinja2==2.7.2
@@ -7,7 +8,6 @@ MarkupSafe==0.18
 SQLAlchemy==0.9.1
 Werkzeug==0.9.4
 alembic==0.6.2
-ipython==2.0.0
 itsdangerous==0.23
 redis==2.9.1
 slugify==0.0.1
