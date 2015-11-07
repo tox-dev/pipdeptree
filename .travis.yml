@@ -8,8 +8,8 @@ python:
   - "3.2"
   - "3.3"
   - "3.4"
-before_install: make test-env
-install: pip install .
-script: py.test -v
-after_script: make clean clean-env
-sudo: false
+install:
+  - pip install .
+  - pip install -r testenv_requirements.txt
+script:
+  - nosetests
