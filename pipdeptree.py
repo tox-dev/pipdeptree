@@ -40,6 +40,32 @@ def construct_tree(index):
             for p in index.values()}
 
 
+def reverse_tree(tree):
+    """Reverse the dependency tree.
+
+    ie. the keys of the resulting dict are objects of type
+    ReqPackage and the values are lists of DistPackage objects.
+
+    :param dict tree: the pkg dependency tree obtained by calling
+                      `construct_tree` function
+    :returns: reversed tree
+    :rtype: dict
+
+    """
+    rtree = {}
+    visited = set()
+    child_keys = set(c.key for c in flatten(tree.values()))
+    for k, vs in tree.iteritems():
+        for v in vs:
+            if v not in rtree:
+                rtree[v] = []
+            rtree[v].append(k)
+            visited.add(v.key)
+        if k.key not in child_keys:
+            rtree[k.as_requirement()] = []
+    return rtree
+
+
 class Package(object):
     """Abstract class for wrappers around objects that pip returns.
 
@@ -98,14 +124,17 @@ class DistPackage(Package):
         else:
             return self.frozen_repr()
 
-    def render_as_branch(self, parent, _frozen):
-        parent_ver_spec = parent.version_spec
-        parent_str = parent.project_name
-        if parent_ver_spec:
-            parent_str += parent_ver_spec
-        return (
-            '{0}=={1} [requires: {2}]'
-        ).format(self.project_name, self.version, parent_str)
+    def render_as_branch(self, parent, frozen):
+        if not frozen:
+            parent_ver_spec = parent.version_spec
+            parent_str = parent.project_name
+            if parent_ver_spec:
+                parent_str += parent_ver_spec
+            return (
+                '{0}=={1} [requires: {2}]'
+            ).format(self.project_name, self.version, parent_str)
+        else:
+            return self.render_as_root(frozen)
 
     def as_requirement(self):
         return ReqPackage(self._obj.as_requirement(), dist=self)
@@ -283,6 +312,12 @@ def main():
                             'Inhibit warnings about possibly '
                             'confusing packages'
                         ))
+    parser.add_argument('-r', '--reverse', action='store_true',
+                        default=False, help=(
+                            'Shows the dependency tree in the reverse fasion '
+                            'ie. the sub-dependencies are listed with the '
+                            'list of packages that need them under them.'
+                        ))
     args = parser.parse_args()
 
     default_skip = ['setuptools', 'pip', 'python', 'distribute']
@@ -316,7 +351,9 @@ def main():
                 print('- {0}'.format(xs), file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
-    tree = render_tree(tree, list_all=args.all, frozen=args.freeze)
+    tree = render_tree(tree if not args.reverse else reverse_tree(tree),
+                       list_all=args.all,
+                       frozen=args.freeze)
     print(tree)
     return 0
 

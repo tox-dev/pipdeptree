@@ -1,7 +1,8 @@
 import pickle
 
 from pipdeptree import (build_dist_index, construct_tree, peek_into,
-                        DistPackage, ReqPackage, render_tree)
+                        DistPackage, ReqPackage, render_tree,
+                        reverse_tree)
 
 
 def venv_fixture(pickle_file):
@@ -42,6 +43,13 @@ def test_tree():
     assert all((isinstance(k, DistPackage) and
                 all(isinstance(v, ReqPackage) for v in vs))
                for k, vs in tree.iteritems())
+
+
+def test_reverse_tree():
+    rtree = reverse_tree(tree)
+    assert all((isinstance(k, ReqPackage) and
+                all(isinstance(v, DistPackage) for v in vs))
+               for k, vs in rtree.iteritems())
 
 
 def test_DistPackage_render_as_root():
