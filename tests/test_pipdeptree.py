@@ -42,14 +42,14 @@ def test_tree():
     assert len(tree) == len(pkgs)
     assert all((isinstance(k, DistPackage) and
                 all(isinstance(v, ReqPackage) for v in vs))
-               for k, vs in tree.iteritems())
+               for k, vs in tree.items())
 
 
 def test_reverse_tree():
     rtree = reverse_tree(tree)
     assert all((isinstance(k, ReqPackage) and
                 all(isinstance(v, DistPackage) for v in vs))
-               for k, vs in rtree.iteritems())
+               for k, vs in rtree.items())
 
 
 def test_DistPackage_render_as_root():

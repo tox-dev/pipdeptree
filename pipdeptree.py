@@ -21,7 +21,7 @@ def build_dist_index(pkgs):
     :rtype: dict
 
     """
-    return {p.key: DistPackage(p) for p in pkgs}
+    return dict((p.key, DistPackage(p)) for p in pkgs)
 
 
 def construct_tree(index):
@@ -35,9 +35,9 @@ def construct_tree(index):
     :rtype: dict
 
     """
-    return {p: [ReqPackage(r, index.get(r.key))
-                for r in p.requires()]
-            for p in index.values()}
+    return dict((p, [ReqPackage(r, index.get(r.key))
+                     for r in p.requires()])
+                for p in index.values())
 
 
 def reverse_tree(tree):
@@ -55,7 +55,7 @@ def reverse_tree(tree):
     rtree = {}
     visited = set()
     child_keys = set(c.key for c in flatten(tree.values()))
-    for k, vs in tree.iteritems():
+    for k, vs in tree.items():
         for v in vs:
             if v not in rtree:
                 rtree[v] = []
@@ -196,7 +196,7 @@ def render_tree(tree, list_all=True, frozen=False):
     nodes = tree.keys()
     use_bullets = not frozen
 
-    key_tree = {k.key: v for k, v in tree.iteritems()}
+    key_tree = dict((k.key, v) for k, v in tree.items())
     get_children = lambda n: key_tree[n.key]
 
     if not list_all:
@@ -260,7 +260,7 @@ def cyclic_deps(tree):
 
     """
     nodes = tree.keys()
-    key_tree = {k.key: v for k, v in tree.iteritems()}
+    key_tree = dict((k.key, v) for k, v in tree.items())
     get_children = lambda n: key_tree[n.key]
 
     def aux(node, chain):
