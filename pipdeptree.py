@@ -179,13 +179,15 @@ class ReqPackage(Package):
             return self.render_as_root(frozen)
 
 
-def render_tree(tree, list_all=True, frozen=False):
+def render_tree(tree, list_all=True, show_only=None, frozen=False):
     """Convert to tree to string representation
 
     :param dict tree: the package tree
     :param bool list_all: whether to list all the pgks at the root
                           level or only those that are the
                           sub-dependencies
+    :param set show_only: set of select packages to be shown in the
+                          output. This is optional arg, default: None.
     :param bool frozen: whether or not show the names of the pkgs in
                         the output that's favourable to pip --freeze
     :returns: string representation of the tree
@@ -199,7 +201,11 @@ def render_tree(tree, list_all=True, frozen=False):
     key_tree = dict((k.key, v) for k, v in tree.items())
     get_children = lambda n: key_tree[n.key]
 
-    if not list_all:
+    if show_only:
+        nodes = [p for p in nodes
+                 if p.key in show_only
+                 or p.project_name in show_only]
+    elif not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
     def aux(node, parent=None, indent=0, chain=None):
@@ -318,6 +324,11 @@ def main():
                             'ie. the sub-dependencies are listed with the '
                             'list of packages that need them under them.'
                         ))
+    parser.add_argument('-p', '--packages',
+                        help=(
+                            'Comma separated list of select packages to show '
+                            'in the output. If set, --all will be ignored.'
+                        ))
     args = parser.parse_args()
 
     default_skip = ['setuptools', 'pip', 'python', 'distribute']
@@ -351,8 +362,10 @@ def main():
                 print('- {0}'.format(xs), file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
+    show_only = set(args.packages.split(',')) if args.packages else None
+
     tree = render_tree(tree if not args.reverse else reverse_tree(tree),
-                       list_all=args.all,
+                       list_all=args.all, show_only=show_only,
                        frozen=args.freeze)
     print(tree)
     return 0
