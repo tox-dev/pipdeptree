@@ -80,6 +80,25 @@ And now see what ``pipdeptree`` outputs,
     redis==2.9.1
 
 
+Is it possible to find out why a particular package is installed?
+-----------------------------------------------------------------
+
+`New in ver. 0.5.0`
+
+Yes, there's a `--reverse` (or simply `-r`) flag for this. To find out
+what all packages require paricular package(s), it can be combined
+with `--packages` flag as follows:
+
+.. code-block:: bash
+
+    $ python pipdeptree.py --reverse --packages itsdangerous,gnureadline --nowarn
+    gnureadline==6.3.3
+      - ipython==2.0.0 [requires: gnureadline]
+    itsdangerous==0.24
+      - Flask==0.10.1 [requires: itsdangerous>=0.21]
+        - Flask-Script==0.6.6 [requires: Flask]
+
+
 What's with the warning about confusing dependencies?
 -----------------------------------------------------
 
@@ -162,22 +181,45 @@ to indentations) as well as pip-friendly. (Take care of duplicate
 dependencies though)
 
 
+Using pipdeptree with external tools
+------------------------------------
+
+`New in ver. 0.5.0`
+
+It's also possible to have pipdeptree output json representation of
+the dependency tree so that it may be used as input to other external
+tools.
+
+.. code-block:: bash
+
+    $ python pipdeptree.py --json
+
+
 Usage
 -----
 
 .. code-block:: bash
 
-    usage: pipdeptree.py [-h] [-f] [-a] [-l] [-w]
+    usage: pipdeptree.py [-h] [-f] [-a] [-l] [-w] [-r] [-p PACKAGES] [-j]
 
     Dependency tree of the installed python packages
 
     optional arguments:
-      -h, --help        show this help message and exit
-      -f, --freeze      Print names so as to write freeze files
-      -a, --all         list all deps at top level
-      -l, --local-only  If in a virtualenv that has global access donot show
-                        globally installed packages
-      -w, --nowarn      Inhibit warnings about possibly confusing packages
+      -h, --help            show this help message and exit
+      -f, --freeze          Print names so as to write freeze files
+      -a, --all             list all deps at top level
+      -l, --local-only      If in a virtualenv that has global access donot show
+                            globally installed packages
+      -w, --nowarn          Inhibit warnings about possibly confusing packages
+      -r, --reverse         Shows the dependency tree in the reverse fasion ie.
+                            the sub-dependencies are listed with the list of
+                            packages that need them under them.
+      -p PACKAGES, --packages PACKAGES
+                            Comma separated list of select packages to show in the
+                            output. If set, --all will be ignored.
+      -j, --json            Display dependency tree as json. This will yield "raw"
+                            output that may be used by external tools. This option
+                            overrides all other options.
 
 
 Known Issues

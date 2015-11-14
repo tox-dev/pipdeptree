@@ -1,6 +1,15 @@
 Changelog
 =========
 
+0.5.0
+-----
+
+* Add `--reverse` flag to show the dependency tree upside down.
+* Add `--packages` flag to show only select packages in output.
+* Add `--json` flag to output dependency tree as json that may be used
+  by external tools.
+
+
 0.4.3
 -----
 

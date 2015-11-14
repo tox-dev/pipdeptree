@@ -8,7 +8,7 @@ import json
 import pip
 
 
-__version__ = '0.4.3'
+__version__ = '0.5.0'
 
 
 flatten = chain.from_iterable
