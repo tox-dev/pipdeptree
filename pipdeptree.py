@@ -3,6 +3,7 @@ import sys
 from itertools import chain, tee
 from collections import defaultdict
 import argparse
+import json
 
 import pip
 
@@ -139,6 +140,11 @@ class DistPackage(Package):
     def as_requirement(self):
         return ReqPackage(self._obj.as_requirement(), dist=self)
 
+    def as_dict(self):
+        return {'key': self.key,
+                'package_name': self.project_name,
+                'installed_version': self.version}
+
 
 class ReqPackage(Package):
     """Wrapper class for Requirements instance"""
@@ -177,6 +183,12 @@ class ReqPackage(Package):
             return '{0} [{1}]'.format(self.project_name, ver_str)
         else:
             return self.render_as_root(frozen)
+
+    def as_dict(self):
+        return {'key': self.key,
+                'package_name': self.project_name,
+                'installed_version': self.installed_version,
+                'required_version': self.version_spec}
 
 
 def render_tree(tree, list_all=True, show_only=None, frozen=False):
@@ -231,6 +243,25 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False):
 
     lines = flatten([aux(p) for p in nodes])
     return '\n'.join(lines)
+
+
+def jsonify_tree(tree, indent):
+    """Converts the tree into json representation.
+
+    The json repr will be a list of hashes, each hash having 2 fields:
+      - package
+      - dependencies: list of dependencies
+
+    :param dict tree: dependency tree
+    :param int indent: no. of spaces to indent json
+    :returns: json representation of the tree
+    :rtype: str
+
+    """
+    return json.dumps([{'package': k.as_dict(),
+                        'dependencies': [v.as_dict() for v in vs]}
+                       for k, vs in tree.items()],
+                      indent=indent)
 
 
 def confusing_deps(tree):
@@ -329,6 +360,12 @@ def main():
                             'Comma separated list of select packages to show '
                             'in the output. If set, --all will be ignored.'
                         ))
+    parser.add_argument('-j', '--json', action='store_true', default=False,
+                        help=(
+                            'Display dependency tree as json. This will yield '
+                            '"raw" output that may be used by external tools. '
+                            'This option overrides all other options.'
+                        ))
     args = parser.parse_args()
 
     default_skip = ['setuptools', 'pip', 'python', 'distribute']
@@ -338,6 +375,10 @@ def main():
 
     dist_index = build_dist_index(pkgs)
     tree = construct_tree(dist_index)
+
+    if args.json:
+        print(jsonify_tree(tree, indent=4))
+        return 0
 
     # show warnings about possibly confusing deps if found and
     # warnings are enabled
