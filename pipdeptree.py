@@ -6,6 +6,7 @@ import argparse
 import json
 
 import pip
+import pkg_resources
 
 
 __version__ = '0.5.0'
@@ -286,6 +287,29 @@ def confusing_deps(tree):
             and has_multi_versions(d for p, d in ps)]
 
 
+def unsatisfied_deps(tree):
+    """Returns dependencies which are not satisfied
+
+    e.g. will warn if pkg1 requires pkg2==2.0 and pkg2==1.0 is installed
+
+    :param tree: the requirements tree (dict)
+    :returns: dict of DistPackage -> list of unsatisfied/unknown ReqPackage
+    :rtype: dict
+
+    """
+    unsatisfied = defaultdict(list)
+    req_parse = pkg_resources.Requirement.parse
+    for p, rs in tree.items():
+        for req in rs:
+            if not req.dist:
+                unsatisfied[p].append(req)
+            else:
+                req_version_str = '%s%s' % (req.project_name, (req.version_spec if req.version_spec else ''))
+                if req.installed_version not in req_parse(req_version_str):
+                    unsatisfied[p].append(req)
+    return unsatisfied
+
+
 def cyclic_deps(tree):
     """Generator that produces cyclic dependencies
 
@@ -372,7 +396,6 @@ def main():
     skip = default_skip + ['pipdeptree']
     pkgs = pip.get_installed_distributions(local_only=args.local_only,
                                            skip=skip)
-
     dist_index = build_dist_index(pkgs)
     tree = construct_tree(dist_index)
 
@@ -401,6 +424,22 @@ def main():
             print('Warning!!! Cyclic dependencies found:', file=sys.stderr)
             for xs in cyclic:
                 print('- {0}'.format(xs), file=sys.stderr)
+            print('-'*72, file=sys.stderr)
+
+        unsatisfied = unsatisfied_deps(tree)
+        if unsatisfied:
+            print('Warning!!! Unsatisfied dependencies found:', file=sys.stderr)
+            for p, reqs in unsatisfied.items():
+                pkg = p.render_as_root(False)
+                print('* %s' % pkg)
+                for req in reqs:
+                    if not req.dist:
+                        req_str = ('{0} [required: {1}, '
+                                   'installed: <unknown>]').format(req.project_name,
+                                                                   req.version_spec)
+                    else:
+                        req_str = req.render_as_branch(p, False)
+                    print('  %s' % req_str, file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
     show_only = set(args.packages.split(',')) if args.packages else None
