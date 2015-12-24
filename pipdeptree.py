@@ -156,7 +156,7 @@ class ReqPackage(Package):
     @property
     def version_spec(self):
         specs = self._obj.specs
-        return ''.join(specs[0]) if specs else None
+        return ','.join([''.join(sp) for sp in specs]) if specs else None
 
     @property
     def installed_version(self):
