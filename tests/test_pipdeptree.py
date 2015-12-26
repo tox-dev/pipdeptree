@@ -2,7 +2,7 @@ import pickle
 
 from pipdeptree import (build_dist_index, construct_tree, peek_into,
                         DistPackage, ReqPackage, render_tree,
-                        reverse_tree, unsatisfied_deps)
+                        reverse_tree, conflicting_deps)
 
 
 def venv_fixture(pickle_file):
@@ -159,19 +159,19 @@ def test_peek_into():
     assert len(list(g2)) == 100
 
 
-def test_unsatisfied_deps():
+def test_conflicting_deps():
     # the custom environment has a bad jinja version and it's missing simplejson
-    _, _, unsatisfied_tree = venv_fixture('tests/virtualenvs/unsatisfiedenv.pickle')
-    flask = next((x for x in unsatisfied_tree.keys() if x.key == 'flask'))
-    jinja = next((x for x in unsatisfied_tree[flask] if x.key == 'jinja2'))
-    uritemplate = next((x for x in unsatisfied_tree.keys() if x.key == 'uritemplate'))
-    simplejson = next((x for x in unsatisfied_tree[uritemplate] if x.key == 'simplejson'))
+    _, _, conflicting_tree = venv_fixture('tests/virtualenvs/unsatisfiedenv.pickle')
+    flask = next((x for x in conflicting_tree.keys() if x.key == 'flask'))
+    jinja = next((x for x in conflicting_tree[flask] if x.key == 'jinja2'))
+    uritemplate = next((x for x in conflicting_tree.keys() if x.key == 'uritemplate'))
+    simplejson = next((x for x in conflicting_tree[uritemplate] if x.key == 'simplejson'))
     assert jinja
     assert flask
     assert uritemplate
     assert simplejson
 
-    unsatisfied = unsatisfied_deps(unsatisfied_tree)
+    unsatisfied = conflicting_deps(conflicting_tree)
     assert unsatisfied == {
         flask: [jinja],
         uritemplate: [simplejson],
