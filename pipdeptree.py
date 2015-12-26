@@ -391,7 +391,7 @@ def main():
             print('Warning!!! Possibly conflicting dependencies found:', file=sys.stderr)
             for p, reqs in conflicting.items():
                 pkg = p.render_as_root(False)
-                print('* %s' % pkg)
+                print('* %s' % pkg, file=sys.stderr)
                 for req in reqs:
                     if not req.dist:
                         req_str = ('{0} [required: {1}, '
