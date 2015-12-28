@@ -211,12 +211,13 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False):
     use_bullets = not frozen
 
     key_tree = dict((k.key, v) for k, v in tree.items())
-    get_children = lambda n: key_tree[n.key]
+
+    def get_children(n):
+        return key_tree[n.key]
 
     if show_only:
         nodes = [p for p in nodes
-                 if p.key in show_only
-                 or p.project_name in show_only]
+                 if p.key in show_only or p.project_name in show_only]
     elif not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
@@ -282,8 +283,7 @@ def confusing_deps(tree):
         for r in rs:
             deps[r.key].append((p, r))
     return [ps for r, ps in deps.items()
-            if len(ps) > 1
-            and has_multi_versions(d for p, d in ps)]
+            if len(ps) > 1 and has_multi_versions(d for p, d in ps)]
 
 
 def cyclic_deps(tree):
@@ -298,7 +298,9 @@ def cyclic_deps(tree):
     """
     nodes = tree.keys()
     key_tree = dict((k.key, v) for k, v in tree.items())
-    get_children = lambda n: key_tree[n.key]
+
+    def get_children(n):
+        return key_tree[n.key]
 
     def aux(node, chain):
         if node.dist:
@@ -385,7 +387,8 @@ def main():
     if not args.nowarn:
         confusing = confusing_deps(tree)
         if confusing:
-            print('Warning!!! Possible confusing dependencies found:', file=sys.stderr)
+            print('Warning!!! Possible confusing dependencies found:',
+                  file=sys.stderr)
             for xs in confusing:
                 for i, (p, d) in enumerate(xs):
                     if d.key in skip:
