@@ -2,7 +2,7 @@ import pickle
 
 from pipdeptree import (build_dist_index, construct_tree, peek_into,
                         DistPackage, ReqPackage, render_tree,
-                        reverse_tree)
+                        reverse_tree, conflicting_deps)
 
 
 def venv_fixture(pickle_file):
@@ -157,3 +157,22 @@ def test_peek_into():
     r2, g2 = peek_into(i for i in range(100))
     assert not r2
     assert len(list(g2)) == 100
+
+
+def test_conflicting_deps():
+    # the custom environment has a bad jinja version and it's missing simplejson
+    _, _, conflicting_tree = venv_fixture('tests/virtualenvs/unsatisfiedenv.pickle')
+    flask = next((x for x in conflicting_tree.keys() if x.key == 'flask'))
+    jinja = next((x for x in conflicting_tree[flask] if x.key == 'jinja2'))
+    uritemplate = next((x for x in conflicting_tree.keys() if x.key == 'uritemplate'))
+    simplejson = next((x for x in conflicting_tree[uritemplate] if x.key == 'simplejson'))
+    assert jinja
+    assert flask
+    assert uritemplate
+    assert simplejson
+
+    unsatisfied = conflicting_deps(conflicting_tree)
+    assert unsatisfied == {
+        flask: [jinja],
+        uritemplate: [simplejson],
+    }

@@ -6,6 +6,7 @@ import argparse
 import json
 
 import pip
+import pkg_resources
 
 
 __version__ = '0.5.0'
@@ -264,26 +265,28 @@ def jsonify_tree(tree, indent):
                       indent=indent)
 
 
-def confusing_deps(tree):
-    """Returns group of dependencies that are possibly confusing
+def conflicting_deps(tree):
+    """Returns dependencies which are not present or conflict with the
+    requirements of other packages.
 
-    eg. if pkg1 requires pkg3>=1.0 and pkg2 requires pkg3>=1.0,<=2.0
+    e.g. will warn if pkg1 requires pkg2==2.0 and pkg2==1.0 is installed
 
-    :param dict tree: the requirements tree
-    :returns: groups of dependencies paired with their top level pkgs
-    :rtype: list of list of pairs
+    :param tree: the requirements tree (dict)
+    :returns: dict of DistPackage -> list of unsatisfied/unknown ReqPackage
+    :rtype: dict
 
     """
-    def has_multi_versions(req_pkgs):
-        return len(set(r.version_spec for r in req_pkgs)) > 1
-
-    deps = defaultdict(list)
+    conflicting = defaultdict(list)
+    req_parse = pkg_resources.Requirement.parse
     for p, rs in tree.items():
-        for r in rs:
-            deps[r.key].append((p, r))
-    return [ps for r, ps in deps.items()
-            if len(ps) > 1
-            and has_multi_versions(d for p, d in ps)]
+        for req in rs:
+            if not req.dist:
+                conflicting[p].append(req)
+            else:
+                req_version_str = '%s%s' % (req.project_name, (req.version_spec if req.version_spec else ''))
+                if req.installed_version not in req_parse(req_version_str):
+                    conflicting[p].append(req)
+    return conflicting
 
 
 def cyclic_deps(tree):
@@ -351,7 +354,7 @@ def main():
                         ))
     parser.add_argument('-r', '--reverse', action='store_true',
                         default=False, help=(
-                            'Shows the dependency tree in the reverse fasion '
+                            'Shows the dependency tree in the reverse fashion '
                             'ie. the sub-dependencies are listed with the '
                             'list of packages that need them under them.'
                         ))
@@ -380,20 +383,23 @@ def main():
         print(jsonify_tree(tree, indent=4))
         return 0
 
-    # show warnings about possibly confusing deps if found and
+    # show warnings about possibly conflicting deps if found and
     # warnings are enabled
     if not args.nowarn:
-        confusing = confusing_deps(tree)
-        if confusing:
-            print('Warning!!! Possible confusing dependencies found:', file=sys.stderr)
-            for xs in confusing:
-                for i, (p, d) in enumerate(xs):
-                    if d.key in skip:
-                        continue
-                    pkg = p.render_as_root(False)
-                    req = d.render_as_branch(p, False)
-                    tmpl = '  {0} -> {1}' if i > 0 else '* {0} -> {1}'
-                    print(tmpl.format(pkg, req), file=sys.stderr)
+        conflicting = conflicting_deps(tree)
+        if conflicting:
+            print('Warning!!! Possibly conflicting dependencies found:', file=sys.stderr)
+            for p, reqs in conflicting.items():
+                pkg = p.render_as_root(False)
+                print('* %s' % pkg, file=sys.stderr)
+                for req in reqs:
+                    if not req.dist:
+                        req_str = ('{0} [required: {1}, '
+                                   'installed: <unknown>]').format(req.project_name,
+                                                                   req.version_spec)
+                    else:
+                        req_str = req.render_as_branch(p, False)
+                    print(' - %s' % req_str, file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
         is_empty, cyclic = peek_into(cyclic_deps(tree))
