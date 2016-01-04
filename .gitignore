@@ -9,3 +9,4 @@ tests/virtualenvs/equimapper/
 .coverage
 coverage.xml
 htmlcov/
+.cache/
