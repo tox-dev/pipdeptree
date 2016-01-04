@@ -157,7 +157,7 @@ class ReqPackage(Package):
     @property
     def version_spec(self):
         specs = self._obj.specs
-        return ''.join(specs[0]) if specs else None
+        return ','.join([''.join(sp) for sp in specs]) if specs else None
 
     @property
     def installed_version(self):
@@ -212,12 +212,13 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False):
     use_bullets = not frozen
 
     key_tree = dict((k.key, v) for k, v in tree.items())
-    get_children = lambda n: key_tree[n.key]
+
+    def get_children(n):
+        return key_tree[n.key]
 
     if show_only:
         nodes = [p for p in nodes
-                 if p.key in show_only
-                 or p.project_name in show_only]
+                 if p.key in show_only or p.project_name in show_only]
     elif not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
@@ -301,7 +302,9 @@ def cyclic_deps(tree):
     """
     nodes = tree.keys()
     key_tree = dict((k.key, v) for k, v in tree.items())
-    get_children = lambda n: key_tree[n.key]
+
+    def get_children(n):
+        return key_tree[n.key]
 
     def aux(node, chain):
         if node.dist:
@@ -388,15 +391,17 @@ def main():
     if not args.nowarn:
         conflicting = conflicting_deps(tree)
         if conflicting:
-            print('Warning!!! Possibly conflicting dependencies found:', file=sys.stderr)
+            print('Warning!!! Possibly conflicting dependencies found:',
+                  file=sys.stderr)
             for p, reqs in conflicting.items():
                 pkg = p.render_as_root(False)
                 print('* %s' % pkg, file=sys.stderr)
                 for req in reqs:
                     if not req.dist:
-                        req_str = ('{0} [required: {1}, '
-                                   'installed: <unknown>]').format(req.project_name,
-                                                                   req.version_spec)
+                        req_str = (
+                            '{0} [required: {1}, '
+                            'installed: <unknown>]'
+                        ).format(req.project_name, req.version_spec)
                     else:
                         req_str = req.render_as_branch(p, False)
                     print(' - %s' % req_str, file=sys.stderr)
