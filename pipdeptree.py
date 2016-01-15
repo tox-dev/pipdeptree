@@ -350,11 +350,22 @@ def main():
                             'If in a virtualenv that has global access '
                             'donot show globally installed packages'
                         ))
-    parser.add_argument('-w', '--nowarn', action='store_true',
-                        help=(
-                            'Inhibit warnings about possibly '
-                            'confusing packages'
-                        ))
+    warn_group = parser.add_mutually_exclusive_group()
+    warn_group.add_argument('--nowarn', action='store_true',
+                            help=(
+                                  'Inhibit warnings about possibly '
+                                  'conflicting packages'
+                           ))
+    warn_group.add_argument('-w', action='store', dest='warn',
+                            nargs='?', default='normal',
+                            const='suppress',
+                            choices=('error', 'suppress'),
+                            help=(
+                                'Warning control. The default is to print '
+                                'warnings, the -w switch with no argument will '
+                                'suppress warnings and -werror will return '
+                                'a non-zero error code if warnings are present.'
+                            ))
     parser.add_argument('-r', '--reverse', action='store_true',
                         default=False, help=(
                             'Shows the dependency tree in the reverse fashion '
@@ -386,9 +397,19 @@ def main():
         print(jsonify_tree(tree, indent=4))
         return 0
 
+    if args.nowarn or args.warn == 'suppress':
+        warn_mode = 'suppress'
+    elif args.warn == 'error':
+        warn_mode = 'error'
+    else:
+        assert args.warn == 'normal'
+        warn_mode = 'normal'
+
+    return_code = 0
+
     # show warnings about possibly conflicting deps if found and
     # warnings are enabled
-    if not args.nowarn:
+    if warn_mode != 'suppress':
         conflicting = conflicting_deps(tree)
         if conflicting:
             print('Warning!!! Possibly conflicting dependencies found:',
@@ -414,13 +435,16 @@ def main():
                 print('- {0}'.format(xs), file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
+        if warn_mode == 'error' and (conflicting or not is_empty):
+            return_code = 1
+
     show_only = set(args.packages.split(',')) if args.packages else None
 
     tree = render_tree(tree if not args.reverse else reverse_tree(tree),
                        list_all=args.all, show_only=show_only,
                        frozen=args.freeze)
     print(tree)
-    return 0
+    return return_code
 
 
 if __name__ == '__main__':
