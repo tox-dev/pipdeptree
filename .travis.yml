@@ -8,10 +8,10 @@ python:
   - "3.2"
   - "3.3"
   - "3.4"
-before_install: make test-env
-install:
+before_install:
   - pip install pip>=8.0.2
-  - pip install .
+  - make test-env
+install: pip install .
 script: py.test -v
 after_script: make clean clean-env
 sudo: false
