@@ -350,10 +350,16 @@ def main():
                             'If in a virtualenv that has global access '
                             'donot show globally installed packages'
                         ))
-    parser.add_argument('-w', '--nowarn', action='store_true',
+    parser.add_argument('-w', '--warn', action='store', dest='warn',
+                        nargs='?', default='suppress',
+                        choices=('silence', 'suppress', 'fail'),
                         help=(
-                            'Inhibit warnings about possibly '
-                            'confusing packages'
+                            'Warning control. "suppress" will show warnings '
+                            'but return 0 whether or not they are present. '
+                            '"silence" will not show warnings at all and '
+                            'always return 0. "fail" will show warnings and '
+                            'return 1 if any are present. The default is '
+                            '"suppress".'
                         ))
     parser.add_argument('-r', '--reverse', action='store_true',
                         default=False, help=(
@@ -386,9 +392,11 @@ def main():
         print(jsonify_tree(tree, indent=4))
         return 0
 
+    return_code = 0
+
     # show warnings about possibly conflicting deps if found and
     # warnings are enabled
-    if not args.nowarn:
+    if args.warn != 'silence':
         conflicting = conflicting_deps(tree)
         if conflicting:
             print('Warning!!! Possibly conflicting dependencies found:',
@@ -414,13 +422,16 @@ def main():
                 print('- {0}'.format(xs), file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
+        if args.warn == 'fail' and (conflicting or not is_empty):
+            return_code = 1
+
     show_only = set(args.packages.split(',')) if args.packages else None
 
     tree = render_tree(tree if not args.reverse else reverse_tree(tree),
                        list_all=args.all, show_only=show_only,
                        frozen=args.freeze)
     print(tree)
-    return 0
+    return return_code
 
 
 if __name__ == '__main__':
