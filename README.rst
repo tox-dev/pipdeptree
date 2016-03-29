@@ -208,7 +208,7 @@ Usage
       -h, --help            show this help message and exit
       -f, --freeze          Print names so as to write freeze files
       -a, --all             list all deps at top level
-      -l, --local-only      If in a virtualenv that has global access donot show
+      -l, --local-only      If in a virtualenv that has global access do not show
                             globally installed packages
       -w, --nowarn          Inhibit warnings about possibly confusing packages
       -r, --reverse         Shows the dependency tree in the reverse fasion ie.

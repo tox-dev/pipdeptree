@@ -348,7 +348,7 @@ def main():
     parser.add_argument('-l', '--local-only',
                         action='store_true', help=(
                             'If in a virtualenv that has global access '
-                            'donot show globally installed packages'
+                            'do not show globally installed packages'
                         ))
     parser.add_argument('-w', '--warn', action='store', dest='warn',
                         nargs='?', default='suppress',
