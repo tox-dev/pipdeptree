@@ -57,7 +57,7 @@ And now see what ``pipdeptree`` outputs,
 .. code-block:: bash
 
     $ pipdeptree
-    Warning!!! Possible confusing dependencies found:
+    Warning!!! Possible conflicting dependencies found:
     * Mako==0.9.1 -> MarkupSafe [required: >=0.9.2, installed: 0.18]
       Jinja2==2.7.2 -> MarkupSafe [installed: 0.18]
     ------------------------------------------------------------------------
@@ -99,17 +99,24 @@ with `--packages` flag as follows:
         - Flask-Script==0.6.6 [requires: Flask]
 
 
-What's with the warning about confusing dependencies?
------------------------------------------------------
+What's with the warning about conflicting dependencies?
+-------------------------------------------------------
 
 As seen in the above output, ``pipdeptree`` by default warns about
-possible confusing dependencies. Any package that's specified as a
+possible conflicting dependencies. Any package that's specified as a
 dependency of multiple packages with a different version is considered
-as a possible confusing dependency. This is helpful because ``pip``
+as a possible conflicting dependency. This is helpful because ``pip``
 `doesn't have true dependency resolution
 <https://github.com/pypa/pip/issues/988>`_ yet. The warning is printed
-to stderr instead of stdout and it can be completely disabled by using
-the ``--nowarn`` flag.
+to stderr instead of stdout and it can be completely silenced by using
+the ``-w silence`` or ``--warn silence`` flag. On the other hand, it
+can be made mode strict with ``--warn fail`` in which case the command
+will not only print the warnings to stderr but also exit with a
+non-zero status code. This could be useful if you want to fit this
+tool into your CI pipeline.
+
+**Note** The ``--warn`` flag was added in version 0.6.0. If you are
+using an older version, use ``--nowarn`` flag.
 
 
 Warnings about circular dependencies
@@ -129,8 +136,8 @@ depending upon package B and package B depending upon package A), then
     wsgiref==0.1.2
     argparse==1.2.1
 
-As with the confusing dependencies warnings, these are printed to
-stderr and can be disabled using the ``--nowarn`` flag.
+As with the conflicting dependencies warnings, these are printed to
+stderr and can be controlled using the ``--warn`` flag.
 
 
 Using pipdeptree to write requirements.txt file
@@ -200,26 +207,32 @@ Usage
 
 .. code-block:: bash
 
-    usage: pipdeptree.py [-h] [-f] [-a] [-l] [-w] [-r] [-p PACKAGES] [-j]
+     usage: pipdeptree.py [-h] [-f] [-a] [-l] [-w [{silence,suppress,fail}]] [-r]
+                          [-p PACKAGES] [-j]
 
-    Dependency tree of the installed python packages
+     Dependency tree of the installed python packages
 
-    optional arguments:
-      -h, --help            show this help message and exit
-      -f, --freeze          Print names so as to write freeze files
-      -a, --all             list all deps at top level
-      -l, --local-only      If in a virtualenv that has global access do not show
-                            globally installed packages
-      -w, --nowarn          Inhibit warnings about possibly confusing packages
-      -r, --reverse         Shows the dependency tree in the reverse fasion ie.
-                            the sub-dependencies are listed with the list of
-                            packages that need them under them.
-      -p PACKAGES, --packages PACKAGES
-                            Comma separated list of select packages to show in the
-                            output. If set, --all will be ignored.
-      -j, --json            Display dependency tree as json. This will yield "raw"
-                            output that may be used by external tools. This option
-                            overrides all other options.
+     optional arguments:
+       -h, --help            show this help message and exit
+       -f, --freeze          Print names so as to write freeze files
+       -a, --all             list all deps at top level
+       -l, --local-only      If in a virtualenv that has global access do not show
+                             globally installed packages
+       -w [{silence,suppress,fail}], --warn [{silence,suppress,fail}]
+                             Warning control. "suppress" will show warnings but
+                             return 0 whether or not they are present. "silence"
+                             will not show warnings at all and always return 0.
+                             "fail" will show warnings and return 1 if any are
+                             present. The default is "suppress".
+       -r, --reverse         Shows the dependency tree in the reverse fashion ie.
+                             the sub-dependencies are listed with the list of
+                             packages that need them under them.
+       -p PACKAGES, --packages PACKAGES
+                             Comma separated list of select packages to show in the
+                             output. If set, --all will be ignored.
+       -j, --json            Display dependency tree as json. This will yield "raw"
+                             output that may be used by external tools. This option
+                             overrides all other options.
 
 
 Known Issues

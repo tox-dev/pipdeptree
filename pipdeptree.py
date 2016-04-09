@@ -9,7 +9,7 @@ import pip
 import pkg_resources
 
 
-__version__ = '0.5.0'
+__version__ = '0.6.0'
 
 
 flatten = chain.from_iterable
