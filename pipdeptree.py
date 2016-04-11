@@ -7,6 +7,8 @@ import json
 
 import pip
 import pkg_resources
+# inline:
+# import networkx
 
 
 __version__ = '0.6.0'
@@ -266,6 +268,33 @@ def jsonify_tree(tree, indent):
                       indent=indent)
 
 
+def dumps_graphviz_dot(tree):
+    """Convert dependency graph to dot code for layout with graphviz.
+
+    :param dict tree: dependency graph
+    :returns: dot representation of tree
+    :rtype: str
+
+    """
+    import networkx as nx
+    g = nx.DiGraph()
+    for k, deps in tree.items():
+        u = k.project_name
+        version = k.version
+        label = u + '\n' + version
+        g.add_node(u, label=label)
+        for dep in deps:
+            v = dep.project_name
+            req = dep.version_spec
+            if req is None:
+                label = 'any'
+            else:
+                label = req
+            g.add_edge(u, v, label=label)
+    pd = nx.drawing.nx_pydot.to_pydot(g)
+    return pd.to_string()
+
+
 def conflicting_deps(tree):
     """Returns dependencies which are not present or conflict with the
     requirements of other packages.
@@ -378,6 +407,8 @@ def main():
                             '"raw" output that may be used by external tools. '
                             'This option overrides all other options.'
                         ))
+    parser.add_argument('--dot', action='store_true', default=False,
+                        help='Print dependency tree as GraphViz dot code.')
     args = parser.parse_args()
 
     default_skip = ['setuptools', 'pip', 'python', 'distribute']
@@ -390,6 +421,9 @@ def main():
 
     if args.json:
         print(jsonify_tree(tree, indent=4))
+        return 0
+    elif args.dot:
+        print(dumps_graphviz_dot(tree))
         return 0
 
     return_code = 0

@@ -201,6 +201,14 @@ tools.
 
     $ python pipdeptree.py --json
 
+The dependency graph (acyclic if there are no circular dependencies)
+can be layed out as a PDF or image using GraphViz`GraphViz
+<http://www.graphviz.org/>`_ with:
+
+.. code-block:: bash
+
+    $ pipdeptree --dot | dot -Tpdf > dependencies.pdf
+
 
 Usage
 -----
@@ -233,6 +241,7 @@ Usage
        -j, --json            Display dependency tree as json. This will yield "raw"
                              output that may be used by external tools. This option
                              overrides all other options.
+       --dot                 Print the dependency graph as GraphViz dot code.
 
 
 Known Issues
