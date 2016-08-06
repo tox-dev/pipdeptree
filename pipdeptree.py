@@ -1,11 +1,16 @@
 from __future__ import print_function
 import sys
 from itertools import chain
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 import argparse
 from operator import attrgetter
 import json
 from importlib import import_module
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 import pip
 import pkg_resources
@@ -58,7 +63,7 @@ def sorted_tree(tree):
     """
     return OrderedDict(sorted([(k, sorted(v, key=attrgetter('key')))
                                for k, v in tree.items()],
-                              key=lambda (k, v): k.key))
+                              key=lambda kv: kv[0].key))
 
 
 def find_tree_root(tree, key):
