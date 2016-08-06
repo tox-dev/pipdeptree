@@ -1,8 +1,9 @@
 from __future__ import print_function
 import sys
-from itertools import chain, tee
+from itertools import chain
 from collections import defaultdict
 import argparse
+from operator import attrgetter
 import json
 
 import pip
@@ -300,41 +301,14 @@ def cyclic_deps(tree):
     :rtype: generator
 
     """
-    nodes = tree.keys()
     key_tree = dict((k.key, v) for k, v in tree.items())
-
-    def get_children(n):
-        return key_tree[n.key]
-
-    def aux(node, chain):
-        if node.dist:
-            for c in get_children(node):
-                if c.project_name in chain:
-                    yield ' => '.join([str(p) for p in chain] + [str(c)])
-                else:
-                    for cycle in aux(c, chain=chain+[c.project_name]):
-                        yield cycle
-
-    for cycle in flatten([aux(n, chain=[]) for n in nodes]):
-        yield cycle
-
-
-def peek_into(iterator):
-    """Peeks into an iterator to check if it's empty
-
-    :param iterator: an iterator
-    :returns: tuple of boolean representing whether the iterator is
-              empty or not and the iterator itself.
-    :rtype: tuple
-
-    """
-    a, b = tee(iterator)
-    is_empty = False
-    try:
-        next(a)
-    except StopIteration:
-        is_empty = True
-    return is_empty, b
+    get_children = lambda n: key_tree.get(n.key, [])
+    cyclic = []
+    for p, rs in tree.items():
+        for req in rs:
+            if p.key in map(attrgetter('key'), get_children(req)):
+                cyclic.append((p, req, p))
+    return cyclic
 
 
 def main():
@@ -415,14 +389,17 @@ def main():
                     print(' - %s' % req_str, file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
-        is_empty, cyclic = peek_into(cyclic_deps(tree))
-        if not is_empty:
-            print('Warning!!! Cyclic dependencies found:', file=sys.stderr)
-            for xs in cyclic:
-                print('- {0}'.format(xs), file=sys.stderr)
+        cyclic = cyclic_deps(tree)
+        if cyclic:
+            print('Warning!! Cyclic dependencies found:', file=sys.stderr)
+            for a, b, c in cyclic:
+                print('* {0} => {1} => {2}'.format(a.project_name,
+                                                   b.project_name,
+                                                   c.project_name),
+                      file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
-        if args.warn == 'fail' and (conflicting or not is_empty):
+        if args.warn == 'fail' and (conflicting or cyclic):
             return_code = 1
 
     show_only = set(args.packages.split(',')) if args.packages else None

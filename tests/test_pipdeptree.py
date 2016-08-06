@@ -1,8 +1,9 @@
 import pickle
+from operator import itemgetter, attrgetter
 
 from pipdeptree import (build_dist_index, construct_tree, peek_into,
                         DistPackage, ReqPackage, render_tree,
-                        reverse_tree, conflicting_deps)
+                        reverse_tree, cyclic_deps, conflicting_deps)
 
 
 def venv_fixture(pickle_file):
@@ -129,6 +130,16 @@ def test_render_tree_freeze():
     # TODO! Fix the following failing test
     # assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
     assert 'itsdangerous==0.23' not in lines
+
+
+def test_cyclic_dependencies():
+    cyclic_pkgs, dist_index, tree = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
+    cyclic = [map(attrgetter('key'), cs) for cs in cyclic_deps(tree)]
+    assert len(cyclic) == 2
+    a, b, c = cyclic[0]
+    x, y, z = cyclic[1]
+    assert a == c == y
+    assert x == z == b
 
 
 def test_render_tree_cyclic_dependency():
