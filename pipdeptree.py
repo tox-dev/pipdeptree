@@ -43,6 +43,21 @@ def construct_tree(index):
                 for p in index.values())
 
 
+def find_tree_root(tree, key):
+    """Find a root in a tree by it's key
+
+    :param dict tree: the pkg dependency tree obtained by calling
+                     `construct_tree` function
+    :param str key: key of the root node to find
+    :returns: a root node if found else None
+    :rtype: mixed
+
+    """
+    result = [p for p in tree.keys() if p.key == key]
+    assert len(result) in [0, 1]
+    return None if len(result) == 0 else result[0]
+
+
 def reverse_tree(tree):
     """Reverse the dependency tree.
 
@@ -55,15 +70,12 @@ def reverse_tree(tree):
     :rtype: dict
 
     """
-    rtree = {}
-    visited = set()
+    rtree = defaultdict(list)
     child_keys = set(c.key for c in flatten(tree.values()))
     for k, vs in tree.items():
         for v in vs:
-            if v not in rtree:
-                rtree[v] = []
-            rtree[v].append(k)
-            visited.add(v.key)
+            node = find_tree_root(rtree, v.key) or v
+            rtree[node].append(k.as_required_by(v))
         if k.key not in child_keys:
             rtree[k.as_requirement()] = []
     return rtree
@@ -81,29 +93,23 @@ class Package(object):
         self._obj = obj
         self.project_name = obj.project_name
         self.key = obj.key
-        # an instance of every subclass of Package will have a
-        # DistPackage object associated with it. In case of
-        # DistPackage class, it will be the object itself.
-        self.dist = None
 
     def render_as_root(self, frozen):
         return NotImplementedError
 
-    def render_as_branch(self, parent, frozen):
+    def render_as_branch(self, frozen):
         return NotImplementedError
 
     def render(self, parent=None, frozen=False):
         if not parent:
             return self.render_as_root(frozen)
         else:
-            return self.render_as_branch(parent, frozen)
+            return self.render_as_branch(frozen)
 
-    def frozen_repr(self):
-        if self.dist:
-            fr = pip.FrozenRequirement.from_dist(self.dist._obj, [])
-            return str(fr).strip()
-        else:
-            return self.project_name
+    @staticmethod
+    def frozen_repr(obj):
+        fr = pip.FrozenRequirement.from_dist(obj, [])
+        return str(fr).strip()
 
     def __getattr__(self, key):
         return getattr(self._obj, key)
@@ -113,24 +119,30 @@ class Package(object):
 
 
 class DistPackage(Package):
-    """Wrapper class for pkg_resources.Distribution instances"""
+    """Wrapper class for pkg_resources.Distribution instances
 
-    def __init__(self, obj):
+      :param obj: pkg_resources.Distribution to wrap over
+      :param req: optional ReqPackage object to associate this
+                  DistPackage with. This is useful for displaying the
+                  tree in reverse
+    """
+
+    def __init__(self, obj, req=None):
         super(DistPackage, self).__init__(obj)
-        # this itself is the associated dist package obj
-        self.dist = self
         self.version_spec = None
+        self.req = req
 
     def render_as_root(self, frozen):
         if not frozen:
             return '{0}=={1}'.format(self.project_name, self.version)
         else:
-            return self.frozen_repr()
+            return self.__class__.frozen_repr(self._obj)
 
-    def render_as_branch(self, parent, frozen):
+    def render_as_branch(self, frozen):
+        assert self.req is not None
         if not frozen:
-            parent_ver_spec = parent.version_spec
-            parent_str = parent.project_name
+            parent_ver_spec = self.req.version_spec
+            parent_str = self.req.project_name
             if parent_ver_spec:
                 parent_str += parent_ver_spec
             return (
@@ -140,7 +152,20 @@ class DistPackage(Package):
             return self.render_as_root(frozen)
 
     def as_requirement(self):
+        """Return a ReqPackage representation of this DistPackage"""
         return ReqPackage(self._obj.as_requirement(), dist=self)
+
+    def as_required_by(self, req):
+        """Return a DistPackage instance associated to a requirement
+
+        This association is necessary for displaying the tree in
+        reverse.
+
+        :param ReqPackage req: the requirement to associate with
+        :returns: DistPackage instance
+
+        """
+        return self.__class__(self._obj, req)
 
     def as_dict(self):
         return {'key': self.key,
@@ -149,7 +174,12 @@ class DistPackage(Package):
 
 
 class ReqPackage(Package):
-    """Wrapper class for Requirements instance"""
+    """Wrapper class for Requirements instance
+
+      :param obj: The `Requirements` instance to wrap over
+      :param dist: optional `pkg_resources.Distribution` instance for
+                   this requirement
+    """
 
     def __init__(self, obj, dist=None):
         super(ReqPackage, self).__init__(obj)
@@ -169,10 +199,12 @@ class ReqPackage(Package):
     def render_as_root(self, frozen):
         if not frozen:
             return '{0}=={1}'.format(self.project_name, self.installed_version)
+        elif self.dist:
+            return self.__class__.frozen_repr(self.dist._obj)
         else:
-            return self.frozen_repr()
+            return self.project_name
 
-    def render_as_branch(self, _parent, frozen):
+    def render_as_branch(self, frozen):
         if not frozen:
             vers = []
             if self.version_spec:
@@ -213,9 +245,7 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False):
     use_bullets = not frozen
 
     key_tree = dict((k.key, v) for k, v in tree.items())
-
-    def get_children(n):
-        return key_tree[n.key]
+    get_children = lambda n: key_tree.get(n.key, [])
 
     if show_only:
         nodes = [p for p in nodes
@@ -231,17 +261,11 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False):
             prefix = ' '*indent + ('-' if use_bullets else ' ') + ' '
             node_str = prefix + node_str
         result = [node_str]
-
-        # the dist attr for some ReqPackage could be None
-        # eg. testresources, setuptools which is a dependencies of
-        # some pkg but doesn't get listed in the result of
-        # pip.get_installed_distributions.
-        if node.dist:
-            children = [aux(c, node, indent=indent+2,
-                            chain=chain+[c.project_name])
-                        for c in get_children(node)
-                        if c.project_name not in chain]
-            result += list(flatten(children))
+        children = [aux(c, node, indent=indent+2,
+                        chain=chain+[c.project_name])
+                    for c in get_children(node)
+                    if c.project_name not in chain]
+        result += list(flatten(children))
         return result
 
     lines = flatten([aux(p) for p in nodes])
@@ -285,7 +309,8 @@ def conflicting_deps(tree):
             if not req.dist:
                 conflicting[p].append(req)
             else:
-                req_version_str = '%s%s' % (req.project_name, (req.version_spec if req.version_spec else ''))
+                ver_spec = (req.version_spec if req.version_spec else '')
+                req_version_str = '%s%s' % (req.project_name, ver_spec)
                 if req.installed_version not in req_parse(req_version_str):
                     conflicting[p].append(req)
     return conflicting
