@@ -341,7 +341,7 @@ def conflicting_deps(tree):
                 conflicting[p].append(req)
             else:
                 ver_spec = (req.version_spec if req.version_spec else '')
-                req_version_str = '%s%s' % (req.project_name, ver_spec)
+                req_version_str = '{0}{1}'.format(req.project_name, ver_spec)
                 if req.installed_version not in req_parse(req_version_str):
                     conflicting[p].append(req)
     return conflicting
