@@ -5,6 +5,7 @@ from collections import defaultdict, OrderedDict
 import argparse
 from operator import attrgetter
 import json
+from importlib import import_module
 
 import pip
 import pkg_resources
@@ -96,6 +97,23 @@ def reverse_tree(tree):
         if k.key not in child_keys:
             rtree[k.as_requirement()] = []
     return rtree
+
+
+def guess_version(pkg_key, default='?'):
+    """Guess the version of a pkg when pip doesn't provide it
+
+    :param str pkg_key: key of the package
+    :param str default: default version to return if unable to find
+    :returns: version
+    :rtype: string
+
+    """
+    try:
+        m = import_module(pkg_key)
+    except ImportError:
+        return default
+    else:
+        return getattr(m, '__version__', default)
 
 
 class Package(object):
@@ -209,9 +227,9 @@ class ReqPackage(Package):
 
     @property
     def installed_version(self):
-        # if the dist is None as in some cases, we don't know the
-        # installed version
-        return self.dist.version if self.dist else '?'
+        if not self.dist:
+            return guess_version(self.key)
+        return self.dist.version
 
     def render_as_root(self, frozen):
         if not frozen:
@@ -223,15 +241,10 @@ class ReqPackage(Package):
 
     def render_as_branch(self, frozen):
         if not frozen:
-            vers = []
-            if self.version_spec:
-                vers.append(('required', self.version_spec))
-            if self.dist:
-                vers.append(('installed', self.installed_version))
-            if not vers:
-                return self.key
-            ver_str = ', '.join(['{0}: {1}'.format(k, v) for k, v in vers])
-            return '{0} [{1}]'.format(self.project_name, ver_str)
+            return (
+                '{0} [required: {1}, installed: {2}]'
+                ).format(self.project_name, self.version_spec,
+                         self.installed_version)
         else:
             return self.render_as_root(frozen)
 
@@ -276,7 +289,7 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False):
             chain = [node.project_name]
         node_str = node.render(parent, frozen)
         if parent:
-            prefix = ' '*indent + ('-' if use_bullets else ' ') + ' '
+            prefix = ' '*indent + ('- ' if use_bullets else '')
             node_str = prefix + node_str
         result = [node_str]
         children = [aux(c, node, indent=indent+2,
@@ -422,13 +435,7 @@ def main():
                 pkg = p.render_as_root(False)
                 print('* %s' % pkg, file=sys.stderr)
                 for req in reqs:
-                    if not req.dist:
-                        req_str = (
-                            '{0} [required: {1}, '
-                            'installed: <unknown>]'
-                        ).format(req.project_name, req.version_spec)
-                    else:
-                        req_str = req.render_as_branch(p, False)
+                    req_str = req.render_as_branch(False)
                     print(' - %s' % req_str, file=sys.stderr)
             print('-'*72, file=sys.stderr)
 

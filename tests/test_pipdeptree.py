@@ -87,7 +87,7 @@ def test_ReqPackage_render_as_branch():
     assert mks1.project_name == 'markupsafe'
     assert mks1.installed_version == '0.18'
     assert mks1.version_spec is None
-    assert mks1.render_as_branch(False) == 'markupsafe [installed: 0.18]'
+    assert mks1.render_as_branch(False) == 'markupsafe [required: None, installed: 0.18]'
     assert mks1.render_as_branch(True) == 'MarkupSafe==0.18'
     mks2 = find_req('markupsafe', 'mako')
     assert mks2.project_name == 'MarkupSafe'
@@ -126,7 +126,7 @@ def test_render_tree_freeze():
         line = line.replace('origin/HEAD', 'master')
         lines.add(line)
     assert 'Flask-Script==0.6.6' in lines
-    assert '    SQLAlchemy==0.9.1' in lines
+    assert '  SQLAlchemy==0.9.1' in lines
     # TODO! Fix the following failing test
     # assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
     assert 'itsdangerous==0.23' not in lines
@@ -147,9 +147,9 @@ def test_render_tree_cyclic_dependency():
     tree_str = render_tree(tree, list_all=True)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
-    assert '  - CircularDependencyB [installed: 0.0.0]' in lines
+    assert '  - CircularDependencyB [required: None, installed: 0.0.0]' in lines
     assert 'CircularDependencyB==0.0.0' in lines
-    assert '  - CircularDependencyA [installed: 0.0.0]' in lines
+    assert '  - CircularDependencyA [required: None, installed: 0.0.0]' in lines
 
 
 def test_render_tree_freeze_cyclic_dependency():
@@ -157,9 +157,9 @@ def test_render_tree_freeze_cyclic_dependency():
     tree_str = render_tree(tree, list_all=True, frozen=True)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
-    assert '    CircularDependencyB==0.0.0' in lines
+    assert '  CircularDependencyB==0.0.0' in lines
     assert 'CircularDependencyB==0.0.0' in lines
-    assert '    CircularDependencyA==0.0.0' in lines
+    assert '  CircularDependencyA==0.0.0' in lines
 
 
 def test_conflicting_deps():
