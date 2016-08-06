@@ -1,7 +1,7 @@
 from __future__ import print_function
 import sys
 from itertools import chain
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import argparse
 from operator import attrgetter
 import json
@@ -41,6 +41,23 @@ def construct_tree(index):
     return dict((p, [ReqPackage(r, index.get(r.key))
                      for r in p.requires()])
                 for p in index.values())
+
+
+def sorted_tree(tree):
+    """Sorts the dict representation of the tree
+
+    The root packages as well as the intermediate packages are sorted
+    in the alphabetical order of the package names.
+
+    :param dict tree: the pkg dependency tree obtained by calling
+                     `construct_tree` function
+    :returns: sorted tree
+    :rtype: collections.OrderedDict
+
+    """
+    return OrderedDict(sorted([(k, sorted(v, key=attrgetter('key')))
+                               for k, v in tree.items()],
+                              key=lambda (k, v): k.key))
 
 
 def find_tree_root(tree, key):
@@ -240,6 +257,7 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False):
     :rtype: str
 
     """
+    tree = sorted_tree(tree)
     branch_keys = set(r.key for r in flatten(tree.values()))
     nodes = tree.keys()
     use_bullets = not frozen
