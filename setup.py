@@ -20,6 +20,7 @@ install_requires = ["pip >= 1.4.1"]
 if sys.version_info < (2, 7):
     install_requires.append('argparse')
     install_requires.append('ordereddict')
+    install_requires.append('importlib')
 
 
 setup(
