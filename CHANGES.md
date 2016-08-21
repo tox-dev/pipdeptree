@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.7.0
+-----
+
+* Fix for a bug in reverse mode.
+* Alphabetical sorting of packages in the output.
+* Fallback to guess installed version of packages "skipped" by pip.
+
 0.6.0
 -----
 
