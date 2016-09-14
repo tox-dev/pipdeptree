@@ -16,7 +16,7 @@ with open('./README.rst') as f:
     long_desc = f.read()
 
 
-install_requires = ["pip >= 1.4.1"]
+install_requires = ["pip >= 6.0.0"]
 if sys.version_info < (2, 7):
     install_requires.append('argparse')
     install_requires.append('ordereddict')
