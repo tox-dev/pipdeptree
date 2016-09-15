@@ -415,10 +415,7 @@ def main():
                         ))
     args = parser.parse_args()
 
-    default_skip = ['setuptools', 'pip', 'python', 'distribute']
-    skip = default_skip + ['pipdeptree']
-    pkgs = pip.get_installed_distributions(local_only=args.local_only,
-                                           skip=skip)
+    pkgs = pip.get_installed_distributions(local_only=args.local_only)
 
     dist_index = build_dist_index(pkgs)
     tree = construct_tree(dist_index)
