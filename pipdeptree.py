@@ -16,7 +16,7 @@ import pip
 import pkg_resources
 
 
-__version__ = '0.7.0'
+__version__ = '0.8.0'
 
 
 flatten = chain.from_iterable
