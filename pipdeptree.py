@@ -359,12 +359,11 @@ def conflicting_deps(tree):
 
 
 def cyclic_deps(tree):
-    """Generator that produces cyclic dependencies
+    """Return cyclic dependencies as list of tuples
 
     :param list pkgs: pkg_resources.Distribution instances
     :param dict pkg_index: mapping of pkgs with their respective keys
-    :returns: generator that yields str representation of cyclic
-              dependencies
+    :returns: list of tuples representing cyclic dependencies
     :rtype: generator
 
     """
