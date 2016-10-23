@@ -221,6 +221,8 @@ class ReqPackage(Package):
                    this requirement
     """
 
+    UNKNOWN_VERSION = '?'
+
     def __init__(self, obj, dist=None):
         super(ReqPackage, self).__init__(obj)
         self.dist = dist
@@ -233,8 +235,18 @@ class ReqPackage(Package):
     @property
     def installed_version(self):
         if not self.dist:
-            return guess_version(self.key)
+            return guess_version(self.key, self.UNKNOWN_VERSION)
         return self.dist.version
+
+    def is_conflicting(self):
+        """If installed version conflicts with required version"""
+        # unknown installed version is also considered conflicting
+        if self.installed_version == self.UNKNOWN_VERSION:
+            return True
+        ver_spec = (self.version_spec if self.version_spec else '')
+        req_version_str = '{0}{1}'.format(self.project_name, ver_spec)
+        req_obj = pkg_resources.Requirement.parse(req_version_str)
+        return self.installed_version not in req_obj
 
     def render_as_root(self, frozen):
         if not frozen:
@@ -339,16 +351,10 @@ def conflicting_deps(tree):
 
     """
     conflicting = defaultdict(list)
-    req_parse = pkg_resources.Requirement.parse
     for p, rs in tree.items():
         for req in rs:
-            if not req.dist:
+            if req.is_conflicting():
                 conflicting[p].append(req)
-            else:
-                ver_spec = (req.version_spec if req.version_spec else '')
-                req_version_str = '{0}{1}'.format(req.project_name, ver_spec)
-                if req.installed_version not in req_parse(req_version_str):
-                    conflicting[p].append(req)
     return conflicting
 
 
