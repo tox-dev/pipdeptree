@@ -1,6 +1,24 @@
 Changelog
 =========
 
+0.8.0
+-----
+
+* Use pip's list of excluded default packages. This means that the
+  ``pipdeptree`` package itself is no longer excluded and will appear
+  in the output tree.
+
+* Fix the bug that caused a package to appear in conflicting deps
+  although it's installed version could be guessed.
+
+
+0.7.0
+-----
+
+* Fix for a bug in reverse mode.
+* Alphabetical sorting of packages in the output.
+* Fallback to guess installed version of packages "skipped" by pip.
+
 0.6.0
 -----
 

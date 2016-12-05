@@ -1,8 +1,9 @@
 import pickle
+from operator import itemgetter, attrgetter
 
-from pipdeptree import (build_dist_index, construct_tree, peek_into,
+from pipdeptree import (build_dist_index, construct_tree,
                         DistPackage, ReqPackage, render_tree,
-                        reverse_tree, conflicting_deps)
+                        reverse_tree, cyclic_deps, conflicting_deps)
 
 
 def venv_fixture(pickle_file):
@@ -47,8 +48,10 @@ def test_tree():
 
 def test_reverse_tree():
     rtree = reverse_tree(tree)
-    assert all((isinstance(k, ReqPackage) and
-                all(isinstance(v, DistPackage) for v in vs))
+    assert all(isinstance(k, ReqPackage) for k, vs in rtree.items())
+    assert all(all(isinstance(v, DistPackage) for v in vs)
+               for k, vs in rtree.items())
+    assert all(all(v.req is not None for v in vs)
                for k, vs in rtree.items())
 
 
@@ -60,15 +63,15 @@ def test_DistPackage_render_as_root():
 
 
 def test_DistPackage_render_as_branch():
-    alembic = find_dist('alembic')
+    sqlalchemy = find_req('sqlalchemy', 'alembic')
+    alembic = find_dist('alembic').as_required_by(sqlalchemy)
     assert alembic.project_name == 'alembic'
     assert alembic.version == '0.6.2'
-    sqlalchemy = find_req('sqlalchemy', 'alembic')
     assert sqlalchemy.project_name == 'SQLAlchemy'
     assert sqlalchemy.version_spec == '>=0.7.3'
     assert sqlalchemy.installed_version == '0.9.1'
-    result_1 = alembic.render_as_branch(sqlalchemy, False)
-    result_2 = alembic.render_as_branch(sqlalchemy, False)
+    result_1 = alembic.render_as_branch(False)
+    result_2 = alembic.render_as_branch(False)
     assert result_1 == result_2 == 'alembic==0.6.2 [requires: SQLAlchemy>=0.7.3]'
 
 
@@ -81,19 +84,17 @@ def test_ReqPackage_render_as_root():
 
 def test_ReqPackage_render_as_branch():
     mks1 = find_req('markupsafe', 'jinja2')
-    jinja = find_dist('jinja2')
     assert mks1.project_name == 'markupsafe'
     assert mks1.installed_version == '0.18'
     assert mks1.version_spec is None
-    assert mks1.render_as_branch(jinja, False) == 'markupsafe [installed: 0.18]'
-    assert mks1.render_as_branch(jinja, True) == 'MarkupSafe==0.18'
+    assert mks1.render_as_branch(False) == 'markupsafe [required: None, installed: 0.18]'
+    assert mks1.render_as_branch(True) == 'MarkupSafe==0.18'
     mks2 = find_req('markupsafe', 'mako')
-    mako = find_dist('mako')
     assert mks2.project_name == 'MarkupSafe'
     assert mks2.installed_version == '0.18'
     assert mks2.version_spec == '>=0.9.2'
-    assert mks2.render_as_branch(mako, False) == 'MarkupSafe [required: >=0.9.2, installed: 0.18]'
-    assert mks2.render_as_branch(mako, True) == 'MarkupSafe==0.18'
+    assert mks2.render_as_branch(False) == 'MarkupSafe [required: >=0.9.2, installed: 0.18]'
+    assert mks2.render_as_branch(True) == 'MarkupSafe==0.18'
 
 
 def test_render_tree_only_top():
@@ -125,10 +126,20 @@ def test_render_tree_freeze():
         line = line.replace('origin/HEAD', 'master')
         lines.add(line)
     assert 'Flask-Script==0.6.6' in lines
-    assert '    SQLAlchemy==0.9.1' in lines
+    assert '  SQLAlchemy==0.9.1' in lines
     # TODO! Fix the following failing test
     # assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
     assert 'itsdangerous==0.23' not in lines
+
+
+def test_cyclic_dependencies():
+    cyclic_pkgs, dist_index, tree = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
+    cyclic = [map(attrgetter('key'), cs) for cs in cyclic_deps(tree)]
+    assert len(cyclic) == 2
+    a, b, c = cyclic[0]
+    x, y, z = cyclic[1]
+    assert a == c == y
+    assert x == z == b
 
 
 def test_render_tree_cyclic_dependency():
@@ -136,9 +147,9 @@ def test_render_tree_cyclic_dependency():
     tree_str = render_tree(tree, list_all=True)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
-    assert '  - CircularDependencyB [installed: 0.0.0]' in lines
+    assert '  - CircularDependencyB [required: None, installed: 0.0.0]' in lines
     assert 'CircularDependencyB==0.0.0' in lines
-    assert '  - CircularDependencyA [installed: 0.0.0]' in lines
+    assert '  - CircularDependencyA [required: None, installed: 0.0.0]' in lines
 
 
 def test_render_tree_freeze_cyclic_dependency():
@@ -146,18 +157,9 @@ def test_render_tree_freeze_cyclic_dependency():
     tree_str = render_tree(tree, list_all=True, frozen=True)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
-    assert '    CircularDependencyB==0.0.0' in lines
+    assert '  CircularDependencyB==0.0.0' in lines
     assert 'CircularDependencyB==0.0.0' in lines
-    assert '    CircularDependencyA==0.0.0' in lines
-
-
-def test_peek_into():
-    r1, g1 = peek_into(i for i in [])
-    assert r1
-    assert len(list(g1)) == 0
-    r2, g2 = peek_into(i for i in range(100))
-    assert not r2
-    assert len(list(g2)) == 100
+    assert '  CircularDependencyA==0.0.0' in lines
 
 
 def test_conflicting_deps():
