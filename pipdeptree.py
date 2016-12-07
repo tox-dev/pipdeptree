@@ -15,7 +15,7 @@ except ImportError:
 import pip
 import pkg_resources
 # inline:
-# import networkx
+# from graphviz import backend, Digraph
 
 
 __version__ = '0.8.0'
@@ -341,31 +341,50 @@ def jsonify_tree(tree, indent):
                       indent=indent)
 
 
-def dumps_graphviz_dot(tree):
-    """Convert dependency graph to dot code for layout with graphviz.
+def dump_graphviz(tree, output_format='dot'):
+    """Output dependency graph as one of the supported GraphViz output formats.
 
     :param dict tree: dependency graph
-    :returns: dot representation of tree
-    :rtype: str
+    :param string output_format: output format
+    :returns: representation of tree in the specified output format
+    :rtype: str or binary representation depending on the output format
 
     """
-    import networkx as nx
-    g = nx.DiGraph()
-    for k, deps in tree.items():
-        u = k.project_name
-        version = k.version
-        label = u + '\n' + version
-        g.add_node(u, label=label)
+    try:
+        from graphviz import backend, Digraph
+    except ImportError:
+        print('graphviz is not available, but necessary for the output '
+              'option. Please install it.', file=sys.stderr)
+        sys.exit(1)
+
+    if output_format not in backend.FORMATS:
+        print('%s is no supported output format.' % output_format,
+              file=sys.stderr)
+        print('Supported formats are: %s' % ', '.join(sorted(backend.FORMATS)),
+              file=sys.stderr)
+        sys.exit(1)
+
+    graph = Digraph(format=output_format)
+    for package, deps in tree.items():
+        project_name = package.project_name
+        label = '%s\n%s' % (project_name, package.version)
+        graph.node(project_name, label=label)
         for dep in deps:
-            v = dep.project_name
-            req = dep.version_spec
-            if req is None:
+            label = dep.version_spec
+            if not label:
                 label = 'any'
-            else:
-                label = req
-            g.add_edge(u, v, label=label)
-    pd = nx.drawing.nx_pydot.to_pydot(g)
-    return pd.to_string()
+            graph.edge(project_name, dep.project_name, label=label)
+
+    # Allow output of dot format, even if GraphViz isn't installed.
+    if output_format == 'dot':
+        return graph.source
+
+    # As it's unknown if the selected output format is binary or not, try to
+    # decode it as UTF8 and only print it out in binary if that's not possible.
+    try:
+        return graph.pipe().decode('utf-8')
+    except UnicodeDecodeError:
+        return graph.pipe()
 
 
 def conflicting_deps(tree):
@@ -447,8 +466,12 @@ def main():
                             '"raw" output that may be used by external tools. '
                             'This option overrides all other options.'
                         ))
-    parser.add_argument('--dot', action='store_true', default=False,
-                        help='Print dependency tree as GraphViz dot code.')
+    parser.add_argument('--output', dest='output_format', required=False,
+                        help=(
+                            'Print a dependency graph in the specified output '
+                            'format. Available are all formats supported by '
+                            'GraphViz, e.g.: dot, jpeg, pdf, png, svg'
+                        ))
     args = parser.parse_args()
 
     pkgs = pip.get_installed_distributions(local_only=args.local_only)
@@ -459,8 +482,8 @@ def main():
     if args.json:
         print(jsonify_tree(tree, indent=4))
         return 0
-    elif args.dot:
-        print(dumps_graphviz_dot(tree))
+    elif args.output_format:
+        print(dump_graphviz(tree, output_format=args.output_format))
         return 0
 
     return_code = 0

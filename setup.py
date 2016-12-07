@@ -33,6 +33,7 @@ setup(
     description='Command line utility to show dependency tree of packages',
     long_description=long_desc,
     install_requires=install_requires,
+    extras_require={'graphviz': ['graphviz']},
     py_modules=['pipdeptree'],
     entry_points={
         'console_scripts': [
