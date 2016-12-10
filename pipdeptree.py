@@ -377,7 +377,7 @@ def cyclic_deps(tree):
     return cyclic
 
 
-def main():
+def get_parser():
     parser = argparse.ArgumentParser(description=(
         'Dependency tree of the installed python packages'
     ))
@@ -418,6 +418,11 @@ def main():
                             '"raw" output that may be used by external tools. '
                             'This option overrides all other options.'
                         ))
+    return parser
+
+
+def main():
+    parser = get_parser()
     args = parser.parse_args()
 
     pkgs = pip.get_installed_distributions(local_only=args.local_only)
