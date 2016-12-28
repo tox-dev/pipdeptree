@@ -429,6 +429,8 @@ def main():
     parser = argparse.ArgumentParser(description=(
         'Dependency tree of the installed python packages'
     ))
+    parser.add_argument('-v', '--version', action='version',
+                        version='{0}'.format(__version__))
     parser.add_argument('-f', '--freeze', action='store_true',
                         help='Print names so as to write freeze files')
     parser.add_argument('-a', '--all', action='store_true',
