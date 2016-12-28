@@ -206,10 +206,10 @@ GraphViz`GraphViz<http://www.graphviz.org/>`_:
 
 .. code-block:: bash
 
-    $ pipdeptree --output dot > dependencies.dot
-    $ pipdeptree --output pdf > dependencies.pdf
-    $ pipdeptree --output png > dependencies.png
-    $ pipdeptree --output svg > dependencies.svg
+    $ pipdeptree --graph-output dot > dependencies.dot
+    $ pipdeptree --graph-output pdf > dependencies.pdf
+    $ pipdeptree --graph-output png > dependencies.png
+    $ pipdeptree --graph-output svg > dependencies.svg
 
 
 Usage
