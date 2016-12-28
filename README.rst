@@ -243,7 +243,7 @@ Usage
        -j, --json            Display dependency tree as json. This will yield "raw"
                              output that may be used by external tools. This option
                              overrides all other options.
-       --output OUTPUT_FORMAT
+       --graph-output OUTPUT_FORMAT
                              Print a dependency graph in the specified output
                              format. Available are all formats supported by
                              GraphViz, e.g.: dot, jpeg, pdf, png, svg

@@ -358,7 +358,7 @@ def dump_graphviz(tree, output_format='dot'):
         sys.exit(1)
 
     if output_format not in backend.FORMATS:
-        print('%s is no supported output format.' % output_format,
+        print('{} is no supported output format.'.format(output_format),
               file=sys.stderr)
         print('Supported formats are: %s' % ', '.join(sorted(backend.FORMATS)),
               file=sys.stderr)
@@ -466,7 +466,7 @@ def main():
                             '"raw" output that may be used by external tools. '
                             'This option overrides all other options.'
                         ))
-    parser.add_argument('--output', dest='output_format', required=False,
+    parser.add_argument('--graph-output', dest='output_format',
                         help=(
                             'Print a dependency graph in the specified output '
                             'format. Available are all formats supported by '
