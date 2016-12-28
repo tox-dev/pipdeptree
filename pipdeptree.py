@@ -360,14 +360,14 @@ def dump_graphviz(tree, output_format='dot'):
     if output_format not in backend.FORMATS:
         print('{} is no supported output format.'.format(output_format),
               file=sys.stderr)
-        print('Supported formats are: %s' % ', '.join(sorted(backend.FORMATS)),
-              file=sys.stderr)
+        print('Supported formats are: {}'.format(
+            ', '.join(sorted(backend.FORMATS))), file=sys.stderr)
         sys.exit(1)
 
     graph = Digraph(format=output_format)
     for package, deps in tree.items():
         project_name = package.project_name
-        label = '%s\n%s' % (project_name, package.version)
+        label = '{}\n{}'.format(project_name, package.version)
         graph.node(project_name, label=label)
         for dep in deps:
             label = dep.version_spec
@@ -497,10 +497,10 @@ def main():
                   file=sys.stderr)
             for p, reqs in conflicting.items():
                 pkg = p.render_as_root(False)
-                print('* %s' % pkg, file=sys.stderr)
+                print('* {}'.format(pkg), file=sys.stderr)
                 for req in reqs:
                     req_str = req.render_as_branch(False)
-                    print(' - %s' % req_str, file=sys.stderr)
+                    print(' - {}'.format(req_str), file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
         cyclic = cyclic_deps(tree)
