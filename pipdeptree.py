@@ -14,6 +14,8 @@ except ImportError:
 
 import pip
 import pkg_resources
+# inline:
+# from graphviz import backend, Digraph
 
 
 __version__ = '0.8.0'
@@ -339,6 +341,52 @@ def jsonify_tree(tree, indent):
                       indent=indent)
 
 
+def dump_graphviz(tree, output_format='dot'):
+    """Output dependency graph as one of the supported GraphViz output formats.
+
+    :param dict tree: dependency graph
+    :param string output_format: output format
+    :returns: representation of tree in the specified output format
+    :rtype: str or binary representation depending on the output format
+
+    """
+    try:
+        from graphviz import backend, Digraph
+    except ImportError:
+        print('graphviz is not available, but necessary for the output '
+              'option. Please install it.', file=sys.stderr)
+        sys.exit(1)
+
+    if output_format not in backend.FORMATS:
+        print('{} is no supported output format.'.format(output_format),
+              file=sys.stderr)
+        print('Supported formats are: {}'.format(
+            ', '.join(sorted(backend.FORMATS))), file=sys.stderr)
+        sys.exit(1)
+
+    graph = Digraph(format=output_format)
+    for package, deps in tree.items():
+        project_name = package.project_name
+        label = '{}\n{}'.format(project_name, package.version)
+        graph.node(project_name, label=label)
+        for dep in deps:
+            label = dep.version_spec
+            if not label:
+                label = 'any'
+            graph.edge(project_name, dep.project_name, label=label)
+
+    # Allow output of dot format, even if GraphViz isn't installed.
+    if output_format == 'dot':
+        return graph.source
+
+    # As it's unknown if the selected output format is binary or not, try to
+    # decode it as UTF8 and only print it out in binary if that's not possible.
+    try:
+        return graph.pipe().decode('utf-8')
+    except UnicodeDecodeError:
+        return graph.pipe()
+
+
 def conflicting_deps(tree):
     """Returns dependencies which are not present or conflict with the
     requirements of other packages.
@@ -418,6 +466,12 @@ def main():
                             '"raw" output that may be used by external tools. '
                             'This option overrides all other options.'
                         ))
+    parser.add_argument('--graph-output', dest='output_format',
+                        help=(
+                            'Print a dependency graph in the specified output '
+                            'format. Available are all formats supported by '
+                            'GraphViz, e.g.: dot, jpeg, pdf, png, svg'
+                        ))
     args = parser.parse_args()
 
     pkgs = pip.get_installed_distributions(local_only=args.local_only)
@@ -427,6 +481,9 @@ def main():
 
     if args.json:
         print(jsonify_tree(tree, indent=4))
+        return 0
+    elif args.output_format:
+        print(dump_graphviz(tree, output_format=args.output_format))
         return 0
 
     return_code = 0
@@ -440,10 +497,10 @@ def main():
                   file=sys.stderr)
             for p, reqs in conflicting.items():
                 pkg = p.render_as_root(False)
-                print('* %s' % pkg, file=sys.stderr)
+                print('* {}'.format(pkg), file=sys.stderr)
                 for req in reqs:
                     req_str = req.render_as_branch(False)
-                    print(' - %s' % req_str, file=sys.stderr)
+                    print(' - {}'.format(req_str), file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
         cyclic = cyclic_deps(tree)
