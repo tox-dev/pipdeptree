@@ -91,7 +91,7 @@ with `--packages` flag as follows:
 
 .. code-block:: bash
 
-    $ python pipdeptree.py --reverse --packages itsdangerous,gnureadline --nowarn
+    $ python pipdeptree.py --reverse --packages itsdangerous,gnureadline
     gnureadline==6.3.3
       - ipython==2.0.0 [requires: gnureadline]
     itsdangerous==0.24
@@ -168,7 +168,7 @@ lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 
 .. code-block:: bash
 
-    $ pipdeptree -f --nowarn | grep -P '^[\w0-9\-=.]+'
+    $ pipdeptree -f --warn silence | grep -P '^[\w0-9\-=.]+'
     -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master
     wsgiref==0.1.2
     argparse==1.2.1
@@ -179,7 +179,7 @@ lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
     slugify==0.0.1
     redis==2.9.1
 
-    $ pipdeptree -f --nowarn | grep -P '^[\w0-9\-=.]+' > requirements.txt
+    $ pipdeptree -f --warn silence | grep -P '^[\w0-9\-=.]+' > requirements.txt
 
 The freeze flag will also not output the hyphens for child
 dependencies, so you could dump the complete output of ``pipdeptree
