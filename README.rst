@@ -294,6 +294,20 @@ run ``make test-tox`` once so that tests are run on all environments.
 
 (See more: Makefile)
 
+Release checklist
+-----------------
+
+* Make sure that tests pass on TravisCI.
+
+* Create a commit with following changes and push it to github
+  - Update the `__version__` in the `pipdeptree.py` file.
+  - Add Changelog in `CHANGES.md` file.
+  - Also update `README.md` if required.
+
+* Create an annotated tag on the above commit and push the tag to
+  github
+
+* Upload new version to PyPI.
 
 License
 -------
