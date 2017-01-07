@@ -425,7 +425,7 @@ def cyclic_deps(tree):
     return cyclic
 
 
-def main():
+def get_parser():
     parser = argparse.ArgumentParser(description=(
         'Dependency tree of the installed python packages'
     ))
@@ -478,6 +478,11 @@ def main():
                             'format. Available are all formats supported by '
                             'GraphViz, e.g.: dot, jpeg, pdf, png, svg'
                         ))
+    return parser
+
+
+def main():
+    parser = get_parser()
     args = parser.parse_args()
 
     pkgs = pip.get_installed_distributions(local_only=args.local_only,
