@@ -440,6 +440,10 @@ def main():
                             'If in a virtualenv that has global access '
                             'do not show globally installed packages'
                         ))
+    parser.add_argument('-u', '--user-only', action='store_true',
+                        help=(
+                            'Only show installations in the user site dir'
+                        ))
     parser.add_argument('-w', '--warn', action='store', dest='warn',
                         nargs='?', default='suppress',
                         choices=('silence', 'suppress', 'fail'),
@@ -476,7 +480,8 @@ def main():
                         ))
     args = parser.parse_args()
 
-    pkgs = pip.get_installed_distributions(local_only=args.local_only)
+    pkgs = pip.get_installed_distributions(local_only=args.local_only,
+                                           user_only=args.user_only)
 
     dist_index = build_dist_index(pkgs)
     tree = construct_tree(dist_index)
