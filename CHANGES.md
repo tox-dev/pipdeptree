@@ -1,6 +1,20 @@
 Changelog
 =========
 
+0.9.0
+-----
+
+* Support for visualizing dependency tree of packages using Graphviz
+  in various formats.
+
+* Support to consider only packages installed in the user directory.
+
+* Fix the output to use a better term, "Any" instead of "None" if a
+  dependency doesn't need to be of a specific version.
+
+* CLI option to print version.
+
+
 0.8.0
 -----
 

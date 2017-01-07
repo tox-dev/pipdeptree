@@ -5,14 +5,15 @@ pipdeptree
    :target: https://travis-ci.org/naiquevin/pipdeptree
 
 
-``pipdeptree`` is a command line utility for displaying the python
-packages installed in an virtualenv in form of a dependency
-tree. Since ``pip freeze`` shows all dependencies as a flat list,
-finding out which are the top level packages and which packages do
-they depend on requires some effort. It can also be tedious to resolve
-conflicting dependencies because ``pip`` doesn't yet have true
-dependency resolution (more on this later). This utility tries to
-solve these problem.
+``pipdeptree`` is a command line utility for displaying the installed
+python packages in form of a dependency tree. It works for packages
+installed globally on a machine as well as in a virtualenv. Since
+``pip freeze`` shows all dependencies as a flat list, finding out
+which are the top level packages and which packages do they depend on
+requires some effort. It can also be tedious to resolve conflicting
+dependencies because ``pip`` doesn't yet have true dependency
+resolution (more on this later). This utility tries to solve this
+problem.
 
 To some extent, this tool is inspired by ``lein deps :tree`` command
 of `Leiningen <http://leiningen.org/>`_.
@@ -228,6 +229,7 @@ Usage
        -a, --all             list all deps at top level
        -l, --local-only      If in a virtualenv that has global access do not show
                              globally installed packages
+       -u, --user-only       Only show installations in the user site dir
        -w [{silence,suppress,fail}], --warn [{silence,suppress,fail}]
                              Warning control. "suppress" will show warnings but
                              return 0 whether or not they are present. "silence"
