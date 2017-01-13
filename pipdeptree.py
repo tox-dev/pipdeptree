@@ -106,6 +106,35 @@ def reverse_tree(tree):
     return rtree
 
 
+def filter_tree(tree, list_all=True, show_only=None):
+
+    """Filter the tree.
+
+    :param dict tree: the package tree
+    :param bool list_all: whether to list all the pgks at the root
+                          level or only those that are the
+                          sub-dependencies
+    :param set show_only: set of select packages to be shown in the
+                          output. This is optional arg, default: None.
+    :returns: reversed tree
+    :rtype: dict
+
+    """
+    tree = sorted_tree(tree)
+    branch_keys = set(r.key for r in flatten(tree.values()))
+    nodes = tree.keys()
+    node_keys = [node.key for node in nodes]
+
+    if show_only:
+        node_keys = [node.key for node in nodes
+                     if node.key in show_only or node.project_name in show_only]
+    elif not list_all:
+        node_keys = [node.key for node in nodes if node.key not in branch_keys]
+
+    return {
+        node: deps for node, deps in tree.items() if node.key in nodes_keys}
+
+
 def guess_version(pkg_key, default='?'):
     """Guess the version of a pkg when pip doesn't provide it
 
@@ -274,34 +303,21 @@ class ReqPackage(Package):
                 'required_version': self.version_spec}
 
 
-def render_tree(tree, list_all=True, show_only=None, frozen=False):
+def render_tree(tree, frozen=False):
     """Convert to tree to string representation
 
     :param dict tree: the package tree
-    :param bool list_all: whether to list all the pgks at the root
-                          level or only those that are the
-                          sub-dependencies
-    :param set show_only: set of select packages to be shown in the
-                          output. This is optional arg, default: None.
     :param bool frozen: whether or not show the names of the pkgs in
                         the output that's favourable to pip --freeze
     :returns: string representation of the tree
     :rtype: str
 
     """
-    tree = sorted_tree(tree)
-    branch_keys = set(r.key for r in flatten(tree.values()))
     nodes = tree.keys()
     use_bullets = not frozen
 
     key_tree = dict((k.key, v) for k, v in tree.items())
     get_children = lambda n: key_tree.get(n.key, [])
-
-    if show_only:
-        nodes = [p for p in nodes
-                 if p.key in show_only or p.project_name in show_only]
-    elif not list_all:
-        nodes = [p for p in nodes if p.key not in branch_keys]
 
     def aux(node, parent=None, indent=0, chain=None):
         if chain is None:
@@ -469,8 +485,7 @@ def get_parser():
     parser.add_argument('-j', '--json', action='store_true', default=False,
                         help=(
                             'Display dependency tree as json. This will yield '
-                            '"raw" output that may be used by external tools. '
-                            'This option overrides all other options.'
+                            '"raw" output that may be used by external tools.'
                         ))
     parser.add_argument('--graph-output', dest='output_format',
                         help=(
@@ -490,6 +505,9 @@ def main():
 
     dist_index = build_dist_index(pkgs)
     tree = construct_tree(dist_index)
+
+    show_only = set(args.packages.split(',')) if args.packages else None
+    tree = filter_tree(tree, list_all=args.all, show_only=show_only)
 
     if args.json:
         print(jsonify_tree(tree, indent=4))
@@ -528,10 +546,7 @@ def main():
         if args.warn == 'fail' and (conflicting or cyclic):
             return_code = 1
 
-    show_only = set(args.packages.split(',')) if args.packages else None
-
     tree = render_tree(tree if not args.reverse else reverse_tree(tree),
-                       list_all=args.all, show_only=show_only,
                        frozen=args.freeze)
     print(tree)
     return return_code
