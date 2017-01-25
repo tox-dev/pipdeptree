@@ -10,6 +10,7 @@ clean-env:
 	rm tests/virtualenvs/*.pickle
 
 test-env:
+	pip install tox
 	cd tests/virtualenvs; make testenv cyclicenv unsatisfiedenv
 
 test: test-env

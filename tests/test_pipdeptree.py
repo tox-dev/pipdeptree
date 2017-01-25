@@ -1,9 +1,16 @@
+import json
+import os
 import pickle
-from operator import itemgetter, attrgetter
+import sys
+from contextlib import contextmanager
+from tempfile import NamedTemporaryFile
+from operator import attrgetter
 
 from pipdeptree import (build_dist_index, construct_tree,
                         DistPackage, ReqPackage, render_tree,
-                        reverse_tree, cyclic_deps, conflicting_deps)
+                        reverse_tree, cyclic_deps, conflicting_deps,
+                        get_parser, jsonify_tree, dump_graphviz,
+                        print_graphviz)
 
 
 def venv_fixture(pickle_file):
@@ -130,6 +137,81 @@ def test_render_tree_freeze():
     # TODO! Fix the following failing test
     # assert '-e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master' in lines
     assert 'itsdangerous==0.23' not in lines
+
+
+def test_render_json(capsys):
+    output = jsonify_tree(tree, indent=4)
+    print_graphviz(output)
+    out, _ = capsys.readouterr()
+    assert out.startswith('[\n    {\n        "')
+    assert out.strip().endswith('}\n]')
+    data = json.loads(out)
+    assert 'package' in data[0]
+    assert 'dependencies' in data[0]
+
+
+def test_render_pdf():
+    output = dump_graphviz(tree, output_format='pdf')
+
+    @contextmanager
+    def redirect_stdout(new_target):
+        old_target, sys.stdout = sys.stdout, new_target
+        try:
+            yield new_target
+        finally:
+            sys.stdout = old_target
+
+    f = NamedTemporaryFile(delete=False)
+    with redirect_stdout(f):
+        print_graphviz(output)
+    with open(f.name, 'rb') as rf:
+        out = rf.read()
+    os.remove(f.name)
+    assert out[:4] == b'%PDF'
+
+
+def test_render_svg(capsys):
+    output = dump_graphviz(tree, output_format='svg')
+    print_graphviz(output)
+    out, _ = capsys.readouterr()
+    assert out.startswith('<?xml')
+    assert '<svg' in out
+    assert out.strip().endswith('</svg>')
+
+
+def test_parser_default():
+    parser = get_parser()
+    args = parser.parse_args([])
+    assert not args.json
+    assert args.output_format is None
+
+
+def test_parser_j():
+    parser = get_parser()
+    args = parser.parse_args(['-j'])
+    assert args.json
+    assert args.output_format is None
+
+
+def test_parser_json():
+    parser = get_parser()
+    args = parser.parse_args(['--json'])
+    assert args.json
+    assert args.output_format is None
+
+
+def test_parser_pdf():
+    parser = get_parser()
+    args = parser.parse_args(['--graph-output', 'pdf'])
+    assert args.output_format == 'pdf'
+    assert not args.json
+
+
+def test_parser_svg():
+    parser = get_parser()
+    args = parser.parse_args(['--graph-output', 'svg'])
+    assert args.output_format == 'svg'
+    assert not args.json
 
 
 def test_cyclic_dependencies():
