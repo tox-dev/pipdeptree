@@ -15,6 +15,7 @@ addons:
       - graphviz
 before_install:
   - pip install -U pip>=8.0.2
+  - pip install graphviz
   - make test-env
 install: pip install .
 script: py.test -v
