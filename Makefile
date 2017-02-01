@@ -7,10 +7,10 @@ clean:
 	rm -rf htmlcov .tox
 
 clean-env:
-	cd tests/virtualenvs && make clean
+	make -C tests/virtualenvs clean
 
 test-env:
-	cd tests/virtualenvs && make
+	make -C tests/virtualenvs
 
 test: test-env
 	tox -e py27
