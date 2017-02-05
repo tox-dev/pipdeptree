@@ -132,7 +132,7 @@ def filter_tree(tree, list_all=True, show_only=None):
         node_keys = [node.key for node in nodes if node.key not in branch_keys]
 
     return dict([
-        (node, deps) for node, deps in tree.items() if node.key in nodes_keys])
+        (node, deps) for node, deps in tree.items() if node.key in node_keys])
 
 
 def guess_version(pkg_key, default='?'):
