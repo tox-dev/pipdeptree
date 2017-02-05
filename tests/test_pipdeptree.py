@@ -2,7 +2,7 @@ import pickle
 from operator import itemgetter, attrgetter
 
 from pipdeptree import (build_dist_index, construct_tree,
-                        DistPackage, ReqPackage, render_tree,
+                        DistPackage, ReqPackage, filter_tree, render_tree,
                         reverse_tree, cyclic_deps, conflicting_deps)
 
 
@@ -97,7 +97,8 @@ def test_ReqPackage_render_as_branch():
     assert mks2.render_as_branch(True) == 'MarkupSafe==0.18'
 
 
-def test_render_tree():
+def test_render_tree_only_top():
+    tree = filter_tree(tree, list_all=False)
     tree_str = render_tree(tree)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
@@ -106,7 +107,18 @@ def test_render_tree():
     assert 'itsdangerous==0.23' not in lines
 
 
+def test_render_tree_list_all():
+    tree = filter_tree(tree, list_all=True)
+    tree_str = render_tree(tree)
+    lines = set(tree_str.split('\n'))
+    assert 'Flask-Script==0.6.6' in lines
+    assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
+    assert 'Lookupy==0.1' in lines
+    assert 'itsdangerous==0.23' in lines
+
+
 def test_render_tree_freeze():
+    tree = filter_tree(tree, list_all=False)
     tree_str = render_tree(tree, frozen=True)
     lines = set()
     for line in tree_str.split('\n'):
