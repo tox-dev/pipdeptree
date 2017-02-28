@@ -92,7 +92,7 @@ with `--packages` flag as follows:
 
 .. code-block:: bash
 
-    $ python pipdeptree.py --reverse --packages itsdangerous,gnureadline
+    $ pipdeptree --reverse --packages itsdangerous,gnureadline
     gnureadline==6.3.3
       - ipython==2.0.0 [requires: gnureadline]
     itsdangerous==0.24
