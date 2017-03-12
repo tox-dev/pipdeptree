@@ -163,7 +163,7 @@ by grep-ing only the top-level lines from the output,
 
 There is a problem here though. The output doesn't mention anything
 about ``Lookupy`` being installed as an editable package (refer to the
-output of ``pip freeze`` above) and information about it's source is
+output of ``pip freeze`` above) and information about its source is
 lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 ``--freeze`` flag.
 
