@@ -7,7 +7,7 @@ from tempfile import NamedTemporaryFile
 from operator import attrgetter
 
 from pipdeptree import (build_dist_index, construct_tree,
-                        DistPackage, ReqPackage, filter_tree, render_tree,
+                        DistPackage, ReqPackage, render_tree,
                         reverse_tree, cyclic_deps, conflicting_deps,
                         get_parser, jsonify_tree, dump_graphviz,
                         print_graphviz)
@@ -105,7 +105,7 @@ def test_ReqPackage_render_as_branch():
 
 
 def test_render_tree_only_top():
-    tree_str = render_tree(filter_tree(tree, list_all=False))
+    tree_str = render_tree(tree, list_all=False)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
@@ -114,7 +114,7 @@ def test_render_tree_only_top():
 
 
 def test_render_tree_list_all():
-    tree_str = render_tree(filter_tree(tree, list_all=True))
+    tree_str = render_tree(tree, list_all=True)
     lines = set(tree_str.split('\n'))
     assert 'Flask-Script==0.6.6' in lines
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
@@ -123,7 +123,7 @@ def test_render_tree_list_all():
 
 
 def test_render_tree_freeze():
-    tree_str = render_tree(filter_tree(tree, list_all=False), frozen=True)
+    tree_str = render_tree(tree, list_all=False, frozen=True)
     lines = set()
     for line in tree_str.split('\n'):
         # Workaround for https://github.com/pypa/pip/issues/1867
@@ -226,7 +226,7 @@ def test_cyclic_dependencies():
 
 def test_render_tree_cyclic_dependency():
     cyclic_pkgs, dist_index, tree = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
-    tree_str = render_tree(tree)
+    tree_str = render_tree(tree, list_all=True)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
     assert '  - CircularDependencyB [required: Any, installed: 0.0.0]' in lines
@@ -236,7 +236,7 @@ def test_render_tree_cyclic_dependency():
 
 def test_render_tree_freeze_cyclic_dependency():
     cyclic_pkgs, dist_index, tree = venv_fixture('tests/virtualenvs/cyclicenv.pickle')
-    tree_str = render_tree(tree, frozen=True)
+    tree_str = render_tree(tree, list_all=True, frozen=True)
     lines = set(tree_str.split('\n'))
     assert 'CircularDependencyA==0.0.0' in lines
     assert '  CircularDependencyB==0.0.0' in lines
