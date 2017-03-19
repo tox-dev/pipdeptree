@@ -26,6 +26,11 @@ Installation
 
     $ pip install pipdeptree
 
+This will install the latest version of ``pipdeptree`` which requires
+at least Python 2.7. Prior to version ``0.10.0``, Python 2.6 was also
+supported, so in case you are still stuck with 2.6, please install
+``0.9.0``.
+
 
 Usage and examples
 ------------------
@@ -278,7 +283,7 @@ Tests can be run against all version of python using `tox
 
     $ make test-tox
 
-This assumes that you have python versions 2.6, 2.7, 3.2, 3.3 and 3.4
+This assumes that you have python versions 2.7, 3.3 and 3.4, 3.5, 3.6
 installed on your machine. (See more: tox.ini)
 
 Or if you don't want to install all the versions of python but want to

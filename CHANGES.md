@@ -1,6 +1,16 @@
 Changelog
 =========
 
+0.10.0
+------
+
+* Dropped support for Python 2.6.
+
+* ``--json`` and ``--packages`` options can now be used together.
+
+* Fixed binary graphviz output on Python 3
+
+
 0.9.0
 -----
 
