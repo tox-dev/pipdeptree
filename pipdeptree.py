@@ -542,8 +542,37 @@ def get_parser():
                         ))
     return parser
 
+def reexec_in_virtualenv_maybe():
+    venv_root = os.getenv('VIRTUAL_ENV')
+
+    if not venv_root:
+        return
+
+    # According to sys module's documentation
+    # (https://docs.python.org/3/library/sys.html#sys.executable) if can be None
+    # or empty string in which case we can do nothing
+    if not sys.executable:
+        return
+
+    bin_dir = 'Scripts' if sys.platform == 'win32' else 'bin'
+    executable_name = 'python.exe' if sys.platform == 'win32' else 'python'
+
+    venv_python = os.path.join(venv_root, bin_dir, executable_name)
+
+    # Normalize paths to the virtualenv's Python binary and
+    # currently active Python binary before comparing
+    abs_venv_python = os.path.realpath(venv_python)
+    abs_sys_executable = os.path.realpath(sys.executable)
+
+    # If the currently active Python binary does not match the Python binary
+    # for currently active virtualenv, exec with the virtualenv's Python
+    # binary
+    if abs_sys_executable != abs_venv_python:
+        os.execv(abs_venv_python, [abs_venv_python, __file__] + sys.argv[1:])
 
 def main():
+    reexec_in_virtualenv_maybe()
+
     parser = get_parser()
     args = parser.parse_args()
 
