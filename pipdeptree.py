@@ -7,6 +7,7 @@ import argparse
 from operator import attrgetter
 import json
 from importlib import import_module
+import subprocess
 
 try:
     from collections import OrderedDict
@@ -564,11 +565,14 @@ def reexec_in_virtualenv_maybe():
     abs_venv_python = os.path.realpath(venv_python)
     abs_sys_executable = os.path.realpath(sys.executable)
 
-    # If the currently active Python binary does not match the Python binary
-    # for currently active virtualenv, exec with the virtualenv's Python
-    # binary
+    # If the currently active Python binary does not match the Python binary for
+    # currently active virtualenv, execute pipdeptree with the virtualenv's
+    # Python binary and exit with its return code.
+    #
+    # We used os.execv earlier but that does not work well on Windows, see
+    # https://stackoverflow.com/questions/7004687/os-exec-on-windows
     if abs_sys_executable != abs_venv_python:
-        os.execv(abs_venv_python, [abs_venv_python, __file__] + sys.argv[1:])
+        sys.exit(subprocess.call([abs_venv_python, __file__] + sys.argv[1:]))
 
 def main():
     reexec_in_virtualenv_maybe()
