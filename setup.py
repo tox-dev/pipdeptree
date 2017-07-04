@@ -1,4 +1,5 @@
 import re
+import sys
 import ast
 
 from setuptools import setup
@@ -33,7 +34,8 @@ setup(
     py_modules=['pipdeptree'],
     entry_points={
         'console_scripts': [
-            'pipdeptree = pipdeptree:main'
+            'pipdeptree = pipdeptree:main',
+            'pipdeptree{} = pipdeptree:main'.format(str(sys.version_info[0]))
         ]
     },
     classifiers=[
