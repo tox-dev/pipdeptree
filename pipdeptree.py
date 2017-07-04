@@ -368,7 +368,7 @@ def dump_graphviz(tree, output_format='dot'):
     graph = Digraph(format=output_format)
     for package, deps in tree.items():
         project_name = package.project_name
-        label = '{0}\n{1}'.format(project_name, package.version)
+        label = '{0} {1}'.format(project_name, package.version)
         graph.node(project_name, label=label)
         for dep in deps:
             label = dep.version_spec
