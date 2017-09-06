@@ -208,7 +208,7 @@ tools.
     $ python pipdeptree.py --json
 
 The dependency graph can be layed out as any of the formats supported by
-GraphViz`GraphViz<http://www.graphviz.org/>`_:
+`GraphViz <http://www.graphviz.org/>`_:
 
 .. code-block:: bash
 
@@ -319,4 +319,4 @@ Release checklist
 License
 -------
 
-MIT (See LICENSE)
+MIT (See `LICENSE <./LICENSE>`_)
