@@ -97,7 +97,7 @@ with `--packages` flag as follows:
 
 .. code-block:: bash
 
-    $ python pipdeptree.py --reverse --packages itsdangerous,gnureadline
+    $ pipdeptree --reverse --packages itsdangerous,gnureadline
     gnureadline==6.3.3
       - ipython==2.0.0 [requires: gnureadline]
     itsdangerous==0.24
@@ -205,7 +205,7 @@ tools.
 
 .. code-block:: bash
 
-    $ python pipdeptree.py --json
+    $ pipdeptree --json
 
 The dependency graph can be layed out as any of the formats supported by
 `GraphViz <http://www.graphviz.org/>`_:
@@ -223,7 +223,7 @@ Usage
 
 .. code-block:: bash
 
-     usage: pipdeptree.py [-h] [-f] [-a] [-l] [-w [{silence,suppress,fail}]] [-r]
+     usage: pipdeptree [-h] [-f] [-a] [-l] [-w [{silence,suppress,fail}]] [-r]
                           [-p PACKAGES] [-j]
 
      Dependency tree of the installed python packages
