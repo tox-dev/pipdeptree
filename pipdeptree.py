@@ -485,6 +485,12 @@ def get_parser():
                             '"raw" output that may be used by external tools. '
                             'This option overrides all other options.'
                         ))
+    parser.add_argument('--json-tree', action='store_true', default=False,
+                        help=(
+                            'Display dependency tree as json which is nested '
+                            'the same way as the plain text output printed by default. '
+                            'This option overrides all other options (except --json).'
+                        ))
     parser.add_argument('--graph-output', dest='output_format',
                         help=(
                             'Print a dependency graph in the specified output '

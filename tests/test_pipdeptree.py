@@ -200,6 +200,14 @@ def test_parser_json():
     assert args.output_format is None
 
 
+def test_parser_json_tree():
+    parser = get_parser()
+    args = parser.parse_args(['--json-tree'])
+    assert args.json_tree
+    assert not args.json
+    assert args.output_format is None
+
+
 def test_parser_pdf():
     parser = get_parser()
     args = parser.parse_args(['--graph-output', 'pdf'])
