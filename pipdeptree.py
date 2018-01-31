@@ -323,8 +323,8 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False):
     return '\n'.join(lines)
 
 
-def jsonify_tree(tree, indent):
-    """Converts the tree into json representation.
+def render_json(tree, indent):
+    """Converts the tree into a flat json representation.
 
     The json repr will be a list of hashes, each hash having 2 fields:
       - package
@@ -505,7 +505,7 @@ def main():
     tree = construct_tree(dist_index)
 
     if args.json:
-        print(jsonify_tree(tree, indent=4))
+        print(render_json(tree, indent=4))
         return 0
     elif args.output_format:
         output = dump_graphviz(tree, output_format=args.output_format)

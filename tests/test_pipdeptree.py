@@ -9,7 +9,7 @@ from operator import attrgetter
 from pipdeptree import (build_dist_index, construct_tree,
                         DistPackage, ReqPackage, render_tree,
                         reverse_tree, cyclic_deps, conflicting_deps,
-                        get_parser, jsonify_tree, dump_graphviz,
+                        get_parser, render_json, dump_graphviz,
                         print_graphviz)
 
 
@@ -140,7 +140,7 @@ def test_render_tree_freeze():
 
 
 def test_render_json(capsys):
-    output = jsonify_tree(tree, indent=4)
+    output = render_json(tree, indent=4)
     print_graphviz(output)
     out, _ = capsys.readouterr()
     assert out.startswith('[\n    {\n        "')
