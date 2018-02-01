@@ -342,6 +342,49 @@ def render_json(tree, indent):
                       indent=indent)
 
 
+def render_json_tree(tree, indent):
+    """Converts the tree into a nested json representation.
+
+    The json repr will be a list of hashes, each hash having the following fields:
+      - package_name
+      - key
+      - required_version
+      - installed_version
+      - dependencies: list of dependencies
+
+    :param dict tree: dependency tree
+    :param int indent: no. of spaces to indent json
+    :returns: json representation of the tree
+    :rtype: str
+
+    """
+    tree = sorted_tree(tree)
+    branch_keys = set(r.key for r in flatten(tree.values()))
+    nodes = [p for p in tree.keys() if p.key not in branch_keys]
+    key_tree = dict((k.key, v) for k, v in tree.items())
+    get_children = lambda n: key_tree.get(n.key, [])
+
+    def aux(node, parent=None, chain=None):
+        if chain is None:
+            chain = [node.project_name]
+
+        d = node.as_dict()
+        if parent:
+            d['required_version'] = node.version_spec if node.version_spec else 'Any'
+        else:
+            d['required_version'] = d['installed_version']
+
+        d['dependencies'] = [
+            aux(c, parent=node, chain=chain+[c.project_name])
+            for c in get_children(node)
+            if c.project_name not in chain
+        ]
+
+        return d
+
+    return json.dumps([aux(p) for p in nodes], indent=indent)
+
+
 def dump_graphviz(tree, output_format='dot'):
     """Output dependency graph as one of the supported GraphViz output formats.
 
@@ -512,6 +555,9 @@ def main():
 
     if args.json:
         print(render_json(tree, indent=4))
+        return 0
+    elif args.json_tree:
+        print(render_json_tree(tree, indent=4))
         return 0
     elif args.output_format:
         output = dump_graphviz(tree, output_format=args.output_format)

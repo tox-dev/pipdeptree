@@ -9,8 +9,8 @@ from operator import attrgetter
 from pipdeptree import (build_dist_index, construct_tree,
                         DistPackage, ReqPackage, render_tree,
                         reverse_tree, cyclic_deps, conflicting_deps,
-                        get_parser, render_json, dump_graphviz,
-                        print_graphviz)
+                        get_parser, render_json, render_json_tree,
+                        dump_graphviz, print_graphviz)
 
 
 def venv_fixture(pickle_file):
@@ -148,6 +148,26 @@ def test_render_json(capsys):
     data = json.loads(out)
     assert 'package' in data[0]
     assert 'dependencies' in data[0]
+
+
+def test_render_json_tree():
+    output = render_json_tree(tree, indent=4)
+    data = json.loads(output)
+    assert 9 == len(data)
+
+    matching_pkgs = [p for p in data if p['key'] == 'flask-script']
+    assert matching_pkgs
+    flask_script = matching_pkgs[0]
+
+    matching_pkgs = [p for p in flask_script['dependencies'] if p['key'] == 'flask']
+    assert matching_pkgs
+    flask = matching_pkgs[0]
+
+    matching_pkgs = [p for p in flask['dependencies'] if p['key'] == 'jinja2']
+    assert matching_pkgs
+    jinja2 = matching_pkgs[0]
+
+    assert [p for p in jinja2['dependencies'] if p['key'] == 'markupsafe']
 
 
 def test_render_pdf():
