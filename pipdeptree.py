@@ -1,6 +1,10 @@
 from __future__ import print_function
 import os
 import sys
+
+if sys.path:
+    sys.path.pop(0)
+
 from itertools import chain
 from collections import defaultdict
 import argparse
