@@ -1,6 +1,14 @@
 Changelog
 =========
 
+0.11.0
+------
+
+* Added support for nested json output (`--json-tree` flag). Behaviour
+  of `--json` stays the same.
+
+* Test environments have been updated to fix the builds.
+
 0.10.1
 ------
 
