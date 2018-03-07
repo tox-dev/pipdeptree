@@ -263,8 +263,8 @@ class ReqPackage(Package):
         if not frozen:
             req_ver = self.version_spec if self.version_spec else 'Any'
             return (
-                '{0} [required: {1}, installed: {2}]'
-                ).format(self.project_name, req_ver, self.installed_version)
+                '{0}=={1} [required: {2}]'
+                ).format(self.project_name, self.installed_version, req_ver)
         else:
             return self.render_as_root(frozen)
 
