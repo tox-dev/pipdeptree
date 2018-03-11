@@ -280,8 +280,8 @@ class ReqPackage(Package):
                 'required_version': self.version_spec}
 
 
-def render_tree(tree, list_all=True, show_only=None, frozen=False):
-    """Convert to tree to string representation
+def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=[]):
+    """Convert tree to string representation
 
     :param dict tree: the package tree
     :param bool list_all: whether to list all the pgks at the root
@@ -310,6 +310,8 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False):
         nodes = [p for p in nodes if p.key not in branch_keys]
 
     def aux(node, parent=None, indent=0, chain=None):
+        if node.key in exclude or node.project_name in exclude:
+            return []
         if chain is None:
             chain = [node.project_name]
         node_str = node.render(parent, frozen)
@@ -527,6 +529,11 @@ def get_parser():
                             'Comma separated list of select packages to show '
                             'in the output. If set, --all will be ignored.'
                         ))
+    parser.add_argument('-e', '--exclude',
+                        help=(
+                            'Comma separated list of select packages to exclude '
+                            'from the output. If set, --all will be ignored.'
+                        ), metavar='PACKAGES')
     parser.add_argument('-j', '--json', action='store_true', default=False,
                         help=(
                             'Display dependency tree as json. This will yield '
@@ -600,10 +607,15 @@ def main():
             return_code = 1
 
     show_only = set(args.packages.split(',')) if args.packages else None
+    exclude = set(args.exclude.split(',')) if args.exclude else []
+
+    if show_only and exclude:
+        print('Cannot use --packages and --exclude args together.', file=sys.stderr)
+        sys.exit(1)
 
     tree = render_tree(tree if not args.reverse else reverse_tree(tree),
                        list_all=args.all, show_only=show_only,
-                       frozen=args.freeze)
+                       frozen=args.freeze, exclude=exclude)
     print(tree)
     return return_code
 

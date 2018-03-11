@@ -122,6 +122,24 @@ def test_render_tree_list_all():
     assert 'itsdangerous==0.23' in lines
 
 
+def test_render_tree_exclude():
+    tree_str = render_tree(tree, list_all=True, exclude=['itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe'])
+    assert tree_str == """\
+alembic==0.6.2
+  - Mako [required: Any, installed: 0.9.1]
+Flask-Script==0.6.6
+gnureadline==6.3.8
+ipython==2.0.0
+Jinja2==2.7.2
+Lookupy==0.1
+Mako==0.9.1
+psycopg2==2.7.3.2
+redis==2.9.1
+slugify==0.0.1
+Werkzeug==0.9.4
+wheel==0.30.0"""
+
+
 def test_render_tree_freeze():
     tree_str = render_tree(tree, list_all=False, frozen=True)
     lines = set()

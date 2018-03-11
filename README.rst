@@ -263,6 +263,9 @@ Usage
       -p PACKAGES, --packages PACKAGES
                             Comma separated list of select packages to show in the
                             output. If set, --all will be ignored.
+      -e PACKAGES, --exclude PACKAGES
+                            Comma separated list of select packages to exclude from
+                            the output. If set, --all will be ignored.
       -j, --json            Display dependency tree as json. This will yield "raw"
                             output that may be used by external tools. This option
                             overrides all other options.
