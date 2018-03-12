@@ -7,7 +7,7 @@ MarkupSafe==0.18
 SQLAlchemy==0.9.1
 Werkzeug==0.9.4
 alembic==0.6.2
-gnureadline==6.3.3
+gnureadline==6.3.8
 ipython==2.0.0
 itsdangerous==0.23
 psycopg2==2.7.3.2
