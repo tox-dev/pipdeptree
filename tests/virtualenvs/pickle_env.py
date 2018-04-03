@@ -6,7 +6,10 @@
 import pickle
 import sys
 
-import pip
+try:
+    import pip._internal as pip
+except ImportError:
+    import pip
 
 
 def main():
