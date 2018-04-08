@@ -13,7 +13,11 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-import pip
+try:
+    import pip._internal as pip
+except ImportError:
+    import pip
+
 import pkg_resources
 # inline:
 # from graphviz import backend, Digraph
