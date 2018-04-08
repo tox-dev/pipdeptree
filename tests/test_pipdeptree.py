@@ -123,7 +123,7 @@ def test_render_tree_list_all():
 
 
 def test_render_tree_exclude():
-    tree_str = render_tree(tree, list_all=True, exclude=['itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe'])
+    tree_str = render_tree(tree, list_all=True, exclude=['itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel'])
     assert tree_str == """\
 alembic==0.6.2
   - Mako [required: Any, installed: 0.9.1]
@@ -136,8 +136,7 @@ Mako==0.9.1
 psycopg2==2.7.3.2
 redis==2.9.1
 slugify==0.0.1
-Werkzeug==0.9.4
-wheel==0.30.0"""
+Werkzeug==0.9.4"""
 
 
 def test_render_tree_freeze():
