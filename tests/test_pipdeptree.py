@@ -151,10 +151,14 @@ def test_render_json(capsys):
 
 
 def test_render_json_tree():
-    ignore_pkgs = {'pip', 'pipdeptree', 'setuptools', 'wheel'}
+    ignored_pkgs = {'pip', 'pipdeptree', 'setuptools', 'wheel'}
     output = render_json_tree(tree, indent=4)
-    data = [d for d in json.loads(output) if d['key'] not in ignore_pkgs]
-    assert 7 == len(data)
+    data = json.loads(output)
+    pkg_keys = set([d['key'].lower() for d in data
+                    if d['key'].lower() not in ignored_pkgs])
+    expected = {'alembic', 'flask-script', 'ipython',
+                'lookupy', 'psycopg2', 'redis', 'slugify'}
+    assert pkg_keys - expected == set()
 
     matching_pkgs = [p for p in data if p['key'] == 'flask-script']
     assert matching_pkgs
