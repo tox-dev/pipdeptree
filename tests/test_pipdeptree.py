@@ -151,9 +151,10 @@ def test_render_json(capsys):
 
 
 def test_render_json_tree():
+    ignore_pkgs = {'pip', 'pipdeptree', 'setuptools', 'wheel'}
     output = render_json_tree(tree, indent=4)
-    data = json.loads(output)
-    assert 9 == len(data)
+    data = [d for d in json.loads(output) if d['key'] not in ignore_pkgs]
+    assert 7 == len(data)
 
     matching_pkgs = [p for p in data if p['key'] == 'flask-script']
     assert matching_pkgs
