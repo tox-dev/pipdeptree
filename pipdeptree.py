@@ -14,9 +14,10 @@ except ImportError:
     from ordereddict import OrderedDict
 
 try:
-    import pip._internal as pip
+    from pip._internal import get_installed_distributions
+    from pip._internal.operations.freeze import FrozenRequirement
 except ImportError:
-    import pip
+    from pip import get_installed_distributions, FrozenRequirement
 
 import pkg_resources
 # inline:
@@ -155,7 +156,7 @@ class Package(object):
 
     @staticmethod
     def frozen_repr(obj):
-        fr = pip.FrozenRequirement.from_dist(obj, [])
+        fr = FrozenRequirement.from_dist(obj, [])
         return str(fr).strip()
 
     def __getattr__(self, key):
@@ -551,7 +552,7 @@ def main():
     parser = get_parser()
     args = parser.parse_args()
 
-    pkgs = pip.get_installed_distributions(local_only=args.local_only,
+    pkgs = get_installed_distributions(local_only=args.local_only,
                                            user_only=args.user_only)
 
     dist_index = build_dist_index(pkgs)
