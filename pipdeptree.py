@@ -280,7 +280,7 @@ class ReqPackage(Package):
                 'required_version': self.version_spec}
 
 
-def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=[]):
+def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=set()):
     """Convert tree to string representation
 
     :param dict tree: the package tree
@@ -291,6 +291,8 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=[]):
                           output. This is optional arg, default: None.
     :param bool frozen: whether or not show the names of the pkgs in
                         the output that's favourable to pip --freeze
+    :param set exclude: set of select packages to be excluded from the
+                          output. This is optional arg, default: empty set().
     :returns: string representation of the tree
     :rtype: str
 
@@ -555,10 +557,7 @@ def get_parser():
     return parser
 
 
-def main():
-    parser = get_parser()
-    args = parser.parse_args()
-
+def main(args):
     pkgs = get_installed_distributions(local_only=args.local_only,
                                            user_only=args.user_only)
 
@@ -607,10 +606,10 @@ def main():
             return_code = 1
 
     show_only = set(args.packages.split(',')) if args.packages else None
-    exclude = set(args.exclude.split(',')) if args.exclude else []
+    exclude = set(args.exclude.split(',')) if args.exclude else set()
 
-    if show_only and exclude:
-        print('Cannot use --packages and --exclude args together.', file=sys.stderr)
+    if show_only and (show_only & exclude):
+        print('Conflicting packages found in --packages and --exclude lists.', file=sys.stderr)
         sys.exit(1)
 
     tree = render_tree(tree if not args.reverse else reverse_tree(tree),
@@ -621,4 +620,6 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    parser = get_parser()
+    args = parser.parse_args()
+    sys.exit(main(args))

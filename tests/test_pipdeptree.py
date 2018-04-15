@@ -6,11 +6,13 @@ from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 from operator import attrgetter
 
+import pytest
+
 from pipdeptree import (build_dist_index, construct_tree,
                         DistPackage, ReqPackage, render_tree,
                         reverse_tree, cyclic_deps, conflicting_deps,
                         get_parser, render_json, render_json_tree,
-                        dump_graphviz, print_graphviz)
+                        dump_graphviz, print_graphviz, main)
 
 
 def venv_fixture(pickle_file):
@@ -334,3 +336,25 @@ def test_conflicting_deps():
         flask: [jinja],
         uritemplate: [simplejson],
     }
+
+
+def test_main_basic():
+    parser = get_parser()
+    args = parser.parse_args('')
+
+    assert main(args) == 0
+
+
+def test_main_show_only_and_exclude_ok():
+    parser = get_parser()
+    args = parser.parse_args('--packages Flask --exclude Jinja2'.split())
+
+    assert main(args) == 0
+
+
+def test_main_show_only_and_exclude_fails():
+    parser = get_parser()
+    args = parser.parse_args('--packages Flask --exclude Jinja2,Flask'.split())
+
+    with pytest.raises(SystemExit):
+        main(args)
