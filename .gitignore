@@ -10,3 +10,4 @@ tests/virtualenvs/equimapper/
 coverage.xml
 htmlcov/
 .cache/
+.pytest_cache/
