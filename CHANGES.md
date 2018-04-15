@@ -1,6 +1,12 @@
 Changelog
 =========
 
+0.12.0
+------
+
+* Changes to make pipdeptree work with pip 10.0.0. This change is
+  backward compatible.
+
 0.11.0
 ------
 
