@@ -1,6 +1,12 @@
 Changelog
 =========
 
+0.12.1
+------
+
+* Fix import of 'FrozenRequirement' for pip 10.0.0
+
+
 0.12.0
 ------
 
