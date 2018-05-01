@@ -338,23 +338,35 @@ def test_conflicting_deps():
     }
 
 
-def test_main_basic():
+def test_main_basic(monkeypatch):
     parser = get_parser()
     args = parser.parse_args('')
 
-    assert main(args) == 0
+    def _get_args():
+        return args
+    monkeypatch.setattr('pipdeptree._get_args', _get_args)
+
+    assert main() == 0
 
 
-def test_main_show_only_and_exclude_ok():
+def test_main_show_only_and_exclude_ok(monkeypatch):
     parser = get_parser()
     args = parser.parse_args('--packages Flask --exclude Jinja2'.split())
 
-    assert main(args) == 0
+    def _get_args():
+        return args
+    monkeypatch.setattr('pipdeptree._get_args', _get_args)
+
+    assert main() == 0
 
 
-def test_main_show_only_and_exclude_fails():
+def test_main_show_only_and_exclude_fails(monkeypatch):
     parser = get_parser()
     args = parser.parse_args('--packages Flask --exclude Jinja2,Flask'.split())
 
+    def _get_args():
+        return args
+    monkeypatch.setattr('pipdeptree._get_args', _get_args)
+
     with pytest.raises(SystemExit):
-        main(args)
+        main()

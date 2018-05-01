@@ -557,7 +557,13 @@ def get_parser():
     return parser
 
 
-def main(args):
+def _get_args():
+    parser = get_parser()
+    return parser.parse_args()
+
+
+def main():
+    args = _get_args()
     pkgs = get_installed_distributions(local_only=args.local_only,
                                            user_only=args.user_only)
 
@@ -620,6 +626,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = get_parser()
-    args = parser.parse_args()
-    sys.exit(main(args))
+    sys.exit(main())
