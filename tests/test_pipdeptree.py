@@ -125,7 +125,7 @@ def test_render_tree_list_all():
 
 
 def test_render_tree_exclude():
-    tree_str = render_tree(tree, list_all=True, exclude=['itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel'])
+    tree_str = render_tree(tree, list_all=True, exclude={'itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel'})
     assert tree_str == """\
 alembic==0.6.2
   - Mako [required: Any, installed: 0.9.1]
@@ -144,7 +144,7 @@ Werkzeug==0.9.4"""
 def test_render_tree_exclude_reverse():
     rtree = reverse_tree(tree)
 
-    tree_str = render_tree(rtree, list_all=True, exclude=['itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel'])
+    tree_str = render_tree(rtree, list_all=True, exclude={'itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel'})
     assert tree_str == """\
 alembic==0.6.2
 Flask-Script==0.6.6
