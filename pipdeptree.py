@@ -280,7 +280,7 @@ class ReqPackage(Package):
                 'required_version': self.version_spec}
 
 
-def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=set()):
+def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=None):
     """Convert tree to string representation
 
     :param dict tree: the package tree
@@ -292,7 +292,7 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=set()
     :param bool frozen: whether or not show the names of the pkgs in
                         the output that's favourable to pip --freeze
     :param set exclude: set of select packages to be excluded from the
-                          output. This is optional arg, default: empty set().
+                          output. This is optional arg, default: None.
     :returns: string representation of the tree
     :rtype: str
 
@@ -312,7 +312,7 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=set()
         nodes = [p for p in nodes if p.key not in branch_keys]
 
     def aux(node, parent=None, indent=0, chain=None):
-        if node.key in exclude or node.project_name in exclude:
+        if exclude and (node.key in exclude or node.project_name in exclude):
             return []
         if chain is None:
             chain = [node.project_name]
@@ -606,9 +606,9 @@ def main(args):
             return_code = 1
 
     show_only = set(args.packages.split(',')) if args.packages else None
-    exclude = set(args.exclude.split(',')) if args.exclude else set()
+    exclude = set(args.exclude.split(',')) if args.exclude else None
 
-    if show_only and (show_only & exclude):
+    if show_only and exclude and (show_only & exclude):
         print('Conflicting packages found in --packages and --exclude lists.', file=sys.stderr)
         sys.exit(1)
 
