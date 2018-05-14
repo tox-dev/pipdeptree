@@ -413,11 +413,14 @@ def dump_graphviz(tree, output_format='dot'):
             ', '.join(sorted(backend.FORMATS))), file=sys.stderr)
         sys.exit(1)
 
+    dependencies = set(r.key for r in flatten(tree.values()))
     graph = Digraph(format=output_format)
     for package, deps in tree.items():
         project_name = package.project_name
         label = '{0}\n{1}'.format(project_name, package.version)
-        graph.node(project_name, label=label)
+        attrs = {'style': 'filled'}
+        attrs['color'] = 'lightblue' if package.key in dependencies else 'green'
+        graph.node(project_name, label=label, **attrs)
         for dep in deps:
             label = dep.version_spec
             if not label:
