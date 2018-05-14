@@ -38,7 +38,7 @@ def build_dist_index(pkgs):
     :rtype: dict
 
     """
-    return dict((p.key, DistPackage(p)) for p in pkgs)
+    return dict((p.key.lower(), DistPackage(p)) for p in pkgs)
 
 
 def construct_tree(index):
@@ -52,8 +52,12 @@ def construct_tree(index):
     :rtype: dict
 
     """
-    return dict((p, [ReqPackage(r, index.get(r.key))
-                     for r in p.requires()])
+
+    def make_req_package(r):
+        pkg = index.get(r.key.lower())
+        return ReqPackage(r if pkg is None else pkg, pkg)
+
+    return dict((p, [make_req_package(r) for r in p.requires()])
                 for p in index.values())
 
 
@@ -140,7 +144,7 @@ class Package(object):
     def __init__(self, obj):
         self._obj = obj
         self.project_name = obj.project_name
-        self.key = obj.key
+        self.key = obj.key.lower()
 
     def render_as_root(self, frozen):
         return NotImplementedError
