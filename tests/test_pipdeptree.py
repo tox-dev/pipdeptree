@@ -6,11 +6,13 @@ from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 from operator import attrgetter
 
+import pytest
+
 from pipdeptree import (build_dist_index, construct_tree,
                         DistPackage, ReqPackage, render_tree,
                         reverse_tree, cyclic_deps, conflicting_deps,
                         get_parser, render_json, render_json_tree,
-                        dump_graphviz, print_graphviz)
+                        dump_graphviz, print_graphviz, main)
 
 
 def venv_fixture(pickle_file):
@@ -120,6 +122,42 @@ def test_render_tree_list_all():
     assert '  - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]' in lines
     assert 'Lookupy==0.1' in lines
     assert 'itsdangerous==0.23' in lines
+
+
+def test_render_tree_exclude():
+    tree_str = render_tree(tree, list_all=True, exclude={'itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel'})
+    assert tree_str == """\
+alembic==0.6.2
+  - Mako [required: Any, installed: 0.9.1]
+Flask-Script==0.6.6
+gnureadline==6.3.8
+ipython==2.0.0
+Jinja2==2.7.2
+Lookupy==0.1
+Mako==0.9.1
+psycopg2==2.7.3.2
+redis==2.9.1
+slugify==0.0.1
+Werkzeug==0.9.4"""
+
+
+def test_render_tree_exclude_reverse():
+    rtree = reverse_tree(tree)
+
+    tree_str = render_tree(rtree, list_all=True, exclude={'itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel'})
+    assert tree_str == """\
+alembic==0.6.2
+Flask-Script==0.6.6
+gnureadline==6.3.8
+ipython==2.0.0
+Jinja2==2.7.2
+Lookupy==0.1
+Mako==0.9.1
+  - alembic==0.6.2 [requires: Mako]
+psycopg2==2.7.3.2
+redis==2.9.1
+slugify==0.0.1
+Werkzeug==0.9.4"""
 
 
 def test_render_tree_freeze():
@@ -298,3 +336,37 @@ def test_conflicting_deps():
         flask: [jinja],
         uritemplate: [simplejson],
     }
+
+
+def test_main_basic(monkeypatch):
+    parser = get_parser()
+    args = parser.parse_args('')
+
+    def _get_args():
+        return args
+    monkeypatch.setattr('pipdeptree._get_args', _get_args)
+
+    assert main() == 0
+
+
+def test_main_show_only_and_exclude_ok(monkeypatch):
+    parser = get_parser()
+    args = parser.parse_args('--packages Flask --exclude Jinja2'.split())
+
+    def _get_args():
+        return args
+    monkeypatch.setattr('pipdeptree._get_args', _get_args)
+
+    assert main() == 0
+
+
+def test_main_show_only_and_exclude_fails(monkeypatch):
+    parser = get_parser()
+    args = parser.parse_args('--packages Flask --exclude Jinja2,Flask'.split())
+
+    def _get_args():
+        return args
+    monkeypatch.setattr('pipdeptree._get_args', _get_args)
+
+    with pytest.raises(SystemExit):
+        main()
