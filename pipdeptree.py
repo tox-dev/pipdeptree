@@ -237,7 +237,7 @@ class ReqPackage(Package):
 
     @property
     def version_spec(self):
-        specs = self._obj.specs
+        specs = sorted(self._obj.specs, reverse=True)  # `reverse` makes '>' prior to '<'
         return ','.join([''.join(sp) for sp in specs]) if specs else None
 
     @property
