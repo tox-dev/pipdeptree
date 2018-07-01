@@ -1,6 +1,19 @@
 Changelog
 =========
 
+0.13.0
+------
+
+* Added `--exclude` option to exclude packages specified as CSV
+
+* In case of multiple version specs eg. <x,>=y, fix the order to
+  ensure consistent output. The sorting is naive - puts the '>' prior
+  to '<', and '!'.
+
+* [Developer affecting] Updated dependencies in test environments, thereby
+  fixing the long standing issue of inconsistent test behaviour.
+
+
 0.12.1
 ------
 
