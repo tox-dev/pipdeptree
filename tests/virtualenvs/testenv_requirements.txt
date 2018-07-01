@@ -1,15 +1,14 @@
-Flask==0.10.1
-Flask-Script==0.6.6
-Jinja2==2.7.2
+Flask==1.0.2
+Flask-Script==2.0.6
+Jinja2==2.10
 -e git+https://github.com/naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy
-Mako==0.9.1
-MarkupSafe==0.18
-SQLAlchemy==0.9.1
-Werkzeug==0.9.4
-alembic==0.6.2
+Mako==1.0.7
+MarkupSafe==1.0
+SQLAlchemy==1.2.9
+Werkzeug==0.14.1
+alembic==0.9.10
 gnureadline==6.3.8
-ipython==2.0.0
-itsdangerous==0.23
-psycopg2==2.7.3.2
-redis==2.9.1
+itsdangerous==0.24
+psycopg2==2.7.5
+redis==2.10.6
 slugify==0.0.1
