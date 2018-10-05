@@ -1,4 +1,4 @@
-
+.PHONY : testenv cyclicenv unsatisfiedenv
 
 testenv:
 	virtualenv --python=python2.7 testenv
