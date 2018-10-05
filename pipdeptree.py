@@ -1,25 +1,20 @@
-from __future__ import print_function
+from __future__ import absolute_import, print_function
+
+import argparse
+import json
 import os
 import sys
-from itertools import chain
 from collections import defaultdict
-import argparse
-from operator import attrgetter
-import json
 from importlib import import_module
-
+from itertools import chain
+from operator import attrgetter
 try:
     from collections import OrderedDict
 except ImportError:
     from ordereddict import OrderedDict
 
-try:
-    from pip._internal import get_installed_distributions
-    from pip._internal.operations.freeze import FrozenRequirement
-except ImportError:
-    from pip import get_installed_distributions, FrozenRequirement
-
 import pkg_resources
+
 # inline:
 # from graphviz import backend, Digraph
 
@@ -156,8 +151,7 @@ class Package(object):
 
     @staticmethod
     def frozen_repr(obj):
-        fr = FrozenRequirement.from_dist(obj, [])
-        return str(fr).strip()
+        return str(obj.as_requirement())
 
     def __getattr__(self, key):
         return getattr(self._obj, key)
@@ -564,8 +558,9 @@ def _get_args():
 
 def main():
     args = _get_args()
-    pkgs = get_installed_distributions(local_only=args.local_only,
-                                           user_only=args.user_only)
+    # pkgs = get_installed_distributions(local_only=args.local_only,
+    #                                        user_only=args.user_only)
+    pkgs = list(pkg_resources.working_set)
 
     dist_index = build_dist_index(pkgs)
     tree = construct_tree(dist_index)

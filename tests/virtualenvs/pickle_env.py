@@ -4,21 +4,15 @@
 # purposes of writing tests
 
 import pickle
+import pkg_resources
 import sys
-
-try:
-    import pip._internal as pip
-except ImportError:
-    import pip
 
 
 def main():
-    default_skip = ['setuptools', 'pip', 'python', 'distribute']
-    skip = default_skip + ['pipdeptree']
-    pkgs = pip.get_installed_distributions(local_only=True, skip=skip)
+    skip = {'setuptools', 'pip', 'python', 'distribute', 'pipdeptree'}
+    pkgs = [p for p in pkg_resources.working_set if str(p) not in skip]
     pickle.dump(pkgs, sys.stdout)
-    return 0
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main()

@@ -3,16 +3,15 @@ import os
 import pickle
 import sys
 from contextlib import contextmanager
-from tempfile import NamedTemporaryFile
 from operator import attrgetter
+from tempfile import NamedTemporaryFile
 
 import pytest
-
-from pipdeptree import (build_dist_index, construct_tree,
-                        DistPackage, ReqPackage, render_tree,
-                        reverse_tree, cyclic_deps, conflicting_deps,
-                        get_parser, render_json, render_json_tree,
-                        dump_graphviz, print_graphviz, main)
+from pipdeptree import (DistPackage, ReqPackage, build_dist_index,
+                        conflicting_deps, construct_tree, cyclic_deps,
+                        dump_graphviz, get_parser, main, print_graphviz,
+                        render_json, render_json_tree, render_tree,
+                        reverse_tree)
 
 
 def venv_fixture(pickle_file):
@@ -125,13 +124,16 @@ def test_render_tree_list_all():
 
 
 def test_render_tree_exclude():
-    tree_str = render_tree(tree, list_all=True, exclude={'itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel'})
+    tree_str = render_tree(tree, list_all=True, exclude={
+        'itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel', 'Python',
+        'pip', 'setuptools'})
     expected = """alembic==0.9.10
   - Mako [required: Any, installed: 1.0.7]
   - python-dateutil [required: Any, installed: 2.7.3]
     - six [required: >=1.5, installed: 1.11.0]
   - python-editor [required: >=0.3, installed: 1.0.3]
-click==6.7
+argparse==1.2.1
+Click==7.0
 Flask-Script==2.0.6
 gnureadline==6.3.8
 Jinja2==2.10
@@ -144,15 +146,19 @@ python-editor==1.0.3
 redis==2.10.6
 six==1.11.0
 slugify==0.0.1
-Werkzeug==0.14.1"""
+Werkzeug==0.14.1
+wsgiref==0.1.2"""
     assert expected == tree_str
 
 
 def test_render_tree_exclude_reverse():
     rtree = reverse_tree(tree)
-    tree_str = render_tree(rtree, list_all=True, exclude={'itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel'})
+    tree_str = render_tree(rtree, list_all=True, exclude={
+        'itsdangerous', 'SQLAlchemy', 'Flask', 'markupsafe', 'wheel', 'Python',
+        'pip', 'setuptools'})
     expected = """alembic==0.9.10
-click==6.7
+argparse==1.2.1
+click==7.0
 Flask-Script==2.0.6
 gnureadline==6.3.8
 Jinja2==2.10
@@ -169,7 +175,8 @@ six==1.11.0
   - python-dateutil==2.7.3 [requires: six>=1.5]
     - alembic==0.9.10 [requires: python-dateutil]
 slugify==0.0.1
-Werkzeug==0.14.1"""
+Werkzeug==0.14.1
+wsgiref==0.1.2"""
     assert expected == tree_str
 
 
