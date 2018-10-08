@@ -14,7 +14,7 @@ except ImportError:
     from ordereddict import OrderedDict
 
 try:
-    from pip._internal import get_installed_distributions
+    from pip._internal.utils.misc import get_installed_distributions
     from pip._internal.operations.freeze import FrozenRequirement
 except ImportError:
     from pip import get_installed_distributions, FrozenRequirement
