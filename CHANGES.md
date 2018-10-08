@@ -1,6 +1,12 @@
 Changelog
 =========
 
+0.13.1
+------
+
+* Fixed import after changes in pip._internal introduced in pip
+  version 18.1
+
 0.13.0
 ------
 
