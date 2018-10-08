@@ -565,7 +565,7 @@ def _get_args():
 def main():
     args = _get_args()
     pkgs = get_installed_distributions(local_only=args.local_only,
-                                           user_only=args.user_only)
+                                       user_only=args.user_only)
 
     dist_index = build_dist_index(pkgs)
     tree = construct_tree(dist_index)
