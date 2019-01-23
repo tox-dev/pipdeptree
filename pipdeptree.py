@@ -129,6 +129,13 @@ def guess_version(pkg_key, default='?'):
         return getattr(m, '__version__', default)
 
 
+def frozen_req_from_dist(dist):
+    try:
+        return FrozenRequirement.from_dist(dist)
+    except TypeError:
+        return FrozenRequirement.from_dist(dist, [])
+
+
 class Package(object):
     """Abstract class for wrappers around objects that pip returns.
 
@@ -156,7 +163,7 @@ class Package(object):
 
     @staticmethod
     def frozen_repr(obj):
-        fr = FrozenRequirement.from_dist(obj, [])
+        fr = frozen_req_from_dist(obj)
         return str(fr).strip()
 
     def __getattr__(self, key):
