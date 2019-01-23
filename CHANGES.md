@@ -1,6 +1,18 @@
 Changelog
 =========
 
+0.13.2
+------
+
+* Fixed call to `FrozenRequirement.to_dist` to handle changes to the
+  internal api of pip version 19.0. The api change is because
+  dependency links support has been removed in pip 19.0
+
+  See more:
+
+  - https://github.com/pypa/pip/pull/6060
+  - https://github.com/pypa/pip/pull/5881/commits/46ffb13f13f69c509fd253329da49889008f8e23
+
 0.13.1
 ------
 
