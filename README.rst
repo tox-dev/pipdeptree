@@ -155,7 +155,7 @@ by grep-ing only the top-level lines from the output,
 
 .. code-block:: bash
 
-    $ pipdeptree | grep -P '^\w+'
+    $ pipdeptree | grep -v '[[:space:]]'
     Lookupy==0.1
     wsgiref==0.1.2
     argparse==1.2.1
@@ -174,7 +174,7 @@ lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 
 .. code-block:: bash
 
-    $ pipdeptree -f --warn silence | grep -P '^[\w0-9\-=.]+'
+    $ pipdeptree -f --warn silence | grep -v '[[:space:]]'
     -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master
     wsgiref==0.1.2
     argparse==1.2.1
@@ -185,7 +185,7 @@ lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
     slugify==0.0.1
     redis==2.9.1
 
-    $ pipdeptree -f --warn silence | grep -P '^[\w0-9\-=.]+' > requirements.txt
+    $ pipdeptree -f --warn silence | grep -v '[[:space:]]' > requirements.txt
 
 The freeze flag will also not output the hyphens for child
 dependencies, so you could dump the complete output of ``pipdeptree
