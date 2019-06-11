@@ -15,7 +15,10 @@ with open('./README.rst') as f:
     long_desc = f.read()
 
 
-install_requires = ["pip >= 6.0.0"]
+install_requires = [
+    "pip >= 6.0.0",
+    "setuptools",
+]
 
 
 setup(
