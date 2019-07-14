@@ -2,7 +2,7 @@ from __future__ import print_function
 import os
 import sys
 from itertools import chain
-from collections import defaultdict
+from collections import defaultdict, deque
 import argparse
 from operator import attrgetter
 import json
@@ -285,6 +285,96 @@ class ReqPackage(Package):
                 'package_name': self.project_name,
                 'installed_version': self.installed_version,
                 'required_version': self.version_spec}
+
+
+class Tree(object):
+
+    @classmethod
+    def from_pkgs(cls, pkgs):
+        pkgs = [DistPackage(p) for p in pkgs]
+        idx = {p.key: DistPackage(p) for p in pkgs}
+        tree = {p: [ReqPackage(r, idx.get(r.key))
+                    for r in p.requires()]
+                for p in pkgs}
+        return cls(tree)
+
+    def __init__(self, tree, base=None):
+        self._obj = tree
+        self._base = base
+        self._index = {p.key: p for p in list(self._obj)}
+
+    def lookup(self, pkg_key):
+        return self._index[pkg_key]
+
+    @property
+    def _child_keys(self):
+        return set(r.key for r in flatten(self._obj.values()))
+
+    def filter(self, show_only, exclude):
+        if show_only and exclude:
+            assert not (show_only & exclude)
+        if show_only is None and exclude is None:
+            return self
+        # Note: In following comparisons, we use lower cased values so
+        # that user may specify `key` or `project_name`. As per the
+        # documentation, `key` is simply
+        # `project_name.lower()`. Refer:
+        # https://setuptools.readthedocs.io/en/latest/pkg_resources.html#distribution-objects
+        if show_only:
+            show_only = set([s.lower() for s in show_only])
+        if exclude:
+            exclude = set([s.lower() for s in exclude])
+        else:
+            exclude = set([])
+
+        # Traverse the tree in a depth first manner and filter the
+        # nodes according to `show_only` and `exclude` sets
+        stack = deque()
+        tree = {}
+        seen = set([])
+        for node in self._obj.keys():
+            if node.key in exclude:
+                continue
+            if show_only is None or node.key in show_only:
+                stack.append(node)
+            while True:
+                if len(stack) > 0:
+                    n = stack.pop()
+                    cldn = [c for c in self._obj[n]
+                            if c.key not in exclude]
+                    tree[n] = cldn
+                    seen.add(n.key)
+                    if len(cldn) > 0:
+                        for c in cldn:
+                            if c.key not in seen:
+                                stack.append(self.lookup(c.key))
+                else:
+                    break
+
+        return self.__class__(tree, base=self._base or self)
+
+    def reverse(self):
+        rtree = defaultdict(list)
+        child_keys = self._child_keys
+        for k, vs in self._obj.items():
+            for v in vs:
+                # if v is already added to rtree, then ensure that we
+                # are using the same object. This check is required as
+                # we're using array mutation
+                try:
+                    node = [p for p in rtree.keys() if p.key == v.key][0]
+                except IndexError:
+                    node = v
+                rtree[node].append(k.as_required_by(v))
+            if k.key not in child_keys:
+                rtree[k.as_requirement()] = []
+        return ReverseTree(dict(rtree), base=self._base or self)
+
+
+class ReverseTree(Tree):
+
+    def reverse(self):
+        raise NotImplementedError
 
 
 def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=None):
