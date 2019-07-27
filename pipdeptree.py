@@ -19,7 +19,7 @@ try:
 except ImportError:
     from pip import get_installed_distributions, FrozenRequirement
 
-import pkg_resources
+from pip._vendor import pkg_resources
 # inline:
 # from graphviz import backend, Digraph
 
