@@ -7,6 +7,7 @@ import argparse
 from operator import attrgetter
 import json
 from importlib import import_module
+import itertools
 
 try:
     from collections import OrderedDict
@@ -401,7 +402,7 @@ def render_json_tree(tree, indent):
     return json.dumps([aux(p) for p in nodes], indent=indent)
 
 
-def dump_graphviz(tree, output_format='dot'):
+def dump_graphviz(tree, output_format='dot', show_only=None, exclude=None, list_all=None):
     """Output dependency graph as one of the supported GraphViz output formats.
 
     :param dict tree: dependency graph
@@ -410,6 +411,7 @@ def dump_graphviz(tree, output_format='dot'):
     :rtype: str or binary representation depending on the output format
 
     """
+
     try:
         from graphviz import backend, Digraph
     except ImportError:
@@ -424,16 +426,48 @@ def dump_graphviz(tree, output_format='dot'):
             ', '.join(sorted(backend.FORMATS))), file=sys.stderr)
         sys.exit(1)
 
+    exclude = exclude or []
+    nodes = tree.keys()
+    branch_keys = set(r.key for r in flatten(tree.values()))
+
+    if show_only:
+        nodes = [p for p in nodes
+                 if p.key in show_only or p.project_name in show_only]
+    elif not list_all:
+        nodes = [p for p in nodes if p.key not in branch_keys]
+
+    def get_dep_nodes(tree, nodes):
+        nodes = set(nodes)
+
+        deps_to_include = list(itertools.chain(*[tree.get(p) for p in nodes]))
+        extended_nodes = set([find_tree_root(tree, d.key) for d in deps_to_include])
+        extended_nodes.update(nodes)
+
+        if extended_nodes == nodes:
+            return extended_nodes
+
+        return get_dep_nodes(tree, extended_nodes)
+
+    nodes = get_dep_nodes(tree, nodes)
+    nodes = set(filter(lambda n: n.key not in exclude, nodes))
+
     graph = Digraph(format=output_format)
+
     for package, deps in tree.items():
         project_name = package.project_name
+
+        if package not in nodes:
+            continue
+
         label = '{0}\n{1}'.format(project_name, package.version)
         graph.node(project_name, label=label)
         for dep in deps:
             label = dep.version_spec
             if not label:
                 label = 'any'
-            graph.edge(project_name, dep.project_name, label=label)
+            if not dep.project_name in exclude:
+                graph.edge(project_name, dep.project_name, label=None)
+
 
     # Allow output of dot format, even if GraphViz isn't installed.
     if output_format == 'dot':
@@ -577,6 +611,11 @@ def main():
     dist_index = build_dist_index(pkgs)
     tree = construct_tree(dist_index)
 
+    show_only = set(args.packages.split(',')) if args.packages else None
+    exclude = set(args.exclude.split(',')) if args.exclude else None
+
+    list_all=args.all
+
     if args.json:
         print(render_json(tree, indent=4))
         return 0
@@ -584,7 +623,8 @@ def main():
         print(render_json_tree(tree, indent=4))
         return 0
     elif args.output_format:
-        output = dump_graphviz(tree, output_format=args.output_format)
+        output = dump_graphviz(tree, output_format=args.output_format,
+                               show_only=show_only, exclude=exclude, list_all=list_all)
         print_graphviz(output)
         return 0
 
@@ -618,15 +658,12 @@ def main():
         if args.warn == 'fail' and (conflicting or cyclic):
             return_code = 1
 
-    show_only = set(args.packages.split(',')) if args.packages else None
-    exclude = set(args.exclude.split(',')) if args.exclude else None
-
     if show_only and exclude and (show_only & exclude):
         print('Conflicting packages found in --packages and --exclude lists.', file=sys.stderr)
         sys.exit(1)
 
     tree = render_tree(tree if not args.reverse else reverse_tree(tree),
-                       list_all=args.all, show_only=show_only,
+                       list_all=list_all, show_only=show_only,
                        frozen=args.freeze, exclude=exclude)
     print(tree)
     return return_code
