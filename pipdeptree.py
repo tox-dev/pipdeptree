@@ -344,10 +344,9 @@ class Tree(object):
                             if c.key not in exclude]
                     tree[n] = cldn
                     seen.add(n.key)
-                    if len(cldn) > 0:
-                        for c in cldn:
-                            if c.key not in seen:
-                                stack.append(self.lookup(c.key))
+                    for c in cldn:
+                        if c.key not in seen:
+                            stack.append(self.lookup(c.key))
                 else:
                     break
 
