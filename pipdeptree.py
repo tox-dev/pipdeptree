@@ -396,42 +396,30 @@ class ReverseTree(Tree):
         raise NotImplementedError
 
 
-def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=None):
-    """Convert tree to string representation
+def render_text(tree, list_all=True, frozen=False):
+    """Print tree as text on console
 
     :param dict tree: the package tree
     :param bool list_all: whether to list all the pgks at the root
                           level or only those that are the
                           sub-dependencies
-    :param set show_only: set of select packages to be shown in the
-                          output. This is optional arg, default: None.
     :param bool frozen: whether or not show the names of the pkgs in
                         the output that's favourable to pip --freeze
-    :param set exclude: set of select packages to be excluded from the
-                          output. This is optional arg, default: None.
-    :returns: string representation of the tree
-    :rtype: str
+    :returns: None
 
     """
     tree = sorted_tree(tree)
-    branch_keys = set(r.key for r in flatten(tree.values()))
     nodes = tree.keys()
-    use_bullets = not frozen
-
+    branch_keys = set(r.key for r in flatten(tree.values()))
     key_tree = dict((k.key, v) for k, v in tree.items())
     get_children = lambda n: key_tree.get(n.key, [])
+    use_bullets = not frozen
 
-    if show_only:
-        nodes = [p for p in nodes
-                 if p.key in show_only or p.project_name in show_only]
-    elif not list_all:
+    if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
     def aux(node, parent=None, indent=0, chain=None):
-        if exclude and (node.key in exclude or node.project_name in exclude):
-            return []
-        if chain is None:
-            chain = [node.project_name]
+        chain = chain or []
         node_str = node.render(parent, frozen)
         if parent:
             prefix = ' '*indent + ('- ' if use_bullets else '')
@@ -445,7 +433,7 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=None)
         return result
 
     lines = flatten([aux(p) for p in nodes])
-    return '\n'.join(lines)
+    print('\n'.join(lines))
 
 
 def render_json(tree, indent):
@@ -680,28 +668,26 @@ def _get_args():
 
 def main():
     args = _get_args()
+
+    show_only = set(args.packages.split(',')) if args.packages else None
+    exclude = set(args.exclude.split(',')) if args.exclude else None
+
     pkgs = get_installed_distributions(local_only=args.local_only,
                                        user_only=args.user_only)
 
-    dist_index = build_dist_index(pkgs)
-    tree = construct_tree(dist_index)
+    tree = Tree.from_pkgs(pkgs)
 
-    if args.json:
-        print(render_json(tree, indent=4))
-        return 0
-    elif args.json_tree:
-        print(render_json_tree(tree, indent=4))
-        return 0
-    elif args.output_format:
-        output = dump_graphviz(tree, output_format=args.output_format)
-        print_graphviz(output)
-        return 0
+    if show_only is not None or exclude is not None:
+        tree = tree.filter(show_only, exclude)
+
+    is_text_output = not any([args.json, args.json_tree, args.output_format])
 
     return_code = 0
 
-    # show warnings about possibly conflicting deps if found and
-    # warnings are enabled
-    if args.warn != 'silence':
+    # show warnings to console about possibly conflicting deps if
+    # found and warnings are enabled (only if output is to be printed
+    # to console)
+    if is_text_output and args.warn != 'silence':
         conflicting = conflicting_deps(tree)
         if conflicting:
             print('Warning!!! Possibly conflicting dependencies found:',
@@ -727,17 +713,21 @@ def main():
         if args.warn == 'fail' and (conflicting or cyclic):
             return_code = 1
 
-    show_only = set(args.packages.split(',')) if args.packages else None
-    exclude = set(args.exclude.split(',')) if args.exclude else None
+    # Reverse the tree (if applicable) after computing the conflicting
+    # and cyclic deps
+    if args.reverse:
+        tree = tree.reverse()
 
-    if show_only and exclude and (show_only & exclude):
-        print('Conflicting packages found in --packages and --exclude lists.', file=sys.stderr)
-        sys.exit(1)
+    if args.json:
+        print(render_json(tree, indent=4))
+    elif args.json_tree:
+        print(render_json_tree(tree, indent=4))
+    elif args.output_format:
+        output = dump_graphviz(tree, output_format=args.output_format)
+        print_graphviz(output)
+    else:
+        render_text(tree, args.all, args.freeze)
 
-    tree = render_tree(tree if not args.reverse else reverse_tree(tree),
-                       list_all=args.all, show_only=show_only,
-                       frozen=args.freeze, exclude=exclude)
-    print(tree)
     return return_code
 
 
