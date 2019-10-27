@@ -14,6 +14,11 @@ except ImportError:
     from ordereddict import OrderedDict
 
 try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+
+try:
     from pip._internal.utils.misc import get_installed_distributions
     from pip._internal.operations.freeze import FrozenRequirement
 except ImportError:
@@ -287,7 +292,7 @@ class ReqPackage(Package):
                 'required_version': self.version_spec}
 
 
-class Tree(object):
+class Tree(Mapping):
 
     @classmethod
     def from_pkgs(cls, pkgs):
@@ -368,6 +373,16 @@ class Tree(object):
             if k.key not in child_keys:
                 rtree[k.as_requirement()] = []
         return ReverseTree(dict(rtree), base=self._base or self)
+
+    # Methods required by the abstract base class Mapping
+    def __getitem__(self, *args):
+        return self._obj.get(*args)
+
+    def __iter__(self):
+        return self._obj.__iter__()
+
+    def __len__(self):
+        return len(self._obj)
 
 
 class ReverseTree(Tree):
