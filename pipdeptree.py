@@ -316,10 +316,10 @@ class Tree(Mapping):
         return set(r.key for r in flatten(self._obj.values()))
 
     def filter(self, show_only, exclude):
-        if show_only and exclude:
-            assert not (show_only & exclude)
+        # If neither of the filters are specified, short circuit
         if show_only is None and exclude is None:
             return self
+
         # Note: In following comparisons, we use lower cased values so
         # that user may specify `key` or `project_name`. As per the
         # documentation, `key` is simply
@@ -331,6 +331,11 @@ class Tree(Mapping):
             exclude = set([s.lower() for s in exclude])
         else:
             exclude = set([])
+
+        # Check for mutual exclusion of show_only and exclude sets
+        # after normalizing the values to lowercase
+        if show_only and exclude:
+            assert not (show_only & exclude)
 
         # Traverse the tree in a depth first manner and filter the
         # nodes according to `show_only` and `exclude` sets

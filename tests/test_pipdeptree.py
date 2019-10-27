@@ -86,7 +86,7 @@ def test_Tree_filter():
     # when conflicting values in show_only and exclude, AssertionError
     # is raised
     with pytest.raises(AssertionError):
-        tree_to_simple_graph(t.filter(set(['d']), set(['d', 'e'])))
+        tree_to_simple_graph(t.filter(set(['d']), set(['D', 'e'])))
 
 
 def test_Tree_reverse():
