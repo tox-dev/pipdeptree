@@ -309,7 +309,10 @@ class Tree(Mapping):
         self._index = {p.key: p for p in list(self._obj)}
 
     def lookup(self, pkg_key):
-        return self._index[pkg_key]
+        try:
+            return self._index[pkg_key]
+        except KeyError:
+            return None
 
     @property
     def _child_keys(self):
@@ -356,7 +359,14 @@ class Tree(Mapping):
                     seen.add(n.key)
                     for c in cldn:
                         if c.key not in seen:
-                            stack.append(self.lookup(c.key))
+                            cld_node = self.lookup(c.key)
+                            if cld_node:
+                                stack.append(cld_node)
+                            else:
+                                # It means there's no root node
+                                # corresponding to the child node
+                                # ie. a dependency is missing
+                                continue
                 else:
                     break
 
