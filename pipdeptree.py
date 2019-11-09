@@ -258,6 +258,10 @@ class ReqPackage(Package):
             return guess_version(self.key, self.UNKNOWN_VERSION)
         return self.dist.version
 
+    @property
+    def is_missing(self):
+        return self.installed_version == self.UNKNOWN_VERSION
+
     def is_conflicting(self):
         """If installed version conflicts with required version"""
         # unknown installed version is also considered conflicting
@@ -532,15 +536,17 @@ def dump_graphviz(tree, output_format='dot'):
         sys.exit(1)
 
     graph = Digraph(format=output_format)
-    for package, deps in tree.items():
-        project_name = package.project_name
-        label = '{0}\n{1}'.format(project_name, package.version)
-        graph.node(project_name, label=label)
+    label = lambda p: '{0}\n{1}'.format(p.project_name, p.version)
+    missing_label = lambda d: '{0}\n(missing)'.format(d.project_name)
+    for pkg, deps in tree.items():
+        graph.node(pkg.key, label=label(pkg))
         for dep in deps:
-            label = dep.version_spec
-            if not label:
-                label = 'any'
-            graph.edge(project_name, dep.project_name, label=label)
+            edge_label = dep.version_spec or 'any'
+            if dep.is_missing:
+                graph.node(dep.key, label=missing_label(dep), style='dashed')
+                graph.edge(pkg.key, dep.key, style='dashed')
+            else:
+                graph.edge(pkg.key, dep.key, label=edge_label)
 
     # Allow output of dot format, even if GraphViz isn't installed.
     if output_format == 'dot':
