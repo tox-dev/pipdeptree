@@ -301,7 +301,7 @@ class Tree(Mapping):
     @classmethod
     def from_pkgs(cls, pkgs):
         pkgs = [DistPackage(p) for p in pkgs]
-        idx = {p.key: DistPackage(p) for p in pkgs}
+        idx = {p.key: p for p in pkgs}
         tree = {p: [ReqPackage(r, idx.get(r.key))
                     for r in p.requires()]
                 for p in pkgs}
