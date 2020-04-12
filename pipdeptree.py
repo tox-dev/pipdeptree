@@ -575,7 +575,7 @@ def render_json_tree(tree, indent):
     return json.dumps([aux(p) for p in nodes], indent=indent)
 
 
-def dump_graphviz(tree, output_format='dot'):
+def dump_graphviz(tree, output_format='dot', is_reverse=False):
     """Output dependency graph as one of the supported GraphViz output formats.
 
     :param dict tree: dependency graph
@@ -599,17 +599,30 @@ def dump_graphviz(tree, output_format='dot'):
         sys.exit(1)
 
     graph = Digraph(format=output_format)
-    label = lambda p: '{0}\n{1}'.format(p.project_name, p.version)
-    missing_label = lambda d: '{0}\n(missing)'.format(d.project_name)
-    for pkg, deps in tree.items():
-        graph.node(pkg.key, label=label(pkg))
-        for dep in deps:
-            edge_label = dep.version_spec or 'any'
-            if dep.is_missing:
-                graph.node(dep.key, label=missing_label(dep), style='dashed')
-                graph.edge(pkg.key, dep.key, style='dashed')
-            else:
-                graph.edge(pkg.key, dep.key, label=edge_label)
+
+    if not is_reverse:
+        for pkg, deps in tree.items():
+            pkg_label = '{0}\n{1}'.format(pkg.project_name, pkg.version)
+            graph.node(pkg.key, label=pkg_label)
+            for dep in deps:
+                edge_label = dep.version_spec or 'any'
+                if dep.is_missing:
+                    dep_label = '{0}\n(missing)'.format(dep.project_name)
+                    graph.node(dep.key, label=dep_label, style='dashed')
+                    graph.edge(pkg.key, dep.key, style='dashed')
+                else:
+                    graph.edge(pkg.key, dep.key, label=edge_label)
+    else:
+        for dep, parents in tree.items():
+            dep_label = '{0}\n{1}'.format(dep.project_name,
+                                          dep.installed_version)
+            graph.node(dep.key, label=dep_label)
+            for parent in parents:
+                # req reference of the dep associated with this
+                # particular parent package
+                req_ref = parent.req
+                edge_label = req_ref.version_spec or 'any'
+                graph.edge(dep.key, parent.key, label=edge_label)
 
     # Allow output of dot format, even if GraphViz isn't installed.
     if output_format == 'dot':
@@ -802,7 +815,9 @@ def main():
     elif args.json_tree:
         print(render_json_tree(tree, indent=4))
     elif args.output_format:
-        output = dump_graphviz(tree, output_format=args.output_format)
+        output = dump_graphviz(tree,
+                               output_format=args.output_format,
+                               is_reverse=args.reverse)
         print_graphviz(output)
     else:
         render_text(tree, args.all, args.freeze)
