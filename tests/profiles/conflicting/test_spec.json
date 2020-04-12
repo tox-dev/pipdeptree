@@ -1,0 +1,16 @@
+[
+  {
+    "id": "default_output",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}}",
+    "expected_output_file": "default.out",
+    "expected_err_file": "default.err"
+  },
+  {
+    "id": "reverse_output",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}} -r",
+    "expected_output_file": "reverse.out",
+    "expected_err_file": "default.err"
+  }
+]

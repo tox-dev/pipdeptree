@@ -1,0 +1,4 @@
+Warning!! Cyclic dependencies found:
+* CircularDependencyB => CircularDependencyA => CircularDependencyB
+* CircularDependencyA => CircularDependencyB => CircularDependencyA
+------------------------------------------------------------------------

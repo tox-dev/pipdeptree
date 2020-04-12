@@ -1,0 +1,65 @@
+appnope==0.1.0
+backcall==0.1.0
+click==7.1.1
+decorator==4.4.2
+Flask==1.1.2
+  - click [required: >=5.1, installed: 7.1.1]
+  - itsdangerous [required: >=0.24, installed: 1.1.0]
+  - Jinja2 [required: >=2.10.1, installed: 2.11.1]
+    - MarkupSafe [required: >=0.23, installed: 1.1.1]
+  - Werkzeug [required: >=0.15, installed: 1.0.1]
+Flask-Script==2.0.6
+  - Flask [required: Any, installed: 1.1.2]
+    - click [required: >=5.1, installed: 7.1.1]
+    - itsdangerous [required: >=0.24, installed: 1.1.0]
+    - Jinja2 [required: >=2.10.1, installed: 2.11.1]
+      - MarkupSafe [required: >=0.23, installed: 1.1.1]
+    - Werkzeug [required: >=0.15, installed: 1.0.1]
+gnureadline==8.0.0
+ipython==7.13.0
+  - appnope [required: Any, installed: 0.1.0]
+  - backcall [required: Any, installed: 0.1.0]
+  - decorator [required: Any, installed: 4.4.2]
+  - jedi [required: >=0.10, installed: 0.16.0]
+    - parso [required: >=0.5.2, installed: 0.6.2]
+  - pexpect [required: Any, installed: 4.8.0]
+    - ptyprocess [required: >=0.5, installed: 0.6.0]
+  - pickleshare [required: Any, installed: 0.7.5]
+  - prompt-toolkit [required: >=2.0.0,<3.1.0,!=3.0.1,!=3.0.0, installed: 3.0.5]
+    - wcwidth [required: Any, installed: 0.1.9]
+  - pygments [required: Any, installed: 2.6.1]
+  - setuptools [required: >=18.5, installed: 46.1.3]
+  - traitlets [required: >=4.2, installed: 4.3.3]
+    - decorator [required: Any, installed: 4.4.2]
+    - ipython-genutils [required: Any, installed: 0.2.0]
+    - six [required: Any, installed: 1.14.0]
+ipython-genutils==0.2.0
+itsdangerous==1.1.0
+jedi==0.16.0
+  - parso [required: >=0.5.2, installed: 0.6.2]
+Jinja2==2.11.1
+  - MarkupSafe [required: >=0.23, installed: 1.1.1]
+MarkupSafe==1.1.1
+parso==0.6.2
+pexpect==4.8.0
+  - ptyprocess [required: >=0.5, installed: 0.6.0]
+pickleshare==0.7.5
+pip==20.0.2
+pipdeptree==2.0.0b1
+  - pip [required: >=6.0.0, installed: 20.0.2]
+prompt-toolkit==3.0.5
+  - wcwidth [required: Any, installed: 0.1.9]
+ptyprocess==0.6.0
+Pygments==2.6.1
+pymongo==3.10.1
+redis==3.4.1
+setuptools==46.1.3
+six==1.14.0
+slugify==0.0.1
+traitlets==4.3.3
+  - decorator [required: Any, installed: 4.4.2]
+  - ipython-genutils [required: Any, installed: 0.2.0]
+  - six [required: Any, installed: 1.14.0]
+wcwidth==0.1.9
+Werkzeug==1.0.1
+wheel==0.34.2

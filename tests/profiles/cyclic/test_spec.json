@@ -1,0 +1,9 @@
+[
+  {
+    "id": "default_output",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}}",
+    "expected_output_file": "default.out",
+    "expected_err_file": "default.err"
+  }
+]

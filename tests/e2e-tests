@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+set -e
+
+PROFILE=$1
+PYTHON_EXE=${PYTHON_EXE:-python3.6}
+PIP_VERSION=latest
+
+cd profiles/$PROFILE
+
+echo "Profile dir: $(pwd)"
+
+env_dir=".env_$(basename $PYTHON_EXE)_pip-${PIP_VERSION}"
+
+echo "Profile env: $env_dir"
+
+if [ ! -d $env_dir ]; then
+    virtualenv -p $PYTHON_EXE $env_dir
+fi
+
+pip=$env_dir/bin/pip
+
+if [ "$PIP_VERSION" == "latest" ]; then
+    $pip install -U pip
+fi
+
+# Install requirements
+$pip install -r requirements.txt
+
+# Install pipdeptree
+$pip install -e ../../../
+
+pip_deptree=$env_dir/bin/pipdeptree
+
+export TEST_PROFILE_DIR="profiles/$PROFILE"
+export PIPDEPTREE_EXE=$TEST_PROFILE_DIR/$pip_deptree
+
+cd -
+
+py.test e2e_tests.py
+
+
