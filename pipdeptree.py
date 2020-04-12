@@ -297,6 +297,23 @@ class ReqPackage(Package):
 
 
 class Tree(Mapping):
+    """Representation of tree as a digraph using maps
+
+    The nodes and their relationships (edges) are internally
+    stored using a map as follows,
+
+    {'a': ['b', 'c'],
+     'b': ['d'],
+     'c': ['d', 'e'],
+     'd': ['e'],
+     'e': [],
+     'f': ['b'],
+     'g': ['e', 'f']}
+
+    Here, node 'a' has 2 child nodes 'b' and 'c' ie. consider edge
+    direction from 'a' -> 'b' and 'a' -> 'c' respectively
+
+    """
 
     @classmethod
     def from_pkgs(cls, pkgs):
@@ -323,6 +340,17 @@ class Tree(Mapping):
         return set(r.key for r in flatten(self._obj.values()))
 
     def filter(self, show_only, exclude):
+        """Filters nodes in a tree by given parameters
+
+        If a node is included, then all it's children are also
+        included.
+
+        :param set show_only: set of node keys to include (or None)
+        :param set exclude: set of node keys to exclude (or None)
+        :returns: filtered version of the tree
+        :rtype: Tree
+
+        """
         # If neither of the filters are specified, short circuit
         if show_only is None and exclude is None:
             return self
@@ -377,6 +405,24 @@ class Tree(Mapping):
         return self.__class__(tree, base=self._base or self)
 
     def reverse(self):
+        """Reverses a tree
+
+        In other words, the directions of edges of the nodes in the
+        tree will be reversed.
+
+        Note that this function purely works on the nodes in the
+        tree. This implies that to perform a combination of filtering
+        and reversing, the order in which `filter` and `reverse`
+        methods should be applied is important. For eg. if reverse is
+        called on a filtered tree, then only the filtered nodes and
+        it's children will be considered when reversing. On the other
+        hand, if filter is called on reversed tree, then the
+        definition of "child" nodes is as per the reversed tree.
+
+        :returns: reversed tree
+        :rtype: ReverseTree
+
+        """
         rtree = defaultdict(list)
         child_keys = self._child_keys
         for k, vs in self._obj.items():
@@ -685,24 +731,18 @@ def _get_args():
 def main():
     args = _get_args()
 
-    show_only = set(args.packages.split(',')) if args.packages else None
-    exclude = set(args.exclude.split(',')) if args.exclude else None
-
     pkgs = get_installed_distributions(local_only=args.local_only,
                                        user_only=args.user_only)
 
     tree = Tree.from_pkgs(pkgs)
 
-    if show_only is not None or exclude is not None:
-        tree = tree.filter(show_only, exclude)
-
     is_text_output = not any([args.json, args.json_tree, args.output_format])
 
     return_code = 0
 
-    # show warnings to console about possibly conflicting deps if
-    # found and warnings are enabled (only if output is to be printed
-    # to console)
+    # Before any reversing or filtering, show warnings to console
+    # about possibly conflicting deps if found and warnings are
+    # enabled (only if output is to be printed to console)
     if is_text_output and args.warn != 'silence':
         conflicting = conflicting_deps(tree)
         if conflicting:
@@ -729,10 +769,16 @@ def main():
         if args.warn == 'fail' and (conflicting or cyclic):
             return_code = 1
 
-    # Reverse the tree (if applicable) after computing the conflicting
-    # and cyclic deps
+    # Reverse the tree (if applicable) before filtering, thus ensuring
+    # that the filter will be applied on ReverseTree
     if args.reverse:
         tree = tree.reverse()
+
+    show_only = set(args.packages.split(',')) if args.packages else None
+    exclude = set(args.exclude.split(',')) if args.exclude else None
+
+    if show_only is not None or exclude is not None:
+        tree = tree.filter(show_only, exclude)
 
     if args.json:
         print(render_json(tree, indent=4))

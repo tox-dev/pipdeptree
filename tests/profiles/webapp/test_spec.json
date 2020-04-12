@@ -26,5 +26,12 @@
     "command": "{{pipdeptree}} --packages pexpect,ipython",
     "expected_output_file": "packages_opt.out",
     "expected_err_file": null
+  },
+  {
+    "id": "--packages--reverse_output",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}} -r -p decorator,click",
+    "expected_output_file": "packages_reverse.out",
+    "expected_err_file": null
   }
 ]
