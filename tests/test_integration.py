@@ -73,7 +73,7 @@ def test_DistPackage_render_as_root():
 
 def test_DistPackage_render_as_branch():
     sqlalchemy = find_req('sqlalchemy', 'alembic')
-    alembic = find_dist('alembic').as_required_by(sqlalchemy)
+    alembic = find_dist('alembic').as_parent_of(sqlalchemy)
     assert alembic.project_name == 'alembic'
     assert alembic.version == '0.9.10'
     assert sqlalchemy.project_name == 'SQLAlchemy'

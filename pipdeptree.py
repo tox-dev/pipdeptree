@@ -111,7 +111,7 @@ def reverse_tree(tree):
     for k, vs in tree.items():
         for v in vs:
             node = find_tree_root(rtree, v.key) or v
-            rtree[node].append(k.as_required_by(v))
+            rtree[node].append(k.as_parent_of(v))
         if k.key not in child_keys:
             rtree[k.as_requirement()] = []
     return rtree
@@ -215,16 +215,21 @@ class DistPackage(Package):
         """Return a ReqPackage representation of this DistPackage"""
         return ReqPackage(self._obj.as_requirement(), dist=self)
 
-    def as_required_by(self, req):
+    def as_parent_of(self, req):
         """Return a DistPackage instance associated to a requirement
 
-        This association is necessary for displaying the tree in
-        reverse.
+        This association is necessary for reversing the PackageDAG.
+
+        If `req` is None, and the `req` attribute of the current
+        instance is also None, then the same instance will be
+        returned.
 
         :param ReqPackage req: the requirement to associate with
         :returns: DistPackage instance
 
         """
+        if req is None and self.req is None:
+            return self
         return self.__class__(self._obj, req)
 
     def as_dict(self):
@@ -314,7 +319,11 @@ class PackageDAG(Mapping):
     Here, node `a` has 2 children nodes `b` and `c`. Consider edge
     direction from `a` -> `b` and `a` -> `c` respectively.
 
-    A node is expected to be an instance of a subclass of `Package`.
+    A node is expected to be an instance of a subclass of
+    `Package`. The keys are must be of class `DistPackage` and each
+    item in values must be of class `ReqPackage`. (See also
+    ReversedPackageDAG where the key and value types are
+    interchanged).
 
     """
 
@@ -422,7 +431,7 @@ class PackageDAG(Mapping):
         return self.__class__(m)
 
     def reverse(self):
-        """Reverses or turns the graph upside-down
+        """Reverse the DAG, or turn it upside-down
 
         In other words, the directions of edges of the nodes in the
         DAG will be reversed.
@@ -451,7 +460,7 @@ class PackageDAG(Mapping):
                     node = [p for p in m.keys() if p.key == v.key][0]
                 except IndexError:
                     node = v
-                m[node].append(k.as_required_by(v))
+                m[node].append(k.as_parent_of(v))
             if k.key not in child_keys:
                 m[k.as_requirement()] = []
         return ReversedPackageDAG(dict(m))
@@ -468,9 +477,38 @@ class PackageDAG(Mapping):
 
 
 class ReversedPackageDAG(PackageDAG):
+    """Representation of Package dependencies in the reverse
+    order.
+
+    Similar to it's super class `PackageDAG`, the underlying
+    datastructure is a dict, but here the keys are expected to be of
+    type `ReqPackage` and each item in the values of type
+    `DistPackage`.
+
+    Typically, this object will be obtained by calling
+    `PackageDAG.reverse`.
+
+    """
 
     def reverse(self):
-        raise NotImplementedError
+        """Reverse the already reversed DAG to get the PackageDAG again
+
+        :returns: reverse of the reversed DAG
+        :rtype: PackageDAG
+
+        """
+        m = defaultdict(list)
+        child_keys = set(r.key for r in flatten(self._obj.values()))
+        for k, vs in self._obj.items():
+            for v in vs:
+                try:
+                    node = [p for p in m.keys() if p.key == v.key][0]
+                except IndexError:
+                    node = v.as_parent_of(None)
+                m[node].append(k)
+            if k.key not in child_keys:
+                m[k.dist] = []
+        return PackageDAG(dict(m))
 
 
 def render_text(tree, list_all=True, frozen=False):
