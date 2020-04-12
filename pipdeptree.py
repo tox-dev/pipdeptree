@@ -296,22 +296,25 @@ class ReqPackage(Package):
                 'required_version': self.version_spec}
 
 
-class Tree(Mapping):
-    """Representation of tree as a digraph using maps
+class PackageDAG(Mapping):
+    """Representation of Package dependencies as directed acyclic graph
+    using a dict (Mapping) as the underlying datastructure.
 
     The nodes and their relationships (edges) are internally
     stored using a map as follows,
 
-    {'a': ['b', 'c'],
-     'b': ['d'],
-     'c': ['d', 'e'],
-     'd': ['e'],
-     'e': [],
-     'f': ['b'],
-     'g': ['e', 'f']}
+    {a: [b, c],
+     b: [d],
+     c: [d, e],
+     d: [e],
+     e: [],
+     f: [b],
+     g: [e, f]}
 
-    Here, node 'a' has 2 child nodes 'b' and 'c' ie. consider edge
-    direction from 'a' -> 'b' and 'a' -> 'c' respectively
+    Here, node `a` has 2 children nodes `b` and `c`. Consider edge
+    direction from `a` -> `b` and `a` -> `c` respectively.
+
+    A node is expected to be an instance of a subclass of `Package`.
 
     """
 
@@ -319,40 +322,54 @@ class Tree(Mapping):
     def from_pkgs(cls, pkgs):
         pkgs = [DistPackage(p) for p in pkgs]
         idx = {p.key: p for p in pkgs}
-        tree = {p: [ReqPackage(r, idx.get(r.key))
-                    for r in p.requires()]
-                for p in pkgs}
-        return cls(tree)
+        m = {p: [ReqPackage(r, idx.get(r.key))
+                 for r in p.requires()]
+             for p in pkgs}
+        return cls(m)
 
-    def __init__(self, tree, base=None):
-        self._obj = tree
-        self._base = base
+    def __init__(self, m):
+        """Initialize the PackageDAG object
+
+        :param dict m: dict of node objects (refer class docstring)
+        :returns: None
+        :rtype: NoneType
+
+        """
+        self._obj = m
         self._index = {p.key: p for p in list(self._obj)}
 
-    def lookup(self, pkg_key):
+    def get_node_as_parent(self, node_key):
+        """Get the node from the keys of the dict representing the DAG.
+
+        This method is useful if the dict representing the DAG
+        contains different kind of objects in keys and values. Use
+        this method to lookup a node obj as a parent (from the keys of
+        the dict) given a node key.
+
+        :param node_key: identifier corresponding to key attr of node obj
+        :returns: node obj (as present in the keys of the dict)
+        :rtype: Object
+
+        """
         try:
-            return self._index[pkg_key]
+            return self._index[node_key]
         except KeyError:
             return None
 
-    @property
-    def _child_keys(self):
-        return set(r.key for r in flatten(self._obj.values()))
-
-    def filter(self, show_only, exclude):
-        """Filters nodes in a tree by given parameters
+    def filter(self, include, exclude):
+        """Filters nodes in a graph by given parameters
 
         If a node is included, then all it's children are also
         included.
 
-        :param set show_only: set of node keys to include (or None)
+        :param set include: set of node keys to include (or None)
         :param set exclude: set of node keys to exclude (or None)
-        :returns: filtered version of the tree
-        :rtype: Tree
+        :returns: filtered version of the graph
+        :rtype: PackageDAG
 
         """
         # If neither of the filters are specified, short circuit
-        if show_only is None and exclude is None:
+        if include is None and exclude is None:
             return self
 
         # Note: In following comparisons, we use lower cased values so
@@ -360,8 +377,8 @@ class Tree(Mapping):
         # documentation, `key` is simply
         # `project_name.lower()`. Refer:
         # https://setuptools.readthedocs.io/en/latest/pkg_resources.html#distribution-objects
-        if show_only:
-            show_only = set([s.lower() for s in show_only])
+        if include:
+            include = set([s.lower() for s in include])
         if exclude:
             exclude = set([s.lower() for s in exclude])
         else:
@@ -369,29 +386,29 @@ class Tree(Mapping):
 
         # Check for mutual exclusion of show_only and exclude sets
         # after normalizing the values to lowercase
-        if show_only and exclude:
-            assert not (show_only & exclude)
+        if include and exclude:
+            assert not (include & exclude)
 
-        # Traverse the tree in a depth first manner and filter the
+        # Traverse the graph in a depth first manner and filter the
         # nodes according to `show_only` and `exclude` sets
         stack = deque()
-        tree = {}
+        m = {}
         seen = set([])
         for node in self._obj.keys():
             if node.key in exclude:
                 continue
-            if show_only is None or node.key in show_only:
+            if include is None or node.key in include:
                 stack.append(node)
             while True:
                 if len(stack) > 0:
                     n = stack.pop()
                     cldn = [c for c in self._obj[n]
                             if c.key not in exclude]
-                    tree[n] = cldn
+                    m[n] = cldn
                     seen.add(n.key)
                     for c in cldn:
                         if c.key not in seen:
-                            cld_node = self.lookup(c.key)
+                            cld_node = self.get_node_as_parent(c.key)
                             if cld_node:
                                 stack.append(cld_node)
                             else:
@@ -402,42 +419,42 @@ class Tree(Mapping):
                 else:
                     break
 
-        return self.__class__(tree, base=self._base or self)
+        return self.__class__(m)
 
     def reverse(self):
-        """Reverses a tree
+        """Reverses or turns the graph upside-down
 
         In other words, the directions of edges of the nodes in the
-        tree will be reversed.
+        DAG will be reversed.
 
         Note that this function purely works on the nodes in the
-        tree. This implies that to perform a combination of filtering
+        graph. This implies that to perform a combination of filtering
         and reversing, the order in which `filter` and `reverse`
         methods should be applied is important. For eg. if reverse is
-        called on a filtered tree, then only the filtered nodes and
+        called on a filtered graph, then only the filtered nodes and
         it's children will be considered when reversing. On the other
-        hand, if filter is called on reversed tree, then the
-        definition of "child" nodes is as per the reversed tree.
+        hand, if filter is called on reversed DAG, then the definition
+        of "child" nodes is as per the reversed DAG.
 
-        :returns: reversed tree
-        :rtype: ReverseTree
+        :returns: DAG in the reversed form
+        :rtype: ReversedPackageDAG
 
         """
-        rtree = defaultdict(list)
-        child_keys = self._child_keys
+        m = defaultdict(list)
+        child_keys = set(r.key for r in flatten(self._obj.values()))
         for k, vs in self._obj.items():
             for v in vs:
-                # if v is already added to rtree, then ensure that we
-                # are using the same object. This check is required as
-                # we're using array mutation
+                # if v is already added to the dict, then ensure that
+                # we are using the same object. This check is required
+                # as we're using array mutation
                 try:
-                    node = [p for p in rtree.keys() if p.key == v.key][0]
+                    node = [p for p in m.keys() if p.key == v.key][0]
                 except IndexError:
                     node = v
-                rtree[node].append(k.as_required_by(v))
+                m[node].append(k.as_required_by(v))
             if k.key not in child_keys:
-                rtree[k.as_requirement()] = []
-        return ReverseTree(dict(rtree), base=self._base or self)
+                m[k.as_requirement()] = []
+        return ReversedPackageDAG(dict(m))
 
     # Methods required by the abstract base class Mapping
     def __getitem__(self, *args):
@@ -450,7 +467,7 @@ class Tree(Mapping):
         return len(self._obj)
 
 
-class ReverseTree(Tree):
+class ReversedPackageDAG(PackageDAG):
 
     def reverse(self):
         raise NotImplementedError
@@ -734,7 +751,7 @@ def main():
     pkgs = get_installed_distributions(local_only=args.local_only,
                                        user_only=args.user_only)
 
-    tree = Tree.from_pkgs(pkgs)
+    tree = PackageDAG.from_pkgs(pkgs)
 
     is_text_output = not any([args.json, args.json_tree, args.output_format])
 

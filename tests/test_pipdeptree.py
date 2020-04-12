@@ -22,41 +22,41 @@ def mock_pkgs(simple_graph):
         yield p
 
 
-def mock_tree(simple_graph):
+def mock_PackageDAG(simple_graph):
     pkgs = list(mock_pkgs(simple_graph))
-    return p.Tree.from_pkgs(pkgs)
+    return p.PackageDAG.from_pkgs(pkgs)
 
 
 # util for comparing tree contents with a simple graph
-def tree_to_simple_graph(tree):
-    return {k.key: [v.key for v in vs] for k, vs in tree._obj.items()}
+def dag_to_dict(g):
+    return {k.key: [v.key for v in vs] for k, vs in g._obj.items()}
 
 
-t = mock_tree({'a': ['b', 'c'],
-               'b': ['d'],
-               'c': ['d', 'e'],
-               'd': ['e'],
-               'e': [],
-               'f': ['b'],
-               'g': ['e', 'f']})
+def sort_map_values(m):
+    return {k: sorted(v) for k, v in m.items()}
 
 
-def test_Tree__lookup():
-    assert 'b' == t.lookup('b').key
-    assert 'c' == t.lookup('c').key
+t = mock_PackageDAG({'a': ['b', 'c'],
+                     'b': ['d'],
+                     'c': ['d', 'e'],
+                     'd': ['e'],
+                     'e': [],
+                     'f': ['b'],
+                     'g': ['e', 'f']})
 
 
-def test_Tree__child_keys():
-    assert {'b', 'c', 'd', 'e', 'f'} == t._child_keys
+def test_PackageDAG__get_node_as_parent():
+    assert 'b' == t.get_node_as_parent('b').key
+    assert 'c' == t.get_node_as_parent('c').key
 
 
-def test_Tree_filter():
+def test_PackageDAG_filter():
     # When both show_only and exclude are not specified, same tree
     # object is returned
     assert t.filter(None, None) is t
 
     # when show_only is specified
-    g1 = tree_to_simple_graph(t.filter(set(['a', 'd']), None))
+    g1 = dag_to_dict(t.filter(set(['a', 'd']), None))
     expected = {'a': ['b', 'c'],
                 'b': ['d'],
                 'c': ['d', 'e'],
@@ -65,7 +65,7 @@ def test_Tree_filter():
     assert expected == g1
 
     # when exclude is specified
-    g2 = tree_to_simple_graph(t.filter(None, ['d']))
+    g2 = dag_to_dict(t.filter(None, ['d']))
     expected = {'a': ['b', 'c'],
                 'b': [],
                 'c': ['e'],
@@ -75,7 +75,7 @@ def test_Tree_filter():
     assert expected == g2
 
     # when both show_only and exclude are specified
-    g3 = tree_to_simple_graph(t.filter(set(['a', 'g']), set(['d', 'e'])))
+    g3 = dag_to_dict(t.filter(set(['a', 'g']), set(['d', 'e'])))
     expected = {'a': ['b', 'c'],
                 'b': [],
                 'c': [],
@@ -86,10 +86,10 @@ def test_Tree_filter():
     # when conflicting values in show_only and exclude, AssertionError
     # is raised
     with pytest.raises(AssertionError):
-        tree_to_simple_graph(t.filter(set(['d']), set(['D', 'e'])))
+        dag_to_dict(t.filter(set(['d']), set(['D', 'e'])))
 
 
-def test_Tree_reverse():
+def test_PackageDAG_reverse():
     t1 = t.reverse()
     expected = {'a': [],
                 'b': ['a', 'f'],
@@ -98,6 +98,5 @@ def test_Tree_reverse():
                 'e': ['c', 'd', 'g'],
                 'f': ['g'],
                 'g': []}
-    sort_children = lambda m: {k: sorted(v) for k, v in m.items()}
-    assert isinstance(t1, p.ReverseTree)
-    assert sort_children(expected) == sort_children(tree_to_simple_graph(t1))
+    assert isinstance(t1, p.ReversedPackageDAG)
+    assert sort_map_values(expected) == sort_map_values(dag_to_dict(t1))
