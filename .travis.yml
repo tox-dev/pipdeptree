@@ -4,19 +4,14 @@
 language: python
 python:
   - "2.7"
-  - "3.3"
   - "3.4"
   - "3.5"
   - "3.6"
-addons:
-  apt:
-    packages:
-      - graphviz
+  - "3.7"
+  - "3.8"
 before_install:
   - pip install -U pip>=8.0.2
-  - pip install graphviz
-  - make test-env
+  - pip install pytest
 install: pip install .
-script: py.test -v
-after_script: make clean clean-env
+script: pytest -v tests/test_pipdeptree.py
 sudo: false
