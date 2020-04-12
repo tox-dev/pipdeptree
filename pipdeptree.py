@@ -35,6 +35,7 @@ __version__ = '0.13.2'
 flatten = chain.from_iterable
 
 
+# @NOTE: Deprecated code
 def build_dist_index(pkgs):
     """Build an index pkgs by their key as a dict.
 
@@ -46,6 +47,7 @@ def build_dist_index(pkgs):
     return dict((p.key, DistPackage(p)) for p in pkgs)
 
 
+# @NOTE: Deprecated code
 def construct_tree(index):
     """Construct tree representation of the pkgs from the index.
 
@@ -79,6 +81,7 @@ def sorted_tree(tree):
                               key=lambda kv: kv[0].key))
 
 
+# @NOTE: Deprecated code
 def find_tree_root(tree, key):
     """Find a root in a tree by it's key
 
@@ -94,6 +97,7 @@ def find_tree_root(tree, key):
     return None if len(result) == 0 else result[0]
 
 
+# @NOTE: Deprecated code
 def reverse_tree(tree):
     """Reverse the dependency tree.
 
