@@ -35,6 +35,9 @@ def _test_cmp_with_file_contents(spec):
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
     out, err = p.communicate()
+
+    assert spec['expected_returncode'] == p.returncode
+
     if spec['expected_output_file'] is not None:
         exp_output_file = os.path.join(test_profile_dir,
                                        spec['expected_output_file'])
