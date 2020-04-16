@@ -1,0 +1,43 @@
+* Options in version 0.x v/s 2.x (upcoming release)
+
+Until version 0.13.2, the some of the options that pipdeptree supports
+didn't work in combination with other options. In fact this was the
+primary reason behind refactoring the code.
+
+The upcoming version 2.x plans to fix this as shown in the tables below.
+
+Note: The changes for upcoming 2.x release can be found in the
+~v2beta~ branch.
+
+** Until version 0.13.2
+
+| *Features*   | all | local-only | user-only | freeze | warn | reverse | packages | json | json-tree | graph-output |
+|--------------+-----+------------+-----------+--------+------+---------+----------+------+-----------+--------------|
+|              | <c> |    <c>     |    <c>    |  <c>   | <c>  |   <c>   |   <c>    | <c>  |    <c>    |     <c>      |
+| all          |     |            |           |   ✓    |  ✓   |    ✓    |    ✓     |  ✓   |     ✓     |      ✓       |
+| local-only   |     |            |           |   ✓    |  ✓   |    ✓    |    ✓     |  ✓   |     ✓     |      ✓       |
+| user-only    |     |            |           |   ✓    |  ✓   |    ✓    |    ✓     |  ✓   |     ✓     |      ✓       |
+| freeze       |  ✓  |     ✓      |     ✓     |   ✓    |      |    ✓    |    ✓     |      |           |              |
+| warn         |  ✓  |     ✓      |     ✓     |        |      |         |          |  ✗   |     ✗     |              |
+| reverse      |  ✓  |     ✓      |     ✓     |   ✓    |      |         |    ✓     |      |     ✗     |      ✗       |
+| packages     |  ✓  |     ✓      |     ✓     |   ✓    |      |    ✓    |          |  ✗   |     ✗     |      ✗       |
+| json         |  ✓  |     ✓      |     ✓     |        |  ✗   |         |    ✗     |      |           |              |
+| json-tree    |  ✓  |     ✓      |     ✓     |        |  ✗   |    ✗    |    ✗     |      |           |              |
+| graph-output |  ✓  |     ✓      |     ✓     |        |      |    ✗    |    ✗     |      |           |              |
+
+
+** Plan for version 2.0.0 (work in progress)
+
+| *Features*   | all | local-only | user-only | freeze |   warn   | reverse  | packages |   json   | json-tree | graph-output |   |
+|--------------+-----+------------+-----------+--------+----------+----------+----------+----------+-----------+--------------+---|
+|              | <c> |    <c>     |    <c>    |  <c>   |   <c>    |   <c>    |   <c>    |   <c>    |    <c>    |     <c>      |   |
+| all          |     |            |           |   ✓    |    ✓     |    ✓     |    ✓     |    ✓     |     ✓     |      ✓       |   |
+| local-only   |     |            |           |   ✓    |    ✓     |    ✓     |    ✓     |    ✓     |     ✓     |      ✓       |   |
+| user-only    |     |            |           |   ✓    |    ✓     |    ✓     |    ✓     |    ✓     |     ✓     |      ✓       |   |
+| freeze       |  ✓  |     ✓      |     ✓     |   ✓    |          |    ✓     |    ✓     |          |           |              |   |
+| warn         |  ✓  |     ✓      |     ✓     |        |          |          |          | ✓ (todo) | ✓ (todo)  |              |   |
+| reverse      |  ✓  |     ✓      |     ✓     |   ✓    |          |          |    ✓     |          | ✓ (done)  |   ✓ (done)   |   |
+| packages     |  ✓  |     ✓      |     ✓     |   ✓    |          |    ✓     |          | ✓ (done) | ✓ (done)  |   ✓ (done)   |   |
+| json         |  ✓  |     ✓      |     ✓     |        | ✓ (todo) |          | ✓ (done) |          |           |              |   |
+| json-tree    |  ✓  |     ✓      |     ✓     |        | ✓ (todo) | ✓ (done) | ✓ (done) |          |           |              |   |
+| graph-output |  ✓  |     ✓      |     ✓     |        |          | ✓ (done) | ✓ (done) |          |           |              |   |
