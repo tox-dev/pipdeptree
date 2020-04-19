@@ -29,7 +29,7 @@ from pip._vendor import pkg_resources
 # from graphviz import backend, Digraph
 
 
-__version__ = '0.13.2'
+__version__ = '2.0.0b1'
 
 
 flatten = chain.from_iterable
