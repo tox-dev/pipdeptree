@@ -4,7 +4,7 @@ set -e
 
 PROFILE=$1
 PYTHON_EXE=${PYTHON_EXE:-python3.6}
-PIP_VERSION=latest
+PIP_VERSION=${PIP_VERSION:-latest}
 
 cd profiles/$PROFILE
 
