@@ -17,11 +17,11 @@ itsdangerous==1.1.0
   - Flask==1.1.2 [requires: itsdangerous>=0.24]
     - Flask-Script==2.0.6 [requires: Flask]
 MarkupSafe==1.1.1
-  - Jinja2==2.11.1 [requires: MarkupSafe>=0.23]
+  - Jinja2==2.11.2 [requires: MarkupSafe>=0.23]
     - Flask==1.1.2 [requires: Jinja2>=2.10.1]
       - Flask-Script==2.0.6 [requires: Flask]
-parso==0.6.2
-  - jedi==0.16.0 [requires: parso>=0.5.2]
+parso==0.7.0
+  - jedi==0.17.0 [requires: parso>=0.7.0]
     - ipython==7.13.0 [requires: jedi>=0.10]
 pickleshare==0.7.5
   - ipython==7.13.0 [requires: pickleshare]
