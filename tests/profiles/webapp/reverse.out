@@ -25,7 +25,7 @@ parso==0.7.0
     - ipython==7.13.0 [requires: jedi>=0.10]
 pickleshare==0.7.5
   - ipython==7.13.0 [requires: pickleshare]
-pip==20.0.2
+pip==20.1
   - pipdeptree==2.0.0b1 [requires: pip>=6.0.0]
 ptyprocess==0.6.0
   - pexpect==4.8.0 [requires: ptyprocess>=0.5]

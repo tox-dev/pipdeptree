@@ -44,9 +44,9 @@ parso==0.7.0
 pexpect==4.8.0
   - ptyprocess [required: >=0.5, installed: 0.6.0]
 pickleshare==0.7.5
-pip==20.0.2
+pip==20.1
 pipdeptree==2.0.0b1
-  - pip [required: >=6.0.0, installed: 20.0.2]
+  - pip [required: >=6.0.0, installed: 20.1]
 prompt-toolkit==3.0.5
   - wcwidth [required: Any, installed: 0.1.9]
 ptyprocess==0.6.0

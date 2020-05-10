@@ -24,7 +24,7 @@ ipython==7.13.0
     - ipython-genutils [required: Any, installed: 0.2.0]
     - six [required: Any, installed: 1.14.0]
 pipdeptree==2.0.0b1
-  - pip [required: >=6.0.0, installed: 20.0.2]
+  - pip [required: >=6.0.0, installed: 20.1]
 pymongo==3.10.1
 redis==3.4.1
 slugify==0.0.1
