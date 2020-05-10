@@ -9,6 +9,8 @@ import pytest
 import pipdeptree as p
 
 
+# Tests for DAG classes
+
 def mock_pkgs(simple_graph):
     for node, children in simple_graph.items():
         p = mock.Mock(key=node, project_name=node)
@@ -116,3 +118,94 @@ def test_PackageDAG_reverse():
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t2))
     assert all([isinstance(k, p.DistPackage) for k in t2.keys()])
     assert all([isinstance(v, p.ReqPackage) for v in p.flatten(t2.values())])
+
+
+# Tests for Package classes
+#
+# Note: For all render methods, we are only testing for frozen=False
+# as mocks with frozen=True are a lot more complicated
+
+def test_DistPackage__render_as_root():
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1')
+    dp = p.DistPackage(foo)
+    is_frozen = False
+    assert 'foo==20.4.1' == dp.render_as_root(is_frozen)
+
+
+def test_DistPackage__render_as_branch():
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1')
+    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0')
+    bar_req = mock.Mock(key='bar',
+                        project_name='bar',
+                        version='4.1.0',
+                        specs=[('>=', '4.0')])
+    rp = p.ReqPackage(bar_req, dist=bar)
+    dp = p.DistPackage(foo).as_parent_of(rp)
+    is_frozen = False
+    assert 'foo==20.4.1 [requires: bar>=4.0]' == dp.render_as_branch(is_frozen)
+
+
+def test_DistPackage__as_parent_of():
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1')
+    dp = p.DistPackage(foo)
+    assert dp.req is None
+
+    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0')
+    bar_req = mock.Mock(key='bar',
+                        project_name='bar',
+                        version='4.1.0',
+                        specs=[('>=', '4.0')])
+    rp = p.ReqPackage(bar_req, dist=bar)
+    dp1 = dp.as_parent_of(rp)
+    assert dp1._obj == dp._obj
+    assert dp1.req is rp
+
+    dp2 = dp.as_parent_of(None)
+    assert dp2 is dp
+
+
+def test_DistPackage__as_dict():
+    foo = mock.Mock(key='foo', project_name='foo', version='1.3.2b1')
+    dp = p.DistPackage(foo)
+    result = dp.as_dict()
+    expected = {'key': 'foo',
+                'package_name': 'foo',
+                'installed_version': '1.3.2b1'}
+    assert expected == result
+
+
+def test_ReqPackage__render_as_root():
+    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0')
+    bar_req = mock.Mock(key='bar',
+                        project_name='bar',
+                        version='4.1.0',
+                        specs=[('>=', '4.0')])
+    rp = p.ReqPackage(bar_req, dist=bar)
+    is_frozen = False
+    assert 'bar==4.1.0' == rp.render_as_root(is_frozen)
+
+
+def test_ReqPackage__render_as_branch():
+    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0')
+    bar_req = mock.Mock(key='bar',
+                        project_name='bar',
+                        version='4.1.0',
+                        specs=[('>=', '4.0')])
+    rp = p.ReqPackage(bar_req, dist=bar)
+    is_frozen = False
+    assert 'bar [required: >=4.0, installed: 4.1.0]' == rp.render_as_branch(is_frozen)
+
+
+def test_ReqPackage__as_dict():
+    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0')
+    bar_req = mock.Mock(key='bar',
+                        project_name='bar',
+                        version='4.1.0',
+                        specs=[('>=', '4.0')])
+    rp = p.ReqPackage(bar_req, dist=bar)
+    result = rp.as_dict()
+    expected = {'key': 'bar',
+                'package_name': 'bar',
+                'installed_version': '4.1.0',
+                'required_version': '>=4.0'}
+    assert expected == result
