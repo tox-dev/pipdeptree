@@ -1,4 +1,6 @@
-
+from contextlib import contextmanager
+import sys
+from tempfile import NamedTemporaryFile
 try:
     from unittest import mock
 except ImportError:
@@ -216,3 +218,33 @@ def test_ReqPackage__as_dict():
                 'installed_version': '4.1.0',
                 'required_version': '>=4.0'}
     assert expected == result
+
+
+# Tests for graph outputs
+
+def test_render_pdf():
+    output = p.dump_graphviz(t, output_format='pdf')
+
+    @contextmanager
+    def redirect_stdout(new_target):
+        old_target, sys.stdout = sys.stdout, new_target
+        try:
+            yield new_target
+        finally:
+            sys.stdout = old_target
+
+    with NamedTemporaryFile(delete=True) as f:
+        with redirect_stdout(f):
+            p.print_graphviz(output)
+        rf = open(f.name, 'rb')
+        assert b'%PDF' == rf.read()[:4]
+        # @NOTE: rf is not closed to avoid "bad filedescriptor" error
+
+
+def test_render_svg(capsys):
+    output = p.dump_graphviz(t, output_format='svg')
+    p.print_graphviz(output)
+    out, _ = capsys.readouterr()
+    assert out.startswith('<?xml')
+    assert '<svg' in out
+    assert out.strip().endswith('</svg>')
