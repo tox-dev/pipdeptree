@@ -13,12 +13,14 @@ import pipdeptree as p
 
 def mock_pkgs(simple_graph):
     for node, children in simple_graph.items():
-        p = mock.Mock(key=node, project_name=node)
-        as_req = mock.Mock(key=node, project_name=node)
+        nk, nv = node
+        p = mock.Mock(key=nk, project_name=nk, version=nv)
+        as_req = mock.Mock(key=nk, project_name=nk, specs=[('==', nv)])
         p.as_requirement = mock.Mock(return_value=as_req)
         reqs = []
-        for c in children:
-            r = mock.Mock(key=c, project_name=c)
+        for child in children:
+            ck, cv = child
+            r = mock.Mock(key=ck, project_name=ck, specs=cv)
             reqs.append(r)
         p.requires = mock.Mock(return_value=reqs)
         yield p
@@ -38,13 +40,18 @@ def sort_map_values(m):
     return {k: sorted(v) for k, v in m.items()}
 
 
-t = mock_PackageDAG({'a': ['b', 'c'],
-                     'b': ['d'],
-                     'c': ['d', 'e'],
-                     'd': ['e'],
-                     'e': [],
-                     'f': ['b'],
-                     'g': ['e', 'f']})
+t = mock_PackageDAG({
+    ('a', '3.4.0'): [('b', [('>=', '2.0.0')]),
+                     ('c', [('>=', '5.7.1')])],
+    ('b', '2.3.1'): [('d', [('>=', '2.30'), ('<', '2.42')])],
+    ('c', '5.10.0'): [('d', [('>=', '2.30')]),
+                      ('e', [('>=', '0.12.1')])],
+    ('d', '2.35'): [('e', [('>=', '0.9.0')])],
+    ('e', '0.12.1'): [],
+    ('f', '3.1'): [('b', [('>=', '2.1.0')])],
+    ('g', '6.8.3rc1'): [('e', [('>=', '0.9.0')]),
+                        ('f', [('>=', '3.0.0')])]
+})
 
 
 def test_PackageDAG__get_node_as_parent():
