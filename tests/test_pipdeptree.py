@@ -248,3 +248,48 @@ def test_render_svg(capsys):
     assert out.startswith('<?xml')
     assert '<svg' in out
     assert out.strip().endswith('</svg>')
+
+
+# Tests for the argparse parser
+
+def test_parser_default():
+    parser = p.get_parser()
+    args = parser.parse_args([])
+    assert not args.json
+    assert args.output_format is None
+
+
+def test_parser_j():
+    parser = p.get_parser()
+    args = parser.parse_args(['-j'])
+    assert args.json
+    assert args.output_format is None
+
+
+def test_parser_json():
+    parser = p.get_parser()
+    args = parser.parse_args(['--json'])
+    assert args.json
+    assert args.output_format is None
+
+
+def test_parser_json_tree():
+    parser = p.get_parser()
+    args = parser.parse_args(['--json-tree'])
+    assert args.json_tree
+    assert not args.json
+    assert args.output_format is None
+
+
+def test_parser_pdf():
+    parser = p.get_parser()
+    args = parser.parse_args(['--graph-output', 'pdf'])
+    assert args.output_format == 'pdf'
+    assert not args.json
+
+
+def test_parser_svg():
+    parser = p.get_parser()
+    args = parser.parse_args(['--graph-output', 'svg'])
+    assert args.output_format == 'svg'
+    assert not args.json
