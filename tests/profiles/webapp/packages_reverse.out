@@ -1,4 +1,4 @@
-click==7.1.1
+click==7.1.2
   - Flask==1.1.2 [requires: click>=5.1]
     - Flask-Script==2.0.6 [requires: Flask]
 decorator==4.4.2
