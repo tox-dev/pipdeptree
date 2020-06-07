@@ -35,35 +35,6 @@ __version__ = '2.0.0b1'
 flatten = chain.from_iterable
 
 
-# @NOTE: Deprecated code
-def build_dist_index(pkgs):
-    """Build an index pkgs by their key as a dict.
-
-    :param list pkgs: list of pkg_resources.Distribution instances
-    :returns: index of the pkgs by the pkg key
-    :rtype: dict
-
-    """
-    return dict((p.key, DistPackage(p)) for p in pkgs)
-
-
-# @NOTE: Deprecated code
-def construct_tree(index):
-    """Construct tree representation of the pkgs from the index.
-
-    The keys of the dict representing the tree will be objects of type
-    DistPackage and the values will be list of ReqPackage objects.
-
-    :param dict index: dist index ie. index of pkgs by their keys
-    :returns: tree of pkgs and their dependencies
-    :rtype: dict
-
-    """
-    return dict((p, [ReqPackage(r, index.get(r.key))
-                     for r in p.requires()])
-                for p in index.values())
-
-
 def sorted_tree(tree):
     """Sorts the dict representation of the tree
 
@@ -79,46 +50,6 @@ def sorted_tree(tree):
     return OrderedDict(sorted([(k, sorted(v, key=attrgetter('key')))
                                for k, v in tree.items()],
                               key=lambda kv: kv[0].key))
-
-
-# @NOTE: Deprecated code
-def find_tree_root(tree, key):
-    """Find a root in a tree by it's key
-
-    :param dict tree: the pkg dependency tree obtained by calling
-                     `construct_tree` function
-    :param str key: key of the root node to find
-    :returns: a root node if found else None
-    :rtype: mixed
-
-    """
-    result = [p for p in tree.keys() if p.key == key]
-    assert len(result) in [0, 1]
-    return None if len(result) == 0 else result[0]
-
-
-# @NOTE: Deprecated code
-def reverse_tree(tree):
-    """Reverse the dependency tree.
-
-    ie. the keys of the resulting dict are objects of type
-    ReqPackage and the values are lists of DistPackage objects.
-
-    :param dict tree: the pkg dependency tree obtained by calling
-                      `construct_tree` function
-    :returns: reversed tree
-    :rtype: dict
-
-    """
-    rtree = defaultdict(list)
-    child_keys = set(c.key for c in flatten(tree.values()))
-    for k, vs in tree.items():
-        for v in vs:
-            node = find_tree_root(rtree, v.key) or v
-            rtree[node].append(k.as_parent_of(v))
-        if k.key not in child_keys:
-            rtree[k.as_requirement()] = []
-    return rtree
 
 
 def guess_version(pkg_key, default='?'):
