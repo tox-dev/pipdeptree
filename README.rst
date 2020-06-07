@@ -54,48 +54,30 @@ compared with ``pip freeze``:
 
     $ pip freeze
     Flask==0.10.1
-    Flask-Script==0.6.6
-    Jinja2==2.7.2
-    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master
-    Mako==0.9.1
-    MarkupSafe==0.18
-    SQLAlchemy==0.9.1
-    Werkzeug==0.9.4
-    alembic==0.6.2
-    argparse==1.2.1
-    ipython==2.0.0
-    itsdangerous==0.23
-    psycopg2==2.5.2
-    redis==2.9.1
-    slugify==0.0.1
-    wsgiref==0.1.2
+    itsdangerous==0.24
+    Jinja2==2.11.2
+    MarkupSafe==0.22
+    -e git+git@github.com:naiquevin/pipdeptree.git@28f6a7401c3e23aac490e08dd4302826e7a02d17#egg=pipdeptree
+    Werkzeug==0.11.2
 
 And now see what ``pipdeptree`` outputs,
 
 .. code-block:: bash
 
     $ pipdeptree
-    Warning!!! Possible conflicting dependencies found:
-    * Mako==0.9.1 -> MarkupSafe [required: >=0.9.2, installed: 0.18]
-      Jinja2==2.7.2 -> MarkupSafe [installed: 0.18]
+    Warning!!! Possibly conflicting dependencies found:
+    * Jinja2==2.11.2
+     - MarkupSafe [required: >=0.23, installed: 0.22]
     ------------------------------------------------------------------------
-    Lookupy==0.1
-    wsgiref==0.1.2
-    argparse==1.2.1
-    psycopg2==2.5.2
-    Flask-Script==0.6.6
-      - Flask [installed: 0.10.1]
-        - Werkzeug [required: >=0.7, installed: 0.9.4]
-        - Jinja2 [required: >=2.4, installed: 2.7.2]
-          - MarkupSafe [installed: 0.18]
-        - itsdangerous [required: >=0.21, installed: 0.23]
-    alembic==0.6.2
-      - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]
-      - Mako [installed: 0.9.1]
-        - MarkupSafe [required: >=0.9.2, installed: 0.18]
-    ipython==2.0.0
-    slugify==0.0.1
-    redis==2.9.1
+    Flask==0.10.1
+      - itsdangerous [required: >=0.21, installed: 0.24]
+      - Jinja2 [required: >=2.4, installed: 2.11.2]
+        - MarkupSafe [required: >=0.23, installed: 0.22]
+      - Werkzeug [required: >=0.7, installed: 0.11.2]
+    pipdeptree==2.0.0b1
+      - pip [required: >=6.0.0, installed: 20.1.1]
+    setuptools==47.1.1
+    wheel==0.34.2
 
 
 Is it possible to find out why a particular package is installed?
@@ -110,11 +92,15 @@ with `--packages` flag as follows:
 .. code-block:: bash
 
     $ pipdeptree --reverse --packages itsdangerous,gnureadline
-    gnureadline==6.3.3
-      - ipython==2.0.0 [requires: gnureadline]
+    Warning!!! Possibly conflicting dependencies found:
+    * Jinja2==2.11.2
+     - MarkupSafe [required: >=0.23, installed: 0.22]
+    ------------------------------------------------------------------------
     itsdangerous==0.24
       - Flask==0.10.1 [requires: itsdangerous>=0.21]
-        - Flask-Script==0.6.6 [requires: Flask]
+    MarkupSafe==0.22
+      - Jinja2==2.11.2 [requires: MarkupSafe>=0.23]
+        - Flask==0.10.1 [requires: Jinja2>=2.4]
 
 
 What's with the warning about conflicting dependencies?
@@ -167,37 +153,26 @@ by grep-ing only the top-level lines from the output,
 
 .. code-block:: bash
 
-    $ pipdeptree | grep -P '^\w+'
-    Lookupy==0.1
-    wsgiref==0.1.2
-    argparse==1.2.1
-    psycopg2==2.5.2
-    Flask-Script==0.6.6
-    alembic==0.6.2
-    ipython==2.0.0
-    slugify==0.0.1
-    redis==2.9.1
+    $ pipdeptree --warn silence | grep -E '^\w+'
+    Flask==0.10.1
+    pipdeptree==2.0.0b1
+    setuptools==47.1.1
+    wheel==0.34.2
 
 There is a problem here though. The output doesn't mention anything
-about ``Lookupy`` being installed as an editable package (refer to the
+about ``pipdeptree`` being installed as an editable package (refer to the
 output of ``pip freeze`` above) and information about its source is
 lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 ``--freeze`` flag.
 
 .. code-block:: bash
 
-    $ pipdeptree -f --warn silence | grep -P '^[\w0-9\-=.]+'
-    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master
-    wsgiref==0.1.2
-    argparse==1.2.1
-    psycopg2==2.5.2
-    Flask-Script==0.6.6
-    alembic==0.6.2
-    ipython==2.0.0
-    slugify==0.0.1
-    redis==2.9.1
+    $ pipdeptree -f --warn silence | grep -E '^[a-zA-Z0-9\-\=\.]+'
+    Flask==0.10.1
+    setuptools==47.1.1
+    wheel==0.34.2
 
-    $ pipdeptree -f --warn silence | grep -P '^[\w0-9\-=.]+' > requirements.txt
+    $ pipdeptree -f --warn silence | grep -E '^[a-zA-Z0-9\-\=\.]+' > requirements.txt
 
 The freeze flag will also not output the hyphens for child
 dependencies, so you could dump the complete output of ``pipdeptree
@@ -205,8 +180,8 @@ dependencies, so you could dump the complete output of ``pipdeptree
 to indentations) as well as pip-friendly. (Take care of duplicate
 dependencies though)
 
-Also note that if you're on mac, you'll need to use ``grep -E``
-instead of ``grep -P``.
+Also note that the ``-E`` works for BSD grep on MacOS. if you're on
+linux, you'll need to use ``grep -P`` instead.
 
 
 Using pipdeptree with external tools
@@ -223,8 +198,8 @@ tools.
     $ pipdeptree --json
 
 Note that ``--json`` will output a flat list of all packages with
-their immediate dependencies. To obtain nested json, use
-``--json-tree`` (added in version ``0.11.0``).
+their immediate dependencies. This is not very useful in itself. To
+obtain nested json, use ``--json-tree`` (added in version ``0.11.0``).
 
 .. code-block:: bash
 
@@ -373,6 +348,11 @@ Release checklist
   github
 
 * Upload new version to PyPI.
+
+Alternate tools
+---------------
+
+* `pipgrip <https://github.com/ddelange/pipgrip>`_.
 
 License
 -------
