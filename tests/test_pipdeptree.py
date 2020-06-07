@@ -220,6 +220,139 @@ def test_ReqPackage__as_dict():
     assert expected == result
 
 
+# Tests for render_text
+#
+# @NOTE: These tests use mocked tree and it's not easy to test for
+# frozen=True with mocks. Hence those tests are covered only in
+# end-to-end tests. Check the ./e2e-tests script.
+
+def test_render_text__listall_notfrozen(capsys):
+    p.render_text(t)
+    captured = capsys.readouterr()
+    expected = """
+a==3.4.0
+  - b [required: >=2.0.0, installed: 2.3.1]
+    - d [required: >=2.30,<2.42, installed: 2.35]
+      - e [required: >=0.9.0, installed: 0.12.1]
+  - c [required: >=5.7.1, installed: 5.10.0]
+    - d [required: >=2.30, installed: 2.35]
+      - e [required: >=0.9.0, installed: 0.12.1]
+    - e [required: >=0.12.1, installed: 0.12.1]
+b==2.3.1
+  - d [required: >=2.30,<2.42, installed: 2.35]
+    - e [required: >=0.9.0, installed: 0.12.1]
+c==5.10.0
+  - d [required: >=2.30, installed: 2.35]
+    - e [required: >=0.9.0, installed: 0.12.1]
+  - e [required: >=0.12.1, installed: 0.12.1]
+d==2.35
+  - e [required: >=0.9.0, installed: 0.12.1]
+e==0.12.1
+f==3.1
+  - b [required: >=2.1.0, installed: 2.3.1]
+    - d [required: >=2.30,<2.42, installed: 2.35]
+      - e [required: >=0.9.0, installed: 0.12.1]
+g==6.8.3rc1
+  - e [required: >=0.9.0, installed: 0.12.1]
+  - f [required: >=3.0.0, installed: 3.1]
+    - b [required: >=2.1.0, installed: 2.3.1]
+      - d [required: >=2.30,<2.42, installed: 2.35]
+        - e [required: >=0.9.0, installed: 0.12.1]
+"""
+    assert expected.strip() == captured.out.strip()
+
+
+def test_render_text_reverse_list_all_notfrozen(capsys):
+    p.render_text(t.reverse())
+    captured = capsys.readouterr()
+    expected = """
+a==3.4.0
+b==2.3.1
+  - a==3.4.0 [requires: b>=2.0.0]
+  - f==3.1 [requires: b>=2.1.0]
+    - g==6.8.3rc1 [requires: f>=3.0.0]
+c==5.10.0
+  - a==3.4.0 [requires: c>=5.7.1]
+d==2.35
+  - b==2.3.1 [requires: d>=2.30,<2.42]
+    - a==3.4.0 [requires: b>=2.0.0]
+    - f==3.1 [requires: b>=2.1.0]
+      - g==6.8.3rc1 [requires: f>=3.0.0]
+  - c==5.10.0 [requires: d>=2.30]
+    - a==3.4.0 [requires: c>=5.7.1]
+e==0.12.1
+  - c==5.10.0 [requires: e>=0.12.1]
+    - a==3.4.0 [requires: c>=5.7.1]
+  - d==2.35 [requires: e>=0.9.0]
+    - b==2.3.1 [requires: d>=2.30,<2.42]
+      - a==3.4.0 [requires: b>=2.0.0]
+      - f==3.1 [requires: b>=2.1.0]
+        - g==6.8.3rc1 [requires: f>=3.0.0]
+    - c==5.10.0 [requires: d>=2.30]
+      - a==3.4.0 [requires: c>=5.7.1]
+  - g==6.8.3rc1 [requires: e>=0.9.0]
+f==3.1
+  - g==6.8.3rc1 [requires: f>=3.0.0]
+g==6.8.3rc1
+"""
+    assert expected.strip() == captured.out.strip()
+
+
+def test_render_text__list_only_1stlevel_notfrozen(capsys):
+    p.render_text(t.reverse())
+    captured = capsys.readouterr()
+    expected = """
+a==3.4.0
+b==2.3.1
+  - a==3.4.0 [requires: b>=2.0.0]
+  - f==3.1 [requires: b>=2.1.0]
+    - g==6.8.3rc1 [requires: f>=3.0.0]
+c==5.10.0
+  - a==3.4.0 [requires: c>=5.7.1]
+d==2.35
+  - b==2.3.1 [requires: d>=2.30,<2.42]
+    - a==3.4.0 [requires: b>=2.0.0]
+    - f==3.1 [requires: b>=2.1.0]
+      - g==6.8.3rc1 [requires: f>=3.0.0]
+  - c==5.10.0 [requires: d>=2.30]
+    - a==3.4.0 [requires: c>=5.7.1]
+e==0.12.1
+  - c==5.10.0 [requires: e>=0.12.1]
+    - a==3.4.0 [requires: c>=5.7.1]
+  - d==2.35 [requires: e>=0.9.0]
+    - b==2.3.1 [requires: d>=2.30,<2.42]
+      - a==3.4.0 [requires: b>=2.0.0]
+      - f==3.1 [requires: b>=2.1.0]
+        - g==6.8.3rc1 [requires: f>=3.0.0]
+    - c==5.10.0 [requires: d>=2.30]
+      - a==3.4.0 [requires: c>=5.7.1]
+  - g==6.8.3rc1 [requires: e>=0.9.0]
+f==3.1
+  - g==6.8.3rc1 [requires: f>=3.0.0]
+g==6.8.3rc1
+"""
+    assert expected.strip() == captured.out.strip()
+
+
+def test_render_text__reverse_list_only_1stlevel_notfrozen(capsys):
+    p.render_text(t.reverse(), list_all=False)
+    captured = capsys.readouterr()
+    expected = """
+e==0.12.1
+  - c==5.10.0 [requires: e>=0.12.1]
+    - a==3.4.0 [requires: c>=5.7.1]
+  - d==2.35 [requires: e>=0.9.0]
+    - b==2.3.1 [requires: d>=2.30,<2.42]
+      - a==3.4.0 [requires: b>=2.0.0]
+      - f==3.1 [requires: b>=2.1.0]
+        - g==6.8.3rc1 [requires: f>=3.0.0]
+    - c==5.10.0 [requires: d>=2.30]
+      - a==3.4.0 [requires: c>=5.7.1]
+  - g==6.8.3rc1 [requires: e>=0.9.0]
+"""
+    assert expected.strip() == captured.out.strip()
+
+
 # Tests for graph outputs
 
 def test_render_pdf():
