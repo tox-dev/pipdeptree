@@ -713,10 +713,12 @@ def render_conflicts_text(conflicts):
     if conflicts:
         print('Warning!!! Possibly conflicting dependencies found:',
               file=sys.stderr)
-        for p, reqs in conflicts.items():
+        # Enforce alphabetical order when listing conflicts
+        pkgs = sorted(conflicts.keys(), key=attrgetter('key'))
+        for p in pkgs:
             pkg = p.render_as_root(False)
             print('* {}'.format(pkg), file=sys.stderr)
-            for req in reqs:
+            for req in conflicts[p]:
                 req_str = req.render_as_branch(False)
                 print(' - {}'.format(req_str), file=sys.stderr)
 
