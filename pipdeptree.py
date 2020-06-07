@@ -743,6 +743,19 @@ def cyclic_deps(tree):
     return cyclic
 
 
+def render_cycles_text(cycles):
+    if cycles:
+        print('Warning!! Cyclic dependencies found:', file=sys.stderr)
+        # List in alphabetical order of the dependency that's cycling
+        # (2nd item in the tuple)
+        cycles = sorted(cycles, key=lambda xs: xs[1].key)
+        for a, b, c in cycles:
+            print('* {0} => {1} => {2}'.format(a.project_name,
+                                               b.project_name,
+                                               c.project_name),
+                  file=sys.stderr)
+
+
 def get_parser():
     parser = argparse.ArgumentParser(description=(
         'Dependency tree of the installed python packages'
@@ -828,25 +841,20 @@ def main():
     return_code = 0
 
     # Before any reversing or filtering, show warnings to console
-    # about possibly conflicting deps if found and warnings are
-    # enabled (only if output is to be printed to console)
+    # about possibly conflicting or cyclic deps if found and warnings
+    # are enabled (ie. only if output is to be printed to console)
     if is_text_output and args.warn != 'silence':
         conflicts = conflicting_deps(tree)
         if conflicts:
             render_conflicts_text(conflicts)
             print('-'*72, file=sys.stderr)
 
-        cyclic = cyclic_deps(tree)
-        if cyclic:
-            print('Warning!! Cyclic dependencies found:', file=sys.stderr)
-            for a, b, c in cyclic:
-                print('* {0} => {1} => {2}'.format(a.project_name,
-                                                   b.project_name,
-                                                   c.project_name),
-                      file=sys.stderr)
+        cycles = cyclic_deps(tree)
+        if cycles:
+            render_cycles_text(cycles)
             print('-'*72, file=sys.stderr)
 
-        if args.warn == 'fail' and (conflicts or cyclic):
+        if args.warn == 'fail' and (conflicts or cycles):
             return_code = 1
 
     # Reverse the tree (if applicable) before filtering, thus ensuring

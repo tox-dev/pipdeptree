@@ -452,7 +452,7 @@ def test_conflicting_deps(capsys, mpkgs, expected_keys, expected_output):
 # Tests for cyclic deps
 
 @pytest.mark.parametrize(
-    "mpkgs,expected_keys",
+    "mpkgs,expected_keys,expected_output",
     [
         (
             {
@@ -461,15 +461,23 @@ def test_conflicting_deps(capsys, mpkgs, expected_keys, expected_output):
                 ('c', '4.5.0'): [('d', [('==', '2.0')])],
                 ('d', '2.0'): []
             },
-            [('a', 'b', 'a'), ('b', 'a', 'b')]
+            [('a', 'b', 'a'), ('b', 'a', 'b')],
+            [
+                'Warning!! Cyclic dependencies found:',
+                '* b => a => b',
+                '* a => b => a'
+            ]
         )
     ]
 )
-def test_cyclic_deps(mpkgs, expected_keys):
+def test_cyclic_deps(capsys, mpkgs, expected_keys, expected_output):
     tree = mock_PackageDAG(mpkgs)
     result = p.cyclic_deps(tree)
     result_keys = [(a.key, b.key, c.key) for (a, b, c) in result]
     assert expected_keys == result_keys
+    p.render_cycles_text(result)
+    captured = capsys.readouterr()
+    assert '\n'.join(expected_output).strip() == captured.err.strip()
 
 
 # Tests for the argparse parser
