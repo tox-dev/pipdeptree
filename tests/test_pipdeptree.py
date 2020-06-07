@@ -386,14 +386,19 @@ def test_render_svg(capsys):
 # Test for conflicting deps
 
 @pytest.mark.parametrize(
-    "mpkgs,expected_keys",
+    "mpkgs,expected_keys,expected_output",
     [
         (
             {
                 ('a', '1.0.1'): [('b', [('>=', '2.3.0')])],
                 ('b', '1.9.1'): []
             },
-            {'a': ['b']}
+            {'a': ['b']},
+            [
+                'Warning!!! Possibly conflicting dependencies found:',
+                '* a==1.0.1',
+                ' - b [required: >=2.3.0, installed: 1.9.1]'
+            ]
         ),
         (
             {
@@ -401,14 +406,26 @@ def test_render_svg(capsys):
                 ('b', '2.3.0'): [('c', [('>=', '7.0')])],
                 ('c', '8.0.1'): []
             },
-            {'a': ['c']}
+            {'a': ['c']},
+            [
+                'Warning!!! Possibly conflicting dependencies found:',
+                '* a==1.0.1',
+                ' - c [required: >=9.4.1, installed: 8.0.1]'
+            ]
         ),
         (
             {
                 ('a', '1.0.1'): [('c', [('>=', '9.4.1')])],
                 ('b', '2.3.0'): [('c', [('>=', '9.4.0')])]
             },
-            {'a': ['c'], 'b': ['c']}
+            {'a': ['c'], 'b': ['c']},
+            [
+                'Warning!!! Possibly conflicting dependencies found:',
+                '* a==1.0.1',
+                ' - c [required: >=9.4.1, installed: ?]',
+                '* b==2.3.0',
+                ' - c [required: >=9.4.0, installed: ?]'
+            ]
         ),
         (
             {
@@ -416,16 +433,20 @@ def test_render_svg(capsys):
                 ('b', '2.3.0'): [('c', [('>=', '7.0')])],
                 ('c', '9.4.1'): []
             },
-            {}
+            {},
+            []
         )
     ]
 )
-def test_conflicting_deps(mpkgs, expected_keys):
+def test_conflicting_deps(capsys, mpkgs, expected_keys, expected_output):
     tree = mock_PackageDAG(mpkgs)
     result = p.conflicting_deps(tree)
     result_keys = {k.key: [v.key for v in vs]
                    for k, vs in result.items()}
     assert expected_keys == result_keys
+    p.render_conflicts_text(result)
+    captured = capsys.readouterr()
+    assert '\n'.join(expected_output).strip() == captured.err.strip()
 
 
 # Tests for cyclic deps

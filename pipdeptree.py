@@ -709,6 +709,18 @@ def conflicting_deps(tree):
     return conflicting
 
 
+def render_conflicts_text(conflicts):
+    if conflicts:
+        print('Warning!!! Possibly conflicting dependencies found:',
+              file=sys.stderr)
+        for p, reqs in conflicts.items():
+            pkg = p.render_as_root(False)
+            print('* {}'.format(pkg), file=sys.stderr)
+            for req in reqs:
+                req_str = req.render_as_branch(False)
+                print(' - {}'.format(req_str), file=sys.stderr)
+
+
 def cyclic_deps(tree):
     """Return cyclic dependencies as list of tuples
 
@@ -816,16 +828,9 @@ def main():
     # about possibly conflicting deps if found and warnings are
     # enabled (only if output is to be printed to console)
     if is_text_output and args.warn != 'silence':
-        conflicting = conflicting_deps(tree)
-        if conflicting:
-            print('Warning!!! Possibly conflicting dependencies found:',
-                  file=sys.stderr)
-            for p, reqs in conflicting.items():
-                pkg = p.render_as_root(False)
-                print('* {}'.format(pkg), file=sys.stderr)
-                for req in reqs:
-                    req_str = req.render_as_branch(False)
-                    print(' - {}'.format(req_str), file=sys.stderr)
+        conflicts = conflicting_deps(tree)
+        if conflicts:
+            render_conflicts_text(conflicts)
             print('-'*72, file=sys.stderr)
 
         cyclic = cyclic_deps(tree)
@@ -838,7 +843,7 @@ def main():
                       file=sys.stderr)
             print('-'*72, file=sys.stderr)
 
-        if args.warn == 'fail' and (conflicting or cyclic):
+        if args.warn == 'fail' and (conflicts or cyclic):
             return_code = 1
 
     # Reverse the tree (if applicable) before filtering, thus ensuring
