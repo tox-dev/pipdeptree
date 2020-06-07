@@ -300,6 +300,17 @@ class PackageDAG(Mapping):
         except KeyError:
             return None
 
+    def get_children(self, node_key):
+        """Get child nodes for a node by it's key
+
+        :param str node_key: key of the node to get children of
+        :returns: list of child nodes
+        :rtype: ReqPackage[]
+
+        """
+        node = self.get_node_as_parent(node_key)
+        return self._obj[node] if node else []
+
     def filter(self, include, exclude):
         """Filters nodes in a graph by given parameters
 
@@ -400,6 +411,15 @@ class PackageDAG(Mapping):
                 m[k.as_requirement()] = []
         return ReversedPackageDAG(dict(m))
 
+    def sort(self):
+        """Return sorted tree in which the underlying _obj dict is an
+        OrderedDict, sorted alphabetically by the keys
+
+        :returns: Instance of same class with OrderedDict
+
+        """
+        return self.__class__(sorted_tree(self._obj))
+
     # Methods required by the abstract base class Mapping
     def __getitem__(self, *args):
         return self._obj.get(*args)
@@ -458,11 +478,9 @@ def render_text(tree, list_all=True, frozen=False):
     :returns: None
 
     """
-    tree = sorted_tree(tree)
+    tree = tree.sort()
     nodes = tree.keys()
     branch_keys = set(r.key for r in flatten(tree.values()))
-    key_tree = dict((k.key, v) for k, v in tree.items())
-    get_children = lambda n: key_tree.get(n.key, [])
     use_bullets = not frozen
 
     if not list_all:
@@ -477,7 +495,7 @@ def render_text(tree, list_all=True, frozen=False):
         result = [node_str]
         children = [aux(c, node, indent=indent+2,
                         chain=chain+[c.project_name])
-                    for c in get_children(node)
+                    for c in tree.get_children(node.key)
                     if c.project_name not in chain]
         result += list(flatten(children))
         return result
@@ -521,11 +539,9 @@ def render_json_tree(tree, indent):
     :rtype: str
 
     """
-    tree = sorted_tree(tree)
+    tree = tree.sort()
     branch_keys = set(r.key for r in flatten(tree.values()))
     nodes = [p for p in tree.keys() if p.key not in branch_keys]
-    key_tree = dict((k.key, v) for k, v in tree.items())
-    get_children = lambda n: key_tree.get(n.key, [])
 
     def aux(node, parent=None, chain=None):
         if chain is None:
@@ -539,7 +555,7 @@ def render_json_tree(tree, indent):
 
         d['dependencies'] = [
             aux(c, parent=node, chain=chain+[c.project_name])
-            for c in get_children(node)
+            for c in tree.get_children(node.key)
             if c.project_name not in chain
         ]
 
