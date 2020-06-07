@@ -26,10 +26,22 @@ Installation
 
     $ pip install pipdeptree
 
-This will install the latest version of ``pipdeptree`` which requires
-at least Python 2.7. Prior to version ``0.10.0``, Python 2.6 was also
-supported, so in case you are still stuck with 2.6, please install
-``0.9.0``.
+This will install the latest stable version of ``pipdeptree`` which is
+``0.13.2``. This version works well for the basic use case but has
+many flaws and limitations.
+
+Work on an improved version is in progress, which you can install from
+the ``v2beta`` branch,
+
+.. code-block:: bash
+
+    $ sudo pip install git+https://git@github.com/naiquevin/pipdeptree.git@v2beta#egg=v2beta
+
+``pipdeptree`` has been tested with Python 3.4, 3.5, 3.6, 3.7, 3.8 as
+well as 2.7.
+
+While Python 2.6 is way past it's end of life, if you need to run it
+on a legacy environment, you can still use version ``0.9.0``.
 
 
 Usage and examples
@@ -121,8 +133,8 @@ will not only print the warnings to stderr but also exit with a
 non-zero status code. This could be useful if you want to fit this
 tool into your CI pipeline.
 
-**Note** The ``--warn`` flag was added in version 0.6.0. If you are
-using an older version, use ``--nowarn`` flag.
+**Note** The ``--warn`` flag was added in version ``0.6.0``. If you
+are using an older version, use ``--nowarn`` flag.
 
 
 Warnings about circular dependencies
@@ -193,6 +205,9 @@ dependencies, so you could dump the complete output of ``pipdeptree
 to indentations) as well as pip-friendly. (Take care of duplicate
 dependencies though)
 
+Also note that if you're on mac, you'll need to use ``grep -E``
+instead of ``grep -P``.
+
 
 Using pipdeptree with external tools
 ------------------------------------
@@ -228,8 +243,12 @@ The dependency graph can be layed out as any of the formats supported by
 Note that ``graphviz`` is an optional dependency ie. required only if
 you want to use ``--graph-output``.
 
-Also note that ``--json``, ``--json-tree`` and ``--graph-output``
-options always override ``--package`` and ``--reverse``.
+Starting version ``2.0.0b1``, pipdeptree now supports ``--package``
+and ``--reverse`` flags with different output formats ie. ``--json``,
+``--json-tree`` and ``--graph-output``.
+
+For older versions, ``--json``, ``--json-tree`` and ``--graph-output``
+options override ``--package`` and ``--reverse``.
 
 
 Usage
@@ -299,35 +318,51 @@ Known Issues
 Runnings Tests (for contributors)
 ---------------------------------
 
-Tests can be run against all version of python using `tox
+There are 2 test suites in pipdeptree:
+
+1. Unit tests that use mock objects. These are configured to run on
+   every push to the repo and on every PR thanks to travis.ci
+
+2. End-to-end tests that are run against actual packages installed in
+   virtualenvs
+
+Unit tests can be run against all version of python using `tox
 <http://tox.readthedocs.org/en/latest/>`_ as follows:
 
 .. code-block:: bash
 
-    $ make test-tox
+    $ make test-tox-all
 
-This assumes that you have python versions 2.7, 3.3 and 3.4, 3.5, 3.6
-installed on your machine. (See more: tox.ini)
+This assumes that you have python versions 2.7, 3.4, 3.5, 3.6, 3.7,
+3.8 installed on your machine. (See more: ``tox.ini``)
 
 Or if you don't want to install all the versions of python but want to
-run tests quickly against Python2.7 only:
+run tests quickly against Python3.6 only:
 
 .. code-block:: bash
 
     $ make test
 
-Tests require some virtualenvs to be created, so another assumption is
-that you have ``virtualenv`` installed.
+Unit tests are written using ``pytest`` and you can also run the tests
+with code coverage as follows,
 
-Before pushing the code or sending pull requests it's recommended to
-run ``make test-tox`` once so that tests are run on all environments.
+.. code-block:: bash
 
-(See more: Makefile)
+    $ make test-cov
+
+On the other hand, end-to-end tests actually create virtualenvs,
+install packages and then run tests against them. These tests are more
+reliable in the sense that they also test pipdeptree with the latest
+version of pip and setuptools (unpinned dependencies).
+
+The downside is that when new versions of pip and setuptools are
+released, these need to be updated. At present the process is manual
+but I have plans to setup nightly builds for these for faster feedback.
 
 Release checklist
 -----------------
 
-* Make sure that tests pass on TravisCI.
+* Make sure that tests pass on travis.ci.
 
 * Create a commit with following changes and push it to github
   - Update the `__version__` in the `pipdeptree.py` file.
