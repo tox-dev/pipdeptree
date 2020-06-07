@@ -726,19 +726,20 @@ def render_conflicts_text(conflicts):
 def cyclic_deps(tree):
     """Return cyclic dependencies as list of tuples
 
-    :param list pkgs: pkg_resources.Distribution instances
-    :param dict pkg_index: mapping of pkgs with their respective keys
+    :param PackageDAG pkgs: package tree/dag
     :returns: list of tuples representing cyclic dependencies
-    :rtype: generator
+    :rtype: list
 
     """
-    key_tree = dict((k.key, v) for k, v in tree.items())
-    get_children = lambda n: key_tree.get(n.key, [])
+    index = {p.key: set([r.key for r in rs]) for p, rs in tree.items()}
     cyclic = []
     for p, rs in tree.items():
-        for req in rs:
-            if p.key in map(attrgetter('key'), get_children(req)):
-                cyclic.append((p, req, p))
+        for r in rs:
+            if p.key in index[r.key]:
+                p_as_dep_of_r = [r for r
+                                 in tree.get(tree.get_node_as_parent(r.key))
+                                 if r.key == p.key][0]
+                cyclic.append((p, r, p_as_dep_of_r))
     return cyclic
 
 
