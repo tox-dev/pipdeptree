@@ -428,6 +428,29 @@ def test_conflicting_deps(mpkgs, expected_keys):
     assert expected_keys == result_keys
 
 
+# Tests for cyclic deps
+
+@pytest.mark.parametrize(
+    "mpkgs,expected_keys",
+    [
+        (
+            {
+                ('a', '1.0.1'): [('b', [('>=', '2.0.0')])],
+                ('b', '2.3.0'): [('a', [('>=', '1.0.1')])],
+                ('c', '4.5.0'): [('d', [('==', '2.0')])],
+                ('d', '2.0'): []
+            },
+            [('a', 'b', 'a'), ('b', 'a', 'b')]
+        )
+    ]
+)
+def test_cyclic_deps(mpkgs, expected_keys):
+    tree = mock_PackageDAG(mpkgs)
+    result = p.cyclic_deps(tree)
+    result_keys = [(a.key, b.key, c.key) for (a, b, c) in result]
+    assert expected_keys == result_keys
+
+
 # Tests for the argparse parser
 
 def test_parser_default():
