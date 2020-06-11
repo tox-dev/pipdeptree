@@ -683,9 +683,9 @@ def cyclic_deps(tree):
     for p, rs in tree.items():
         for r in rs:
             if p.key in index[r.key]:
-                p_as_dep_of_r = [r for r
+                p_as_dep_of_r = [x for x
                                  in tree.get(tree.get_node_as_parent(r.key))
-                                 if r.key == p.key][0]
+                                 if x.key == p.key][0]
                 cyclic.append((p, r, p_as_dep_of_r))
     return cyclic
 
