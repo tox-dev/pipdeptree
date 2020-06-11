@@ -11,9 +11,11 @@ installed globally on a machine as well as in a virtualenv. Since
 ``pip freeze`` shows all dependencies as a flat list, finding out
 which are the top level packages and which packages do they depend on
 requires some effort. It can also be tedious to resolve conflicting
-dependencies because ``pip`` doesn't yet have true dependency
-resolution (more on this later). This utility tries to solve this
-problem.
+dependencies because ``pip`` doesn't have true dependency resolution
+yet. Looks like soon it will get `one
+<https://github.com/pypa/pip/issues/6536>`_) but until then this
+utility tries to solve this problem of finding conflicting package
+installs.
 
 To some extent, this tool is inspired by ``lein deps :tree`` command
 of `Leiningen <http://leiningen.org/>`_.
@@ -37,11 +39,13 @@ the ``v2beta`` branch,
 
     $ sudo pip install git+https://git@github.com/naiquevin/pipdeptree.git@v2beta#egg=v2beta
 
-``pipdeptree`` has been tested with Python 3.4, 3.5, 3.6, 3.7, 3.8 as
-well as 2.7.
+The current stable version is tested with 2.7, 3.4, 3.5 and 3.6.
 
-While Python 2.6 is way past it's end of life, if you need to run it
-on a legacy environment, you can still use version ``0.9.0``.
+The ``v2beta`` branch has been tested with Python 3.4, 3.5, 3.6, 3.7,
+3.8 as well as 2.7.
+
+While Python 2.6 is way past it's end of life, if at all you need to
+run it on a legacy environment, use version ``0.9.0``.
 
 
 Usage and examples
@@ -56,8 +60,9 @@ compared with ``pip freeze``:
     Flask==0.10.1
     itsdangerous==0.24
     Jinja2==2.11.2
+    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy
     MarkupSafe==0.22
-    -e git+git@github.com:naiquevin/pipdeptree.git@28f6a7401c3e23aac490e08dd4302826e7a02d17#egg=pipdeptree
+    pipdeptree @ file:///private/tmp/pipdeptree-2.0.0b1-py3-none-any.whl
     Werkzeug==0.11.2
 
 And now see what ``pipdeptree`` outputs,
@@ -74,6 +79,7 @@ And now see what ``pipdeptree`` outputs,
       - Jinja2 [required: >=2.4, installed: 2.11.2]
         - MarkupSafe [required: >=0.23, installed: 0.22]
       - Werkzeug [required: >=0.7, installed: 0.11.2]
+    Lookupy==0.1
     pipdeptree==2.0.0b1
       - pip [required: >=6.0.0, installed: 20.1.1]
     setuptools==47.1.1
@@ -91,7 +97,7 @@ with `--packages` flag as follows:
 
 .. code-block:: bash
 
-    $ pipdeptree --reverse --packages itsdangerous,gnureadline
+    $ pipdeptree --reverse --packages itsdangerous,MarkupSafe
     Warning!!! Possibly conflicting dependencies found:
     * Jinja2==2.11.2
      - MarkupSafe [required: >=0.23, installed: 0.22]
@@ -109,10 +115,10 @@ What's with the warning about conflicting dependencies?
 As seen in the above output, ``pipdeptree`` by default warns about
 possible conflicting dependencies. Any package that's specified as a
 dependency of multiple packages with a different version is considered
-as a possible conflicting dependency. This is helpful because ``pip``
-`doesn't have true dependency resolution
-<https://github.com/pypa/pip/issues/988>`_ yet. The warning is printed
-to stderr instead of stdout and it can be completely silenced by using
+as a possible conflicting dependency. Conflicting dependencies are
+possible due to pip's `lack of doesn't have true dependency resolution
+<https://github.com/pypa/pip/issues/988>`_. The warning is printed to
+stderr instead of stdout and it can be completely silenced by using
 the ``-w silence`` or ``--warn silence`` flag. On the other hand, it
 can be made mode strict with ``--warn fail`` in which case the command
 will not only print the warnings to stderr but also exit with a
@@ -132,7 +138,7 @@ depending upon package B and package B depending upon package A), then
 
 .. code-block:: bash
 
-    $ pipdeptree
+    $ pipdeptree --exclude pip,pipdeptree,setuptools,wheel
     Warning!!! Cyclic dependencies found:
     - CircularDependencyA => CircularDependencyB => CircularDependencyA
     - CircularDependencyB => CircularDependencyA => CircularDependencyB
@@ -142,6 +148,10 @@ depending upon package B and package B depending upon package A), then
 
 As with the conflicting dependencies warnings, these are printed to
 stderr and can be controlled using the ``--warn`` flag.
+
+In the above example, you can also see the ``--exclude`` flag which is
+the opposite of ``--packages`` ie. these packages will be excluded
+from the output.
 
 
 Using pipdeptree to write requirements.txt file
@@ -155,24 +165,32 @@ by grep-ing only the top-level lines from the output,
 
     $ pipdeptree --warn silence | grep -E '^\w+'
     Flask==0.10.1
+    gnureadline==8.0.0
+    Lookupy==0.1
     pipdeptree==2.0.0b1
     setuptools==47.1.1
     wheel==0.34.2
 
 There is a problem here though. The output doesn't mention anything
-about ``pipdeptree`` being installed as an editable package (refer to the
+about ``Lookupy`` being installed as an editable package (refer to the
 output of ``pip freeze`` above) and information about its source is
 lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 ``--freeze`` flag.
 
 .. code-block:: bash
 
-    $ pipdeptree -f --warn silence | grep -E '^[a-zA-Z0-9\-\=\.]+'
+    $ pipdeptree -f --warn silence | grep -E '^[a-zA-Z0-9\-]+'
     Flask==0.10.1
+    gnureadline==8.0.0
+    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy
+    pipdeptree @ file:///private/tmp/pipdeptree-2.0.0b1-py3-none-any.whl
     setuptools==47.1.1
     wheel==0.34.2
 
-    $ pipdeptree -f --warn silence | grep -E '^[a-zA-Z0-9\-\=\.]+' > requirements.txt
+    $ pipdeptree -f --warn silence | grep -E '^[a-zA-Z0-9\-]+' > requirements.txt
+
+Note that the ``-E`` works for BSD grep on MacOS. if you're on
+linux, you'll need to use ``grep -P`` instead.    
 
 The freeze flag will also not output the hyphens for child
 dependencies, so you could dump the complete output of ``pipdeptree
@@ -180,8 +198,22 @@ dependencies, so you could dump the complete output of ``pipdeptree
 to indentations) as well as pip-friendly. (Take care of duplicate
 dependencies though)
 
-Also note that the ``-E`` works for BSD grep on MacOS. if you're on
-linux, you'll need to use ``grep -P`` instead.
+    $ pipfreeze -f
+    Flask==0.10.1
+      itsdangerous==0.24
+      Jinja2==2.11.2
+        MarkupSafe==0.23
+      Werkzeug==0.11.2
+    gnureadline==8.0.0
+    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy
+    pipdeptree @ file:///private/tmp/pipdeptree-2.0.0b1-py3-none-any.whl
+      pip==20.1.1
+    setuptools==47.1.1
+    wheel==0.34.2
+
+If there are no conflicting dependencies, then you can treat this as a
+"lock" file. There will be duplicate entries in the file but ``pip
+install`` handles that.
 
 
 Using pipdeptree with external tools
@@ -222,8 +254,8 @@ Starting version ``2.0.0b1``, pipdeptree now supports ``--package``
 and ``--reverse`` flags with different output formats ie. ``--json``,
 ``--json-tree`` and ``--graph-output``.
 
-For older versions, ``--json``, ``--json-tree`` and ``--graph-output``
-options override ``--package`` and ``--reverse``.
+For earlier versions, the ``--json``, ``--json-tree`` and
+``--graph-output`` options override ``--package`` and ``--reverse``.
 
 
 Usage
@@ -231,12 +263,12 @@ Usage
 
 .. code-block:: bash
 
-    usage: pipdeptree.py [-h] [-v] [-f] [-a] [-l] [-u]
-                     [-w [{silence,suppress,fail}]] [-r] [-p PACKAGES] [-j]
-                     [--json-tree] [--graph-output OUTPUT_FORMAT]
-
+    usage: pipdeptree [-h] [-v] [-f] [-a] [-l] [-u] [-w [{silence,suppress,fail}]]
+                      [-r] [-p PACKAGES] [-e PACKAGES] [-j] [--json-tree]
+                      [--graph-output OUTPUT_FORMAT]
+    
     Dependency tree of the installed python packages
-
+    
     optional arguments:
       -h, --help            show this help message and exit
       -v, --version         show program's version number and exit
@@ -258,8 +290,8 @@ Usage
                             Comma separated list of select packages to show in the
                             output. If set, --all will be ignored.
       -e PACKAGES, --exclude PACKAGES
-                            Comma separated list of select packages to exclude from
-                            the output. If set, --all will be ignored.
+                            Comma separated list of select packages to exclude
+                            from the output. If set, --all will be ignored.
       -j, --json            Display dependency tree as json. This will yield "raw"
                             output that may be used by external tools. This option
                             overrides all other options.
@@ -272,26 +304,28 @@ Usage
                             format. Available are all formats supported by
                             GraphViz, e.g.: dot, jpeg, pdf, png, svg
 
-
-Known Issues
+Known issues
 ------------
 
 * To work with packages installed inside a virtualenv, pipdeptree also
   needs to be installed in the same virtualenv even if it's already
   installed globally.
 
-* One thing you might have noticed already is that ``flask`` is shown
-  as a dependency of ``flask-script``, which although correct, sounds
-  a bit odd. ``flask-script`` is being used here *because* we are
-  using ``flask`` and not the other way around. Same with
-  ``sqlalchemy`` and ``alembic``.  I haven't yet thought about a
-  possible solution to this!  (May be if libs that are "extensions"
-  could be distinguished from the ones that are
-  "dependencies". Suggestions are welcome.)
+
+Alternatives
+------------
+
+``pipdeptree`` doesn't do any dependency resolution. It merely looks
+at the installed packages in the current environment using pip and
+generates the tree. If you are looking for a tool for generating the
+tree without installing the packages, then you need a dependency
+resolver. You might want to check alternatives such as `pipgrip
+<https://github.com/ddelange/pipgrip>`_ or `poetry
+<https://github.com/python-poetry/poetry>`_
 
 
-Runnings Tests (for contributors)
----------------------------------
+Runing Tests (for contributors)
+-------------------------------
 
 There are 2 test suites in pipdeptree:
 
@@ -334,6 +368,7 @@ The downside is that when new versions of pip and setuptools are
 released, these need to be updated. At present the process is manual
 but I have plans to setup nightly builds for these for faster feedback.
 
+
 Release checklist
 -----------------
 
@@ -349,10 +384,6 @@ Release checklist
 
 * Upload new version to PyPI.
 
-Alternate tools
----------------
-
-* `pipgrip <https://github.com/ddelange/pipgrip>`_.
 
 License
 -------
