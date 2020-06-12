@@ -12,13 +12,11 @@ installed globally on a machine as well as in a virtualenv. Since
 which are the top level packages and which packages do they depend on
 requires some effort. It can also be tedious to resolve conflicting
 dependencies because ``pip`` doesn't have true dependency resolution
-yet. Looks like soon it will get `one
-<https://github.com/pypa/pip/issues/6536>`_) but until then this
-utility tries to solve this problem of finding conflicting package
-installs.
+yet [1]_. ``pipdeptree`` can help here by identifying conflicting
+dependencies installed in the environment.
 
-To some extent, this tool is inspired by ``lein deps :tree`` command
-of `Leiningen <http://leiningen.org/>`_.
+To some extent, ``pipdeptree`` is inspired by the ``lein deps :tree``
+command of `Leiningen <http://leiningen.org/>`_.
 
 
 Installation
@@ -28,24 +26,24 @@ Installation
 
     $ pip install pipdeptree
 
-This will install the latest stable version of ``pipdeptree`` which is
-``0.13.2``. This version works well for the basic use case but has
-many flaws and limitations.
+This will install the latest stable version which is ``0.13.2``. This
+version works well for the basic use case but has many flaws and
+limitations.
 
-Work on an improved version is in progress, which you can install from
-the ``v2beta`` branch,
+Work on an improved version is in progress and you can install it from
+the ``v2beta`` branch as follows,
 
 .. code-block:: bash
 
     $ sudo pip install git+https://git@github.com/naiquevin/pipdeptree.git@v2beta#egg=v2beta
 
-The current stable version is tested with 2.7, 3.4, 3.5 and 3.6.
+The current stable version is tested with ``2.7``, ``3.4``, ``3.5`` and ``3.6``.
 
-The ``v2beta`` branch has been tested with Python 3.4, 3.5, 3.6, 3.7,
-3.8 as well as 2.7.
+The ``v2beta`` branch has been tested with Python ``3.4``, ``3.5``, ``3.6``, ``3.7``,
+``3.8`` as well as ``2.7``.
 
-While Python 2.6 is way past it's end of life, if at all you need to
-run it on a legacy environment, use version ``0.9.0``.
+Python ``2.6`` is way past it's end of life but if you ever find
+yourself stuck on a legacy environment, you can use version ``0.9.0``.
 
 
 Usage and examples
@@ -91,9 +89,9 @@ Is it possible to find out why a particular package is installed?
 
 `New in ver. 0.5.0`
 
-Yes, there's a `--reverse` (or simply `-r`) flag for this. To find out
-what all packages require paricular package(s), it can be combined
-with `--packages` flag as follows:
+Yes, there's a ``--reverse`` (or simply ``-r``) flag for this. To find
+out what all packages require particular package(s), it can be
+combined with ``--packages`` flag as follows:
 
 .. code-block:: bash
 
@@ -116,17 +114,18 @@ As seen in the above output, ``pipdeptree`` by default warns about
 possible conflicting dependencies. Any package that's specified as a
 dependency of multiple packages with a different version is considered
 as a possible conflicting dependency. Conflicting dependencies are
-possible due to pip's `lack of doesn't have true dependency resolution
-<https://github.com/pypa/pip/issues/988>`_. The warning is printed to
-stderr instead of stdout and it can be completely silenced by using
-the ``-w silence`` or ``--warn silence`` flag. On the other hand, it
-can be made mode strict with ``--warn fail`` in which case the command
-will not only print the warnings to stderr but also exit with a
-non-zero status code. This could be useful if you want to fit this
-tool into your CI pipeline.
+possible due to pip's `lack of true dependency resolution
+<https://github.com/pypa/pip/issues/988>`_ [1]_. The warning is
+printed to stderr instead of stdout and it can be completely silenced
+by specifying the ``-w silence`` or ``--warn silence`` flag. On the
+other hand, it can be made mode strict with ``--warn fail`` in which
+case the command will not only print the warnings to stderr but also
+exit with a non-zero status code. This could be useful if you want to
+fit this tool into your CI pipeline.
 
 **Note** The ``--warn`` flag was added in version ``0.6.0``. If you
-are using an older version, use ``--nowarn`` flag.
+are using an older version, use ``--nowarn`` flag to silence the
+warnings.
 
 
 Warnings about circular dependencies
@@ -189,16 +188,14 @@ lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 
     $ pipdeptree -f --warn silence | grep -E '^[a-zA-Z0-9\-]+' > requirements.txt
 
-Note that the ``-E`` works for BSD grep on MacOS. if you're on
-linux, you'll need to use ``grep -P`` instead.    
-
 The freeze flag will also not output the hyphens for child
 dependencies, so you could dump the complete output of ``pipdeptree
 -f`` to the requirements.txt file making the file human-friendly (due
-to indentations) as well as pip-friendly. (Take care of duplicate
-dependencies though)
+to indentations) as well as pip-friendly.
 
-    $ pipfreeze -f
+.. code-block:: bash
+
+    $ pipdeptree -f | tee locked-requirements.txt
     Flask==0.10.1
       itsdangerous==0.24
       Jinja2==2.11.2
@@ -211,9 +208,17 @@ dependencies though)
     setuptools==47.1.1
     wheel==0.34.2
 
-If there are no conflicting dependencies, then you can treat this as a
-"lock" file. There will be duplicate entries in the file but ``pip
-install`` handles that.
+Once confirming that there are no conflicting dependencies, you can
+even treat this as a "lock file" where all packages, including the
+transient dependencies will be pinned to the currently installed
+versions. Note that the ``locked-requirements.txt`` file could end up
+with duplicate entries. Although ``pip install`` wouldn't complain
+about that, you can avoid duplicate lines at the cost of losing
+indentation,
+
+.. code-block:: bash
+
+    $ pipdeptree -f | sed 's/ //g' | sort -u > locked-requirements.txt
 
 
 Using pipdeptree with external tools
@@ -221,9 +226,9 @@ Using pipdeptree with external tools
 
 `New in ver. 0.5.0`
 
-It's also possible to have pipdeptree output json representation of
-the dependency tree so that it may be used as input to other external
-tools.
+It's also possible to have ``pipdeptree`` output json representation
+of the dependency tree so that it may be used as input to other
+external tools.
 
 .. code-block:: bash
 
@@ -231,7 +236,9 @@ tools.
 
 Note that ``--json`` will output a flat list of all packages with
 their immediate dependencies. This is not very useful in itself. To
-obtain nested json, use ``--json-tree`` (added in version ``0.11.0``).
+obtain nested json, use ``--json-tree``
+
+`New in ver. 0.11.0`
 
 .. code-block:: bash
 
@@ -307,27 +314,42 @@ Usage
 Known issues
 ------------
 
-* To work with packages installed inside a virtualenv, pipdeptree also
-  needs to be installed in the same virtualenv even if it's already
-  installed globally.
+1. To work with packages installed inside a virtualenv, pipdeptree
+   also needs to be installed in the same virtualenv even if it's
+   already installed globally.
+
+2. Due to (1), the output of ``pipdeptree`` also includes
+   ``pipdeptree`` itself as a dependency along with ``pip``,
+   ``setuptools`` and ``wheel`` which get installed in the virtualenv
+   by default. To ignore them, use the ``--exclude`` option.
+
+3. ``pipdeptree`` relies on the internal API of ``pip``. I fully
+   understand that it's a bad idea but it mostly works! On rare
+   occasions, it breaks when a new version of ``pip`` is out with
+   backward incompatible changes in internal API. So beware if you are
+   using this tool in environments in which ``pip`` version is
+   unpinned, specially automation or CD/CI pipelines.
 
 
-Alternatives
-------------
+Limitations & Alternatives
+--------------------------
 
-``pipdeptree`` doesn't do any dependency resolution. It merely looks
-at the installed packages in the current environment using pip and
-generates the tree. If you are looking for a tool for generating the
-tree without installing the packages, then you need a dependency
-resolver. You might want to check alternatives such as `pipgrip
+``pipdeptree`` merely looks at the installed packages in the current
+environment using pip, constructs the tree, then outputs it in the
+specified format. If you want to generate the dependency tree without
+installing the packages, then you need a dependency resolver. You
+might want to check alternatives such as `pipgrip
 <https://github.com/ddelange/pipgrip>`_ or `poetry
-<https://github.com/python-poetry/poetry>`_
+<https://github.com/python-poetry/poetry>`_.
+
+Also, stay tuned for the dependency resolver in upcoming versions of
+pip [1]_.
 
 
 Runing Tests (for contributors)
 -------------------------------
 
-There are 2 test suites in pipdeptree:
+There are 2 test suites in this repo:
 
 1. Unit tests that use mock objects. These are configured to run on
    every push to the repo and on every PR thanks to travis.ci
@@ -342,11 +364,11 @@ Unit tests can be run against all version of python using `tox
 
     $ make test-tox-all
 
-This assumes that you have python versions 2.7, 3.4, 3.5, 3.6, 3.7,
-3.8 installed on your machine. (See more: ``tox.ini``)
+This assumes that you have python versions specified in the
+``tox.ini`` file.
 
-Or if you don't want to install all the versions of python but want to
-run tests quickly against Python3.6 only:
+If you don't want to install all the versions of python but want to
+run tests quickly against ``Python3.6`` only:
 
 .. code-block:: bash
 
@@ -361,12 +383,13 @@ with code coverage as follows,
 
 On the other hand, end-to-end tests actually create virtualenvs,
 install packages and then run tests against them. These tests are more
-reliable in the sense that they also test pipdeptree with the latest
-version of pip and setuptools (unpinned dependencies).
+reliable in the sense that they also test ``pipdeptree`` with the
+latest version of ``pip`` and ``setuptools``.
 
-The downside is that when new versions of pip and setuptools are
-released, these need to be updated. At present the process is manual
-but I have plans to setup nightly builds for these for faster feedback.
+The downside is that when new versions of ``pip`` or ``setuptools``
+are released, these need to be updated. At present the process is
+manual but I have plans to setup nightly builds for these for faster
+feedback.
 
 
 Release checklist
@@ -389,3 +412,9 @@ License
 -------
 
 MIT (See `LICENSE <./LICENSE>`_)
+
+Footnotes
+---------
+
+.. [1] Soon we'll have `a dependency resolver in pip itself
+       <https://github.com/pypa/pip/issues/6536>`_
