@@ -1,0 +1,49 @@
+appnope==0.1.0
+  - ipython==7.13.0 [requires: appnope]
+backcall==0.1.0
+  - ipython==7.13.0 [requires: backcall]
+click==7.1.2
+  - Flask==1.1.2 [requires: click>=5.1]
+    - Flask-Script==2.0.6 [requires: Flask]
+decorator==4.4.2
+  - ipython==7.13.0 [requires: decorator]
+  - traitlets==4.3.3 [requires: decorator]
+    - ipython==7.13.0 [requires: traitlets>=4.2]
+gnureadline==8.0.0
+ipython-genutils==0.2.0
+  - traitlets==4.3.3 [requires: ipython-genutils]
+    - ipython==7.13.0 [requires: traitlets>=4.2]
+itsdangerous==1.1.0
+  - Flask==1.1.2 [requires: itsdangerous>=0.24]
+    - Flask-Script==2.0.6 [requires: Flask]
+MarkupSafe==1.1.1
+  - Jinja2==2.11.2 [requires: MarkupSafe>=0.23]
+    - Flask==1.1.2 [requires: Jinja2>=2.10.1]
+      - Flask-Script==2.0.6 [requires: Flask]
+parso==0.7.0
+  - jedi==0.17.0 [requires: parso>=0.7.0]
+    - ipython==7.13.0 [requires: jedi>=0.10]
+pickleshare==0.7.5
+  - ipython==7.13.0 [requires: pickleshare]
+pip==20.1.1
+  - pipdeptree==2.0.0b1 [requires: pip>=6.0.0]
+ptyprocess==0.6.0
+  - pexpect==4.8.0 [requires: ptyprocess>=0.5]
+    - ipython==7.13.0 [requires: pexpect]
+pygments==2.6.1
+  - ipython==7.13.0 [requires: pygments]
+pymongo==3.10.1
+redis==3.4.1
+setuptools==47.1.1
+  - ipython==7.13.0 [requires: setuptools>=18.5]
+six==1.15.0
+  - traitlets==4.3.3 [requires: six]
+    - ipython==7.13.0 [requires: traitlets>=4.2]
+slugify==0.0.1
+wcwidth==0.2.3
+  - prompt-toolkit==3.0.5 [requires: wcwidth]
+    - ipython==7.13.0 [requires: prompt-toolkit>=2.0.0,<3.1.0,!=3.0.1,!=3.0.0]
+Werkzeug==1.0.1
+  - Flask==1.1.2 [requires: Werkzeug>=0.15]
+    - Flask-Script==2.0.6 [requires: Flask]
+wheel==0.34.2

@@ -1,0 +1,5 @@
+pytest
+pytest-cov
+jinja2
+ipython
+flake8

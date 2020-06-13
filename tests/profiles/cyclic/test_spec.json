@@ -1,0 +1,26 @@
+[
+  {
+    "id": "default_output",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}}",
+    "expected_output_file": "default.out",
+    "expected_err_file": "default.err",
+    "expected_returncode": 0
+  },
+  {
+    "id": "warning_silenced",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}} -w silence",
+    "expected_output_file": "default.out",
+    "expected_err_file": null,
+    "expected_returncode": 0
+  },
+  {
+    "id": "fail_if_cyclic",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}} -w fail",
+    "expected_output_file": "default.out",
+    "expected_err_file": "default.err",
+    "expected_returncode": 1
+  }
+]

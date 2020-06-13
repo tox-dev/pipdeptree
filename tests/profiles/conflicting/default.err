@@ -1,0 +1,4 @@
+Warning!!! Possibly conflicting dependencies found:
+* Jinja2==2.11.2
+ - MarkupSafe [required: >=0.23, installed: 0.22]
+------------------------------------------------------------------------

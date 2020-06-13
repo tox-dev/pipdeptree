@@ -11,12 +11,12 @@ installed globally on a machine as well as in a virtualenv. Since
 ``pip freeze`` shows all dependencies as a flat list, finding out
 which are the top level packages and which packages do they depend on
 requires some effort. It can also be tedious to resolve conflicting
-dependencies because ``pip`` doesn't yet have true dependency
-resolution (more on this later). This utility tries to solve this
-problem.
+dependencies because ``pip`` doesn't have true dependency resolution
+yet [1]_. ``pipdeptree`` can help here by identifying conflicting
+dependencies installed in the environment.
 
-To some extent, this tool is inspired by ``lein deps :tree`` command
-of `Leiningen <http://leiningen.org/>`_.
+To some extent, ``pipdeptree`` is inspired by the ``lein deps :tree``
+command of `Leiningen <http://leiningen.org/>`_.
 
 
 Installation
@@ -26,10 +26,24 @@ Installation
 
     $ pip install pipdeptree
 
-This will install the latest version of ``pipdeptree`` which requires
-at least Python 2.7. Prior to version ``0.10.0``, Python 2.6 was also
-supported, so in case you are still stuck with 2.6, please install
-``0.9.0``.
+This will install the latest stable version which is ``0.13.2``. This
+version works well for the basic use case but has many flaws and
+limitations.
+
+Work on an improved version is in progress and you can install it from
+the ``v2beta`` branch as follows,
+
+.. code-block:: bash
+
+    $ sudo pip install git+https://git@github.com/naiquevin/pipdeptree.git@v2beta#egg=v2beta
+
+The current stable version is tested with ``2.7``, ``3.4``, ``3.5`` and ``3.6``.
+
+The ``v2beta`` branch has been tested with Python ``3.4``, ``3.5``, ``3.6``, ``3.7``,
+``3.8`` as well as ``2.7``.
+
+Python ``2.6`` is way past it's end of life but if you ever find
+yourself stuck on a legacy environment, you can use version ``0.9.0``.
 
 
 Usage and examples
@@ -42,48 +56,32 @@ compared with ``pip freeze``:
 
     $ pip freeze
     Flask==0.10.1
-    Flask-Script==0.6.6
-    Jinja2==2.7.2
-    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master
-    Mako==0.9.1
-    MarkupSafe==0.18
-    SQLAlchemy==0.9.1
-    Werkzeug==0.9.4
-    alembic==0.6.2
-    argparse==1.2.1
-    ipython==2.0.0
-    itsdangerous==0.23
-    psycopg2==2.5.2
-    redis==2.9.1
-    slugify==0.0.1
-    wsgiref==0.1.2
+    itsdangerous==0.24
+    Jinja2==2.11.2
+    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy
+    MarkupSafe==0.22
+    pipdeptree @ file:///private/tmp/pipdeptree-2.0.0b1-py3-none-any.whl
+    Werkzeug==0.11.2
 
 And now see what ``pipdeptree`` outputs,
 
 .. code-block:: bash
 
     $ pipdeptree
-    Warning!!! Possible conflicting dependencies found:
-    * Mako==0.9.1 -> MarkupSafe [required: >=0.9.2, installed: 0.18]
-      Jinja2==2.7.2 -> MarkupSafe [installed: 0.18]
+    Warning!!! Possibly conflicting dependencies found:
+    * Jinja2==2.11.2
+     - MarkupSafe [required: >=0.23, installed: 0.22]
     ------------------------------------------------------------------------
+    Flask==0.10.1
+      - itsdangerous [required: >=0.21, installed: 0.24]
+      - Jinja2 [required: >=2.4, installed: 2.11.2]
+        - MarkupSafe [required: >=0.23, installed: 0.22]
+      - Werkzeug [required: >=0.7, installed: 0.11.2]
     Lookupy==0.1
-    wsgiref==0.1.2
-    argparse==1.2.1
-    psycopg2==2.5.2
-    Flask-Script==0.6.6
-      - Flask [installed: 0.10.1]
-        - Werkzeug [required: >=0.7, installed: 0.9.4]
-        - Jinja2 [required: >=2.4, installed: 2.7.2]
-          - MarkupSafe [installed: 0.18]
-        - itsdangerous [required: >=0.21, installed: 0.23]
-    alembic==0.6.2
-      - SQLAlchemy [required: >=0.7.3, installed: 0.9.1]
-      - Mako [installed: 0.9.1]
-        - MarkupSafe [required: >=0.9.2, installed: 0.18]
-    ipython==2.0.0
-    slugify==0.0.1
-    redis==2.9.1
+    pipdeptree==2.0.0b1
+      - pip [required: >=6.0.0, installed: 20.1.1]
+    setuptools==47.1.1
+    wheel==0.34.2
 
 
 Is it possible to find out why a particular package is installed?
@@ -91,18 +89,22 @@ Is it possible to find out why a particular package is installed?
 
 `New in ver. 0.5.0`
 
-Yes, there's a `--reverse` (or simply `-r`) flag for this. To find out
-what all packages require paricular package(s), it can be combined
-with `--packages` flag as follows:
+Yes, there's a ``--reverse`` (or simply ``-r``) flag for this. To find
+out what all packages require particular package(s), it can be
+combined with ``--packages`` flag as follows:
 
 .. code-block:: bash
 
-    $ pipdeptree --reverse --packages itsdangerous,gnureadline
-    gnureadline==6.3.3
-      - ipython==2.0.0 [requires: gnureadline]
+    $ pipdeptree --reverse --packages itsdangerous,MarkupSafe
+    Warning!!! Possibly conflicting dependencies found:
+    * Jinja2==2.11.2
+     - MarkupSafe [required: >=0.23, installed: 0.22]
+    ------------------------------------------------------------------------
     itsdangerous==0.24
       - Flask==0.10.1 [requires: itsdangerous>=0.21]
-        - Flask-Script==0.6.6 [requires: Flask]
+    MarkupSafe==0.22
+      - Jinja2==2.11.2 [requires: MarkupSafe>=0.23]
+        - Flask==0.10.1 [requires: Jinja2>=2.4]
 
 
 What's with the warning about conflicting dependencies?
@@ -111,18 +113,19 @@ What's with the warning about conflicting dependencies?
 As seen in the above output, ``pipdeptree`` by default warns about
 possible conflicting dependencies. Any package that's specified as a
 dependency of multiple packages with a different version is considered
-as a possible conflicting dependency. This is helpful because ``pip``
-`doesn't have true dependency resolution
-<https://github.com/pypa/pip/issues/988>`_ yet. The warning is printed
-to stderr instead of stdout and it can be completely silenced by using
-the ``-w silence`` or ``--warn silence`` flag. On the other hand, it
-can be made mode strict with ``--warn fail`` in which case the command
-will not only print the warnings to stderr but also exit with a
-non-zero status code. This could be useful if you want to fit this
-tool into your CI pipeline.
+as a possible conflicting dependency. Conflicting dependencies are
+possible due to pip's `lack of true dependency resolution
+<https://github.com/pypa/pip/issues/988>`_ [1]_. The warning is
+printed to stderr instead of stdout and it can be completely silenced
+by specifying the ``-w silence`` or ``--warn silence`` flag. On the
+other hand, it can be made mode strict with ``--warn fail`` in which
+case the command will not only print the warnings to stderr but also
+exit with a non-zero status code. This could be useful if you want to
+fit this tool into your CI pipeline.
 
-**Note** The ``--warn`` flag was added in version 0.6.0. If you are
-using an older version, use ``--nowarn`` flag.
+**Note** The ``--warn`` flag was added in version ``0.6.0``. If you
+are using an older version, use ``--nowarn`` flag to silence the
+warnings.
 
 
 Warnings about circular dependencies
@@ -134,7 +137,7 @@ depending upon package B and package B depending upon package A), then
 
 .. code-block:: bash
 
-    $ pipdeptree
+    $ pipdeptree --exclude pip,pipdeptree,setuptools,wheel
     Warning!!! Cyclic dependencies found:
     - CircularDependencyA => CircularDependencyB => CircularDependencyA
     - CircularDependencyB => CircularDependencyA => CircularDependencyB
@@ -144,6 +147,10 @@ depending upon package B and package B depending upon package A), then
 
 As with the conflicting dependencies warnings, these are printed to
 stderr and can be controlled using the ``--warn`` flag.
+
+In the above example, you can also see the ``--exclude`` flag which is
+the opposite of ``--packages`` ie. these packages will be excluded
+from the output.
 
 
 Using pipdeptree to write requirements.txt file
@@ -155,16 +162,13 @@ by grep-ing only the top-level lines from the output,
 
 .. code-block:: bash
 
-    $ pipdeptree | grep -P '^\w+'
+    $ pipdeptree --warn silence | grep -E '^\w+'
+    Flask==0.10.1
+    gnureadline==8.0.0
     Lookupy==0.1
-    wsgiref==0.1.2
-    argparse==1.2.1
-    psycopg2==2.5.2
-    Flask-Script==0.6.6
-    alembic==0.6.2
-    ipython==2.0.0
-    slugify==0.0.1
-    redis==2.9.1
+    pipdeptree==2.0.0b1
+    setuptools==47.1.1
+    wheel==0.34.2
 
 There is a problem here though. The output doesn't mention anything
 about ``Lookupy`` being installed as an editable package (refer to the
@@ -174,24 +178,47 @@ lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 
 .. code-block:: bash
 
-    $ pipdeptree -f --warn silence | grep -P '^[\w0-9\-=.]+'
-    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master
-    wsgiref==0.1.2
-    argparse==1.2.1
-    psycopg2==2.5.2
-    Flask-Script==0.6.6
-    alembic==0.6.2
-    ipython==2.0.0
-    slugify==0.0.1
-    redis==2.9.1
+    $ pipdeptree -f --warn silence | grep -E '^[a-zA-Z0-9\-]+'
+    Flask==0.10.1
+    gnureadline==8.0.0
+    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy
+    pipdeptree @ file:///private/tmp/pipdeptree-2.0.0b1-py3-none-any.whl
+    setuptools==47.1.1
+    wheel==0.34.2
 
-    $ pipdeptree -f --warn silence | grep -P '^[\w0-9\-=.]+' > requirements.txt
+    $ pipdeptree -f --warn silence | grep -E '^[a-zA-Z0-9\-]+' > requirements.txt
 
 The freeze flag will also not output the hyphens for child
 dependencies, so you could dump the complete output of ``pipdeptree
 -f`` to the requirements.txt file making the file human-friendly (due
-to indentations) as well as pip-friendly. (Take care of duplicate
-dependencies though)
+to indentations) as well as pip-friendly.
+
+.. code-block:: bash
+
+    $ pipdeptree -f | tee locked-requirements.txt
+    Flask==0.10.1
+      itsdangerous==0.24
+      Jinja2==2.11.2
+        MarkupSafe==0.23
+      Werkzeug==0.11.2
+    gnureadline==8.0.0
+    -e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy
+    pipdeptree @ file:///private/tmp/pipdeptree-2.0.0b1-py3-none-any.whl
+      pip==20.1.1
+    setuptools==47.1.1
+    wheel==0.34.2
+
+Once confirming that there are no conflicting dependencies, you can
+even treat this as a "lock file" where all packages, including the
+transient dependencies will be pinned to the currently installed
+versions. Note that the ``locked-requirements.txt`` file could end up
+with duplicate entries. Although ``pip install`` wouldn't complain
+about that, you can avoid duplicate lines at the cost of losing
+indentation,
+
+.. code-block:: bash
+
+    $ pipdeptree -f | sed 's/ //g' | sort -u > locked-requirements.txt
 
 
 Using pipdeptree with external tools
@@ -199,17 +226,19 @@ Using pipdeptree with external tools
 
 `New in ver. 0.5.0`
 
-It's also possible to have pipdeptree output json representation of
-the dependency tree so that it may be used as input to other external
-tools.
+It's also possible to have ``pipdeptree`` output json representation
+of the dependency tree so that it may be used as input to other
+external tools.
 
 .. code-block:: bash
 
     $ pipdeptree --json
 
 Note that ``--json`` will output a flat list of all packages with
-their immediate dependencies. To obtain nested json, use
-``--json-tree`` (added in version ``0.11.0``).
+their immediate dependencies. This is not very useful in itself. To
+obtain nested json, use ``--json-tree``
+
+`New in ver. 0.11.0`
 
 .. code-block:: bash
 
@@ -228,8 +257,12 @@ The dependency graph can be layed out as any of the formats supported by
 Note that ``graphviz`` is an optional dependency ie. required only if
 you want to use ``--graph-output``.
 
-Also note that ``--json``, ``--json-tree`` and ``--graph-output``
-options always override ``--package`` and ``--reverse``.
+Starting version ``2.0.0b1``, pipdeptree now supports ``--package``
+and ``--reverse`` flags with different output formats ie. ``--json``,
+``--json-tree`` and ``--graph-output``.
+
+For earlier versions, the ``--json``, ``--json-tree`` and
+``--graph-output`` options override ``--package`` and ``--reverse``.
 
 
 Usage
@@ -237,12 +270,12 @@ Usage
 
 .. code-block:: bash
 
-    usage: pipdeptree.py [-h] [-v] [-f] [-a] [-l] [-u]
-                     [-w [{silence,suppress,fail}]] [-r] [-p PACKAGES] [-j]
-                     [--json-tree] [--graph-output OUTPUT_FORMAT]
-
+    usage: pipdeptree [-h] [-v] [-f] [-a] [-l] [-u] [-w [{silence,suppress,fail}]]
+                      [-r] [-p PACKAGES] [-e PACKAGES] [-j] [--json-tree]
+                      [--graph-output OUTPUT_FORMAT]
+    
     Dependency tree of the installed python packages
-
+    
     optional arguments:
       -h, --help            show this help message and exit
       -v, --version         show program's version number and exit
@@ -264,8 +297,8 @@ Usage
                             Comma separated list of select packages to show in the
                             output. If set, --all will be ignored.
       -e PACKAGES, --exclude PACKAGES
-                            Comma separated list of select packages to exclude from
-                            the output. If set, --all will be ignored.
+                            Comma separated list of select packages to exclude
+                            from the output. If set, --all will be ignored.
       -j, --json            Display dependency tree as json. This will yield "raw"
                             output that may be used by external tools. This option
                             overrides all other options.
@@ -278,56 +311,91 @@ Usage
                             format. Available are all formats supported by
                             GraphViz, e.g.: dot, jpeg, pdf, png, svg
 
-
-Known Issues
+Known issues
 ------------
 
-* To work with packages installed inside a virtualenv, pipdeptree also
-  needs to be installed in the same virtualenv even if it's already
-  installed globally.
+1. To work with packages installed inside a virtualenv, pipdeptree
+   also needs to be installed in the same virtualenv even if it's
+   already installed globally.
 
-* One thing you might have noticed already is that ``flask`` is shown
-  as a dependency of ``flask-script``, which although correct, sounds
-  a bit odd. ``flask-script`` is being used here *because* we are
-  using ``flask`` and not the other way around. Same with
-  ``sqlalchemy`` and ``alembic``.  I haven't yet thought about a
-  possible solution to this!  (May be if libs that are "extensions"
-  could be distinguished from the ones that are
-  "dependencies". Suggestions are welcome.)
+2. Due to (1), the output of ``pipdeptree`` also includes
+   ``pipdeptree`` itself as a dependency along with ``pip``,
+   ``setuptools`` and ``wheel`` which get installed in the virtualenv
+   by default. To ignore them, use the ``--exclude`` option.
+
+3. ``pipdeptree`` relies on the internal API of ``pip``. I fully
+   understand that it's a bad idea but it mostly works! On rare
+   occasions, it breaks when a new version of ``pip`` is out with
+   backward incompatible changes in internal API. So beware if you are
+   using this tool in environments in which ``pip`` version is
+   unpinned, specially automation or CD/CI pipelines.
 
 
-Runnings Tests (for contributors)
----------------------------------
+Limitations & Alternatives
+--------------------------
 
-Tests can be run against all version of python using `tox
+``pipdeptree`` merely looks at the installed packages in the current
+environment using pip, constructs the tree, then outputs it in the
+specified format. If you want to generate the dependency tree without
+installing the packages, then you need a dependency resolver. You
+might want to check alternatives such as `pipgrip
+<https://github.com/ddelange/pipgrip>`_ or `poetry
+<https://github.com/python-poetry/poetry>`_.
+
+Also, stay tuned for the dependency resolver in upcoming versions of
+pip [1]_.
+
+
+Runing Tests (for contributors)
+-------------------------------
+
+There are 2 test suites in this repo:
+
+1. Unit tests that use mock objects. These are configured to run on
+   every push to the repo and on every PR thanks to travis.ci
+
+2. End-to-end tests that are run against actual packages installed in
+   virtualenvs
+
+Unit tests can be run against all version of python using `tox
 <http://tox.readthedocs.org/en/latest/>`_ as follows:
 
 .. code-block:: bash
 
-    $ make test-tox
+    $ make test-tox-all
 
-This assumes that you have python versions 2.7, 3.3 and 3.4, 3.5, 3.6
-installed on your machine. (See more: tox.ini)
+This assumes that you have python versions specified in the
+``tox.ini`` file.
 
-Or if you don't want to install all the versions of python but want to
-run tests quickly against Python2.7 only:
+If you don't want to install all the versions of python but want to
+run tests quickly against ``Python3.6`` only:
 
 .. code-block:: bash
 
     $ make test
 
-Tests require some virtualenvs to be created, so another assumption is
-that you have ``virtualenv`` installed.
+Unit tests are written using ``pytest`` and you can also run the tests
+with code coverage as follows,
 
-Before pushing the code or sending pull requests it's recommended to
-run ``make test-tox`` once so that tests are run on all environments.
+.. code-block:: bash
 
-(See more: Makefile)
+    $ make test-cov
+
+On the other hand, end-to-end tests actually create virtualenvs,
+install packages and then run tests against them. These tests are more
+reliable in the sense that they also test ``pipdeptree`` with the
+latest version of ``pip`` and ``setuptools``.
+
+The downside is that when new versions of ``pip`` or ``setuptools``
+are released, these need to be updated. At present the process is
+manual but I have plans to setup nightly builds for these for faster
+feedback.
+
 
 Release checklist
 -----------------
 
-* Make sure that tests pass on TravisCI.
+* Make sure that tests pass on travis.ci.
 
 * Create a commit with following changes and push it to github
   - Update the `__version__` in the `pipdeptree.py` file.
@@ -339,7 +407,14 @@ Release checklist
 
 * Upload new version to PyPI.
 
+
 License
 -------
 
 MIT (See `LICENSE <./LICENSE>`_)
+
+Footnotes
+---------
+
+.. [1] Soon we'll have `a dependency resolver in pip itself
+       <https://github.com/pypa/pip/issues/6536>`_

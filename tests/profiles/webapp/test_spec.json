@@ -1,0 +1,42 @@
+[
+  {
+    "id": "default_output",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}}",
+    "expected_output_file": "default.out",
+    "expected_err_file": null,
+    "expected_returncode": 0
+  },
+  {
+    "id": "reverse_output",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}} -r",
+    "expected_output_file": "reverse.out",
+    "expected_err_file": null,
+    "expected_returncode": 0
+  },
+  {
+    "id": "--all_output",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}} --all",
+    "expected_output_file": "all_flag.out",
+    "expected_err_file": null,
+    "expected_returncode": 0
+  },
+  {
+    "id": "--packages_output",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}} --packages pexpect,ipython",
+    "expected_output_file": "packages_opt.out",
+    "expected_err_file": null,
+    "expected_returncode": 0
+  },
+  {
+    "id": "--packages--reverse_output",
+    "method": "cmp_with_file_contents",
+    "command": "{{pipdeptree}} -r -p decorator,click",
+    "expected_output_file": "packages_reverse.out",
+    "expected_err_file": null,
+    "expected_returncode": 0
+  }
+]
