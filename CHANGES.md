@@ -1,6 +1,14 @@
 Changelog
 =========
 
+1.0.0
+-----
+
+* Use `pkg_resources` vendored with `pip`.
+
+* Besides this, there's no other change in this major version release.
+
+
 0.13.2
 ------
 
