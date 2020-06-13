@@ -1,8 +1,40 @@
 Changelog
 =========
 
-1.0.0
------
+2.0.0b1 (beta version)
+----------------------
+
+* In this first beta release targeting `2.0.0`, the underlying code is
+  heavily refactored to make different CLI options work well with each
+  other. This was a serious limitation in older version `<=1.0.0`
+  which made it difficult to extend the tool.
+
+  For more information about the plans for 2.0.0 release, please check
+  `docs/v2beta-opts.org` file.
+
+    * The `--reverse`, `--packages` and `--exclude` flags now work
+      with `--json-tree` and `--graph-output`
+    * Dropped support for python `3.3` and added support for python
+      `3.7` and `3.8`
+
+* Another problem with older version was that tests setup was
+  convoluted and involved loading packages pickled from one env into
+  the current env (in which tests are run). Moreover there was no
+  separation between unit tests and integration tests (flaky)
+
+    * Tests have been separated into 2 suites (1) unit tests that
+      totally rely on mock objects and run on every commit (
+      travis.ci) and (2) end-to-end tests that need to be run
+      manually.
+    * The test setup for end-to-end tests has been greatly simplified
+      although the "flakyness"" still remains because these tests are
+      run against unpinned versions of `pip`. However this is by
+      design because we want to know when `pipdeptree` fails with a
+      new version of `pip`.
+
+
+1.0.0 (current stable version)
+------------------------------
 
 * Use `pkg_resources` vendored with `pip`.
 

@@ -10,10 +10,10 @@ python packages in form of a dependency tree. It works for packages
 installed globally on a machine as well as in a virtualenv. Since
 ``pip freeze`` shows all dependencies as a flat list, finding out
 which are the top level packages and which packages do they depend on
-requires some effort. It can also be tedious to resolve conflicting
-dependencies because ``pip`` doesn't have true dependency resolution
-yet [1]_. ``pipdeptree`` can help here by identifying conflicting
-dependencies installed in the environment.
+requires some effort. It's also tedious to resolve conflicting
+dependencies that could get installed because ``pip`` doesn't have
+true dependency resolution yet [1]_. ``pipdeptree`` can help here by
+identifying conflicting dependencies installed in the environment.
 
 To some extent, ``pipdeptree`` is inspired by the ``lein deps :tree``
 command of `Leiningen <http://leiningen.org/>`_.
@@ -26,24 +26,26 @@ Installation
 
     $ pip install pipdeptree
 
-This will install the latest stable version which is ``0.13.2``. This
-version works well for the basic use case but has many flaws and
-limitations.
+This will install the latest stable version which is ``1.0.0``. This
+version works well for the basic use case but has some limitations.
 
-Work on an improved version is in progress and you can install it from
-the ``v2beta`` branch as follows,
+An improved version ``2.0.0b1`` has been released as well. But as it's
+a beta version, pip will not find it by default. To install the latest
+beta version specify the ``--pre`` flag.
 
 .. code-block:: bash
 
-    $ sudo pip install git+https://git@github.com/naiquevin/pipdeptree.git@v2beta#egg=v2beta
+    $ sudo pip install --pre pipdeptree
 
-The current stable version is tested with ``2.7``, ``3.4``, ``3.5`` and ``3.6``.
+The current stable version is tested with ``2.7``, ``3.4``, ``3.5``
+and ``3.6``.
 
 The ``v2beta`` branch has been tested with Python ``3.4``, ``3.5``, ``3.6``, ``3.7``,
 ``3.8`` as well as ``2.7``.
 
 Python ``2.6`` is way past it's end of life but if you ever find
-yourself stuck on a legacy environment, you can use version ``0.9.0``.
+yourself stuck on a legacy environment, version ``0.9.0`` *might*
+work.
 
 
 Usage and examples
@@ -90,8 +92,8 @@ Is it possible to find out why a particular package is installed?
 `New in ver. 0.5.0`
 
 Yes, there's a ``--reverse`` (or simply ``-r``) flag for this. To find
-out what all packages require particular package(s), it can be
-combined with ``--packages`` flag as follows:
+out which packages depend on a particular package(s), it can be
+combined with ``--packages`` option as follows:
 
 .. code-block:: bash
 
@@ -112,18 +114,18 @@ What's with the warning about conflicting dependencies?
 
 As seen in the above output, ``pipdeptree`` by default warns about
 possible conflicting dependencies. Any package that's specified as a
-dependency of multiple packages with a different version is considered
-as a possible conflicting dependency. Conflicting dependencies are
-possible due to pip's `lack of true dependency resolution
+dependency of multiple packages with different versions is considered
+as a conflicting dependency. Conflicting dependencies are possible due
+to pip's `lack of true dependency resolution
 <https://github.com/pypa/pip/issues/988>`_ [1]_. The warning is
 printed to stderr instead of stdout and it can be completely silenced
-by specifying the ``-w silence`` or ``--warn silence`` flag. On the
-other hand, it can be made mode strict with ``--warn fail`` in which
+by specifying the ``-w silence`` or ``--warn silence`` option. On the
+other hand, it can be made mode strict with ``--warn fail``, in which
 case the command will not only print the warnings to stderr but also
-exit with a non-zero status code. This could be useful if you want to
-fit this tool into your CI pipeline.
+exit with a non-zero status code. This is useful if you want to fit
+this tool into your CI pipeline.
 
-**Note** The ``--warn`` flag was added in version ``0.6.0``. If you
+**Note**: The ``--warn`` option is added in version ``0.6.0``. If you
 are using an older version, use ``--nowarn`` flag to silence the
 warnings.
 
@@ -132,7 +134,7 @@ Warnings about circular dependencies
 ------------------------------------
 
 In case any of the packages have circular dependencies (eg. package A
-depending upon package B and package B depending upon package A), then
+depends on package B and package B depends on package A), then
 ``pipdeptree`` will print warnings about that as well.
 
 .. code-block:: bash
@@ -145,10 +147,10 @@ depending upon package B and package B depending upon package A), then
     wsgiref==0.1.2
     argparse==1.2.1
 
-As with the conflicting dependencies warnings, these are printed to
-stderr and can be controlled using the ``--warn`` flag.
+Similar to the warnings about conflicting dependencies, these too are
+printed to stderr and can be controlled using the ``--warn`` option.
 
-In the above example, you can also see the ``--exclude`` flag which is
+In the above example, you can also see ``--exclude`` option which is
 the opposite of ``--packages`` ie. these packages will be excluded
 from the output.
 
@@ -156,9 +158,9 @@ from the output.
 Using pipdeptree to write requirements.txt file
 -----------------------------------------------
 
-If you wish to track only the top level packages in your
-``requirements.txt`` file, it's possible to do so using ``pipdeptree``
-by grep-ing only the top-level lines from the output,
+If you wish to track only top level packages in your
+``requirements.txt`` file, it's possible by grep-ing only the
+top-level lines from the output,
 
 .. code-block:: bash
 
@@ -170,10 +172,10 @@ by grep-ing only the top-level lines from the output,
     setuptools==47.1.1
     wheel==0.34.2
 
-There is a problem here though. The output doesn't mention anything
-about ``Lookupy`` being installed as an editable package (refer to the
-output of ``pip freeze`` above) and information about its source is
-lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
+There is a problem here though - The output doesn't mention anything
+about ``Lookupy`` being installed as an *editable* package (refer to
+the output of ``pip freeze`` above) and information about its source
+is lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 ``--freeze`` flag.
 
 .. code-block:: bash
@@ -188,10 +190,10 @@ lost. To fix this, ``pipdeptree`` must be run with a ``-f`` or
 
     $ pipdeptree -f --warn silence | grep -E '^[a-zA-Z0-9\-]+' > requirements.txt
 
-The freeze flag will also not output the hyphens for child
-dependencies, so you could dump the complete output of ``pipdeptree
--f`` to the requirements.txt file making the file human-friendly (due
-to indentations) as well as pip-friendly.
+The freeze flag will not prefix child dependencies with hyphens, so
+you could dump the entire output of ``pipdeptree -f`` to the
+requirements.txt file thus making it human-friendly (due to
+indentations) as well as pip-friendly.
 
 .. code-block:: bash
 
@@ -208,13 +210,13 @@ to indentations) as well as pip-friendly.
     setuptools==47.1.1
     wheel==0.34.2
 
-Once confirming that there are no conflicting dependencies, you can
-even treat this as a "lock file" where all packages, including the
-transient dependencies will be pinned to the currently installed
+On confirming that there are no conflicting dependencies, you can even
+treat this as a "lock file" where all packages, including the
+transient dependencies will be pinned to their currently installed
 versions. Note that the ``locked-requirements.txt`` file could end up
 with duplicate entries. Although ``pip install`` wouldn't complain
-about that, you can avoid duplicate lines at the cost of losing
-indentation,
+about that, you can avoid duplicate lines (at the cost of losing
+indentation) as follows,
 
 .. code-block:: bash
 
@@ -244,8 +246,14 @@ obtain nested json, use ``--json-tree``
 
     $ pipdeptree --json-tree
 
-The dependency graph can be layed out as any of the formats supported by
-`GraphViz <http://www.graphviz.org/>`_:
+
+Visualizing the dependency graph
+--------------------------------
+
+.. image:: https://raw.githubusercontent.com/naiquevin/pipdeptree/master/docs/twine-pdt.png
+
+The dependency graph can also be visualized using `GraphViz
+<http://www.graphviz.org/>`_:
 
 .. code-block:: bash
 
@@ -257,11 +265,10 @@ The dependency graph can be layed out as any of the formats supported by
 Note that ``graphviz`` is an optional dependency ie. required only if
 you want to use ``--graph-output``.
 
-Starting version ``2.0.0b1``, pipdeptree now supports ``--package``
-and ``--reverse`` flags with different output formats ie. ``--json``,
-``--json-tree`` and ``--graph-output``.
+Since version ``2.0.0b1``, ``--package`` and ``--reverse`` flags are
+supported for all output formats ie. text, json, json-tree and graph.
 
-For earlier versions, the ``--json``, ``--json-tree`` and
+In earlier versions, ``--json``, ``--json-tree`` and
 ``--graph-output`` options override ``--package`` and ``--reverse``.
 
 
@@ -314,14 +321,14 @@ Usage
 Known issues
 ------------
 
-1. To work with packages installed inside a virtualenv, pipdeptree
+1. To work with packages installed inside a virtualenv, ``pipdeptree``
    also needs to be installed in the same virtualenv even if it's
    already installed globally.
 
-2. Due to (1), the output of ``pipdeptree`` also includes
-   ``pipdeptree`` itself as a dependency along with ``pip``,
-   ``setuptools`` and ``wheel`` which get installed in the virtualenv
-   by default. To ignore them, use the ``--exclude`` option.
+2. Due to (1), the output also includes ``pipdeptree`` itself as a
+   dependency along with ``pip``, ``setuptools`` and ``wheel`` which
+   get installed in the virtualenv by default. To ignore them, use the
+   ``--exclude`` option.
 
 3. ``pipdeptree`` relies on the internal API of ``pip``. I fully
    understand that it's a bad idea but it mostly works! On rare
@@ -412,17 +419,15 @@ an alternate version set the environment var ``E2E_PYTHON_EXE``.
 Release checklist
 -----------------
 
-* Make sure that tests pass on travis.ci.
+#. Make sure that tests pass on travis.ci.
+#. Create a commit with following changes and push it to github
+#. Update the `__version__` in the `pipdeptree.py` file.
 
-* Create a commit with following changes and push it to github
-  - Update the `__version__` in the `pipdeptree.py` file.
-  - Add Changelog in `CHANGES.md` file.
-  - Also update `README.md` if required.
-
-* Create an annotated tag on the above commit and push the tag to
-  github
-
-* Upload new version to PyPI.
+   #. Add Changelog in `CHANGES.md` file.
+   #. Also update `README.md` if required.
+#. Create an annotated tag on the above commit and push the tag to
+   github
+#. Upload new version to PyPI.
 
 
 License
