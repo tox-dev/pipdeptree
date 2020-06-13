@@ -1,6 +1,6 @@
 appnope==0.1.0
   - ipython==7.13.0 [requires: appnope]
-backcall==0.1.0
+backcall==0.2.0
   - ipython==7.13.0 [requires: backcall]
 click==7.1.2
   - Flask==1.1.2 [requires: click>=5.1]
@@ -40,7 +40,7 @@ six==1.15.0
   - traitlets==4.3.3 [requires: six]
     - ipython==7.13.0 [requires: traitlets>=4.2]
 slugify==0.0.1
-wcwidth==0.2.3
+wcwidth==0.2.4
   - prompt-toolkit==3.0.5 [requires: wcwidth]
     - ipython==7.13.0 [requires: prompt-toolkit>=2.0.0,<3.1.0,!=3.0.1,!=3.0.0]
 Werkzeug==1.0.1
