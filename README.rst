@@ -391,6 +391,23 @@ are released, these need to be updated. At present the process is
 manual but I have plans to setup nightly builds for these for faster
 feedback.
 
+The end-to-end tests can be run as follows,
+
+.. code-block:: bash
+
+    $ make test-e2e  # starts with a clean virtualenvs
+
+    $ # or
+
+    $ make test-e2e-quick # reuses existing virtualenvs
+
+By default the e2e tests uses python executable ``python3.6``. To use
+an alternate version set the environment var ``E2E_PYTHON_EXE``.
+
+.. code-block:: bash
+
+    $ E2E_PYTHON_EXE=python2.7 make test-e2e
+
 
 Release checklist
 -----------------

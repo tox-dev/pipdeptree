@@ -2,6 +2,8 @@
 
 TOX_ENV ?= py36
 
+E2E_PYTHON_EXE ?= python3.6
+
 clean:
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '*.pyo' -exec rm -f {} +
@@ -23,6 +25,12 @@ test-tox-all:
 	tox
 
 test-e2e:
+	rm -rf tests/profiles/*/.env_$(E2E_PYTHON_EXE)*
+	cd tests && ./e2e-tests webapp
+	cd tests && ./e2e-tests conflicting
+	cd tests && ./e2e-tests cyclic
+
+test-e2e-quick:
 	cd tests && ./e2e-tests webapp
 	cd tests && ./e2e-tests conflicting
 	cd tests && ./e2e-tests cyclic
