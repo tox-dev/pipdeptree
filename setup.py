@@ -29,7 +29,7 @@ setup(
     long_description=long_desc,
     install_requires=install_requires,
     extras_require={'graphviz': ['graphviz']},
-    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*',
+    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
     py_modules=['pipdeptree'],
     entry_points={
         'console_scripts': [
@@ -43,9 +43,10 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ]
 )
