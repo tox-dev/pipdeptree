@@ -682,7 +682,7 @@ def cyclic_deps(tree):
     cyclic = []
     for p, rs in tree.items():
         for r in rs:
-            if p.key in index[r.key]:
+            if p.key in index.get(r.key, []):
                 p_as_dep_of_r = [x for x
                                  in tree.get(tree.get_node_as_parent(r.key))
                                  if x.key == p.key][0]

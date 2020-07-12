@@ -457,6 +457,13 @@ def test_conflicting_deps(capsys, mpkgs, expected_keys, expected_output):
                 '* b => a => b',
                 '* a => b => a'
             ]
+        ),
+        ( # if a dependency isn't installed, cannot verify cycles
+            {
+                ('a', '1.0.1'): [('b', [('>=', '2.0.0')])],
+            },
+            [],
+            [] # no output expected
         )
     ]
 )
