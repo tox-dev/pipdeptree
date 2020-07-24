@@ -1,6 +1,8 @@
+flake8
+graphviz
+pip>=8.0.2
 pytest
 pytest-cov
-jinja2
-ipython
-flake8
+tox>=3
+virtualenv>=20,<21
 mock;python_version<"3"

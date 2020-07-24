@@ -7,6 +7,7 @@ except ImportError:
     import mock
 
 import pytest
+import virtualenv
 
 import pipdeptree as p
 
@@ -520,3 +521,25 @@ def test_parser_svg():
     args = parser.parse_args(['--graph-output', 'svg'])
     assert args.output_format == 'svg'
     assert not args.json
+
+
+def test_custom_interpreter(tmp_path, monkeypatch, capfd):
+    result = virtualenv.cli_run([str(tmp_path), '--activators', ''])
+    cmd = [sys.executable, '--python', str(result.creator.exe)]
+    monkeypatch.setattr(sys, 'argv', cmd)
+    p.main()
+    out, _ = capfd.readouterr()
+    found = {i.split('==')[0] for i in out.splitlines()}
+    assert found == {'pip', 'setuptools', 'wheel'}, out
+
+    monkeypatch.setattr(sys, 'argv', cmd + ['--graph-output', 'something'])
+    with pytest.raises(SystemExit) as context:
+        p.main()
+    out, err = capfd.readouterr()
+    assert context.value.code == 1
+    assert not out
+    assert err == 'graphviz functionality is not supported when querying' \
+                  ' non-host python\n'
+
+
+

@@ -1,12 +1,15 @@
 from __future__ import print_function
 import os
+import inspect
 import sys
+import subprocess
 from itertools import chain
 from collections import defaultdict, deque
 import argparse
 from operator import attrgetter
 import json
 from importlib import import_module
+import tempfile
 
 try:
     from collections import OrderedDict
@@ -711,6 +714,9 @@ def get_parser():
                         version='{0}'.format(__version__))
     parser.add_argument('-f', '--freeze', action='store_true',
                         help='Print names so as to write freeze files')
+    parser.add_argument('--python', default=sys.executable,
+                        help='Python to use to look for packages in it (default: where'
+                             ' installed)')
     parser.add_argument('-a', '--all', action='store_true',
                         help='list all deps at top level')
     parser.add_argument('-l', '--local-only',
@@ -775,9 +781,40 @@ def _get_args():
     return parser.parse_args()
 
 
+def handle_non_host_target(args):
+    of_python = os.path.abspath(args.python)
+    # if target is not current python re-invoke it under the actual host
+    if of_python != os.path.abspath(sys.executable):
+        # there's no way to guarantee that graphviz is available, so refuse
+        if args.output_format:
+            print("graphviz functionality is not supported when querying"
+                  " non-host python", file=sys.stderr)
+            raise SystemExit(1)
+        argv = sys.argv[1:]  # remove current python executable
+        py_at = argv.index('--python')  # plus the new python target
+        del argv[py_at]
+        del argv[py_at]
+        # feed the file as argument, instead of file
+        # to avoid adding the file path to sys.path, that can affect result
+        file_path = inspect.getsourcefile(sys.modules[__name__])
+        with open(file_path, 'rt') as file_handler:
+            content = file_handler.read()
+        cmd = [of_python, "-c", content]
+        cmd.extend(argv)
+        # invoke from an empty folder to avoid cwd altering sys.path
+        cwd = tempfile.mkdtemp()
+        try:
+            return subprocess.call(cmd, cwd=cwd)
+        finally:
+            os.removedirs(cwd)
+    return None
+
+
 def main():
     args = _get_args()
-
+    result = handle_non_host_target(args)
+    if result is not None:
+        return result
     pkgs = get_installed_distributions(local_only=args.local_only,
                                        user_only=args.user_only)
 
