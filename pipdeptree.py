@@ -125,7 +125,7 @@ class DistPackage(Package):
                   tree in reverse
     """
 
-    def __init__(self, obj, req=None):
+    def __init__(self, obj, req=None, *args):
         super(DistPackage, self).__init__(obj)
         self.version_spec = None
         self.req = req
@@ -648,7 +648,7 @@ def dump_graphviz(tree, output_format='dot', is_reverse=False):
                 # particular parent package
                 req_ref = parent.req
                 edge_label = req_ref.version_spec(True) or 'any'
-                if parent.extra is None:
+                if isinstance(parent, DistPackage) or parent.extra is None:
                     graph.edge(dep.key, parent.key, label=edge_label)
                 else:
                     graph.edge(dep.key, parent.key, label=edge_label, style='dashed')
