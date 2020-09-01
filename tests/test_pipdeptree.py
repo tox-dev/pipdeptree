@@ -22,17 +22,23 @@ def mock_pkgs(simple_graph):
         as_req = mock.Mock(key=nk, project_name=nk, specs=[('==', nv)])
         p.as_requirement = mock.Mock(return_value=as_req)
         reqs = []
-        for child in children:
+        for child in children['deps']:
             ck, cv = child
-            r = mock.Mock(key=ck, project_name=ck, specs=cv)
+            r = mock.Mock(key=ck, project_name=ck, specs=cv, _extra=None)
             reqs.append(r)
+        if 'extra' in children:
+            p.extras = [0]
+            p.has_metadata = mock.Mock(return_value=True)
+            p.get_metadata_lines = mock.Mock(return_value=children['extra'])
+        else:
+            p.extras = []
         p.requires = mock.Mock(return_value=reqs)
         yield p
 
 
-def mock_PackageDAG(simple_graph):
+def mock_PackageDAG(simple_graph, extra=True):
     pkgs = list(mock_pkgs(simple_graph))
-    return p.PackageDAG.from_pkgs(pkgs)
+    return p.PackageDAG.from_pkgs(pkgs, [pkg.key for pkg in pkgs] if extra else [])
 
 
 # util for comparing tree contents with a simple graph
@@ -44,18 +50,29 @@ def sort_map_values(m):
     return {k: sorted(v) for k, v in m.items()}
 
 
-t = mock_PackageDAG({
-    ('a', '3.4.0'): [('b', [('>=', '2.0.0')]),
-                     ('c', [('>=', '5.7.1')])],
-    ('b', '2.3.1'): [('d', [('>=', '2.30'), ('<', '2.42')])],
-    ('c', '5.10.0'): [('d', [('>=', '2.30')]),
-                      ('e', [('>=', '0.12.1')])],
-    ('d', '2.35'): [('e', [('>=', '0.9.0')])],
-    ('e', '0.12.1'): [],
-    ('f', '3.1'): [('b', [('>=', '2.1.0')])],
-    ('g', '6.8.3rc1'): [('e', [('>=', '0.9.0')]),
-                        ('f', [('>=', '3.0.0')])]
-})
+def extra_str(pkg, specs, extra):
+    return "Requires-Dist: {0} ({1}) ; extra == '{2}'".format(
+        pkg, specs, extra)
+
+
+mapping = {
+    ('a', '3.4.0'): {'deps': [('b', [('>=', '2.0.0')]),
+                              ('c', [('>=', '5.7.1')])]},
+    ('b', '2.3.1'): {'deps': [('d', [('>=', '2.30'), ('<', '2.42')])]},
+    ('c', '5.10.0'): {'deps': [('d', [('>=', '2.30')]),
+                               ('e', [('>=', '0.12.1')])]},
+    ('d', '2.35'): {'deps': [('e', [('>=', '0.9.0')])],
+                    'extra': [extra_str('f', '>=3.1', 'x'),
+                              extra_str('g', '>=6.7', 'x')]},
+    ('e', '0.12.1'): {'deps': []},
+    ('f', '3.1'): {'deps': [('b', [('>=', '2.1.0')])]},
+    ('g', '6.8.3rc1'): {'deps': [('e', [('>=', '0.9.0')]),
+                                 ('f', [('>=', '3.0.0')])],
+                        'extra': [extra_str('d', '>=2.34', 'x')]}
+}
+
+t = mock_PackageDAG(mapping)
+t_no_extra = mock_PackageDAG(mapping, False)
 
 
 def test_PackageDAG__get_node_as_parent():
@@ -73,8 +90,10 @@ def test_PackageDAG_filter():
     expected = {'a': ['b', 'c'],
                 'b': ['d'],
                 'c': ['d', 'e'],
-                'd': ['e'],
-                'e': []}
+                'd': ['e', 'f', 'g'],
+                'e': [],
+                'f': ['b'],
+                'g': ['e', 'f', 'd']}
     assert expected == g1
 
     # when exclude is specified
@@ -102,8 +121,76 @@ def test_PackageDAG_filter():
         dag_to_dict(t.filter(set(['d']), set(['D', 'e'])))
 
 
+def test_PackageDAG_filter_no_extra():
+    # When both show_only and exclude are not specified, same tree
+    # object is returned
+    assert t_no_extra.filter(None, None) is t_no_extra
+
+    # when show_only is specified
+    g1 = dag_to_dict(t_no_extra.filter(set(['a', 'd']), None))
+    expected = {'a': ['b', 'c'],
+                'b': ['d'],
+                'c': ['d', 'e'],
+                'd': ['e'],
+                'e': []}
+    assert expected == g1
+
+    # when exclude is specified
+    g2 = dag_to_dict(t_no_extra.filter(None, ['d']))
+    expected = {'a': ['b', 'c'],
+                'b': [],
+                'c': ['e'],
+                'e': [],
+                'f': ['b'],
+                'g': ['e', 'f']}
+    assert expected == g2
+
+    # when both show_only and exclude are specified
+    g3 = dag_to_dict(t_no_extra.filter(set(['a', 'g']), set(['d', 'e'])))
+    expected = {'a': ['b', 'c'],
+                'b': [],
+                'c': [],
+                'f': ['b'],
+                'g': ['f']}
+    assert expected == g3
+
+    # when conflicting values in show_only and exclude, AssertionError
+    # is raised
+    with pytest.raises(AssertionError):
+        dag_to_dict(t_no_extra.filter(set(['d']), set(['D', 'e'])))
+
+
 def test_PackageDAG_reverse():
     t1 = t.reverse()
+    expected = {'a': [],
+                'b': ['a', 'f'],
+                'c': ['a'],
+                'd': ['b', 'c', 'g'],
+                'e': ['c', 'd', 'g'],
+                'f': ['d', 'g'],
+                'g': ['d']}
+    assert isinstance(t1, p.ReversedPackageDAG)
+    assert sort_map_values(expected) == sort_map_values(dag_to_dict(t1))
+    assert all([isinstance(k, p.ReqPackage) for k in t1.keys()])
+    assert all([isinstance(v, p.DistPackage) for v in p.flatten(t1.values())])
+
+    # testing reversal of ReversedPackageDAG instance
+    expected = {'a': ['b', 'c'],
+                'b': ['d'],
+                'c': ['d', 'e'],
+                'd': ['e', 'f', 'g'],
+                'e': [],
+                'f': ['b'],
+                'g': ['d', 'e', 'f']}
+    t2 = t1.reverse()
+    assert isinstance(t2, p.PackageDAG)
+    assert sort_map_values(expected) == sort_map_values(dag_to_dict(t2))
+    assert all([isinstance(k, p.DistPackage) for k in t2.keys()])
+    assert all([isinstance(v, p.ReqPackage) for v in p.flatten(t2.values())])
+
+
+def test_PackageDAG_reverse_no_extra():
+    t1 = t_no_extra.reverse()
     expected = {'a': [],
                 'b': ['a', 'f'],
                 'c': ['a'],
@@ -137,15 +224,32 @@ def test_PackageDAG_reverse():
 # as mocks with frozen=True are a lot more complicated
 
 def test_DistPackage__render_as_root():
-    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1')
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1', extras=[])
     dp = p.DistPackage(foo)
     is_frozen = False
     assert 'foo==20.4.1' == dp.render_as_root(is_frozen)
 
 
 def test_DistPackage__render_as_branch():
-    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1')
-    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0')
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1', extras=[0])
+    foo.has_metadata = mock.Mock(return_value=True)
+    foo.get_metadata_lines = mock.Mock(return_value=[extra_str('baz', '>=1.0', 'x')])
+    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0', extras=[])
+    bar_req = mock.Mock(key='bar',
+                        project_name='bar',
+                        version='4.1.0',
+                        specs=[('>=', '4.0')])
+    rp = p.ReqPackage(bar_req, dist=bar)
+    dp = p.DistPackage(foo)
+    is_frozen = False
+    assert 'foo==20.4.1 [requires: bar>=4.0]' == dp.as_parent_of(rp).render_as_branch(is_frozen)
+    rp = p.ReqPackage(dp.extra_requires[0][1])
+    assert 'foo==20.4.1 [requires: baz>=1.0]' == dp.as_parent_of(rp).render_as_branch(is_frozen)
+
+
+def test_DistPackage__render_as_branch_no_extra():
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1', extras=[])
+    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0', extras=[])
     bar_req = mock.Mock(key='bar',
                         project_name='bar',
                         version='4.1.0',
@@ -157,16 +261,17 @@ def test_DistPackage__render_as_branch():
 
 
 def test_DistPackage__as_parent_of():
-    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1')
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1', extras=[])
     dp = p.DistPackage(foo)
     assert dp.req is None
+    assert not len(dp.extra_requires)
 
-    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0')
+    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0', extras=[])
     bar_req = mock.Mock(key='bar',
                         project_name='bar',
                         version='4.1.0',
                         specs=[('>=', '4.0')])
-    rp = p.ReqPackage(bar_req, dist=bar)
+    rp = p.ReqPackage(bar_req, dist=bar, extra='x')
     dp1 = dp.as_parent_of(rp)
     assert dp1._obj == dp._obj
     assert dp1.req is rp
@@ -176,7 +281,7 @@ def test_DistPackage__as_parent_of():
 
 
 def test_DistPackage__as_dict():
-    foo = mock.Mock(key='foo', project_name='foo', version='1.3.2b1')
+    foo = mock.Mock(key='foo', project_name='foo', version='1.3.2b1', extras=[])
     dp = p.DistPackage(foo)
     result = dp.as_dict()
     expected = {'key': 'foo',
@@ -205,6 +310,12 @@ def test_ReqPackage__render_as_branch():
     rp = p.ReqPackage(bar_req, dist=bar)
     is_frozen = False
     assert 'bar [required: >=4.0, installed: 4.1.0]' == rp.render_as_branch(is_frozen)
+    bar_req = mock.Mock(key='bar',
+                        project_name='bar',
+                        version='4.1.0',
+                        specs=[('>=', '4.0')])
+    rp = p.ReqPackage(bar_req, dist=bar, extra='x')
+    assert '[x] bar [required: >=4.0, installed: 4.1.0]' == rp.render_as_branch(is_frozen)
 
 
 def test_ReqPackage__as_dict():
@@ -218,7 +329,20 @@ def test_ReqPackage__as_dict():
     expected = {'key': 'bar',
                 'package_name': 'bar',
                 'installed_version': '4.1.0',
-                'required_version': '>=4.0'}
+                'required_version': '>=4.0',
+                'extra': None}
+    assert expected == result
+    bar_req = mock.Mock(key='bar',
+                        project_name='bar',
+                        version='4.1.0',
+                        specs=[('>=', '4.0')])
+    rp = p.ReqPackage(bar_req, dist=bar, extra='x')
+    result = rp.as_dict()
+    expected = {'key': 'bar',
+                'package_name': 'bar',
+                'installed_version': '4.1.0',
+                'required_version': '>=4.0',
+                'extra': 'x'}
     assert expected == result
 
 
@@ -229,10 +353,11 @@ def test_ReqPackage__as_dict():
 # end-to-end tests. Check the ./e2e-tests script.
 
 @pytest.mark.parametrize(
-    "list_all,reverse,expected_output",
+    "list_all,reverse,extra,expected_output",
     [
         (
             True,
+            False,
             False,
             [
                 'a==3.4.0',
@@ -268,6 +393,7 @@ def test_ReqPackage__as_dict():
         (
             True,
             True,
+            False,
             [
                 'a==3.4.0',
                 'b==2.3.1',
@@ -302,6 +428,7 @@ def test_ReqPackage__as_dict():
         (
             False,
             False,
+            False,
             [
                 'a==3.4.0',
                 '  - b [required: >=2.0.0, installed: 2.3.1]',
@@ -322,6 +449,7 @@ def test_ReqPackage__as_dict():
         (
             False,
             True,
+            False,
             [
                 'e==0.12.1',
                 '  - c==5.10.0 [requires: e>=0.12.1]',
@@ -335,11 +463,155 @@ def test_ReqPackage__as_dict():
                 '      - a==3.4.0 [requires: c>=5.7.1]',
                 '  - g==6.8.3rc1 [requires: e>=0.9.0]',
             ]
+        ),
+        (
+            True,
+            False,
+            True,
+            [
+                'a==3.4.0',
+                '  - b [required: >=2.0.0, installed: 2.3.1]',
+                '    - d [required: >=2.30,<2.42, installed: 2.35]',
+                '      - e [required: >=0.9.0, installed: 0.12.1]',
+                '      - [x] f [required: >=3.1, installed: 3.1]',
+                '      - [x] g [required: >=6.7, installed: 6.8.3rc1]',
+                '  - c [required: >=5.7.1, installed: 5.10.0]',
+                '    - d [required: >=2.30, installed: 2.35]',
+                '      - e [required: >=0.9.0, installed: 0.12.1]',
+                '      - [x] f [required: >=3.1, installed: 3.1]',
+                '      - [x] g [required: >=6.7, installed: 6.8.3rc1]',
+                '    - e [required: >=0.12.1, installed: 0.12.1]',
+                'b==2.3.1',
+                '  - d [required: >=2.30,<2.42, installed: 2.35]',
+                '    - e [required: >=0.9.0, installed: 0.12.1]',
+                '    - [x] f [required: >=3.1, installed: 3.1]',
+                '    - [x] g [required: >=6.7, installed: 6.8.3rc1]',
+                'c==5.10.0',
+                '  - d [required: >=2.30, installed: 2.35]',
+                '    - e [required: >=0.9.0, installed: 0.12.1]',
+                '    - [x] f [required: >=3.1, installed: 3.1]',
+                '    - [x] g [required: >=6.7, installed: 6.8.3rc1]',
+                '  - e [required: >=0.12.1, installed: 0.12.1]',
+                'd==2.35',
+                '  - e [required: >=0.9.0, installed: 0.12.1]',
+                '  - [x] f [required: >=3.1, installed: 3.1]',
+                '  - [x] g [required: >=6.7, installed: 6.8.3rc1]',
+                'e==0.12.1',
+                'f==3.1',
+                '  - b [required: >=2.1.0, installed: 2.3.1]',
+                '    - d [required: >=2.30,<2.42, installed: 2.35]',
+                '      - e [required: >=0.9.0, installed: 0.12.1]',
+                '      - [x] f [required: >=3.1, installed: 3.1]',
+                '      - [x] g [required: >=6.7, installed: 6.8.3rc1]',
+                'g==6.8.3rc1',
+                '  - [x] d [required: >=2.34, installed: 2.35]',
+                '  - e [required: >=0.9.0, installed: 0.12.1]',
+                '  - f [required: >=3.0.0, installed: 3.1]',
+                '    - b [required: >=2.1.0, installed: 2.3.1]',
+                '      - d [required: >=2.30,<2.42, installed: 2.35]',
+                '        - e [required: >=0.9.0, installed: 0.12.1]',
+                '        - [x] g [required: >=6.7, installed: 6.8.3rc1]'
+            ]
+        ),
+        (
+            True,
+            True,
+            True,
+            [
+                'a==3.4.0',
+                'b==2.3.1',
+                '  - a==3.4.0 [requires: b>=2.0.0]',
+                '  - f==3.1 [requires: b>=2.1.0]',
+                '    - [x] d==2.35 [requires: f>=3.1]',
+                '    - g==6.8.3rc1 [requires: f>=3.0.0]',
+                '      - [x] d==2.35 [requires: g>=6.7]',
+                'c==5.10.0',
+                '  - a==3.4.0 [requires: c>=5.7.1]',
+                'd==2.35',
+                '  - b==2.3.1 [requires: d>=2.30,<2.42]',
+                '    - a==3.4.0 [requires: b>=2.0.0]',
+                '    - f==3.1 [requires: b>=2.1.0]',
+                '      - [x] d==2.35 [requires: f>=3.1]',
+                '      - g==6.8.3rc1 [requires: f>=3.0.0]',
+                '        - [x] d==2.35 [requires: g>=6.7]',
+                '  - c==5.10.0 [requires: d>=2.30]',
+                '    - a==3.4.0 [requires: c>=5.7.1]',
+                '  - [x] g==6.8.3rc1 [requires: d>=2.34]',
+                'e==0.12.1',
+                '  - c==5.10.0 [requires: e>=0.12.1]',
+                '    - a==3.4.0 [requires: c>=5.7.1]',
+                '  - d==2.35 [requires: e>=0.9.0]',
+                '    - b==2.3.1 [requires: d>=2.30,<2.42]',
+                '      - a==3.4.0 [requires: b>=2.0.0]',
+                '      - f==3.1 [requires: b>=2.1.0]',
+                '        - g==6.8.3rc1 [requires: f>=3.0.0]',
+                '    - c==5.10.0 [requires: d>=2.30]',
+                '      - a==3.4.0 [requires: c>=5.7.1]',
+                '    - [x] g==6.8.3rc1 [requires: d>=2.34]',
+                '  - g==6.8.3rc1 [requires: e>=0.9.0]',
+                '    - [x] d==2.35 [requires: g>=6.7]',
+                'f==3.1',
+                '  - [x] d==2.35 [requires: f>=3.1]',
+                '  - g==6.8.3rc1 [requires: f>=3.0.0]',
+                '    - [x] d==2.35 [requires: g>=6.7]',
+                'g==6.8.3rc1',
+                '  - [x] d==2.35 [requires: g>=6.7]'
+            ]
+        ),
+        (
+            False,
+            False,
+            True,
+            [
+                'a==3.4.0',
+                '  - b [required: >=2.0.0, installed: 2.3.1]',
+                '    - d [required: >=2.30,<2.42, installed: 2.35]',
+                '      - e [required: >=0.9.0, installed: 0.12.1]',
+                '      - [x] f [required: >=3.1, installed: 3.1]',
+                '      - [x] g [required: >=6.7, installed: 6.8.3rc1]',
+                '  - c [required: >=5.7.1, installed: 5.10.0]',
+                '    - d [required: >=2.30, installed: 2.35]',
+                '      - e [required: >=0.9.0, installed: 0.12.1]',
+                '      - [x] f [required: >=3.1, installed: 3.1]',
+                '      - [x] g [required: >=6.7, installed: 6.8.3rc1]',
+                '    - e [required: >=0.12.1, installed: 0.12.1]',
+                'g==6.8.3rc1',
+                '  - [x] d [required: >=2.34, installed: 2.35]',
+                '  - e [required: >=0.9.0, installed: 0.12.1]',
+                '  - f [required: >=3.0.0, installed: 3.1]',
+                '    - b [required: >=2.1.0, installed: 2.3.1]',
+                '      - d [required: >=2.30,<2.42, installed: 2.35]',
+                '        - e [required: >=0.9.0, installed: 0.12.1]',
+                '        - [x] g [required: >=6.7, installed: 6.8.3rc1]'
+            ]
+        ),
+        (
+            False,
+            True,
+            True,
+            [
+                'e==0.12.1',
+                '  - c==5.10.0 [requires: e>=0.12.1]',
+                '    - a==3.4.0 [requires: c>=5.7.1]',
+                '  - d==2.35 [requires: e>=0.9.0]',
+                '    - b==2.3.1 [requires: d>=2.30,<2.42]',
+                '      - a==3.4.0 [requires: b>=2.0.0]',
+                '      - f==3.1 [requires: b>=2.1.0]',
+                '        - g==6.8.3rc1 [requires: f>=3.0.0]',
+                '    - c==5.10.0 [requires: d>=2.30]',
+                '      - a==3.4.0 [requires: c>=5.7.1]',
+                '    - [x] g==6.8.3rc1 [requires: d>=2.34]',
+                '  - g==6.8.3rc1 [requires: e>=0.9.0]',
+                '    - [x] d==2.35 [requires: g>=6.7]'
+            ]
         )
     ]
 )
-def test_render_text(capsys, list_all, reverse, expected_output):
-    tree = t.reverse() if reverse else t
+def test_render_text(capsys, list_all, reverse, extra, expected_output):
+    if extra:
+        tree = t.reverse() if reverse else t
+    else:
+        tree = t_no_extra.reverse() if reverse else t_no_extra
     p.render_text(tree, list_all=list_all, frozen=False)
     captured = capsys.readouterr()
     assert '\n'.join(expected_output).strip() == captured.out.strip()
@@ -382,8 +654,8 @@ def test_render_svg(capsys):
     [
         (
             {
-                ('a', '1.0.1'): [('b', [('>=', '2.3.0')])],
-                ('b', '1.9.1'): []
+                ('a', '1.0.1'): {'deps': [('b', [('>=', '2.3.0')])]},
+                ('b', '1.9.1'): {'deps': []}
             },
             {'a': ['b']},
             [
@@ -394,9 +666,9 @@ def test_render_svg(capsys):
         ),
         (
             {
-                ('a', '1.0.1'): [('c', [('>=', '9.4.1')])],
-                ('b', '2.3.0'): [('c', [('>=', '7.0')])],
-                ('c', '8.0.1'): []
+                ('a', '1.0.1'): {'deps': [('c', [('>=', '9.4.1')])]},
+                ('b', '2.3.0'): {'deps': [('c', [('>=', '7.0')])]},
+                ('c', '8.0.1'): {'deps': []}
             },
             {'a': ['c']},
             [
@@ -407,8 +679,8 @@ def test_render_svg(capsys):
         ),
         (
             {
-                ('a', '1.0.1'): [('c', [('>=', '9.4.1')])],
-                ('b', '2.3.0'): [('c', [('>=', '9.4.0')])]
+                ('a', '1.0.1'): {'deps': [('c', [('>=', '9.4.1')])]},
+                ('b', '2.3.0'): {'deps': [('c', [('>=', '9.4.0')])]}
             },
             {'a': ['c'], 'b': ['c']},
             [
@@ -421,9 +693,9 @@ def test_render_svg(capsys):
         ),
         (
             {
-                ('a', '1.0.1'): [('c', [('>=', '9.4.1')])],
-                ('b', '2.3.0'): [('c', [('>=', '7.0')])],
-                ('c', '9.4.1'): []
+                ('a', '1.0.1'): {'deps': [('c', [('>=', '9.4.1')])]},
+                ('b', '2.3.0'): {'deps': [('c', [('>=', '7.0')])]},
+                ('c', '9.4.1'): {'deps': []}
             },
             {},
             []
@@ -448,10 +720,10 @@ def test_conflicting_deps(capsys, mpkgs, expected_keys, expected_output):
     [
         (
             {
-                ('a', '1.0.1'): [('b', [('>=', '2.0.0')])],
-                ('b', '2.3.0'): [('a', [('>=', '1.0.1')])],
-                ('c', '4.5.0'): [('d', [('==', '2.0')])],
-                ('d', '2.0'): []
+                ('a', '1.0.1'): {'deps': [('b', [('>=', '2.0.0')])]},
+                ('b', '2.3.0'): {'deps': [('a', [('>=', '1.0.1')])]},
+                ('c', '4.5.0'): {'deps': [('d', [('==', '2.0')])]},
+                ('d', '2.0'): {'deps': []}
             },
             [('a', 'b', 'a'), ('b', 'a', 'b')],
             [
@@ -460,12 +732,12 @@ def test_conflicting_deps(capsys, mpkgs, expected_keys, expected_output):
                 '* a => b => a'
             ]
         ),
-        ( # if a dependency isn't installed, cannot verify cycles
+        (  # if a dependency isn't installed, cannot verify cycles
             {
-                ('a', '1.0.1'): [('b', [('>=', '2.0.0')])],
+                ('a', '1.0.1'): {'deps': [('b', [('>=', '2.0.0')])]},
             },
             [],
-            [] # no output expected
+            []  # no output expected
         )
     ]
 )

@@ -87,10 +87,15 @@ class Package(object):
 
     """
 
-    def __init__(self, obj):
+    def __init__(self, obj, extra=None):
         self._obj = obj
         self.project_name = obj.project_name
         self.key = obj.key
+        self._extra = extra
+
+    @property
+    def extra(self):
+        return self._extra
 
     def render_as_root(self, frozen):
         return NotImplementedError
@@ -125,11 +130,15 @@ class DistPackage(Package):
                   tree in reverse
     """
 
-    def __init__(self, obj, req=None, *args):
-        super(DistPackage, self).__init__(obj)
+    def __init__(self, obj, req=None, extra=None):
+        super(DistPackage, self).__init__(obj, extra)
         self.version_spec = None
         self.req = req
         self.extra_requires = self.extract_extras()
+
+    @Package.extra.setter
+    def extra(self, extra):
+        self._extra = extra
 
     def extract_extras(self, metadata_name='METADATA'):
         extras = []
@@ -139,7 +148,7 @@ class DistPackage(Package):
             if 'extra ==' in line:
                 dep = line[(line.find(':') + 1):line.find(';')].strip()
                 extra = line.split()[-1].strip("'")
-                extras.append((extra, __import__('pip')._vendor.pkg_resources.Requirement(dep)))
+                extras.append((extra, pkg_resources.Requirement(dep)))
         return extras
 
     def render_as_root(self, frozen):
@@ -155,9 +164,14 @@ class DistPackage(Package):
             parent_str = self.req.project_name
             if parent_ver_spec:
                 parent_str += parent_ver_spec
-            return (
-                '{0}=={1} [requires: {2}]'
-            ).format(self.project_name, self.version, parent_str)
+            if self.extra is not None:
+                return (
+                    '[{0}] {1}=={2} [requires: {3}]'
+                ).format(self.extra, self.project_name, self.version, parent_str)
+            else:
+                return (
+                    '{0}=={1} [requires: {2}]'
+                ).format(self.project_name, self.version, parent_str)
         else:
             return self.render_as_root(frozen)
 
@@ -199,9 +213,8 @@ class ReqPackage(Package):
     UNKNOWN_VERSION = '?'
 
     def __init__(self, obj, dist=None, extra=None):
-        super(ReqPackage, self).__init__(obj)
+        super(ReqPackage, self).__init__(obj, extra)
         self.dist = dist
-        self._extra = extra
 
     def version_spec(self, extra=False):
         specs = sorted(self._obj.specs, reverse=True)  # `reverse` makes '>' prior to '<'
@@ -222,10 +235,6 @@ class ReqPackage(Package):
     @property
     def is_missing(self):
         return self.installed_version == self.UNKNOWN_VERSION
-
-    @property
-    def extra(self):
-        return self._extra
 
     def is_conflicting(self):
         """If installed version conflicts with required version"""
@@ -297,7 +306,7 @@ class PackageDAG(Mapping):
     """
 
     @classmethod
-    def from_pkgs(cls, pkgs, extra=True):
+    def from_pkgs(cls, pkgs, extra=[]):
         pkgs = [DistPackage(p) for p in pkgs if p.key != 'pkg-resources']
         idx = {p.key: p for p in pkgs}
         m = {p: [ReqPackage(r, idx.get(r.key))
@@ -492,6 +501,8 @@ class ReversedPackageDAG(PackageDAG):
         child_keys = set(r.key for r in flatten(self._obj.values()))
         for k, vs in self._obj.items():
             for v in vs:
+                if isinstance(v, DistPackage):
+                    v.extra = None
                 try:
                     node = [p for p in m.keys() if p.key == v.key][0]
                 except IndexError:
@@ -516,21 +527,23 @@ def render_text(tree, list_all=True, frozen=False):
     """
     tree = tree.sort()
     nodes = tree.keys()
-    branch_keys = set(r.key for r in flatten(tree.values()))
+    branch_keys = set(r.key for r in flatten(tree.values()) if r.extra is None)
     use_bullets = not frozen
 
     if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
-    def aux(node, parent=None, indent=0, chain=None):
+    def aux(node, parent=None, indent=0, chain=None, extra=None):
         chain = chain or []
         node_str = node.render(parent, frozen)
         if parent:
             prefix = ' ' * indent + ('- ' if use_bullets else '')
             node_str = prefix + node_str
         result = [node_str]
+        if extra is not None:
+            return result
         children = [aux(c, node, indent=indent + 2,
-                        chain=chain + [c.project_name])
+                        chain=chain + [c.project_name], extra=c.extra)
                     for c in tree.get_children(node.key)
                     if c.project_name not in chain]
         result += list(flatten(children))
@@ -727,11 +740,11 @@ def cyclic_deps(tree):
     :rtype: list
 
     """
-    index = {p.key: set([r.key for r in rs]) for p, rs in tree.items()}
+    index = {p.key: set([r.key for r in rs if r.extra is None]) for p, rs in tree.items()}
     cyclic = []
     for p, rs in tree.items():
         for r in rs:
-            if p.key in index.get(r.key, []):
+            if r.extra is None and p.key in index.get(r.key, []):
                 p_as_dep_of_r = [x for x
                                  in tree.get(tree.get_node_as_parent(r.key))
                                  if x.key == p.key][0]
