@@ -151,7 +151,7 @@ class DistPackage(Package):
     def render_as_branch(self, frozen):
         assert self.req is not None
         if not frozen:
-            parent_ver_spec = self.req.version_spec
+            parent_ver_spec = self.req.version_spec()
             parent_str = self.req.project_name
             if parent_ver_spec:
                 parent_str += parent_ver_spec
@@ -180,7 +180,7 @@ class DistPackage(Package):
         """
         if req is None and self.req is None:
             return self
-        return self.__class__(self._obj, req)
+        return self.__class__(self._obj, req, req.extra if req is not None else None)
 
     def as_dict(self):
         return {'key': self.key,
@@ -201,12 +201,17 @@ class ReqPackage(Package):
     def __init__(self, obj, dist=None, extra=None):
         super(ReqPackage, self).__init__(obj)
         self.dist = dist
-        self.extra = extra
+        self._extra = extra
 
-    @property
-    def version_spec(self):
+    def version_spec(self, extra=False):
         specs = sorted(self._obj.specs, reverse=True)  # `reverse` makes '>' prior to '<'
-        return ','.join([''.join(sp) for sp in specs]) if specs else None
+        version_spec = ','.join([''.join(sp) for sp in specs]) if specs else None
+        if extra and self.extra is not None:
+            if version_spec is not None:
+                version_spec = '[{0}] {1}'.format(self.extra, version_spec)
+            else:
+                version_spec = '[{0}]'.format(self.extra)
+        return version_spec
 
     @property
     def installed_version(self):
@@ -218,12 +223,19 @@ class ReqPackage(Package):
     def is_missing(self):
         return self.installed_version == self.UNKNOWN_VERSION
 
+    @property
+    def extra(self):
+        return self._extra
+
     def is_conflicting(self):
         """If installed version conflicts with required version"""
+        # if extra requirement, no conflict
+        if self.extra is not None:
+            return False
         # unknown installed version is also considered conflicting
         if self.installed_version == self.UNKNOWN_VERSION:
             return True
-        ver_spec = (self.version_spec if self.version_spec else '')
+        ver_spec = (self.version_spec() if self.version_spec() else '')
         req_version_str = '{0}{1}'.format(self.project_name, ver_spec)
         req_obj = pkg_resources.Requirement.parse(req_version_str)
         return self.installed_version not in req_obj
@@ -238,7 +250,7 @@ class ReqPackage(Package):
 
     def render_as_branch(self, frozen):
         if not frozen:
-            req_ver = self.version_spec if self.version_spec else 'Any'
+            req_ver = self.version_spec() if self.version_spec() else 'Any'
             if self.extra is not None:
                 return (
                     '[{0}] {1} [required: {2}, installed: {3}]'
@@ -254,7 +266,8 @@ class ReqPackage(Package):
         return {'key': self.key,
                 'package_name': self.project_name,
                 'installed_version': self.installed_version,
-                'required_version': self.version_spec}
+                'required_version': self.version_spec(),
+                'extra': self.extra}
 
 
 class PackageDAG(Mapping):
@@ -289,11 +302,10 @@ class PackageDAG(Mapping):
         idx = {p.key: p for p in pkgs}
         m = {p: [ReqPackage(r, idx.get(r.key))
                  for r in p.requires()]
+             + [ReqPackage(r, idx.get(r.key), e)
+                for e, r in p.extra_requires if extra]
              for p in pkgs}
-        m_extra = {p: [ReqPackage(r, idx.get(r.key), e)
-                       for e, r in p.extra_requires]
-                   for p in pkgs} if extra else {}
-        return cls(m), cls(m_extra)
+        return cls(m)
 
     def __init__(self, m):
         """Initialize the PackageDAG object
@@ -490,11 +502,10 @@ class ReversedPackageDAG(PackageDAG):
         return PackageDAG(dict(m))
 
 
-def render_text(tree, tree_extra, list_all=True, frozen=False):
+def render_text(tree, list_all=True, frozen=False):
     """Print tree as text on console
 
     :param dict tree: the package tree
-    :param dict tree: the extra package tree
     :param bool list_all: whether to list all the pgks at the root
                           level or only those that are the
                           sub-dependencies
@@ -504,16 +515,12 @@ def render_text(tree, tree_extra, list_all=True, frozen=False):
 
     """
     tree = tree.sort()
-    tree_extra = tree_extra.sort()
     nodes = tree.keys()
-    nodes_extra = tree_extra.keys()
     branch_keys = set(r.key for r in flatten(tree.values()))
-    branch_extra_keys = set(r.key for r in flatten(tree_extra.values()))
     use_bullets = not frozen
 
     if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
-        nodes_extra = [p for p in nodes_extra if p.key not in branch_extra_keys]
 
     def aux(node, parent=None, indent=0, chain=None):
         chain = chain or []
@@ -524,7 +531,7 @@ def render_text(tree, tree_extra, list_all=True, frozen=False):
         result = [node_str]
         children = [aux(c, node, indent=indent + 2,
                         chain=chain + [c.project_name])
-                    for c in tree.get_children(node.key) + tree_extra.get_children(node.key)
+                    for c in tree.get_children(node.key)
                     if c.project_name not in chain]
         result += list(flatten(children))
         return result
@@ -578,7 +585,7 @@ def render_json_tree(tree, indent):
 
         d = node.as_dict()
         if parent:
-            d['required_version'] = node.version_spec if node.version_spec else 'Any'
+            d['required_version'] = node.version_spec() if node.version_spec() else 'Any'
         else:
             d['required_version'] = d['installed_version']
 
@@ -593,7 +600,7 @@ def render_json_tree(tree, indent):
     return json.dumps([aux(p) for p in nodes], indent=indent)
 
 
-def dump_graphviz(tree, tree_extra, output_format='dot', is_reverse=False):
+def dump_graphviz(tree, output_format='dot', is_reverse=False):
     """Output dependency graph as one of the supported GraphViz output formats.
 
     :param dict tree: dependency graph
@@ -623,22 +630,15 @@ def dump_graphviz(tree, tree_extra, output_format='dot', is_reverse=False):
             pkg_label = '{0}\n{1}'.format(pkg.project_name, pkg.version)
             graph.node(pkg.key, label=pkg_label)
             for dep in deps:
-                edge_label = dep.version_spec or 'any'
-                if dep.is_missing:
+                edge_label = dep.version_spec(True) or 'any'
+                if dep.is_missing and dep.extra is None:
                     dep_label = '{0}\n(missing)'.format(dep.project_name)
                     graph.node(dep.key, label=dep_label, style='dashed')
                     graph.edge(pkg.key, dep.key, style='dashed')
-                else:
+                elif dep.extra is None:
                     graph.edge(pkg.key, dep.key, label=edge_label)
-            if pkg in tree_extra and tree_extra[pkg] is not None:
-                for dep in tree_extra[pkg]:
-                    edge_label = dep.version_spec or 'any'
-                    if dep.is_missing:
-                        dep_label = '{0}\n(missing)'.format(dep.project_name)
-                        graph.node(dep.key, label=dep_label, style='dashed')
-                        graph.edge(pkg.key, dep.key, style='dashed')
-                    else:
-                        graph.edge(pkg.key, dep.key, label=edge_label, style='dashed')
+                else:
+                    graph.edge(pkg.key, dep.key, label=edge_label, style='dashed')
     else:
         for dep, parents in tree.items():
             dep_label = '{0}\n{1}'.format(dep.project_name, dep.installed_version)
@@ -647,8 +647,11 @@ def dump_graphviz(tree, tree_extra, output_format='dot', is_reverse=False):
                 # req reference of the dep associated with this
                 # particular parent package
                 req_ref = parent.req
-                edge_label = req_ref.version_spec or 'any'
-                graph.edge(dep.key, parent.key, label=edge_label)
+                edge_label = req_ref.version_spec(True) or 'any'
+                if parent.extra is None:
+                    graph.edge(dep.key, parent.key, label=edge_label)
+                else:
+                    graph.edge(dep.key, parent.key, label=edge_label, style='dashed')
 
     # Allow output of dot format, even if GraphViz isn't installed.
     if output_format == 'dot':
@@ -859,7 +862,7 @@ def main():
     pkgs = get_installed_distributions(local_only=args.local_only,
                                        user_only=args.user_only)
 
-    tree, tree_extra = PackageDAG.from_pkgs(pkgs, args.extra)
+    tree = PackageDAG.from_pkgs(pkgs, args.extra)
 
     is_text_output = not any([args.json, args.json_tree, args.output_format])
 
@@ -886,26 +889,24 @@ def main():
     # that the filter will be applied on ReverseTree
     if args.reverse:
         tree = tree.reverse()
-        tree_extra = tree_extra.reverse()
 
     show_only = set(args.packages.split(',')) if args.packages else None
     exclude = set(args.exclude.split(',')) if args.exclude else None
 
     if show_only is not None or exclude is not None:
         tree = tree.filter(show_only, exclude)
-        tree_extra = tree_extra.filter(show_only, exclude)
 
     if args.json:
         print(render_json(tree, indent=4))
     elif args.json_tree:
         print(render_json_tree(tree, indent=4))
     elif args.output_format:
-        output = dump_graphviz(tree, tree_extra,
+        output = dump_graphviz(tree,
                                output_format=args.output_format,
                                is_reverse=args.reverse)
         print_graphviz(output)
     else:
-        render_text(tree, tree_extra, args.all, args.freeze)
+        render_text(tree, args.all, args.freeze)
 
     return return_code
 
