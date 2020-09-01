@@ -303,7 +303,7 @@ class PackageDAG(Mapping):
         m = {p: [ReqPackage(r, idx.get(r.key))
                  for r in p.requires()]
              + [ReqPackage(r, idx.get(r.key), e)
-                for e, r in p.extra_requires if extra]
+                for e, r in p.extra_requires if p.key in extra]
              for p in pkgs}
         return cls(m)
 
@@ -819,10 +819,12 @@ def get_parser():
                             'format. Available are all formats supported by '
                             'GraphViz, e.g.: dot, jpeg, pdf, png, svg'
                         ))
-    parser.add_argument('--no-extra', dest='extra', action='store_false',
+    parser.add_argument('--extra', choices=['none', 'all', 'selection'], default='selection',
                         help=(
-                            'Do not map extra requirements.'
-                        ))
+                            "'none': do not map extra requirements. 'all': map extra "
+                            "requirements for all packages. 'selection': map extra "
+                            "requirements only for selected packages (through option -p), "
+                            "if no selected packages, falls back to 'all'."))
     return parser
 
 
@@ -871,7 +873,13 @@ def main():
     pkgs = get_installed_distributions(local_only=args.local_only,
                                        user_only=args.user_only)
 
-    tree = PackageDAG.from_pkgs(pkgs, args.extra)
+    if args.extra == 'none':
+        extra = []
+    elif args.extra == 'all' or args.packages is None:
+        extra = [pkg.key for pkg in pkgs]
+    elif args.extra == 'selection':
+        extra = args.packages.split(',')
+    tree = PackageDAG.from_pkgs(pkgs, extra)
 
     is_text_output = not any([args.json, args.json_tree, args.output_format])
 
