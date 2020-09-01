@@ -600,7 +600,7 @@ def render_json_tree(tree, indent):
     return json.dumps([aux(p) for p in nodes], indent=indent)
 
 
-def dump_graphviz(tree, output_format='dot', is_reverse=False):
+def dump_graphviz(tree, output_format='dot', is_reverse=False, packages=[]):
     """Output dependency graph as one of the supported GraphViz output formats.
 
     :param dict tree: dependency graph
@@ -627,12 +627,18 @@ def dump_graphviz(tree, output_format='dot', is_reverse=False):
 
     if not is_reverse:
         for pkg, deps in tree.items():
-            pkg_label = '{0}\n{1}'.format(pkg.project_name, pkg.version)
+            if pkg.project_name in packages:
+                pkg_label = '<<B>{0}</B> {1}>'.format(pkg.project_name, pkg.version)
+            else:
+                pkg_label = '{0}\n{1}'.format(pkg.project_name, pkg.version)
             graph.node(pkg.key, label=pkg_label)
             for dep in deps:
                 edge_label = dep.version_spec(True) or 'any'
                 if dep.is_missing and dep.extra is None:
-                    dep_label = '{0}\n(missing)'.format(dep.project_name)
+                    if dep.project_name in packages:
+                        dep_label = '<<B>{0}</B> (missing)>'.format(dep.project_name)
+                    else:
+                        dep_label = '{0}\n(missing)'.format(dep.project_name)
                     graph.node(dep.key, label=dep_label, style='dashed')
                     graph.edge(pkg.key, dep.key, style='dashed')
                 elif dep.extra is None:
@@ -641,7 +647,10 @@ def dump_graphviz(tree, output_format='dot', is_reverse=False):
                     graph.edge(pkg.key, dep.key, label=edge_label, style='dashed')
     else:
         for dep, parents in tree.items():
-            dep_label = '{0}\n{1}'.format(dep.project_name, dep.installed_version)
+            if dep.project_name in packages:
+                dep_label = '<<B>{0}</B> {1}>'.format(dep.project_name, dep.installed_version)
+            else:
+                dep_label = '{0}\n{1}'.format(dep.project_name, dep.installed_version)
             graph.node(dep.key, label=dep_label)
             for parent in parents:
                 # req reference of the dep associated with this
@@ -901,9 +910,9 @@ def main():
     elif args.json_tree:
         print(render_json_tree(tree, indent=4))
     elif args.output_format:
-        output = dump_graphviz(tree,
-                               output_format=args.output_format,
-                               is_reverse=args.reverse)
+        output = dump_graphviz(
+            tree, output_format=args.output_format, is_reverse=args.reverse,
+            packages=args.packages.split(',') if args.packages is not None else [])
         print_graphviz(output)
     else:
         render_text(tree, args.all, args.freeze)
