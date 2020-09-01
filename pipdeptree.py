@@ -821,10 +821,11 @@ def get_parser():
                         ))
     parser.add_argument('--extra', choices=['none', 'all', 'selection'], default='selection',
                         help=(
-                            "'none': do not map extra requirements. 'all': map extra "
-                            "requirements for all packages. 'selection': map extra "
-                            "requirements only for selected packages (through option -p), "
-                            "if no selected packages, falls back to 'all'."))
+                            '"none": do not map extra requirements. "all": map extra '
+                            'requirements for all packages. "selection": map extra '
+                            'requirements only for selected packages (through option -p), '
+                            'if no selected packages, falls back to "all". '
+                            'Default: "selection"'))
     return parser
 
 
