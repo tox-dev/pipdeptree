@@ -4,6 +4,6 @@ Flask==0.10.1
     - MarkupSafe [required: >=0.23, installed: 0.22]
   - Werkzeug [required: >=0.7, installed: 0.11.2]
 pipdeptree==2.0.0b1
-  - pip [required: >=6.0.0, installed: 20.1.1]
-setuptools==47.1.1
-wheel==0.34.2
+  - pip [required: >=6.0.0, installed: 20.2.3]
+setuptools==50.3.0
+wheel==0.35.1
