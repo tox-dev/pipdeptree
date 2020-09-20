@@ -24,8 +24,10 @@ test-cov:
 test-tox-all:
 	tox
 
-test-e2e:
+clean-e2e:
 	rm -rf tests/profiles/*/.env_$(E2E_PYTHON_EXE)*
+
+test-e2e: clean-e2e
 	cd tests && ./e2e-tests webapp
 	cd tests && ./e2e-tests conflicting
 	cd tests && ./e2e-tests cyclic
