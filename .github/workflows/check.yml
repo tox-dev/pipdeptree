@@ -1,0 +1,40 @@
+name: check
+on:
+  push:
+  pull_request:
+  schedule:
+  - cron: "0 8 * * *"
+
+jobs:
+  test:
+    name: Test on ${{ matrix.py }} under ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - Ubuntu
+        py:
+        - 3.9-dev
+        - 3.8
+        - 3.7
+        - 3.6
+        - 3.5
+        - 3.4
+        - 2.7
+        - pypy3
+        - pypy2
+    steps:
+    - name: Setup python for test ${{ matrix.py }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.py }}
+    - uses: actions/checkout@v2
+    - name: Setup graphviz
+      uses: ts-graphviz/setup-graphviz@v1
+    - name: Install dev requirements
+      run: pip install -r dev-requirements.txt
+    - name: Install project
+      run: pip install .[graphviz]
+    - name: Run test suite
+      run: pytest -v tests

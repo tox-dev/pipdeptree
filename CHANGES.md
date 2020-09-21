@@ -32,6 +32,7 @@ Changelog
       design because we want to know when `pipdeptree` fails with a
       new version of `pip`.
 
+* Move continuous integration from Travis to Github Actions.
 
 1.0.0 (current stable version)
 ------------------------------
