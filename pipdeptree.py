@@ -791,9 +791,12 @@ def handle_non_host_target(args):
                   " non-host python", file=sys.stderr)
             raise SystemExit(1)
         argv = sys.argv[1:]  # remove current python executable
-        py_at = argv.index('--python')  # plus the new python target
-        del argv[py_at]
-        del argv[py_at]
+        for py_at, value in enumerate(argv):
+            if value == "--python":
+                del argv[py_at]
+                del argv[py_at]
+            elif value.startswith("--python"):
+                del argv[py_at]
         # feed the file as argument, instead of file
         # to avoid adding the file path to sys.path, that can affect result
         file_path = inspect.getsourcefile(sys.modules[__name__])

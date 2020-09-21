@@ -523,9 +523,11 @@ def test_parser_svg():
     assert not args.json
 
 
-def test_custom_interpreter(tmp_path, monkeypatch, capfd):
+@pytest.mark.parametrize('args_joined', [True, False])
+def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
     result = virtualenv.cli_run([str(tmp_path), '--activators', ''])
-    cmd = [sys.executable, '--python', str(result.creator.exe)]
+    cmd = [sys.executable]
+    cmd += ['--python={}'.format(result.creator.exe)] if args_joined else ['--python', str(result.creator.exe)]
     monkeypatch.setattr(sys, 'argv', cmd)
     p.main()
     out, _ = capfd.readouterr()
