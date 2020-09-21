@@ -1,8 +1,8 @@
 pipdeptree
 ==========
 
-.. image:: https://travis-ci.org/naiquevin/pipdeptree.svg?branch=master
-   :target: https://travis-ci.org/naiquevin/pipdeptree
+.. image:: https://github.com/naiquevin/pipdeptree/workflows/check/badge.svg
+   :target: https://github.com/naiquevin/pipdeptree/actions
 
 
 ``pipdeptree`` is a command line utility for displaying the installed
@@ -359,7 +359,7 @@ Runing Tests (for contributors)
 There are 2 test suites in this repo:
 
 1. Unit tests that use mock objects. These are configured to run on
-   every push to the repo and on every PR thanks to travis.ci
+   every push to the repo and on every PR thanks to Github Actions.
 
 2. End-to-end tests that are run against actual packages installed in
    virtualenvs
@@ -419,7 +419,7 @@ an alternate version set the environment var ``E2E_PYTHON_EXE``.
 Release checklist
 -----------------
 
-#. Make sure that tests pass on travis.ci.
+#. Make sure that tests pass on Github Actions.
 #. Create a commit with following changes and push it to github
 #. Update the `__version__` in the `pipdeptree.py` file.
 

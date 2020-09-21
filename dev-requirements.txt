@@ -3,3 +3,4 @@ pytest-cov
 jinja2
 ipython
 flake8
+mock;python_version<"3"
