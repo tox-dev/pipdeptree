@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import platform
 import sys
 from tempfile import NamedTemporaryFile
 try:
@@ -523,25 +524,31 @@ def test_parser_svg():
     assert not args.json
 
 
-@pytest.mark.parametrize('args_joined', [True, False])
+@pytest.mark.parametrize("args_joined", [True, False])
 def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
-    result = virtualenv.cli_run([str(tmp_path), '--activators', ''])
+    result = virtualenv.cli_run([str(tmp_path), "--activators", ""])
     cmd = [sys.executable]
-    cmd += ['--python={}'.format(result.creator.exe)] if args_joined else ['--python', str(result.creator.exe)]
-    monkeypatch.setattr(sys, 'argv', cmd)
+    cmd += ["--python={}".format(result.creator.exe)] if args_joined else ["--python", str(result.creator.exe)]
+    monkeypatch.setattr(sys, "argv", cmd)
     p.main()
     out, _ = capfd.readouterr()
-    found = {i.split('==')[0] for i in out.splitlines()}
-    assert found == {'pip', 'setuptools', 'wheel'}, out
+    found = {i.split("==")[0] for i in out.splitlines()}
+    implementation = platform.python_implementation()
+    if implementation == "CPython":
+        expected = {"pip", "setuptools", "wheel"}
+    elif implementation == "PyPy":
+        expected = {"cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}
+    else:
+        raise ValueError(implementation)
+    assert found == expected, out
 
-    monkeypatch.setattr(sys, 'argv', cmd + ['--graph-output', 'something'])
+    monkeypatch.setattr(sys, "argv", cmd + ["--graph-output", "something"])
     with pytest.raises(SystemExit) as context:
         p.main()
     out, err = capfd.readouterr()
     assert context.value.code == 1
     assert not out
-    assert err == 'graphviz functionality is not supported when querying' \
-                  ' non-host python\n'
+    assert err == "graphviz functionality is not supported when querying" " non-host python\n"
 
 
 
