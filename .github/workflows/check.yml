@@ -40,8 +40,9 @@ jobs:
     - uses: actions/checkout@v2
     - name: Pick tox environment to run
       run: |
-        import subprocess; import json
-        major, minor, impl = json.loads(subprocess.check_output(["python", "-c", "import json; import sys; import platform; print(json.dumps([sys.version_info[0], sys.version_info[1], platform.python_implementation()]));"], universal_newlines=True))
+        import platform
+        import sys
+        major, minor, impl = sys.version_info[0], sys.version_info[1], platform.python_implementation()
         print('::set-env name=TOXENV::' + ("py" if impl == "CPython" else "pypy") + ("{}{}".format(major, minor) if impl == "CPython" else ("3" if major == 3 else "")))
       shell: python
     - name: Setup test suite
