@@ -134,13 +134,12 @@ class DistPackage(Package):
         super(DistPackage, self).__init__(obj, extra)
         self.version_spec = None
         self.req = req
-        self.extra_requires = self.extract_extras()
 
     @Package.extra.setter
     def extra(self, extra):
         self._extra = extra
 
-    def extract_extras(self, metadata_name='METADATA'):
+    def extra_requires(self, metadata_name='METADATA'):
         extras = []
         if not len(self.extras) or not self.has_metadata(metadata_name):
             return extras
@@ -175,9 +174,9 @@ class DistPackage(Package):
         else:
             return self.render_as_root(frozen)
 
-    def as_requirement(self):
+    def as_requirement(self, extra=None):
         """Return a ReqPackage representation of this DistPackage"""
-        return ReqPackage(self._obj.as_requirement(), dist=self)
+        return ReqPackage(self._obj.as_requirement(), dist=self, extra=extra)
 
     def as_parent_of(self, req):
         """Return a DistPackage instance associated to a requirement
@@ -306,13 +305,13 @@ class PackageDAG(Mapping):
     """
 
     @classmethod
-    def from_pkgs(cls, pkgs, extra=[]):
+    def from_pkgs(cls, pkgs):
         pkgs = [DistPackage(p) for p in pkgs if p.key != 'pkg-resources']
         idx = {p.key: p for p in pkgs}
         m = {p: [ReqPackage(r, idx.get(r.key))
                  for r in p.requires()]
              + [ReqPackage(r, idx.get(r.key), e)
-                for e, r in p.extra_requires if p.key in extra]
+                for e, r in p.extra_requires() if r.key in idx]
              for p in pkgs}
         return cls(m)
 
@@ -832,13 +831,6 @@ def get_parser():
                             'format. Available are all formats supported by '
                             'GraphViz, e.g.: dot, jpeg, pdf, png, svg'
                         ))
-    parser.add_argument('--extra', choices=['none', 'all', 'selection'], default='selection',
-                        help=(
-                            '"none": do not map extra requirements. "all": map extra '
-                            'requirements for all packages. "selection": map extra '
-                            'requirements only for selected packages (through option -p), '
-                            'if no selected packages, falls back to "all". '
-                            'Default: "selection"'))
     return parser
 
 
@@ -887,13 +879,7 @@ def main():
     pkgs = get_installed_distributions(local_only=args.local_only,
                                        user_only=args.user_only)
 
-    if args.extra == 'none':
-        extra = []
-    elif args.extra == 'all' or args.packages is None:
-        extra = [pkg.key for pkg in pkgs]
-    elif args.extra == 'selection':
-        extra = args.packages.split(',')
-    tree = PackageDAG.from_pkgs(pkgs, extra)
+    tree = PackageDAG.from_pkgs(pkgs)
 
     is_text_output = not any([args.json, args.json_tree, args.output_format])
 

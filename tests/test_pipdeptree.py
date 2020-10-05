@@ -36,9 +36,9 @@ def mock_pkgs(simple_graph):
         yield p
 
 
-def mock_PackageDAG(simple_graph, extra=True):
+def mock_PackageDAG(simple_graph):
     pkgs = list(mock_pkgs(simple_graph))
-    return p.PackageDAG.from_pkgs(pkgs, [pkg.key for pkg in pkgs] if extra else [])
+    return p.PackageDAG.from_pkgs(pkgs)
 
 
 # util for comparing tree contents with a simple graph
@@ -72,7 +72,6 @@ mapping = {
 }
 
 t = mock_PackageDAG(mapping)
-t_no_extra = mock_PackageDAG(mapping, False)
 
 
 def test_PackageDAG__get_node_as_parent():
@@ -121,45 +120,6 @@ def test_PackageDAG_filter():
         dag_to_dict(t.filter(set(['d']), set(['D', 'e'])))
 
 
-def test_PackageDAG_filter_no_extra():
-    # When both show_only and exclude are not specified, same tree
-    # object is returned
-    assert t_no_extra.filter(None, None) is t_no_extra
-
-    # when show_only is specified
-    g1 = dag_to_dict(t_no_extra.filter(set(['a', 'd']), None))
-    expected = {'a': ['b', 'c'],
-                'b': ['d'],
-                'c': ['d', 'e'],
-                'd': ['e'],
-                'e': []}
-    assert expected == g1
-
-    # when exclude is specified
-    g2 = dag_to_dict(t_no_extra.filter(None, ['d']))
-    expected = {'a': ['b', 'c'],
-                'b': [],
-                'c': ['e'],
-                'e': [],
-                'f': ['b'],
-                'g': ['e', 'f']}
-    assert expected == g2
-
-    # when both show_only and exclude are specified
-    g3 = dag_to_dict(t_no_extra.filter(set(['a', 'g']), set(['d', 'e'])))
-    expected = {'a': ['b', 'c'],
-                'b': [],
-                'c': [],
-                'f': ['b'],
-                'g': ['f']}
-    assert expected == g3
-
-    # when conflicting values in show_only and exclude, AssertionError
-    # is raised
-    with pytest.raises(AssertionError):
-        dag_to_dict(t_no_extra.filter(set(['d']), set(['D', 'e'])))
-
-
 def test_PackageDAG_reverse():
     t1 = t.reverse()
     expected = {'a': [],
@@ -182,35 +142,6 @@ def test_PackageDAG_reverse():
                 'e': [],
                 'f': ['b'],
                 'g': ['d', 'e', 'f']}
-    t2 = t1.reverse()
-    assert isinstance(t2, p.PackageDAG)
-    assert sort_map_values(expected) == sort_map_values(dag_to_dict(t2))
-    assert all([isinstance(k, p.DistPackage) for k in t2.keys()])
-    assert all([isinstance(v, p.ReqPackage) for v in p.flatten(t2.values())])
-
-
-def test_PackageDAG_reverse_no_extra():
-    t1 = t_no_extra.reverse()
-    expected = {'a': [],
-                'b': ['a', 'f'],
-                'c': ['a'],
-                'd': ['b', 'c'],
-                'e': ['c', 'd', 'g'],
-                'f': ['g'],
-                'g': []}
-    assert isinstance(t1, p.ReversedPackageDAG)
-    assert sort_map_values(expected) == sort_map_values(dag_to_dict(t1))
-    assert all([isinstance(k, p.ReqPackage) for k in t1.keys()])
-    assert all([isinstance(v, p.DistPackage) for v in p.flatten(t1.values())])
-
-    # testing reversal of ReversedPackageDAG instance
-    expected = {'a': ['b', 'c'],
-                'b': ['d'],
-                'c': ['d', 'e'],
-                'd': ['e'],
-                'e': [],
-                'f': ['b'],
-                'g': ['e', 'f']}
     t2 = t1.reverse()
     assert isinstance(t2, p.PackageDAG)
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t2))
@@ -243,28 +174,15 @@ def test_DistPackage__render_as_branch():
     dp = p.DistPackage(foo)
     is_frozen = False
     assert 'foo==20.4.1 [requires: bar>=4.0]' == dp.as_parent_of(rp).render_as_branch(is_frozen)
-    rp = p.ReqPackage(dp.extra_requires[0][1])
+    rp = p.ReqPackage(dp.extra_requires()[0][1])
     assert 'foo==20.4.1 [requires: baz>=1.0]' == dp.as_parent_of(rp).render_as_branch(is_frozen)
-
-
-def test_DistPackage__render_as_branch_no_extra():
-    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1', extras=[])
-    bar = mock.Mock(key='bar', project_name='bar', version='4.1.0', extras=[])
-    bar_req = mock.Mock(key='bar',
-                        project_name='bar',
-                        version='4.1.0',
-                        specs=[('>=', '4.0')])
-    rp = p.ReqPackage(bar_req, dist=bar)
-    dp = p.DistPackage(foo).as_parent_of(rp)
-    is_frozen = False
-    assert 'foo==20.4.1 [requires: bar>=4.0]' == dp.render_as_branch(is_frozen)
 
 
 def test_DistPackage__as_parent_of():
     foo = mock.Mock(key='foo', project_name='foo', version='20.4.1', extras=[])
     dp = p.DistPackage(foo)
     assert dp.req is None
-    assert not len(dp.extra_requires)
+    assert not len(dp.extra_requires())
 
     bar = mock.Mock(key='bar', project_name='bar', version='4.1.0', extras=[])
     bar_req = mock.Mock(key='bar',
@@ -353,121 +271,11 @@ def test_ReqPackage__as_dict():
 # end-to-end tests. Check the ./e2e-tests script.
 
 @pytest.mark.parametrize(
-    "list_all,reverse,extra,expected_output",
+    "list_all,reverse,expected_output",
     [
         (
             True,
             False,
-            False,
-            [
-                'a==3.4.0',
-                '  - b [required: >=2.0.0, installed: 2.3.1]',
-                '    - d [required: >=2.30,<2.42, installed: 2.35]',
-                '      - e [required: >=0.9.0, installed: 0.12.1]',
-                '  - c [required: >=5.7.1, installed: 5.10.0]',
-                '    - d [required: >=2.30, installed: 2.35]',
-                '      - e [required: >=0.9.0, installed: 0.12.1]',
-                '    - e [required: >=0.12.1, installed: 0.12.1]',
-                'b==2.3.1',
-                '  - d [required: >=2.30,<2.42, installed: 2.35]',
-                '    - e [required: >=0.9.0, installed: 0.12.1]',
-                'c==5.10.0',
-                '  - d [required: >=2.30, installed: 2.35]',
-                '    - e [required: >=0.9.0, installed: 0.12.1]',
-                '  - e [required: >=0.12.1, installed: 0.12.1]',
-                'd==2.35',
-                '  - e [required: >=0.9.0, installed: 0.12.1]',
-                'e==0.12.1',
-                'f==3.1',
-                '  - b [required: >=2.1.0, installed: 2.3.1]',
-                '    - d [required: >=2.30,<2.42, installed: 2.35]',
-                '      - e [required: >=0.9.0, installed: 0.12.1]',
-                'g==6.8.3rc1',
-                '  - e [required: >=0.9.0, installed: 0.12.1]',
-                '  - f [required: >=3.0.0, installed: 3.1]',
-                '    - b [required: >=2.1.0, installed: 2.3.1]',
-                '      - d [required: >=2.30,<2.42, installed: 2.35]',
-                '        - e [required: >=0.9.0, installed: 0.12.1]'
-            ]
-        ),
-        (
-            True,
-            True,
-            False,
-            [
-                'a==3.4.0',
-                'b==2.3.1',
-                '  - a==3.4.0 [requires: b>=2.0.0]',
-                '  - f==3.1 [requires: b>=2.1.0]',
-                '    - g==6.8.3rc1 [requires: f>=3.0.0]',
-                'c==5.10.0',
-                '  - a==3.4.0 [requires: c>=5.7.1]',
-                'd==2.35',
-                '  - b==2.3.1 [requires: d>=2.30,<2.42]',
-                '    - a==3.4.0 [requires: b>=2.0.0]',
-                '    - f==3.1 [requires: b>=2.1.0]',
-                '      - g==6.8.3rc1 [requires: f>=3.0.0]',
-                '  - c==5.10.0 [requires: d>=2.30]',
-                '    - a==3.4.0 [requires: c>=5.7.1]',
-                'e==0.12.1',
-                '  - c==5.10.0 [requires: e>=0.12.1]',
-                '    - a==3.4.0 [requires: c>=5.7.1]',
-                '  - d==2.35 [requires: e>=0.9.0]',
-                '    - b==2.3.1 [requires: d>=2.30,<2.42]',
-                '      - a==3.4.0 [requires: b>=2.0.0]',
-                '      - f==3.1 [requires: b>=2.1.0]',
-                '        - g==6.8.3rc1 [requires: f>=3.0.0]',
-                '    - c==5.10.0 [requires: d>=2.30]',
-                '      - a==3.4.0 [requires: c>=5.7.1]',
-                '  - g==6.8.3rc1 [requires: e>=0.9.0]',
-                'f==3.1',
-                '  - g==6.8.3rc1 [requires: f>=3.0.0]',
-                'g==6.8.3rc1'
-            ]
-        ),
-        (
-            False,
-            False,
-            False,
-            [
-                'a==3.4.0',
-                '  - b [required: >=2.0.0, installed: 2.3.1]',
-                '    - d [required: >=2.30,<2.42, installed: 2.35]',
-                '      - e [required: >=0.9.0, installed: 0.12.1]',
-                '  - c [required: >=5.7.1, installed: 5.10.0]',
-                '    - d [required: >=2.30, installed: 2.35]',
-                '      - e [required: >=0.9.0, installed: 0.12.1]',
-                '    - e [required: >=0.12.1, installed: 0.12.1]',
-                'g==6.8.3rc1',
-                '  - e [required: >=0.9.0, installed: 0.12.1]',
-                '  - f [required: >=3.0.0, installed: 3.1]',
-                '    - b [required: >=2.1.0, installed: 2.3.1]',
-                '      - d [required: >=2.30,<2.42, installed: 2.35]',
-                '        - e [required: >=0.9.0, installed: 0.12.1]',
-            ]
-        ),
-        (
-            False,
-            True,
-            False,
-            [
-                'e==0.12.1',
-                '  - c==5.10.0 [requires: e>=0.12.1]',
-                '    - a==3.4.0 [requires: c>=5.7.1]',
-                '  - d==2.35 [requires: e>=0.9.0]',
-                '    - b==2.3.1 [requires: d>=2.30,<2.42]',
-                '      - a==3.4.0 [requires: b>=2.0.0]',
-                '      - f==3.1 [requires: b>=2.1.0]',
-                '        - g==6.8.3rc1 [requires: f>=3.0.0]',
-                '    - c==5.10.0 [requires: d>=2.30]',
-                '      - a==3.4.0 [requires: c>=5.7.1]',
-                '  - g==6.8.3rc1 [requires: e>=0.9.0]',
-            ]
-        ),
-        (
-            True,
-            False,
-            True,
             [
                 'a==3.4.0',
                 '  - b [required: >=2.0.0, installed: 2.3.1]',
@@ -516,7 +324,6 @@ def test_ReqPackage__as_dict():
         (
             True,
             True,
-            True,
             [
                 'a==3.4.0',
                 'b==2.3.1',
@@ -561,7 +368,6 @@ def test_ReqPackage__as_dict():
         (
             False,
             False,
-            True,
             [
                 'a==3.4.0',
                 '  - b [required: >=2.0.0, installed: 2.3.1]',
@@ -588,7 +394,6 @@ def test_ReqPackage__as_dict():
         (
             False,
             True,
-            True,
             [
                 'e==0.12.1',
                 '  - c==5.10.0 [requires: e>=0.12.1]',
@@ -607,11 +412,8 @@ def test_ReqPackage__as_dict():
         )
     ]
 )
-def test_render_text(capsys, list_all, reverse, extra, expected_output):
-    if extra:
-        tree = t.reverse() if reverse else t
-    else:
-        tree = t_no_extra.reverse() if reverse else t_no_extra
+def test_render_text(capsys, list_all, reverse, expected_output):
+    tree = t.reverse() if reverse else t
     p.render_text(tree, list_all=list_all, frozen=False)
     captured = capsys.readouterr()
     assert '\n'.join(expected_output).strip() == captured.out.strip()
@@ -804,7 +606,7 @@ def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
     monkeypatch.setattr(sys, "argv", cmd)
     p.main()
     out, _ = capfd.readouterr()
-    found = {i.split("==")[0] for i in out.splitlines()}
+    found = {i.split("==")[0] for i in out.splitlines() if '==' in i}
     implementation = platform.python_implementation()
     if implementation == "CPython":
         expected = {"pip", "setuptools", "wheel"}
@@ -821,6 +623,3 @@ def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
     assert context.value.code == 1
     assert not out
     assert err == "graphviz functionality is not supported when querying" " non-host python\n"
-
-
-
