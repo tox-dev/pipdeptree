@@ -66,10 +66,10 @@ def test_PackageDAG__get_node_as_parent():
 def test_PackageDAG_filter():
     # When both show_only and exclude are not specified, same tree
     # object is returned
-    assert t.filter(None, None) is t
+    assert t.filter(None, None, None, None) is t
 
     # when show_only is specified
-    g1 = dag_to_dict(t.filter(set(['a', 'd']), None))
+    g1 = dag_to_dict(t.filter(set(['a', 'd']), None, None, None))
     expected = {'a': ['b', 'c'],
                 'b': ['d'],
                 'c': ['d', 'e'],
@@ -78,7 +78,7 @@ def test_PackageDAG_filter():
     assert expected == g1
 
     # when exclude is specified
-    g2 = dag_to_dict(t.filter(None, ['d']))
+    g2 = dag_to_dict(t.filter(None, ['d'], None, None))
     expected = {'a': ['b', 'c'],
                 'b': [],
                 'c': ['e'],
@@ -88,7 +88,7 @@ def test_PackageDAG_filter():
     assert expected == g2
 
     # when both show_only and exclude are specified
-    g3 = dag_to_dict(t.filter(set(['a', 'g']), set(['d', 'e'])))
+    g3 = dag_to_dict(t.filter(set(['a', 'g']), set(['d', 'e']), None, None))
     expected = {'a': ['b', 'c'],
                 'b': [],
                 'c': [],

@@ -317,7 +317,7 @@ class PackageDAG(Mapping):
         node = self.get_node_as_parent(node_key)
         return self._obj[node] if node else []
 
-    def filter(self, include, exclude, include_re, exclude_re):
+    def filter(self, include, exclude, include_re=None, exclude_re=None):
         """Filters nodes in a graph by given parameters
 
         If a node is included, then all it's children are also
@@ -642,6 +642,8 @@ def print_graphviz(dump_output, output=None):
 
     :param dump_output: The output from dump_graphviz
     """
+    if output is None:
+        output = sys.stdout
     if hasattr(dump_output, 'encode'):
         print(dump_output, file=output)
         return output

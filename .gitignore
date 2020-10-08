@@ -13,3 +13,4 @@ htmlcov/
 .pytest_cache/
 .idea
 *.iml
+.python-version
