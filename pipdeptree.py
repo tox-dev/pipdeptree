@@ -594,19 +594,19 @@ def dump_graphviz(tree, output_format='dot', is_reverse=False):
 
     if not is_reverse:
         for pkg, deps in tree.items():
-            pkg_label = '{0}\n{1}'.format(pkg.project_name, pkg.version)
+            pkg_label = '{0}\\n{1}'.format(pkg.project_name, pkg.version)
             graph.node(pkg.key, label=pkg_label)
             for dep in deps:
                 edge_label = dep.version_spec or 'any'
                 if dep.is_missing:
-                    dep_label = '{0}\n(missing)'.format(dep.project_name)
+                    dep_label = '{0}\\n(missing)'.format(dep.project_name)
                     graph.node(dep.key, label=dep_label, style='dashed')
                     graph.edge(pkg.key, dep.key, style='dashed')
                 else:
                     graph.edge(pkg.key, dep.key, label=edge_label)
     else:
         for dep, parents in tree.items():
-            dep_label = '{0}\n{1}'.format(dep.project_name,
+            dep_label = '{0}\\n{1}'.format(dep.project_name,
                                           dep.installed_version)
             graph.node(dep.key, label=dep_label)
             for parent in parents:
