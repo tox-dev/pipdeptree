@@ -139,16 +139,17 @@ class DistPackage(Package):
     def extra(self, extra):
         self._extra = extra
 
-    def extra_requires(self, metadata_name='METADATA'):
-        extras = []
-        if not len(self.extras) or not self.has_metadata(metadata_name):
-            return extras
-        for line in self.get_metadata_lines(metadata_name):
+    def extra_requires(self):
+        md_key = 'METADATA'
+        if not len(self.extras) or not self.has_metadata(md_key):
+            return {}
+        extras = defaultdict(list)
+        for line in self.get_metadata_lines(md_key):
             if 'extra ==' in line:
                 dep = line[(line.find(':') + 1):line.find(';')].strip()
                 extra = line.split()[-1].strip("'")
-                extras.append((extra, pkg_resources.Requirement(dep)))
-        return extras
+                extras[dep].append(extra)
+        return {pkg_resources.Requirement(k): v for k, v in extras.items()}
 
     def render_as_root(self, frozen):
         if not frozen:
@@ -310,9 +311,13 @@ class PackageDAG(Mapping):
         idx = {p.key: p for p in pkgs}
         m = {p: [ReqPackage(r, idx.get(r.key))
                  for r in p.requires()]
-             + [ReqPackage(r, idx.get(r.key), e)
-                for e, r in p.extra_requires() if r.key in idx]
              for p in pkgs}
+        for p, rs in m.items():
+            extras = p.extra_requires()
+            for extra, profiles in extras.items():
+                if extra.key in idx:
+                    r = ReqPackage(extra, idx[extra.key], ','.join(profiles))
+                    m[p].append(r)
         return cls(m)
 
     def __init__(self, m):
@@ -526,23 +531,21 @@ def render_text(tree, list_all=True, frozen=False):
     """
     tree = tree.sort()
     nodes = tree.keys()
-    branch_keys = set(r.key for r in flatten(tree.values()) if r.extra is None)
+    branch_keys = set(r.key for r in flatten(tree.values()))
     use_bullets = not frozen
 
     if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
-    def aux(node, parent=None, indent=0, chain=None, extra=None):
+    def aux(node, parent=None, indent=0, chain=None):
         chain = chain or []
         node_str = node.render(parent, frozen)
         if parent:
             prefix = ' ' * indent + ('- ' if use_bullets else '')
             node_str = prefix + node_str
         result = [node_str]
-        if extra is not None:
-            return result
         children = [aux(c, node, indent=indent + 2,
-                        chain=chain + [c.project_name], extra=c.extra)
+                        chain=chain + [c.project_name])
                     for c in tree.get_children(node.key)
                     if c.project_name not in chain]
         result += list(flatten(children))
@@ -612,7 +615,7 @@ def render_json_tree(tree, indent):
     return json.dumps([aux(p) for p in nodes], indent=indent)
 
 
-def dump_graphviz(tree, output_format='dot', is_reverse=False, packages=[]):
+def dump_graphviz(tree, output_format='dot', is_reverse=False):
     """Output dependency graph as one of the supported GraphViz output formats.
 
     :param dict tree: dependency graph
@@ -639,18 +642,12 @@ def dump_graphviz(tree, output_format='dot', is_reverse=False, packages=[]):
 
     if not is_reverse:
         for pkg, deps in tree.items():
-            if pkg.project_name in packages:
-                pkg_label = '<<B>{0}</B> {1}>'.format(pkg.project_name, pkg.version)
-            else:
-                pkg_label = '{0}\n{1}'.format(pkg.project_name, pkg.version)
+            pkg_label = '{0}\n{1}'.format(pkg.project_name, pkg.version)
             graph.node(pkg.key, label=pkg_label)
             for dep in deps:
                 edge_label = dep.version_spec(True) or 'any'
                 if dep.is_missing and dep.extra is None:
-                    if dep.project_name in packages:
-                        dep_label = '<<B>{0}</B> (missing)>'.format(dep.project_name)
-                    else:
-                        dep_label = '{0}\n(missing)'.format(dep.project_name)
+                    dep_label = '{0}\n(missing)'.format(dep.project_name)
                     graph.node(dep.key, label=dep_label, style='dashed')
                     graph.edge(pkg.key, dep.key, style='dashed')
                 elif dep.extra is None:
@@ -659,10 +656,7 @@ def dump_graphviz(tree, output_format='dot', is_reverse=False, packages=[]):
                     graph.edge(pkg.key, dep.key, label=edge_label, style='dashed')
     else:
         for dep, parents in tree.items():
-            if dep.project_name in packages:
-                dep_label = '<<B>{0}</B> {1}>'.format(dep.project_name, dep.installed_version)
-            else:
-                dep_label = '{0}\n{1}'.format(dep.project_name, dep.installed_version)
+            dep_label = '{0}\n{1}'.format(dep.project_name, dep.installed_version)
             graph.node(dep.key, label=dep_label)
             for parent in parents:
                 # req reference of the dep associated with this
@@ -919,8 +913,10 @@ def main():
         print(render_json_tree(tree, indent=4))
     elif args.output_format:
         output = dump_graphviz(
-            tree, output_format=args.output_format, is_reverse=args.reverse,
-            packages=args.packages.split(',') if args.packages is not None else [])
+            tree,
+            output_format=args.output_format,
+            is_reverse=args.reverse
+        )
         print_graphviz(output)
     else:
         render_text(tree, args.all, args.freeze)
