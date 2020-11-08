@@ -306,7 +306,7 @@ class PackageDAG(Mapping):
     """
 
     @classmethod
-    def from_pkgs(cls, pkgs):
+    def from_pkgs(cls, pkgs, filters=None):
         pkgs = [DistPackage(p) for p in pkgs if p.key != 'pkg-resources']
         idx = {p.key: p for p in pkgs}
         m = {p: [ReqPackage(r, idx.get(r.key))
@@ -318,18 +318,20 @@ class PackageDAG(Mapping):
                 if extra.key in idx:
                     r = ReqPackage(extra, idx[extra.key], ','.join(profiles))
                     m[p].append(r)
-        return cls(m)
+        return cls(m, filters)
 
-    def __init__(self, m):
+    def __init__(self, m, filters=None):
         """Initialize the PackageDAG object
 
         :param dict m: dict of node objects (refer class docstring)
+        :param dict filters: include and exclude filters for the tree
         :returns: None
         :rtype: NoneType
 
         """
         self._obj = m
         self._index = {p.key: p for p in list(self._obj)}
+        self.filters = filters
 
     def get_node_as_parent(self, node_key):
         """Get the node from the keys of the dict representing the DAG.
@@ -422,8 +424,9 @@ class PackageDAG(Mapping):
                                 continue
                 else:
                     break
-
-        return self.__class__(m)
+        # overwrite filters for the new object being returned
+        filters = {'include': include, 'exclude': exclude}
+        return self.__class__(m, filters)
 
     def reverse(self):
         """Reverse the DAG, or turn it upside-down
@@ -458,7 +461,7 @@ class PackageDAG(Mapping):
                 m[node].append(k.as_parent_of(v))
             if k.key not in child_keys:
                 m[k.as_requirement()] = []
-        return ReversedPackageDAG(dict(m))
+        return ReversedPackageDAG(dict(m), self.filters)
 
     def sort(self):
         """Return sorted tree in which the underlying _obj dict is an
@@ -467,7 +470,17 @@ class PackageDAG(Mapping):
         :returns: Instance of same class with OrderedDict
 
         """
-        return self.__class__(sorted_tree(self._obj))
+        return self.__class__(sorted_tree(self._obj), self.filters)
+
+    def is_pkg_included(self, pkg_key):
+        if self.filters:
+            to_include = self.filters.get('include')
+            if to_include:
+                return pkg_key.lower() in to_include
+            else:
+                return True
+        else:
+            return True
 
     # Methods required by the abstract base class Mapping
     def __getitem__(self, *args):
@@ -514,7 +527,7 @@ class ReversedPackageDAG(PackageDAG):
                 m[node].append(k)
             if k.key not in child_keys:
                 m[k.dist] = []
-        return PackageDAG(dict(m))
+        return PackageDAG(dict(m), filters=self.filters)
 
 
 def render_text(tree, list_all=True, frozen=False):
@@ -531,11 +544,12 @@ def render_text(tree, list_all=True, frozen=False):
     """
     tree = tree.sort()
     nodes = tree.keys()
-    branch_keys = set(r.key for r in flatten(tree.values()))
     use_bullets = not frozen
 
     if not list_all:
-        nodes = [p for p in nodes if p.key not in branch_keys]
+        to_ignore = set(r.key for r in flatten(tree.values())
+                        if not tree.is_pkg_included(r.key))
+        nodes = [p for p in nodes if p.key not in to_ignore]
 
     def aux(node, parent=None, indent=0, chain=None):
         chain = chain or []
@@ -591,8 +605,9 @@ def render_json_tree(tree, indent):
 
     """
     tree = tree.sort()
-    branch_keys = set(r.key for r in flatten(tree.values()))
-    nodes = [p for p in tree.keys() if p.key not in branch_keys]
+    to_ignore = set(r.key for r in flatten(tree.values())
+                    if not tree.is_pkg_included(r.key))
+    nodes = [p for p in tree.keys() if p.key not in to_ignore]
 
     def aux(node, parent=None, chain=None):
         if chain is None:
