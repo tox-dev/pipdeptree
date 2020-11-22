@@ -40,10 +40,14 @@ jobs:
     - uses: actions/checkout@v2
     - name: Pick tox environment to run
       run: |
+        import os
         import platform
         import sys
         major, minor, impl = sys.version_info[0], sys.version_info[1], platform.python_implementation()
-        print('::set-env name=TOXENV::' + ("py" if impl == "CPython" else "pypy") + ("{}{}".format(major, minor) if impl == "CPython" else ("3" if major == 3 else "")))
+        toxenv = ("py" if impl == "CPython" else "pypy") + ("{}{}".format(major, minor) if impl == "CPython" else ("3" if major == 3 else ""))
+        env_file = open(os.environ['GITHUB_ENV'], "a")
+        env_file.write("TOXENV={}\n".format(toxenv))
+        env_file.close()
       shell: python
     - name: Setup test suite
       run: tox -vv --notest
