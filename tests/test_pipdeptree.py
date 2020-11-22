@@ -26,13 +26,9 @@ def mock_pkgs(simple_graph):
             ck, cv = child
             r = mock.Mock(key=ck, project_name=ck, specs=cv, _extra=None)
             reqs.append(r)
-        if 'extra' in children:
-            p.extras = [0]
-            p.has_metadata = mock.Mock(return_value=True)
-            p.get_metadata_lines = mock.Mock(return_value=children['extra'])
-        else:
-            p.extras = []
         p.requires = mock.Mock(return_value=reqs)
+        p.has_metadata = mock.Mock(return_value='extra' in children)
+        p.get_metadata_lines = mock.Mock(return_value=children.get('extra', []))
         yield p
 
 
@@ -51,8 +47,9 @@ def sort_map_values(m):
 
 
 def extra_str(pkg, specs, extra):
-    return "Requires-Dist: {0} ({1}) ; extra == '{2}'".format(
-        pkg, specs, extra)
+    return (
+        "Requires-Dist: {0} ({1}) ; extra == '{2}'"
+    ).format(pkg, specs, extra)
 
 
 mapping = {
@@ -162,37 +159,50 @@ def test_DistPackage__render_as_root():
 
 
 def test_DistPackage__render_as_branch():
-    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1', extras=[0])
-    foo.has_metadata = mock.Mock(return_value=True)
-    foo.get_metadata_lines = mock.Mock(return_value=[extra_str('baz', '>=1.0', 'x')])
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1')
     bar = mock.Mock(key='bar', project_name='bar', version='4.1.0', extras=[])
     bar_req = mock.Mock(key='bar',
                         project_name='bar',
                         version='4.1.0',
                         specs=[('>=', '4.0')])
-    rp = p.ReqPackage(bar_req, dist=bar)
     dp = p.DistPackage(foo)
     is_frozen = False
-    assert 'foo==20.4.1 [requires: bar>=4.0]' == dp.as_parent_of(rp).render_as_branch(is_frozen)
-    rp = p.ReqPackage(dp.extra_requires()[0][1])
-    assert 'foo==20.4.1 [requires: baz>=1.0]' == dp.as_parent_of(rp).render_as_branch(is_frozen)
+
+    # when bar is a hard dependency of foo
+    rp1 = p.ReqPackage(bar_req,
+                       dist=bar,
+                       rel=p.PkgRelation(dp, 'required_by', None))
+    dp1 = p.DistPackage(foo).as_parent_of(rp1)
+    exp1 = 'foo==20.4.1 [requires: bar>=4.0]'
+    assert exp1 == dp1.render_as_branch(is_frozen)
+
+    # when bar is an extra dependency of foo
+    rp2 = p.ReqPackage(bar_req,
+                       dist=bar,
+                       rel=p.PkgRelation(dp, 'required_by', 'test'))
+    dp2 = p.DistPackage(foo).as_parent_of(rp2)
+    exp2 = '[test] foo==20.4.1 [requires: bar>=4.0]'
+    assert exp2 == dp2.render_as_branch(is_frozen)
 
 
 def test_DistPackage__as_parent_of():
-    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1', extras=[])
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1')
     dp = p.DistPackage(foo)
-    assert dp.req is None
-    assert not len(dp.extra_requires())
+    assert dp.rel is None
 
     bar = mock.Mock(key='bar', project_name='bar', version='4.1.0', extras=[])
     bar_req = mock.Mock(key='bar',
                         project_name='bar',
                         version='4.1.0',
                         specs=[('>=', '4.0')])
-    rp = p.ReqPackage(bar_req, dist=bar, extra='x')
+    rp = p.ReqPackage(bar_req,
+                      dist=bar,
+                      rel=p.PkgRelation(dp, 'required_by', 'x'))
     dp1 = dp.as_parent_of(rp)
     assert dp1._obj == dp._obj
-    assert dp1.req is rp
+    assert dp1.rel.pkg is rp
+    assert dp1.rel.direction == 'requires'
+    assert dp1.rel.extra == 'x'
 
     dp2 = dp.as_parent_of(None)
     assert dp2 is dp
@@ -220,48 +230,60 @@ def test_ReqPackage__render_as_root():
 
 
 def test_ReqPackage__render_as_branch():
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1')
+    dp = p.DistPackage(foo)
     bar = mock.Mock(key='bar', project_name='bar', version='4.1.0')
     bar_req = mock.Mock(key='bar',
                         project_name='bar',
                         version='4.1.0',
                         specs=[('>=', '4.0')])
-    rp = p.ReqPackage(bar_req, dist=bar)
     is_frozen = False
-    assert 'bar [required: >=4.0, installed: 4.1.0]' == rp.render_as_branch(is_frozen)
-    bar_req = mock.Mock(key='bar',
-                        project_name='bar',
-                        version='4.1.0',
-                        specs=[('>=', '4.0')])
-    rp = p.ReqPackage(bar_req, dist=bar, extra='x')
-    assert '[x] bar [required: >=4.0, installed: 4.1.0]' == rp.render_as_branch(is_frozen)
+
+    # when bar is a hard dependency of foo
+    rp1 = p.ReqPackage(bar_req,
+                       dist=bar,
+                       rel=p.PkgRelation(dp, 'required_by', None))
+    exp1 = 'bar [required: >=4.0, installed: 4.1.0]'
+    assert exp1 == rp1.render_as_branch(is_frozen)
+
+    # when bar is an extra dependency of foo
+    rp2 = p.ReqPackage(bar_req,
+                       dist=bar,
+                       rel=p.PkgRelation(dp, 'required_by', 'x'))
+    exp2 = '[x] bar [required: >=4.0, installed: 4.1.0]'
+    assert exp2 == rp2.render_as_branch(is_frozen)
 
 
 def test_ReqPackage__as_dict():
+    foo = mock.Mock(key='foo', project_name='foo', version='20.4.1')
+    dp = p.DistPackage(foo)
     bar = mock.Mock(key='bar', project_name='bar', version='4.1.0')
     bar_req = mock.Mock(key='bar',
                         project_name='bar',
                         version='4.1.0',
                         specs=[('>=', '4.0')])
-    rp = p.ReqPackage(bar_req, dist=bar)
-    result = rp.as_dict()
-    expected = {'key': 'bar',
-                'package_name': 'bar',
-                'installed_version': '4.1.0',
-                'required_version': '>=4.0',
-                'extra': None}
-    assert expected == result
-    bar_req = mock.Mock(key='bar',
-                        project_name='bar',
-                        version='4.1.0',
-                        specs=[('>=', '4.0')])
-    rp = p.ReqPackage(bar_req, dist=bar, extra='x')
-    result = rp.as_dict()
-    expected = {'key': 'bar',
-                'package_name': 'bar',
-                'installed_version': '4.1.0',
-                'required_version': '>=4.0',
-                'extra': 'x'}
-    assert expected == result
+
+    # when bar is a hard dependency of foo
+    rp1 = p.ReqPackage(bar_req,
+                       dist=bar,
+                       rel=p.PkgRelation(dp, 'required_by', None))
+    exp1 = {'key': 'bar',
+            'package_name': 'bar',
+            'installed_version': '4.1.0',
+            'required_version': '>=4.0',
+            'extra': None}
+    assert exp1 == rp1.as_dict()
+
+    # when bar is an extra dependency of foo
+    rp2 = p.ReqPackage(bar_req,
+                       dist=bar,
+                       rel=p.PkgRelation(dp, 'required_by', 'x'))
+    exp2 = {'key': 'bar',
+            'package_name': 'bar',
+            'installed_version': '4.1.0',
+            'required_version': '>=4.0',
+            'extra': 'x'}
+    assert exp2 == rp2.as_dict()
 
 
 # Tests for render_text
@@ -318,6 +340,7 @@ def test_ReqPackage__as_dict():
                 '    - b [required: >=2.1.0, installed: 2.3.1]',
                 '      - d [required: >=2.30,<2.42, installed: 2.35]',
                 '        - e [required: >=0.9.0, installed: 0.12.1]',
+                '        - [x] f [required: >=3.1, installed: 3.1]',
                 '        - [x] g [required: >=6.7, installed: 6.8.3rc1]'
             ]
         ),
@@ -351,7 +374,9 @@ def test_ReqPackage__as_dict():
                 '    - b==2.3.1 [requires: d>=2.30,<2.42]',
                 '      - a==3.4.0 [requires: b>=2.0.0]',
                 '      - f==3.1 [requires: b>=2.1.0]',
+                '        - [x] d==2.35 [requires: f>=3.1]',
                 '        - g==6.8.3rc1 [requires: f>=3.0.0]',
+                '          - [x] d==2.35 [requires: g>=6.7]',
                 '    - c==5.10.0 [requires: d>=2.30]',
                 '      - a==3.4.0 [requires: c>=5.7.1]',
                 '    - [x] g==6.8.3rc1 [requires: d>=2.34]',
@@ -388,6 +413,7 @@ def test_ReqPackage__as_dict():
                 '    - b [required: >=2.1.0, installed: 2.3.1]',
                 '      - d [required: >=2.30,<2.42, installed: 2.35]',
                 '        - e [required: >=0.9.0, installed: 0.12.1]',
+                '        - [x] f [required: >=3.1, installed: 3.1]',
                 '        - [x] g [required: >=6.7, installed: 6.8.3rc1]'
             ]
         ),
@@ -402,7 +428,9 @@ def test_ReqPackage__as_dict():
                 '    - b==2.3.1 [requires: d>=2.30,<2.42]',
                 '      - a==3.4.0 [requires: b>=2.0.0]',
                 '      - f==3.1 [requires: b>=2.1.0]',
+                '        - [x] d==2.35 [requires: f>=3.1]',
                 '        - g==6.8.3rc1 [requires: f>=3.0.0]',
+                '          - [x] d==2.35 [requires: g>=6.7]',
                 '    - c==5.10.0 [requires: d>=2.30]',
                 '      - a==3.4.0 [requires: c>=5.7.1]',
                 '    - [x] g==6.8.3rc1 [requires: d>=2.34]',
@@ -416,6 +444,11 @@ def test_render_text(capsys, list_all, reverse, expected_output):
     tree = t.reverse() if reverse else t
     p.render_text(tree, list_all=list_all, frozen=False)
     captured = capsys.readouterr()
+    # For easy debugging
+    #
+    # print(captured.out.strip(), file=open('/tmp/actual.txt', 'w'))
+    # print('\n'.join(expected_output).strip(),
+    #       file=open('/tmp/exp.txt', 'w'))
     assert '\n'.join(expected_output).strip() == captured.out.strip()
 
 

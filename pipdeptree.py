@@ -4,7 +4,7 @@ import inspect
 import sys
 import subprocess
 from itertools import chain
-from collections import defaultdict, deque
+from collections import defaultdict, deque, namedtuple
 import argparse
 from operator import attrgetter
 import json
@@ -87,15 +87,10 @@ class Package(object):
 
     """
 
-    def __init__(self, obj, extra=None):
+    def __init__(self, obj):
         self._obj = obj
         self.project_name = obj.project_name
         self.key = obj.key
-        self._extra = extra
-
-    @property
-    def extra(self):
-        return self._extra
 
     def render_as_root(self, frozen):
         return NotImplementedError
@@ -121,27 +116,31 @@ class Package(object):
         return '<{0}("{1}")>'.format(self.__class__.__name__, self.key)
 
 
+PkgRelation = namedtuple('PkgRelation', ['pkg', 'direction', 'extra'])
+
+
 class DistPackage(Package):
     """Wrapper class for pkg_resources.Distribution instances
 
       :param obj: pkg_resources.Distribution to wrap over
-      :param req: optional ReqPackage object to associate this
-                  DistPackage with. This is useful for displaying the
-                  tree in reverse
+
+      :param rel: optional PkgRelation object to associate this
+                  DistPackage with a ReqPackage. This is useful for
+                  displaying the tree in reverse
+
     """
 
-    def __init__(self, obj, req=None, extra=None):
-        super(DistPackage, self).__init__(obj, extra)
+    def __init__(self, obj, rel=None):
+        super(DistPackage, self).__init__(obj)
         self.version_spec = None
-        self.req = req
+        self.rel = rel
 
-    @Package.extra.setter
-    def extra(self, extra):
-        self._extra = extra
+    def is_extra_rel(self):
+        return self.rel and self.rel.extra is not None
 
     def extra_requires(self):
         md_key = 'METADATA'
-        if not len(self.extras) or not self.has_metadata(md_key):
+        if not self.has_metadata(md_key):
             return {}
         extras = defaultdict(list)
         for line in self.get_metadata_lines(md_key):
@@ -158,16 +157,18 @@ class DistPackage(Package):
             return self.__class__.frozen_repr(self._obj)
 
     def render_as_branch(self, frozen):
-        assert self.req is not None
+        assert self.rel is not None
         if not frozen:
-            parent_ver_spec = self.req.version_spec()
-            parent_str = self.req.project_name
+            req = self.rel.pkg
+            parent_ver_spec = req.version_spec()
+            parent_str = req.project_name
             if parent_ver_spec:
                 parent_str += parent_ver_spec
-            if self.extra is not None:
+            extra = self.rel.extra
+            if extra is not None:
                 return (
                     '[{0}] {1}=={2} [requires: {3}]'
-                ).format(self.extra, self.project_name, self.version, parent_str)
+                ).format(extra, self.project_name, self.version, parent_str)
             else:
                 return (
                     '{0}=={1} [requires: {2}]'
@@ -175,9 +176,9 @@ class DistPackage(Package):
         else:
             return self.render_as_root(frozen)
 
-    def as_requirement(self, extra=None):
+    def as_req_pkg(self):
         """Return a ReqPackage representation of this DistPackage"""
-        return ReqPackage(self._obj.as_requirement(), dist=self, extra=extra)
+        return ReqPackage(self._obj.as_requirement(), dist=self)
 
     def as_parent_of(self, req):
         """Return a DistPackage instance associated to a requirement
@@ -192,9 +193,13 @@ class DistPackage(Package):
         :returns: DistPackage instance
 
         """
-        if req is None and self.req is None:
+        if req is None and self.rel is None:
             return self
-        return self.__class__(self._obj, req, req.extra if req is not None else None)
+        if req:
+            rel = PkgRelation(req, 'requires', extra=req.rel.extra)
+        else:
+            rel = None
+        return self.__class__(self._obj, rel)
 
     def as_dict(self):
         return {'key': self.key,
@@ -206,24 +211,33 @@ class ReqPackage(Package):
     """Wrapper class for Requirements instance
 
       :param obj: The `Requirements` instance to wrap over
-      :param dist: optional `pkg_resources.Distribution` instance for
+      :param dist: `pkg_resources.Distribution` instance for
                    this requirement
+      :param rel: (optional) `PkgRelation` object to indicate
+                  additional context ie. as required by some DistPackage
     """
 
     UNKNOWN_VERSION = '?'
 
-    def __init__(self, obj, dist=None, extra=None):
-        super(ReqPackage, self).__init__(obj, extra)
+    def __init__(self, obj, dist, rel=None):
+        super(ReqPackage, self).__init__(obj)
         self.dist = dist
+        self.rel = rel
+
+    def is_extra(self):
+        return self.rel and self.rel.extra is not None
+
+    def is_extra_rel(self):
+        return self.is_extra()
 
     def version_spec(self, extra=False):
         specs = sorted(self._obj.specs, reverse=True)  # `reverse` makes '>' prior to '<'
         version_spec = ','.join([''.join(sp) for sp in specs]) if specs else None
-        if extra and self.extra is not None:
+        if extra and self.is_extra():
             if version_spec is not None:
-                version_spec = '[{0}] {1}'.format(self.extra, version_spec)
+                version_spec = '[{0}] {1}'.format(self.rel.extra, version_spec)
             else:
-                version_spec = '[{0}]'.format(self.extra)
+                version_spec = '[{0}]'.format(self.rel.extra)
         return version_spec
 
     @property
@@ -239,7 +253,7 @@ class ReqPackage(Package):
     def is_conflicting(self):
         """If installed version conflicts with required version"""
         # if extra requirement, no conflict
-        if self.extra is not None:
+        if self.is_extra():
             return False
         # unknown installed version is also considered conflicting
         if self.installed_version == self.UNKNOWN_VERSION:
@@ -260,10 +274,15 @@ class ReqPackage(Package):
     def render_as_branch(self, frozen):
         if not frozen:
             req_ver = self.version_spec() if self.version_spec() else 'Any'
-            if self.extra is not None:
+            if self.is_extra():
                 return (
                     '[{0}] {1} [required: {2}, installed: {3}]'
-                ).format(self.extra, self.project_name, req_ver, self.installed_version)
+                ).format(
+                    self.rel.extra,
+                    self.project_name,
+                    req_ver,
+                    self.installed_version
+                )
             else:
                 return (
                     '{0} [required: {1}, installed: {2}]'
@@ -271,12 +290,18 @@ class ReqPackage(Package):
         else:
             return self.render_as_root(frozen)
 
+    def as_dist_pkg(self):
+        return self.dist
+
+    def as_child_of(self, rel):
+        return self.__class__(self._obj, dist=self.dist, rel=rel)
+
     def as_dict(self):
         return {'key': self.key,
                 'package_name': self.project_name,
                 'installed_version': self.installed_version,
                 'required_version': self.version_spec(),
-                'extra': self.extra}
+                'extra': self.rel.extra}
 
 
 class PackageDAG(Mapping):
@@ -309,14 +334,17 @@ class PackageDAG(Mapping):
     def from_pkgs(cls, pkgs, filters=None):
         pkgs = [DistPackage(p) for p in pkgs if p.key != 'pkg-resources']
         idx = {p.key: p for p in pkgs}
-        m = {p: [ReqPackage(r, idx.get(r.key))
+        m = {p: [ReqPackage(r,
+                            dist=idx.get(r.key),
+                            rel=PkgRelation(p, 'required_by', None))
                  for r in p.requires()]
              for p in pkgs}
         for p, rs in m.items():
             extras = p.extra_requires()
             for extra, profiles in extras.items():
                 if extra.key in idx:
-                    r = ReqPackage(extra, idx[extra.key], ','.join(profiles))
+                    rel = PkgRelation(p, 'required_by', ','.join(profiles))
+                    r = ReqPackage(extra, dist=idx[extra.key], rel=rel)
                     m[p].append(r)
         return cls(m, filters)
 
@@ -457,10 +485,10 @@ class PackageDAG(Mapping):
                 try:
                     node = [p for p in m.keys() if p.key == v.key][0]
                 except IndexError:
-                    node = v
+                    node = v.as_child_of(rel=None)
                 m[node].append(k.as_parent_of(v))
             if k.key not in child_keys:
-                m[k.as_requirement()] = []
+                m[k.as_req_pkg()] = []
         return ReversedPackageDAG(dict(m), self.filters)
 
     def sort(self):
@@ -472,15 +500,15 @@ class PackageDAG(Mapping):
         """
         return self.__class__(sorted_tree(self._obj), self.filters)
 
-    def is_pkg_included(self, pkg_key):
+    def is_pkg_explicitly_included(self, pkg_key):
         if self.filters:
             to_include = self.filters.get('include')
             if to_include:
                 return pkg_key.lower() in to_include
             else:
-                return True
+                return False
         else:
-            return True
+            return False
 
     # Methods required by the abstract base class Mapping
     def __getitem__(self, *args):
@@ -518,8 +546,6 @@ class ReversedPackageDAG(PackageDAG):
         child_keys = set(r.key for r in flatten(self._obj.values()))
         for k, vs in self._obj.items():
             for v in vs:
-                if isinstance(v, DistPackage):
-                    v.extra = None
                 try:
                     node = [p for p in m.keys() if p.key == v.key][0]
                 except IndexError:
@@ -548,21 +574,27 @@ def render_text(tree, list_all=True, frozen=False):
 
     if not list_all:
         to_ignore = set(r.key for r in flatten(tree.values())
-                        if not tree.is_pkg_included(r.key))
+                        if not r.is_extra_rel())
         nodes = [p for p in nodes if p.key not in to_ignore]
 
     def aux(node, parent=None, indent=0, chain=None):
-        chain = chain or []
+        chain = chain or [node.project_name]
         node_str = node.render(parent, frozen)
         if parent:
             prefix = ' ' * indent + ('- ' if use_bullets else '')
             node_str = prefix + node_str
         result = [node_str]
-        children = [aux(c, node, indent=indent + 2,
-                        chain=chain + [c.project_name])
-                    for c in tree.get_children(node.key)
-                    if c.project_name not in chain]
-        result += list(flatten(children))
+        if not node.is_extra_rel():
+            children = [aux(c, node, indent=indent + 2,
+                            chain=chain + [c.project_name])
+                        for c in tree.get_children(node.key)
+                        # don't consider cyclic dependencies (as they
+                        # would cause infinite recursion)
+                        if c.project_name not in chain
+                        # unless the relation with
+                        # dependency/dependent is extra
+                        or c.is_extra_rel()]
+            result += list(flatten(children))
         return result
 
     lines = flatten([aux(p) for p in nodes])
@@ -606,7 +638,7 @@ def render_json_tree(tree, indent):
     """
     tree = tree.sort()
     to_ignore = set(r.key for r in flatten(tree.values())
-                    if not tree.is_pkg_included(r.key))
+                    if not r.is_extra_rel())
     nodes = [p for p in tree.keys() if p.key not in to_ignore]
 
     def aux(node, parent=None, chain=None):
@@ -661,11 +693,11 @@ def dump_graphviz(tree, output_format='dot', is_reverse=False):
             graph.node(pkg.key, label=pkg_label)
             for dep in deps:
                 edge_label = dep.version_spec(True) or 'any'
-                if dep.is_missing and dep.extra is None:
+                if dep.is_missing and not dep.is_extra_rel():
                     dep_label = '{0}\n(missing)'.format(dep.project_name)
                     graph.node(dep.key, label=dep_label, style='dashed')
                     graph.edge(pkg.key, dep.key, style='dashed')
-                elif dep.extra is None:
+                elif not dep.is_extra_rel():
                     graph.edge(pkg.key, dep.key, label=edge_label)
                 else:
                     graph.edge(pkg.key, dep.key, label=edge_label, style='dashed')
@@ -748,11 +780,12 @@ def cyclic_deps(tree):
     :rtype: list
 
     """
-    index = {p.key: set([r.key for r in rs if r.extra is None]) for p, rs in tree.items()}
+    index = {p.key: set([r.key for r in rs if not r.is_extra()])
+             for p, rs in tree.items()}
     cyclic = []
     for p, rs in tree.items():
         for r in rs:
-            if r.extra is None and p.key in index.get(r.key, []):
+            if p.key in index.get(r.key, []):
                 p_as_dep_of_r = [x for x
                                  in tree.get(tree.get_node_as_parent(r.key))
                                  if x.key == p.key][0]
