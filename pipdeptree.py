@@ -709,9 +709,9 @@ def dump_graphviz(tree, output_format='dot', is_reverse=False):
             for parent in parents:
                 # req reference of the dep associated with this
                 # particular parent package
-                req_ref = parent.req
+                req_ref = parent.rel.pkg
                 edge_label = req_ref.version_spec(True) or 'any'
-                if isinstance(parent, DistPackage) or parent.extra is None:
+                if not parent.is_extra_rel():
                     graph.edge(dep.key, parent.key, label=edge_label)
                 else:
                     graph.edge(dep.key, parent.key, label=edge_label, style='dashed')
