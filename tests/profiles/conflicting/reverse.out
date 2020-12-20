@@ -5,7 +5,7 @@ MarkupSafe==0.22
     - Flask==0.10.1 [requires: Jinja2>=2.4]
 pip==20.2.3
   - pipdeptree==2.0.0b1 [requires: pip>=6.0.0]
-setuptools==50.3.0
+setuptools==51.0.0
 Werkzeug==0.11.2
   - Flask==0.10.1 [requires: Werkzeug>=0.7]
-wheel==0.35.1
+wheel==0.36.2

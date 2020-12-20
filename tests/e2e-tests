@@ -6,6 +6,10 @@ PROFILE=$1
 PYTHON_EXE=${PYTHON_EXE:-python3.6}
 PIP_VERSION=${PIP_VERSION:-latest}
 
+if [ "$PROFILE" == "conflicting" ]; then
+    PIP_VERSION=20.2.3
+fi
+
 cd profiles/$PROFILE
 
 echo "Profile dir: $(pwd)"
@@ -22,6 +26,8 @@ pip=$env_dir/bin/pip
 
 if [ "$PIP_VERSION" == "latest" ]; then
     $pip install -U pip
+else
+    $pip install pip==$PIP_VERSION
 fi
 
 # Install requirements
