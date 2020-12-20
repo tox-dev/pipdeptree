@@ -11,9 +11,10 @@ installed globally on a machine as well as in a virtualenv. Since
 ``pip freeze`` shows all dependencies as a flat list, finding out
 which are the top level packages and which packages do they depend on
 requires some effort. It's also tedious to resolve conflicting
-dependencies that could get installed because ``pip`` doesn't have
-true dependency resolution yet [1]_. ``pipdeptree`` can help here by
-identifying conflicting dependencies installed in the environment.
+dependencies that could have been installed because older version of
+``pip`` didn't have true dependency resolution [1]_. ``pipdeptree``
+can help here by identifying conflicting dependencies installed in the
+environment.
 
 To some extent, ``pipdeptree`` is inspired by the ``lein deps :tree``
 command of `Leiningen <http://leiningen.org/>`_.
@@ -115,15 +116,16 @@ What's with the warning about conflicting dependencies?
 As seen in the above output, ``pipdeptree`` by default warns about
 possible conflicting dependencies. Any package that's specified as a
 dependency of multiple packages with different versions is considered
-as a conflicting dependency. Conflicting dependencies are possible due
-to pip's `lack of true dependency resolution
-<https://github.com/pypa/pip/issues/988>`_ [1]_. The warning is
-printed to stderr instead of stdout and it can be completely silenced
-by specifying the ``-w silence`` or ``--warn silence`` option. On the
-other hand, it can be made mode strict with ``--warn fail``, in which
-case the command will not only print the warnings to stderr but also
-exit with a non-zero status code. This is useful if you want to fit
-this tool into your CI pipeline.
+as a conflicting dependency. Conflicting dependencies are possible if
+older version of pip<=20.2 (`without the new resolver
+<https://github.com/pypa/pip/issues/988>`_ [1]_) was ever used to
+install dependencies at some point. The warning is printed to stderr
+instead of stdout and it can be completely silenced by specifying the
+``-w silence`` or ``--warn silence`` option. On the other hand, it can
+be made mode strict with ``--warn fail``, in which case the command
+will not only print the warnings to stderr but also exit with a
+non-zero status code. This is useful if you want to fit this tool into
+your CI pipeline.
 
 **Note**: The ``--warn`` option is added in version ``0.6.0``. If you
 are using an older version, use ``--nowarn`` flag to silence the
@@ -159,7 +161,7 @@ Using pipdeptree to write requirements.txt file
 -----------------------------------------------
 
 If you wish to track only top level packages in your
-``requirements.txt`` file, it's possible by grep-ing only the
+``requirements.txt`` file, it's possible by grep-ing [2]_. only the
 top-level lines from the output,
 
 .. code-block:: bash
@@ -280,9 +282,9 @@ Usage
     usage: pipdeptree [-h] [-v] [-f] [-a] [-l] [-u] [-w [{silence,suppress,fail}]]
                       [-r] [-p PACKAGES] [-e PACKAGES] [-j] [--json-tree]
                       [--graph-output OUTPUT_FORMAT]
-    
+
     Dependency tree of the installed python packages
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       -v, --version         show program's version number and exit
@@ -348,9 +350,6 @@ installing the packages, then you need a dependency resolver. You
 might want to check alternatives such as `pipgrip
 <https://github.com/ddelange/pipgrip>`_ or `poetry
 <https://github.com/python-poetry/poetry>`_.
-
-Also, stay tuned for the dependency resolver in upcoming versions of
-pip [1]_.
 
 
 Runing Tests (for contributors)
@@ -438,5 +437,10 @@ MIT (See `LICENSE <./LICENSE>`_)
 Footnotes
 ---------
 
-.. [1] Soon we'll have `a dependency resolver in pip itself
-       <https://github.com/pypa/pip/issues/6536>`_
+.. [1] pip version 20.3 has been released in Nov 2020 with the
+       dependency resolver
+       <https://blog.python.org/2020/11/pip-20-3-release-new-resolver.html>_
+
+.. [2] If you are on windows (powershell) you can run
+       ``pipdeptree --warn silence | Select-String -Pattern '^\w+'``
+       instead of grep
