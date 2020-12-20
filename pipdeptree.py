@@ -69,7 +69,11 @@ def guess_version(pkg_key, default='?'):
     except ImportError:
         return default
     else:
-        return getattr(m, '__version__', default)
+        v = getattr(m, '__version__', default)
+        if inspect.ismodule(v):
+            return getattr(v, '__version__', default)
+        else:
+            return v
 
 
 def frozen_req_from_dist(dist):
