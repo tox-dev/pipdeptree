@@ -5,5 +5,5 @@ Flask==0.10.1
   - Werkzeug [required: >=0.7, installed: 0.11.2]
 pipdeptree==2.0.0b1
   - pip [required: >=6.0.0, installed: 20.2.3]
-setuptools==50.3.0
-wheel==0.35.1
+setuptools==51.0.0
+wheel==0.36.2
