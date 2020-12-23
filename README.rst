@@ -27,26 +27,26 @@ Installation
 
     $ pip install pipdeptree
 
-This will install the latest stable version which is ``1.0.0``. This
-version works well for the basic use case but has some limitations.
-
-An improved version ``2.0.0b1`` has been released as well. But as it's
-a beta version, pip will not find it by default. To install the latest
-beta version specify the ``--pre`` flag.
-
-.. code-block:: bash
-
-    $ sudo pip install --pre pipdeptree
-
-The current stable version is tested with ``2.7``, ``3.4``, ``3.5``
-and ``3.6``.
-
-The ``v2beta`` branch has been tested with Python ``3.4``, ``3.5``, ``3.6``, ``3.7``,
-``3.8`` as well as ``2.7``.
+pipdeptree has been tested with Python versions ``2.7``, ``3.4``,
+``3.5``, ``3.6``, ``3.7``, ``3.8``, ``3.9-dev`` as well as ``pypy2``
+and ``pypy3``.
 
 Python ``2.6`` is way past it's end of life but if you ever find
 yourself stuck on a legacy environment, version ``0.9.0`` *might*
 work.
+
+
+Running in virtualenvs
+----------------------
+
+`New in ver. 2.0.0`
+
+If you want to run pipdeptree in the context of a particular
+virtualenv, you can specify the ``--python`` option. Note that this
+capability has been recently added in version ``2.0.0``.
+
+Alternately, you may also install pipdeptree inside the virtualenv and
+then run it from there.
 
 
 Usage and examples
@@ -279,9 +279,10 @@ Usage
 
 .. code-block:: bash
 
-    usage: pipdeptree [-h] [-v] [-f] [-a] [-l] [-u] [-w [{silence,suppress,fail}]]
-                      [-r] [-p PACKAGES] [-e PACKAGES] [-j] [--json-tree]
-                      [--graph-output OUTPUT_FORMAT]
+    usage: pipdeptree.py [-h] [-v] [-f] [--python PYTHON] [-a] [-l] [-u]
+                         [-w [{silence,suppress,fail}]] [-r] [-p PACKAGES]
+                         [-e PACKAGES] [-j] [--json-tree]
+                         [--graph-output OUTPUT_FORMAT]
 
     Dependency tree of the installed python packages
 
@@ -289,6 +290,8 @@ Usage
       -h, --help            show this help message and exit
       -v, --version         show program's version number and exit
       -f, --freeze          Print names so as to write freeze files
+      --python PYTHON       Python to use to look for packages in it (default:
+                            where installed)
       -a, --all             list all deps at top level
       -l, --local-only      If in a virtualenv that has global access do not show
                             globally installed packages
@@ -323,16 +326,7 @@ Usage
 Known issues
 ------------
 
-1. To work with packages installed inside a virtualenv, ``pipdeptree``
-   also needs to be installed in the same virtualenv even if it's
-   already installed globally.
-
-2. Due to (1), the output also includes ``pipdeptree`` itself as a
-   dependency along with ``pip``, ``setuptools`` and ``wheel`` which
-   get installed in the virtualenv by default. To ignore them, use the
-   ``--exclude`` option.
-
-3. ``pipdeptree`` relies on the internal API of ``pip``. I fully
+1. ``pipdeptree`` relies on the internal API of ``pip``. I fully
    understand that it's a bad idea but it mostly works! On rare
    occasions, it breaks when a new version of ``pip`` is out with
    backward incompatible changes in internal API. So beware if you are

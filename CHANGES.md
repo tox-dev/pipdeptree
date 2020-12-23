@@ -1,6 +1,22 @@
 Changelog
 =========
 
+2.0.0 (stable)
+--------------
+
+* Support for running in the context of a virtualenv (without
+  installing pipdeptree inside the virtualenv)
+
+* Avoid crash when rendering cyclic dependencies
+
+* Fix graphviz (dot file) output
+
+* Handle a (rare) case while guessing version of a package
+
+* Migrate from travisCI to Github workflows
+
+* Improve integration tests
+
 2.0.0b1 (beta version)
 ----------------------
 
@@ -34,8 +50,8 @@ Changelog
 
 * Move continuous integration from Travis to Github Actions.
 
-1.0.0 (current stable version)
-------------------------------
+1.0.0
+-----
 
 * Use `pkg_resources` vendored with `pip`.
 
