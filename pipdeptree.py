@@ -6,7 +6,6 @@ import subprocess
 from itertools import chain
 from collections import defaultdict, deque
 import argparse
-from operator import attrgetter
 import json
 from importlib import import_module
 import tempfile
@@ -50,9 +49,7 @@ def sorted_tree(tree):
     :rtype: collections.OrderedDict
 
     """
-    return OrderedDict(sorted([(k, sorted(v, key=attrgetter('key')))
-                               for k, v in tree.items()],
-                              key=lambda kv: kv[0].key))
+    return OrderedDict([(k, sorted(v)) for k, v in sorted(tree.items())])
 
 
 def guess_version(pkg_key, default='?'):
@@ -118,6 +115,9 @@ class Package(object):
 
     def __repr__(self):
         return '<{0}("{1}")>'.format(self.__class__.__name__, self.key)
+
+    def __lt__(self, rhs):
+        return self.key < rhs.key
 
 
 class DistPackage(Package):
@@ -524,6 +524,7 @@ def render_json(tree, indent):
     :rtype: str
 
     """
+    tree = tree.sort()
     return json.dumps([{'package': k.as_dict(),
                         'dependencies': [v.as_dict() for v in vs]}
                        for k, vs in tree.items()],
@@ -668,7 +669,7 @@ def render_conflicts_text(conflicts):
         print('Warning!!! Possibly conflicting dependencies found:',
               file=sys.stderr)
         # Enforce alphabetical order when listing conflicts
-        pkgs = sorted(conflicts.keys(), key=attrgetter('key'))
+        pkgs = sorted(conflicts.keys())
         for p in pkgs:
             pkg = p.render_as_root(False)
             print('* {}'.format(pkg), file=sys.stderr)
