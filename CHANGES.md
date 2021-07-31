@@ -1,8 +1,18 @@
 Changelog
 =========
 
-2.0.0 (stable)
---------------
+2.1.0
+-----
+
+* JSON output is sorted alphabetically to make it deterministic
+
+* Fix --freeze option due to breaking changes in pip's internal api in
+  version > 21.1.1
+
+* Include license file in dist package
+
+2.0.0
+-----
 
 * Support for running in the context of a virtualenv (without
   installing pipdeptree inside the virtualenv)
