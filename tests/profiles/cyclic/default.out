@@ -1,4 +1,4 @@
-pipdeptree==2.0.0b1
-  - pip [required: >=6.0.0, installed: 20.3.3]
-setuptools==51.0.0
+pipdeptree==2.0.0
+  - pip [required: >=6.0.0, installed: 21.2.1]
+setuptools==57.4.0
 wheel==0.36.2
