@@ -74,6 +74,23 @@ def guess_version(pkg_key, default='?'):
 
 
 def frozen_req_from_dist(dist):
+    # The `pip._internal.metadata` modules were introduced in 21.1.1
+    # and the `pip._internal.operations.freeze.FrozenRequirement`
+    # class now expects dist to be a subclass of
+    # `pip._internal.metadata.BaseDistribution`, however the
+    # `pip._internal.utils.misc.get_installed_distributions` continues
+    # to return objects of type
+    # pip._vendor.pkg_resources.DistInfoDistribution.
+    #
+    # This is a hacky backward compatible (with older versions of pip)
+    # fix.
+    try:
+        from pip._internal import metadata
+    except ImportError:
+        pass
+    else:
+        dist = metadata.pkg_resources.Distribution(dist)
+
     try:
         return FrozenRequirement.from_dist(dist)
     except TypeError:
