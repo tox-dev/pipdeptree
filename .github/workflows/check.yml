@@ -15,7 +15,6 @@ jobs:
         os:
         - Ubuntu-latest
         py:
-        - 3.10.0b4
         - 3.9
         - 3.8
         - 3.7
