@@ -15,7 +15,8 @@ jobs:
         os:
         - Ubuntu-latest
         py:
-        - 3.9-dev
+        - 3.10.0b4
+        - 3.9
         - 3.8
         - 3.7
         - 3.6
@@ -23,9 +24,6 @@ jobs:
         - 2.7
         - pypy3
         - pypy2
-        include:
-          - os: Ubuntu-18.04
-            py: 3.4
     steps:
     - name: Setup graphviz
       uses: ts-graphviz/setup-graphviz@v1
