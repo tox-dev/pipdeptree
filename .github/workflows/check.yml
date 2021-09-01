@@ -52,3 +52,28 @@ jobs:
       run: tox -vv --notest
     - name: Run test suite
       run: tox --skip-pkg-install
+
+  build_and_test_arm64:
+      name: Build and Test for arm64
+      runs-on: ubuntu-20.04
+      steps:
+        - uses: actions/checkout@v2
+        - name: Set up QEMU
+          id: qemu
+          uses: docker/setup-qemu-action@v1
+        - name: Install and Run tests
+          run: |
+            docker run --rm -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
+              arm64v8/ubuntu:20.04 \
+              bash -exc 'apt-get update && apt-get -y install python3 python3-pip python3-venv && \
+              python3 -m pip install virtualenv && python3 -m venv py38-venv && \
+              source py38-venv/bin/activate && \
+              python -m pip install --upgrade pip && \
+              ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime && \
+              export DEBIAN_FRONTEND=noninteractive && \
+              apt-get install -y tzdata && dpkg-reconfigure --frontend noninteractive tzdata && \
+              apt-get -y install graphviz && \
+              python -m pip install tox && \
+              tox -e py38 -vv --notest && \
+              tox -e py38 --skip-pkg-install && \
+              deactivate'
