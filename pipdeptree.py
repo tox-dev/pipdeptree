@@ -20,12 +20,6 @@ try:
 except ImportError:
     from collections import Mapping
 
-try:
-    from pip._internal.utils.misc import get_installed_distributions
-    from pip._internal.operations.freeze import FrozenRequirement
-except ImportError:
-    from pip import get_installed_distributions, FrozenRequirement
-
 from pip._vendor import pkg_resources
 # inline:
 # from graphviz import backend, Digraph
@@ -124,8 +118,7 @@ class Package(object):
 
     @staticmethod
     def frozen_repr(obj):
-        fr = frozen_req_from_dist(obj)
-        return str(fr).strip()
+        return str(obj.as_requirement())
 
     def __getattr__(self, key):
         return getattr(self._obj, key)
@@ -840,8 +833,7 @@ def main():
     result = handle_non_host_target(args)
     if result is not None:
         return result
-    pkgs = get_installed_distributions(local_only=args.local_only,
-                                       user_only=args.user_only)
+    pkgs = list(pkg_resources.working_set)
 
     tree = PackageDAG.from_pkgs(pkgs)
 
