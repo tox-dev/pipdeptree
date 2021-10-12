@@ -1,35 +1,35 @@
 Flask-Script==2.0.6
   - Flask [required: Any, installed: 1.1.2]
-    - click [required: >=5.1, installed: 8.0.1]
-      - importlib-metadata [required: Any, installed: 4.6.2]
-        - typing-extensions [required: >=3.6.4, installed: 3.10.0.0]
-        - zipp [required: >=0.5, installed: 3.5.0]
+    - click [required: >=5.1, installed: 8.0.3]
+      - importlib-metadata [required: Any, installed: 4.8.1]
+        - typing-extensions [required: >=3.6.4, installed: 3.10.0.2]
+        - zipp [required: >=0.5, installed: 3.6.0]
     - itsdangerous [required: >=0.24, installed: 2.0.1]
-    - Jinja2 [required: >=2.10.1, installed: 3.0.1]
+    - Jinja2 [required: >=2.10.1, installed: 3.0.2]
       - MarkupSafe [required: >=2.0, installed: 2.0.1]
-    - Werkzeug [required: >=0.15, installed: 2.0.1]
+    - Werkzeug [required: >=0.15, installed: 2.0.2]
       - dataclasses [required: Any, installed: 0.8]
 gnureadline==8.0.0
 ipython==7.13.0
   - appnope [required: Any, installed: 0.1.2]
   - backcall [required: Any, installed: 0.2.0]
-  - decorator [required: Any, installed: 5.0.9]
+  - decorator [required: Any, installed: 5.1.0]
   - jedi [required: >=0.10, installed: 0.18.0]
     - parso [required: >=0.8.0,<0.9.0, installed: 0.8.2]
   - pexpect [required: Any, installed: 4.8.0]
     - ptyprocess [required: >=0.5, installed: 0.7.0]
   - pickleshare [required: Any, installed: 0.7.5]
-  - prompt-toolkit [required: >=2.0.0,<3.1.0,!=3.0.1,!=3.0.0, installed: 3.0.19]
+  - prompt-toolkit [required: >=2.0.0,<3.1.0,!=3.0.1,!=3.0.0, installed: 3.0.20]
     - wcwidth [required: Any, installed: 0.2.5]
-  - pygments [required: Any, installed: 2.9.0]
-  - setuptools [required: >=18.5, installed: 57.4.0]
+  - pygments [required: Any, installed: 2.10.0]
+  - setuptools [required: >=18.5, installed: 58.2.0]
   - traitlets [required: >=4.2, installed: 4.3.3]
-    - decorator [required: Any, installed: 5.0.9]
+    - decorator [required: Any, installed: 5.1.0]
     - ipython-genutils [required: Any, installed: 0.2.0]
     - six [required: Any, installed: 1.16.0]
-pipdeptree==2.0.0
-  - pip [required: >=6.0.0, installed: 21.2.1]
+pipdeptree==2.1.0
+  - pip [required: >=6.0.0, installed: 21.3]
 pymongo==3.10.1
 redis==3.4.1
 slugify==0.0.1
-wheel==0.36.2
+wheel==0.37.0

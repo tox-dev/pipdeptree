@@ -1,11 +1,12 @@
+argparse==1.4.0
 itsdangerous==0.24
   - Flask==0.10.1 [requires: itsdangerous>=0.21]
 MarkupSafe==0.22
-  - Jinja2==3.0.1 [requires: MarkupSafe>=2.0]
+  - Jinja2==3.0.2 [requires: MarkupSafe>=2.0]
     - Flask==0.10.1 [requires: Jinja2>=2.4]
 pip==20.2.3
-  - pipdeptree==2.0.0 [requires: pip>=6.0.0]
-setuptools==57.4.0
+  - pipdeptree==2.1.0 [requires: pip>=6.0.0]
+setuptools==58.2.0
 Werkzeug==0.11.2
   - Flask==0.10.1 [requires: Werkzeug>=0.7]
-wheel==0.36.2
+wheel==0.37.0
