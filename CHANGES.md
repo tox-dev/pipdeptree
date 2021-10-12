@@ -1,6 +1,13 @@
 Changelog
 =========
 
+2.2.0
+-----
+
+* Fix pipdeptree to work with pip version 21.3. The _internal pip api
+  that was being used earlier is now replaced with new functions. (PR
+  #154)
+
 2.1.0
 -----
 
