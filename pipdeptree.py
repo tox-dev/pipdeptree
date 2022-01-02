@@ -21,6 +21,10 @@ except ImportError:
     from collections import Mapping
 
 from pip._vendor import pkg_resources
+try:
+    from pip._internal.operations.freeze import FrozenRequirement
+except ImportError:
+    from pip import FrozenRequirement
 # inline:
 # from graphviz import Digraph
 # from graphviz import parameters
@@ -119,7 +123,8 @@ class Package(object):
 
     @staticmethod
     def frozen_repr(obj):
-        return str(obj.as_requirement())
+        fr = frozen_req_from_dist(obj)
+        return str(fr).strip()
 
     def __getattr__(self, key):
         return getattr(self._obj, key)
