@@ -1,10 +1,10 @@
 argparse==1.4.0
 Flask==0.10.1
   - itsdangerous [required: >=0.21, installed: 0.24]
-  - Jinja2 [required: >=2.4, installed: 3.0.2]
+  - Jinja2 [required: >=2.4, installed: 3.0.3]
     - MarkupSafe [required: >=2.0, installed: 0.22]
   - Werkzeug [required: >=0.7, installed: 0.11.2]
-pipdeptree==2.1.0
+pipdeptree==2.2.0
   - pip [required: >=6.0.0, installed: 20.2.3]
-setuptools==58.2.0
-wheel==0.37.0
+setuptools==59.6.0
+wheel==0.37.1
