@@ -22,7 +22,8 @@ except ImportError:
 
 from pip._vendor import pkg_resources
 # inline:
-# from graphviz import backend, Digraph
+# from graphviz import Digraph
+# from graphviz import parameters
 
 
 __version__ = '2.2.0'
@@ -592,17 +593,28 @@ def dump_graphviz(tree, output_format='dot', is_reverse=False):
 
     """
     try:
-        from graphviz import parameters, Digraph
+        from graphviz import Digraph
     except ImportError:
         print('graphviz is not available, but necessary for the output '
               'option. Please install it.', file=sys.stderr)
         sys.exit(1)
 
-    if output_format not in parameters.FORMATS:
+    try:
+        from graphviz import parameters
+    except ImportError:
+        from graphviz import backend
+        valid_formats = backend.FORMATS
+        print('Deprecation warning! Please upgrade graphviz to version >=0.18.0 '
+              'Support for older versions will be removed in upcoming release',
+              file=sys.stderr)
+    else:
+        valid_formats = parameters.FORMATS
+
+    if output_format not in valid_formats:
         print('{0} is not a supported output format.'.format(output_format),
               file=sys.stderr)
         print('Supported formats are: {0}'.format(
-            ', '.join(sorted(parameters.FORMATS))), file=sys.stderr)
+            ', '.join(sorted(valid_formats))), file=sys.stderr)
         sys.exit(1)
 
     graph = Digraph(format=output_format)
