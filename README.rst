@@ -264,7 +264,10 @@ The dependency graph can also be visualized using `GraphViz
     $ pipdeptree --graph-output svg > dependencies.svg
 
 Note that ``graphviz`` is an optional dependency ie. required only if
-you want to use ``--graph-output``.
+you want to use ``--graph-output``. If the version of ``graphviz``
+installed in the env is older than 0.18.1, then a warning will be
+displayed about upgrading ``graphviz``. Support for older versions of
+graphviz will be dropped soon.
 
 Since version ``2.0.0b1``, ``--package`` and ``--reverse`` flags are
 supported for all output formats ie. text, json, json-tree and graph.

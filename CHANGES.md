@@ -1,6 +1,14 @@
 Changelog
 =========
 
+2.2.1
+-----
+
+* Fix ``--user-only`` and ``--freeze`` flags which were broken after
+  the last release.
+
+* Fix for compatibility with new version of ``graphviz`` (>= 0.18.1).
+
 2.2.0
 -----
 
