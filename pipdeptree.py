@@ -760,6 +760,10 @@ def get_parser():
                         help=(
                             'Only show installations in the user site dir'
                         ))
+    parser.add_argument('--path', action="append"
+                        help=(
+                            '[pip>=21.1] Look in a custom installation path'
+                            '(can be used multiple times)'))
     parser.add_argument('-w', '--warn', action='store', dest='warn',
                         nargs='?', default='suppress',
                         choices=('silence', 'suppress', 'fail'),
@@ -845,7 +849,7 @@ def handle_non_host_target(args):
     return None
 
 
-def get_installed_distributions(local_only=False, user_only=False):
+def get_installed_distributions(local_only=False, user_only=False, paths=None):
     try:
         from pip._internal.metadata import get_environment
     except ImportError:
@@ -858,7 +862,7 @@ def get_installed_distributions(local_only=False, user_only=False):
             user_only=user_only
         )
     else:
-        dists = get_environment(None).iter_installed_distributions(
+        dists = get_environment(paths).iter_installed_distributions(
             local_only=local_only,
             skip=(),
             user_only=user_only
@@ -873,7 +877,8 @@ def main():
         return result
 
     pkgs = get_installed_distributions(local_only=args.local_only,
-                                       user_only=args.user_only)
+                                       user_only=args.user_only,
+                                       paths=args.path)
 
     tree = PackageDAG.from_pkgs(pkgs)
 
