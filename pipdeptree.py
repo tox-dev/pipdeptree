@@ -760,7 +760,7 @@ def get_parser():
                         help=(
                             'Only show installations in the user site dir'
                         ))
-    parser.add_argument('--path', action="append"
+    parser.add_argument('--path', action="append",
                         help=(
                             '[pip>=21.1] Look in a custom installation path'
                             '(can be used multiple times)'))
