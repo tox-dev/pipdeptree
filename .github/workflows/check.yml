@@ -3,52 +3,95 @@ on:
   push:
   pull_request:
   schedule:
-  - cron: "0 8 * * *"
+    - cron: "0 8 * * *"
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    name: Test on ${{ matrix.py }} under ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: test ${{ matrix.py }}
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        os:
-        - Ubuntu-latest
         py:
-        - 3.9
-        - 3.8
-        - 3.7
-        - 3.6
-        - 3.5
-        - 2.7
-        - pypy3
-        - pypy2
+          - "3.10"
+          - "3.9"
+          - "3.8"
+          - "3.7"
     steps:
-    - name: Setup graphviz
-      uses: ts-graphviz/setup-graphviz@v1
-    - name: Setup python for tox
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8
-    - name: Install tox
-      run: python -m pip install tox
-    - name: Setup python for test ${{ matrix.py }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.py }}
-    - uses: actions/checkout@v2
-    - name: Pick tox environment to run
-      run: |
-        import os
-        import platform
-        import sys
-        major, minor, impl = sys.version_info[0], sys.version_info[1], platform.python_implementation()
-        toxenv = ("py" if impl == "CPython" else "pypy") + ("{}{}".format(major, minor) if impl == "CPython" else ("3" if major == 3 else ""))
-        env_file = open(os.environ['GITHUB_ENV'], "a")
-        env_file.write("TOXENV={}\n".format(toxenv))
-        env_file.close()
-      shell: python
-    - name: Setup test suite
-      run: tox -vv --notest
-    - name: Run test suite
-      run: tox --skip-pkg-install
+      - name: Install OS dependencies
+        run: |
+          for i in 1 2 3; do
+            echo "try $i" && sudo apt-get update -y && sudo apt-get install graphviz -y && exit 0;
+          done
+          exit 1
+        shell: bash
+      - name: setup python for tox
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: install tox
+        run: python -m pip install tox
+      - uses: actions/checkout@v3
+      - name: setup python for test ${{ matrix.py }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Pick environment to run
+        run: |
+          import codecs; import os; import sys
+          env = "TOXENV=py3{}\n".format(sys.version_info[1])
+          print("Picked:\n{}for{}".format(env, sys.version))
+          with codecs.open(os.environ["GITHUB_ENV"], "a", "utf-8") as file_handler:
+               file_handler.write(env)
+        shell: python
+      - name: setup test suite
+        run: tox -vv --notest
+      - name: run test suite
+        run: tox --skip-pkg-install
+
+  check:
+    name: tox env ${{ matrix.tox_env }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        tox_env:
+          - dev
+          - readme
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: install tox
+        run: python -m pip install tox
+      - name: run check for ${{ matrix.tox_env }}
+        run: python -m tox -e ${{ matrix.tox_env }}
+        env:
+          UPGRADE_ADVISORY: "yes"
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    needs: [check, test]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: setup python to build package
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: install build
+        run: python -m pip install build
+      - uses: actions/checkout@v3
+      - name: build package
+        run: python -m build --sdist --wheel . -o dist
+      - name: publish to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.5.1
+        with:
+          skip_existing: true
+          user: __token__
+          password: ${{ secrets.pypi_password }}
