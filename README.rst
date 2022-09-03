@@ -14,7 +14,7 @@ requires some effort. It's also tedious to resolve conflicting
 dependencies that could have been installed because older version of
 ``pip`` didn't have true dependency resolution [1]_. ``pipdeptree``
 can help here by identifying conflicting dependencies installed in the
-environment.
+environment.R
 
 To some extent, ``pipdeptree`` is inspired by the ``lein deps :tree``
 command of `Leiningen <http://leiningen.org/>`_.

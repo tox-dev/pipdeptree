@@ -1,6 +1,7 @@
 from __future__ import print_function
 import os
 import inspect
+import shutil
 import sys
 import subprocess
 from itertools import chain
@@ -9,7 +10,7 @@ import argparse
 import json
 from importlib import import_module
 import tempfile
-
+from .version import version as __version__
 try:
     from collections import OrderedDict
 except ImportError:
@@ -28,9 +29,6 @@ except ImportError:
 # inline:
 # from graphviz import Digraph
 # from graphviz import parameters
-
-
-__version__ = '2.2.1'
 
 
 flatten = chain.from_iterable
@@ -829,19 +827,17 @@ def handle_non_host_target(args):
                 del argv[py_at]
             elif value.startswith("--python"):
                 del argv[py_at]
-        # feed the file as argument, instead of file
-        # to avoid adding the file path to sys.path, that can affect result
-        file_path = inspect.getsourcefile(sys.modules[__name__])
-        with open(file_path, 'rt') as file_handler:
-            content = file_handler.read()
-        cmd = [of_python, "-c", content]
-        cmd.extend(argv)
-        # invoke from an empty folder to avoid cwd altering sys.path
-        cwd = tempfile.mkdtemp()
-        try:
-            return subprocess.call(cmd, cwd=cwd)
-        finally:
-            os.removedirs(cwd)
+
+        main_file = inspect.getsourcefile(sys.modules[__name__])
+        with tempfile.TemporaryDirectory() as project:
+            dest = os.path.join(project, 'pipdeptree')
+            shutil.copytree(os.path.dirname(main_file), dest)
+            # invoke from an empty folder to avoid cwd altering sys.path
+            env = os.environ.copy()
+            env['PYTHONPATH'] = project
+            cmd = [of_python, '-m', 'pipdeptree']
+            cmd.extend(argv)
+            return subprocess.call(cmd, cwd=project, env=env)
     return None
 
 
@@ -922,7 +918,3 @@ def main():
         render_text(tree, args.all, args.freeze)
 
     return return_code
-
-
-if __name__ == '__main__':
-    sys.exit(main())

@@ -1,13 +1,6 @@
 *.pyc
-__pycache__
-*~
-*.egg-info/
-build/
+*.egg-info
 dist/
 .tox/
+/src/pipdeptree/version.py
 tests/virtualenvs/equimapper/
-.coverage
-coverage.xml
-htmlcov/
-.cache/
-.pytest_cache/
