@@ -1,6 +1,7 @@
 # pipdeptree
 
 [![check](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yml/badge.svg)](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yml)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/tox-dev/pipdeptree/main.svg)](https://results.pre-commit.ci/latest/github/tox-dev/pipdeptree/main)
 
 `pipdeptree` is a command line utility for displaying the installed python packages in form of a dependency tree. It
 works for packages installed globally on a machine as well as in a virtualenv. Since `pip freeze` shows all dependencies
