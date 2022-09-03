@@ -44,5 +44,3 @@ export PIPDEPTREE_EXE=$TEST_PROFILE_DIR/$pip_deptree
 cd -
 
 pytest -v e2e_tests.py
-
-

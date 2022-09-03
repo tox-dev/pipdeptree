@@ -38,7 +38,7 @@ work.
 Running in virtualenvs
 ----------------------
 
-`New in ver. 2.0.0`
+``New in ver. 2.0.0``
 
 If you want to run pipdeptree in the context of a particular
 virtualenv, you can specify the ``--python`` option. Note that this
@@ -89,7 +89,7 @@ And now see what ``pipdeptree`` outputs,
 Is it possible to find out why a particular package is installed?
 -----------------------------------------------------------------
 
-`New in ver. 0.5.0`
+``New in ver. 0.5.0``
 
 Yes, there's a ``--reverse`` (or simply ``-r``) flag for this. To find
 out which packages depend on a particular package(s), it can be
@@ -227,7 +227,7 @@ indentation) as follows,
 Using pipdeptree with external tools
 ------------------------------------
 
-`New in ver. 0.5.0`
+``New in ver. 0.5.0``
 
 It's also possible to have ``pipdeptree`` output json representation
 of the dependency tree so that it may be used as input to other
@@ -241,7 +241,7 @@ Note that ``--json`` will output a flat list of all packages with
 their immediate dependencies. This is not very useful in itself. To
 obtain nested json, use ``--json-tree``
 
-`New in ver. 0.11.0`
+``New in ver. 0.11.0``
 
 .. code-block:: bash
 
@@ -416,10 +416,10 @@ Release checklist
 
 #. Make sure that tests pass on Github Actions.
 #. Create a commit with following changes and push it to github
-#. Update the `__version__` in the `pipdeptree.py` file.
+#. Update the ``__version__`` in the ``pipdeptree.py`` file.
 
-   #. Add Changelog in `CHANGES.md` file.
-   #. Also update `README.md` if required.
+   #. Add Changelog in ``CHANGES.md`` file.
+   #. Also update ``README.md`` if required.
 #. Create an annotated tag on the above commit and push the tag to
    github
 #. Upload new version to PyPI.
