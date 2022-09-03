@@ -8,7 +8,6 @@ cldn
 copytree
 deque
 distinfodistribution
-distpackage
 dists
 dp1
 dp2
@@ -28,19 +27,12 @@ ismodule
 mpkgs
 nk
 ordereddict
-packagedag
 pipdeptree
 pkgs
 readouterr
-reqpackage
 reqs
 rhs
-shlex
 svg
 t1
 t2
-tmpl
-uncomment
 virtualenv
-webapp
-webapp'
