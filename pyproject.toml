@@ -5,13 +5,13 @@ requires = ["hatchling>=1.8.1", "hatch-vcs>=0.2"]
 [project]
 name = "pipdeptree"
 description = 'Command line utility to show dependency tree of packages.'
-readme = "README.rst"
+readme = "README.md"
 license.file = "LICENSE"
 maintainers = [
   { name = "Bernát Gábor", email = "gaborjbernat@gmail.com" },
   { name = "Vineet Naik", email = "naikvin@gmail.com" },
 ]
-urls.Documentation = "https://github.com/tox-dev/pipdeptree/blob/main/README.rst#pipdeptree"
+urls.Documentation = "https://github.com/tox-dev/pipdeptree/blob/main/README.md#pipdeptree"
 urls.Homepage = "https://github.com/tox-dev/pipdeptree"
 urls.Source = "https://github.com/tox-dev/pipdeptree"
 urls.Tracker = "https://github.com/tox-dev/pipdeptree/issues"

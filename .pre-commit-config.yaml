@@ -15,7 +15,7 @@ repos:
     rev: v2.37.3
     hooks:
       - id: pyupgrade
-        args: [ "--py37-plus" ]
+        args: ["--py37-plus"]
   - repo: https://github.com/PyCQA/isort
     rev: 5.10.1
     hooks:
@@ -24,30 +24,33 @@ repos:
     rev: 22.8.0
     hooks:
       - id: black
-        args: [ --safe ]
+        args: [--safe]
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:
       - id: blacken-docs
-        additional_dependencies: [ black==22.8 ]
-  - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.9.0
-    hooks:
-      - id: rst-backticks
+        additional_dependencies: [black==22.8]
   - repo: https://github.com/tox-dev/tox-ini-fmt
     rev: "0.5.2"
     hooks:
       - id: tox-ini-fmt
-        args: [ "-p", "fix" ]
+        args: ["-p", "fix"]
   - repo: https://github.com/PyCQA/flake8
     rev: 5.0.4
     hooks:
       - id: flake8
         additional_dependencies:
-        - flake8-bugbear==22.8.23
-        - flake8-comprehensions==3.10
-        - flake8-pytest-style==1.6
-        - flake8-spellcheck==0.28
-        - flake8-unused-arguments==0.0.11
-        - flake8-noqa==1.2.9
-        - pep8-naming==0.13.2
+          - flake8-bugbear==22.8.23
+          - flake8-comprehensions==3.10
+          - flake8-pytest-style==1.6
+          - flake8-spellcheck==0.28
+          - flake8-unused-arguments==0.0.11
+          - flake8-noqa==1.2.9
+          - pep8-naming==0.13.2
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: "v2.7.1"
+    hooks:
+      - id: prettier
+        additional_dependencies:
+          - "prettier@2.7.1"
+          - "@prettier/plugin-xml@2.2"

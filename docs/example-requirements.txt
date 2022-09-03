@@ -1,8 +1,0 @@
-Flask==0.10.1
-itsdangerous==0.24
-Jinja2
-MarkupSafe==0.22
-Werkzeug==0.11.2
-argparse
--e git+git@github.com:naiquevin/lookupy.git@cdbe30c160e1c29802df75e145ea4ad903c05386#egg=Lookupy-master
-gnureadline==8.0.0
