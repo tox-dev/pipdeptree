@@ -849,7 +849,7 @@ def handle_non_host_target(args):
 
 def get_installed_distributions(local_only=False, user_only=False):
     try:
-        from pip._internal.metadata import get_environment
+        from pip._internal.metadata import pkg_resources
     except ImportError:
         # For backward compatibility with python ver. 2.7 and pip
         # version 20.3.4 (latest pip version that works with python
@@ -858,7 +858,9 @@ def get_installed_distributions(local_only=False, user_only=False):
 
         return misc.get_installed_distributions(local_only=local_only, user_only=user_only)
     else:
-        dists = get_environment(None).iter_installed_distributions(local_only=local_only, skip=(), user_only=user_only)
+        dists = pkg_resources.Environment.from_paths(None).iter_installed_distributions(
+            local_only=local_only, skip=(), user_only=user_only
+        )
         return [d._dist for d in dists]
 
 
