@@ -49,8 +49,7 @@ def guess_version(pkg_key, default="?"):
         return importlib_metadata.version(pkg_key)
     except ImportError:
         pass
-    # Avoid AssertionError with setuptools
-    # see https://github.com/tox-dev/pipdeptree/issues/162
+    # Avoid AssertionError with setuptools, see https://github.com/tox-dev/pipdeptree/issues/162
     if pkg_key in {"setuptools"}:
         return default
     try:
