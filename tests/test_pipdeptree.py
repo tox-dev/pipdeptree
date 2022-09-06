@@ -1,6 +1,7 @@
 import platform
 import sys
 from contextlib import contextmanager
+from itertools import chain
 from tempfile import NamedTemporaryFile
 
 try:
@@ -19,16 +20,16 @@ import pipdeptree as p
 def mock_pkgs(simple_graph):
     for node, children in simple_graph.items():
         nk, nv = node
-        p = mock.Mock(key=nk, project_name=nk, version=nv)
+        m = mock.Mock(key=nk, project_name=nk, version=nv)
         as_req = mock.Mock(key=nk, project_name=nk, specs=[("==", nv)])
-        p.as_requirement = mock.Mock(return_value=as_req)
+        m.as_requirement = mock.Mock(return_value=as_req)
         reqs = []
         for child in children:
             ck, cv = child
             r = mock.Mock(key=ck, project_name=ck, specs=cv)
             reqs.append(r)
-        p.requires = mock.Mock(return_value=reqs)
-        yield p
+        m.requires = mock.Mock(return_value=reqs)
+        yield m
 
 
 def mock_package_dag(simple_graph):
@@ -95,7 +96,7 @@ def test_package_dag_reverse():
     assert isinstance(t1, p.ReversedPackageDAG)
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t1))
     assert all([isinstance(k, p.ReqPackage) for k in t1.keys()])
-    assert all([isinstance(v, p.DistPackage) for v in p.flatten(t1.values())])
+    assert all([isinstance(v, p.DistPackage) for v in chain.from_iterable(t1.values())])
 
     # testing reversal of ReversedPackageDAG instance
     expected = {"a": ["b", "c"], "b": ["d"], "c": ["d", "e"], "d": ["e"], "e": [], "f": ["b"], "g": ["e", "f"]}
@@ -103,7 +104,7 @@ def test_package_dag_reverse():
     assert isinstance(t2, p.PackageDAG)
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t2))
     assert all([isinstance(k, p.DistPackage) for k in t2.keys()])
-    assert all([isinstance(v, p.ReqPackage) for v in p.flatten(t2.values())])
+    assert all([isinstance(v, p.ReqPackage) for v in chain.from_iterable(t2.values())])
 
 
 # Tests for Package classes
@@ -179,10 +180,6 @@ def test_req_package_as_dict():
 
 
 # Tests for render_text
-#
-# @NOTE: These tests use mocked tree and it's not easy to test for
-# frozen=True with mocks. Hence those tests are covered only in
-# end-to-end tests. Check the ./e2e-tests script.
 
 
 @pytest.mark.parametrize(

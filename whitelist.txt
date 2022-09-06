@@ -11,7 +11,6 @@ distinfodistribution
 dists
 dp1
 dp2
-e2e
 exe
 filedescriptor
 fileno
@@ -26,7 +25,6 @@ hacky
 ismodule
 mpkgs
 nk
-ordereddict
 pipdeptree
 pkgs
 readouterr
