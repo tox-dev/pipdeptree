@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.0
+
+- Move to a package layout
+- Add support for invocation via `-m`
+- Support Python 3.11
+- Code now formatted via isort/black and linted via flake8
+- Move readme and changelog to markdown
+- Now packaged via hatchling instead of setuptools
+
 ## 2.2.1
 
 - Fix `--user-only` and `--freeze` flags which were broken after the last release.
