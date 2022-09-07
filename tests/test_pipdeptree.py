@@ -495,7 +495,14 @@ def test_guess_version_setuptools_not_imported(mocker):
     mock_importlib_metadata = mocker.Mock(spec_set=["version"])
     mock_importlib.metadata = mock_importlib_metadata
     mock_importlib_metadata.version = mocker.Mock(side_effect=ImportError)
-    mocker.patch.dict("sys.modules", {"importlib": mock_importlib, "importlib.metadata": mock_importlib_metadata})
+    mocker.patch.dict(
+        "sys.modules",
+        {
+            "importlib": mock_importlib,
+            "importlib.metadata": mock_importlib_metadata,
+            "importlib_metadata": mock_importlib_metadata,
+        },
+    )
     mock_import_module = mocker.patch.object(p, "import_module", autospec=True)
     assert p.guess_version("setuptools") == p.ReqPackage.UNKNOWN_VERSION
     mock_import_module.assert_not_called()
