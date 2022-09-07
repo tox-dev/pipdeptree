@@ -488,3 +488,9 @@ def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
     assert context.value.code == 1
     assert not out
     assert err == "graphviz functionality is not supported when querying" " non-host python\n"
+
+
+def test_guess_version_setuptools_not_imported():
+    with mock.patch("builtins.__import__") as mock_import:
+        mock_import.side_effect = ImportError
+        assert p.guess_version("setuptools") == p.ReqPackage.UNKNOWN_VERSION
