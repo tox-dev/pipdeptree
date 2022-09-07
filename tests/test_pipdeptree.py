@@ -1,5 +1,7 @@
 import platform
+import subprocess
 import sys
+import textwrap
 from contextlib import contextmanager
 from itertools import chain
 from tempfile import NamedTemporaryFile
@@ -490,19 +492,23 @@ def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
     assert err == "graphviz functionality is not supported when querying" " non-host python\n"
 
 
-def test_guess_version_setuptools_not_imported(mocker):
-    mock_importlib = mocker.Mock(spec_set=["metadata"])
-    mock_importlib_metadata = mocker.Mock(spec_set=["version"])
-    mock_importlib.metadata = mock_importlib_metadata
-    mock_importlib_metadata.version = mocker.Mock(side_effect=ImportError)
-    mocker.patch.dict(
-        "sys.modules",
-        {
-            "importlib": mock_importlib,
-            "importlib.metadata": mock_importlib_metadata,
-            "importlib_metadata": mock_importlib_metadata,
-        },
-    )
-    mock_import_module = mocker.patch.object(p, "import_module", autospec=True)
-    assert p.guess_version("setuptools") == p.ReqPackage.UNKNOWN_VERSION
-    mock_import_module.assert_not_called()
+def test_guess_version_setuptools():
+    code = """
+    import sys
+
+    import pipdeptree
+
+    if sys.version_info >= (3, 8):
+        import importlib.metadata as importlib_metadata
+    else:
+        import importlib_metadata
+
+    def raise_import_error(name):
+        raise ImportError(name)
+
+    importlib_metadata.version = raise_import_error
+
+    print(pipdeptree.guess_version("setuptools"), end="")
+    """
+    p = subprocess.run([sys.executable, "-c", textwrap.dedent(code)], capture_output=True, check=True)
+    assert p.stdout == b"?"
