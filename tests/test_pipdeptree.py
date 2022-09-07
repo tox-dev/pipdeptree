@@ -1,4 +1,3 @@
-import builtins
 import platform
 import sys
 from contextlib import contextmanager
@@ -491,14 +490,10 @@ def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
     assert err == "graphviz functionality is not supported when querying" " non-host python\n"
 
 
-def test_guess_version_setuptools_not_imported(monkeypatch):
-    builtin_import = builtins.__import__
-
-    def _import(name, *args, **kwargs):
-        if name in {"importlib.metadata", "importlib_metadata"}:
-            raise ImportError
-        return builtin_import(name, *args, **kwargs)
-
-    with monkeypatch.context() as m:
-        m.setattr(builtins, "__import__", _import)
-        assert p.guess_version("setuptools") == p.ReqPackage.UNKNOWN_VERSION
+def test_guess_version_setuptools_not_imported(mocker):
+    mock_importlib_metadata = mocker.Mock(spec_set=["version"])
+    mock_importlib_metadata.version = mocker.Mock(side_effect=ImportError)
+    mocker.patch.dict("sys.modules", {"importlib.metadata": mock_importlib_metadata})
+    mock_import_module = mocker.patch.object(p, "import_module", autospec=True)
+    assert p.guess_version("setuptools") == p.ReqPackage.UNKNOWN_VERSION
+    mock_import_module.assert_not_called()
