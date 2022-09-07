@@ -11,6 +11,7 @@ except ImportError:
     from unittest import mock
 
 import pytest
+import virtualenv
 
 import pipdeptree as p
 
@@ -465,8 +466,6 @@ def test_parser_svg():
 
 @pytest.mark.parametrize("args_joined", [True, False])
 def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
-    import virtualenv
-
     result = virtualenv.cli_run([str(tmp_path), "--activators", ""])
     cmd = [sys.executable]
     cmd += [f"--python={result.creator.exe}"] if args_joined else ["--python", str(result.creator.exe)]
