@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.1
+
+- Use `importlib.metadata` to guess version of package before fallback to `pkg.__version__`.
+
 ## 2.3.0
 
 - Move to a package layout
