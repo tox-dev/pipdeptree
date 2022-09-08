@@ -42,6 +42,17 @@ def guess_version(pkg_key, default="?"):
     :rtype: string
     """
     try:
+        if sys.version_info >= (3, 8):  # pragma: >=3.8 cover
+            import importlib.metadata as importlib_metadata
+        else:  # pragma: <3.8 cover
+            import importlib_metadata
+        return importlib_metadata.version(pkg_key)
+    except ImportError:
+        pass
+    # Avoid AssertionError with setuptools, see https://github.com/tox-dev/pipdeptree/issues/162
+    if pkg_key in {"setuptools"}:
+        return default
+    try:
         m = import_module(pkg_key)
     except ImportError:
         return default

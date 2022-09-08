@@ -1,7 +1,9 @@
 import platform
+import subprocess
 import sys
 from contextlib import contextmanager
 from itertools import chain
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 try:
@@ -488,3 +490,9 @@ def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
     assert context.value.code == 1
     assert not out
     assert err == "graphviz functionality is not supported when querying" " non-host python\n"
+
+
+def test_guess_version_setuptools():
+    script = Path(__file__).parent / "guess_version_setuptools.py"
+    output = subprocess.check_output([sys.executable, script], text=True)
+    assert output == "?"
