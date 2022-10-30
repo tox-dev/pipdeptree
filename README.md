@@ -18,10 +18,7 @@ To some extent, `pipdeptree` is inspired by the `lein deps :tree` command of [Le
 pip install pipdeptree
 ```
 
-pipdeptree has been tested with Python versions `2.7`, `3.5`, `3.6`, `3.7`, `3.8`, `3.9` as well as `pypy2` and `pypy3`.
-
-Python `2.6` is way past it\'s end of life but if you ever find yourself stuck on a legacy environment, version `0.9.0`
-_might_ work.
+pipdeptree has been tested with Python versions `3.7`, `3.8`, `3.9` and `3.10`.
 
 ## Running in virtualenvs
 
