@@ -612,7 +612,11 @@ def dump_graphviz(tree, output_format="dot", is_reverse=False):
 
     # Allow output of dot format, even if GraphViz isn't installed.
     if output_format == "dot":
-        return graph.source
+        # Emulates graphviz.dot.Dot.__iter__() to force the sorting of graph.body.
+        # Fixes https://github.com/tox-dev/pipdeptree/issues/188
+        # That way we can guarantee the output of the dot format is deterministic
+        # and stable.
+        return "".join([tuple(graph)[0]] + sorted(graph.body) + [graph._tail])
 
     # As it's unknown if the selected output format is binary or not, try to
     # decode it as UTF8 and only print it out in binary if that's not possible.
