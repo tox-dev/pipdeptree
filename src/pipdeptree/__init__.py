@@ -474,7 +474,7 @@ def render_text(tree, list_all=True, frozen=False):
         cur_chain = cur_chain or []
         node_str = node.render(parent, frozen)
         if parent:
-            prefix = " " * indent + ("- " if use_bullets else "")
+            prefix = "#" + " " * (indent - 1) + ("- " if use_bullets else "")
             node_str = prefix + node_str
         result = [node_str]
         children = [
