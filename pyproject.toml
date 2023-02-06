@@ -1,6 +1,6 @@
 [build-system]
 build-backend = "hatchling.build"
-requires = ["hatchling>=1.11.1", "hatch-vcs>=0.2"]
+requires = ["hatchling>=1.12.2", "hatch-vcs>=0.3"]
 
 [project]
 name = "pipdeptree"
@@ -17,13 +17,13 @@ urls.Source = "https://github.com/tox-dev/pipdeptree"
 urls.Tracker = "https://github.com/tox-dev/pipdeptree/issues"
 requires-python = ">=3.7"
 optional-dependencies.test = [
-  "covdefaults>=2.2",
-  "diff-cover>=7.0.1",
-  "pip>=22.3",
-  "pytest>=7.2",
+  "covdefaults>=2.2.2",
+  "diff-cover>=7.4",
+  "pip>=23",
+  "pytest>=7.2.1",
   "pytest-cov>=4",
   "pytest-mock>=3.10",
-  "virtualenv<21,>=20.16.6",
+  "virtualenv<21,>=20.17.1",
 ]
 optional-dependencies.graphviz = [
   "graphviz>=0.20.1",
