@@ -1,10 +1,12 @@
 import platform
+import random
 import subprocess
 import sys
 from contextlib import contextmanager
 from itertools import chain
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from textwrap import dedent
 
 try:
     from unittest import mock
@@ -302,6 +304,52 @@ def test_render_text(capsys, list_all, reverse, expected_output):
 
 
 # Tests for graph outputs
+
+
+def test_render_dot(capsys):
+    # Extract the dependency graph from the package tree fixture and randomize it.
+    randomized_graph = {}
+    randomized_nodes = list(t._obj.keys())
+    random.shuffle(randomized_nodes)
+    for node in randomized_nodes:
+        edges = t._obj[node]
+        random.shuffle(edges)
+        randomized_graph[node] = edges
+    assert set(randomized_graph) == set(t._obj)
+
+    # Create a randomized package tree.
+    randomized_dag = p.PackageDAG(randomized_graph)
+    assert len(t) == len(randomized_dag)
+
+    # Check both the sorted and randomized package tree produces the same sorted
+    # graphviz output.
+    for package_tree in (t, randomized_dag):
+        output = p.dump_graphviz(package_tree, output_format="dot")
+        p.print_graphviz(output)
+        out, _ = capsys.readouterr()
+        assert out == dedent(
+            """\
+            digraph {
+            \ta -> b [label=">=2.0.0"]
+            \ta -> c [label=">=5.7.1"]
+            \ta [label="a\\n3.4.0"]
+            \tb -> d [label=">=2.30,<2.42"]
+            \tb [label="b\\n2.3.1"]
+            \tc -> d [label=">=2.30"]
+            \tc -> e [label=">=0.12.1"]
+            \tc [label="c\\n5.10.0"]
+            \td -> e [label=">=0.9.0"]
+            \td [label="d\\n2.35"]
+            \te [label="e\\n0.12.1"]
+            \tf -> b [label=">=2.1.0"]
+            \tf [label="f\\n3.1"]
+            \tg -> e [label=">=0.9.0"]
+            \tg -> f [label=">=3.0.0"]
+            \tg [label="g\\n6.8.3rc1"]
+            }
+
+            """
+        )
 
 
 def test_render_pdf():
