@@ -574,7 +574,8 @@ def render_mermaid(tree) -> str:
 
     # Produce the Mermaid Markdown.
     indent = " " * 4
-    output = dedent(f"""\
+    output = dedent(
+        f"""\
         flowchart TD
         {indent}classDef missing stroke-dasharray: 5
         """
@@ -817,10 +818,7 @@ def get_parser():
         "--mermaid",
         action="store_true",
         default=False,
-        help=(
-            "Display dependency tree as a Maermaid graph. "
-            "This option overrides all other options."
-        ),
+        help=("Display dependency tree as a Maermaid graph. " "This option overrides all other options."),
     )
     parser.add_argument(
         "--graph-output",

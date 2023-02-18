@@ -305,9 +305,9 @@ def test_render_text(capsys, list_all, reverse, expected_output):
 
 # Tests for graph outputs
 
+
 def randomized_dag_copy(t):
-    """Returns a copy of the package tree fixture with dependencies in randomized order.
-    """
+    """Returns a copy of the package tree fixture with dependencies in randomized order."""
     # Extract the dependency graph from the package tree and randomize it.
     randomized_graph = {}
     randomized_nodes = list(t._obj.keys())
@@ -329,7 +329,8 @@ def test_render_mermaid():
     # Mermaid output.
     for package_tree in (t, randomized_dag_copy(t)):
         output = p.render_mermaid(package_tree)
-        assert output == dedent("""\
+        assert output == dedent(
+            """\
             flowchart TD
                 classDef missing stroke-dasharray: 5
                 a[a\\n3.4.0]
@@ -350,6 +351,7 @@ def test_render_mermaid():
                 g -- >=3.0.0 --> f
             """
         )
+
 
 def test_render_dot(capsys):
     # Check both the sorted and randomized package tree produces the same sorted
