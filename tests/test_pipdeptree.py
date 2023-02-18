@@ -305,9 +305,10 @@ def test_render_text(capsys, list_all, reverse, expected_output):
 
 # Tests for graph outputs
 
-
-def test_render_dot(capsys):
-    # Extract the dependency graph from the package tree fixture and randomize it.
+def randomized_dag_copy(t):
+    """Returns a copy of the package tree fixture with dependencies in randomized order.
+    """
+    # Extract the dependency graph from the package tree and randomize it.
     randomized_graph = {}
     randomized_nodes = list(t._obj.keys())
     random.shuffle(randomized_nodes)
@@ -320,10 +321,40 @@ def test_render_dot(capsys):
     # Create a randomized package tree.
     randomized_dag = p.PackageDAG(randomized_graph)
     assert len(t) == len(randomized_dag)
+    return randomized_dag
 
+
+def test_render_mermaid():
+    # Check both the sorted and randomized package tree produces the same sorted
+    # Mermaid output.
+    for package_tree in (t, randomized_dag_copy(t)):
+        output = p.render_mermaid(package_tree)
+        assert output == dedent("""\
+            flowchart TD
+                classDef missing stroke-dasharray: 5
+                a[a\\n3.4.0]
+                b[b\\n2.3.1]
+                c[c\\n5.10.0]
+                d[d\\n2.35]
+                e[e\\n0.12.1]
+                f[f\\n3.1]
+                g[g\\n6.8.3rc1]
+                a -- >=2.0.0 --> b
+                a -- >=5.7.1 --> c
+                b -- >=2.30,<2.42 --> d
+                c -- >=0.12.1 --> e
+                c -- >=2.30 --> d
+                d -- >=0.9.0 --> e
+                f -- >=2.1.0 --> b
+                g -- >=0.9.0 --> e
+                g -- >=3.0.0 --> f
+            """
+        )
+
+def test_render_dot(capsys):
     # Check both the sorted and randomized package tree produces the same sorted
     # graphviz output.
-    for package_tree in (t, randomized_dag):
+    for package_tree in (t, randomized_dag_copy(t)):
         output = p.dump_graphviz(package_tree, output_format="dot")
         p.print_graphviz(output)
         out, _ = capsys.readouterr()
@@ -495,6 +526,14 @@ def test_parser_json_tree():
     parser = p.get_parser()
     args = parser.parse_args(["--json-tree"])
     assert args.json_tree
+    assert not args.json
+    assert args.output_format is None
+
+
+def test_parser_mermaid():
+    parser = p.get_parser()
+    args = parser.parse_args(["--mermaid"])
+    assert args.mermaid
     assert not args.json
     assert args.output_format is None
 

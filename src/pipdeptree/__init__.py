@@ -10,6 +10,7 @@ from collections import defaultdict, deque
 from collections.abc import Mapping
 from importlib import import_module
 from itertools import chain
+from textwrap import dedent
 
 from pip._vendor import pkg_resources
 
@@ -550,6 +551,43 @@ def render_json_tree(tree, indent):
     return json.dumps([aux(p) for p in nodes], indent=indent)
 
 
+def render_mermaid(tree) -> str:
+    """Produce a Mermaid flowchart from the dependency graph.
+
+    :param dict tree: dependency graph
+    """
+    # Use a sets to deduplicate entries.
+    nodes: set[str] = set()
+    edges: set[str] = set()
+
+    for pkg, deps in tree.items():
+        pkg_label = f"{pkg.project_name}\\n{pkg.version}"
+        nodes.add(f"{pkg.key}[{pkg_label}]")
+        for dep in deps:
+            edge_label = dep.version_spec or "any"
+            if dep.is_missing:
+                dep_label = f"{dep.project_name}\\n(missing)"
+                nodes.add(f"{dep.key}[{dep_label}]:::missing")
+                edges.add(f"{pkg.key} -.-> {dep.key}")
+            else:
+                edges.add(f"{pkg.key} -- {edge_label} --> {dep.key}")
+
+    # Produce the Mermaid Markdown.
+    INDENT = " " * 4
+    mmd = dedent(f"""\
+        flowchart TD
+        {INDENT}classDef missing stroke-dasharray: 5
+        """
+    )
+    # Sort the nodes and edges to make the output deterministic.
+    mmd += INDENT
+    mmd += f"\n{INDENT}".join(node for node in sorted(nodes))
+    mmd += "\n" + INDENT
+    mmd += f"\n{INDENT}".join(edge for edge in sorted(edges))
+    mmd += "\n"
+    return mmd
+
+
 def dump_graphviz(tree, output_format="dot", is_reverse=False):
     """Output dependency graph as one of the supported GraphViz output formats.
 
@@ -776,6 +814,15 @@ def get_parser():
         ),
     )
     parser.add_argument(
+        "--mermaid",
+        action="store_true",
+        default=False,
+        help=(
+            "Display dependency tree as a Maermaid graph. "
+            "This option overrides all other options."
+        ),
+    )
+    parser.add_argument(
         "--graph-output",
         dest="output_format",
         help=(
@@ -884,6 +931,8 @@ def main():
         print(render_json(tree, indent=4))
     elif args.json_tree:
         print(render_json_tree(tree, indent=4))
+    elif args.output_format:
+        print(render_mermaid(tree))
     elif args.output_format:
         output = dump_graphviz(tree, output_format=args.output_format, is_reverse=args.reverse)
         print_graphviz(output)
