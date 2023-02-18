@@ -556,7 +556,7 @@ def render_mermaid(tree) -> str:
 
     :param dict tree: dependency graph
     """
-    # Use a sets to deduplicate entries.
+    # Use a sets to avoid duplicate entries.
     nodes: set[str] = set()
     edges: set[str] = set()
 
@@ -573,19 +573,19 @@ def render_mermaid(tree) -> str:
                 edges.add(f"{pkg.key} -- {edge_label} --> {dep.key}")
 
     # Produce the Mermaid Markdown.
-    INDENT = " " * 4
-    mmd = dedent(f"""\
+    indent = " " * 4
+    output = dedent(f"""\
         flowchart TD
-        {INDENT}classDef missing stroke-dasharray: 5
+        {indent}classDef missing stroke-dasharray: 5
         """
     )
     # Sort the nodes and edges to make the output deterministic.
-    mmd += INDENT
-    mmd += f"\n{INDENT}".join(node for node in sorted(nodes))
-    mmd += "\n" + INDENT
-    mmd += f"\n{INDENT}".join(edge for edge in sorted(edges))
-    mmd += "\n"
-    return mmd
+    output += indent
+    output += f"\n{indent}".join(node for node in sorted(nodes))
+    output += "\n" + indent
+    output += f"\n{indent}".join(edge for edge in sorted(edges))
+    output += "\n"
+    return output
 
 
 def dump_graphviz(tree, output_format="dot", is_reverse=False):
