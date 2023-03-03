@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.5.1
+
+- Fix Mermaid flag.
+
+## 2.5.0
+
+- Implements Mermaid output.
+
+## 2.4.0
+
+- Make the output of the dot format deterministic and stable.
+
+## 2.3.3
+
+- Update README for tested Python versions.
+
+## 2.3.2
+
+- Generalize license.
+
 ## 2.3.1
 
 - Use `importlib.metadata` to guess version of package before fallback to `pkg.__version__`.
