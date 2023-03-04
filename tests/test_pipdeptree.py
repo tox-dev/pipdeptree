@@ -356,6 +356,24 @@ def test_render_mermaid():
         )
 
 
+def test_mermaid_reserved_ids():
+    package_tree = mock_package_dag(
+        {
+            ("click", "3.4.0"): [("click-extra", [(">=", "2.0.0")])],
+        }
+    )
+    output = p.render_mermaid(package_tree)
+    assert output == dedent(
+        """\
+        flowchart TD
+            classDef missing stroke-dasharray: 5
+            click-extra["click-extra\\n(missing)"]:::missing
+            click_0["click\\n3.4.0"]
+            click_0 -.-> click-extra
+        """
+    )
+
+
 def test_render_dot(capsys):
     # Check both the sorted and randomized package tree produces the same sorted
     # graphviz output.

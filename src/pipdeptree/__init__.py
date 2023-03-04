@@ -556,21 +556,68 @@ def render_mermaid(tree) -> str:
 
     :param dict tree: dependency graph
     """
+    # List of reserved keywords in Mermaid that cannot be used as node names.
+    # See: https://github.com/mermaid-js/mermaid/issues/4182#issuecomment-1454787806
+    reserved_ids: set[str] = {
+        "C4Component",
+        "C4Container",
+        "C4Deployment",
+        "C4Dynamic",
+        "_blank",
+        "_parent",
+        "_self",
+        "_top",
+        "call",
+        "class",
+        "classDef",
+        "click",
+        "end",
+        "flowchart",
+        "flowchart-v2",
+        "graph",
+        "interpolate",
+        "linkStyle",
+        "style",
+        "subgraph",
+    }
+    node_ids_map: dict[str:str] = {}
+
+    def mermaid_id(key: str) -> str:
+        """Returns a valid Mermaid node ID from a string."""
+        # If we have already seen this key, return the canonical ID.
+        canonical_id = node_ids_map.get(key)
+        if canonical_id is not None:
+            return canonical_id
+        # If the key is not a reserved keyword, return it as is, and update the map.
+        if key not in reserved_ids:
+            node_ids_map[key] = key
+            return key
+        # If the key is a reserved keyword, append a number to it.
+        number = 0
+        while True:
+            new_id = f"{key}_{number}"
+            if new_id not in node_ids_map:
+                node_ids_map[key] = new_id
+                return new_id
+            number += 1
+
     # Use a sets to avoid duplicate entries.
     nodes: set[str] = set()
     edges: set[str] = set()
 
     for pkg, deps in tree.items():
         pkg_label = f"{pkg.project_name}\\n{pkg.version}"
-        nodes.add(f'{pkg.key}["{pkg_label}"]')
+        pkg_key = mermaid_id(pkg.key)
+        nodes.add(f'{pkg_key}["{pkg_label}"]')
         for dep in deps:
             edge_label = dep.version_spec or "any"
+            dep_key = mermaid_id(dep.key)
             if dep.is_missing:
                 dep_label = f"{dep.project_name}\\n(missing)"
-                nodes.add(f'{dep.key}["{dep_label}"]:::missing')
-                edges.add(f"{pkg.key} -.-> {dep.key}")
+                nodes.add(f'{dep_key}["{dep_label}"]:::missing')
+                edges.add(f"{pkg_key} -.-> {dep_key}")
             else:
-                edges.add(f'{pkg.key} -- "{edge_label}" --> {dep.key}')
+                edges.add(f'{pkg_key} -- "{edge_label}" --> {dep_key}')
 
     # Produce the Mermaid Markdown.
     indent = " " * 4
