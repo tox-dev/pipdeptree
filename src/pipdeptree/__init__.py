@@ -562,15 +562,15 @@ def render_mermaid(tree) -> str:
 
     for pkg, deps in tree.items():
         pkg_label = f"{pkg.project_name}\\n{pkg.version}"
-        nodes.add(f"{pkg.key}[{pkg_label}]")
+        nodes.add(f'{pkg.key}["{pkg_label}"]')
         for dep in deps:
             edge_label = dep.version_spec or "any"
             if dep.is_missing:
                 dep_label = f"{dep.project_name}\\n(missing)"
-                nodes.add(f"{dep.key}[{dep_label}]:::missing")
-                edges.add(f"{pkg.key} -.-> {dep.key}")
+                nodes.add(f'{dep.key}["{dep_label}"]:::missing')
+                edges.add(f'{pkg.key} -.-> {dep.key}')
             else:
-                edges.add(f"{pkg.key} -- {edge_label} --> {dep.key}")
+                edges.add(f'{pkg.key} -- "{edge_label}" --> {dep.key}')
 
     # Produce the Mermaid Markdown.
     indent = " " * 4
