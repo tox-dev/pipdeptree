@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.2
+
+- Fix Mermaid not working with reserved keyword package names.
+
 ## 2.5.1
 
 - Fix Mermaid flag.
