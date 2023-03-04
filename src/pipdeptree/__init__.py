@@ -568,7 +568,7 @@ def render_mermaid(tree) -> str:
             if dep.is_missing:
                 dep_label = f"{dep.project_name}\\n(missing)"
                 nodes.add(f'{dep.key}["{dep_label}"]:::missing')
-                edges.add(f'{pkg.key} -.-> {dep.key}')
+                edges.add(f"{pkg.key} -.-> {dep.key}")
             else:
                 edges.add(f'{pkg.key} -- "{edge_label}" --> {dep.key}')
 
