@@ -39,10 +39,10 @@ optional-dependencies.graphviz = [
   "graphviz>=0.20.1",
 ]
 optional-dependencies.test = [
-  "covdefaults>=2.2.2",
-  "diff-cover>=7.4",
+  "covdefaults>=2.3",
+  "diff-cover>=7.5",
   "pip>=23.0.1",
-  "pytest>=7.2.1",
+  "pytest>=7.2.2",
   "pytest-cov>=4",
   "pytest-mock>=3.10",
   "virtualenv<21,>=20.20",
