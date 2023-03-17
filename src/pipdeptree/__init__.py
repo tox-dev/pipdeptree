@@ -606,10 +606,7 @@ def render_mermaid(tree) -> str:
     edges: set[str] = set()
 
     for pkg, deps in tree.items():
-        pkg_label = "\\n".join((
-            pkg.project_name,
-            getattr(pkg, "version", getattr(pkg, "installed_version", None))
-        ))
+        pkg_label = "\\n".join((pkg.project_name, getattr(pkg, "version", getattr(pkg, "installed_version", None))))
         pkg_key = mermaid_id(pkg.key)
         nodes.add(f'{pkg_key}["{pkg_label}"]')
         for dep in deps:
