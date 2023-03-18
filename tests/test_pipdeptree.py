@@ -371,9 +371,9 @@ def test_render_mermaid():
 
     for package_tree in (t, randomized_dag_copy(t)):
         output = p.render_mermaid(package_tree)
-        assert output.rstrip() == "".join((nodes, dep_edges))
+        assert output.rstrip() == nodes + dep_edges
         reversed_output = p.render_mermaid(package_tree.reverse())
-        assert reversed_output.rstrip() == "".join((nodes, rdep_edges))
+        assert reversed_output.rstrip() == nodes + rdep_edges
 
 
 def test_mermaid_reserved_ids():
