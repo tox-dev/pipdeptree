@@ -604,21 +604,30 @@ def render_mermaid(tree) -> str:
     # Use a sets to avoid duplicate entries.
     nodes: set[str] = set()
     edges: set[str] = set()
-    is_reversed = isinstance(tree, ReversedPackageDAG)
 
-    for pkg, deps in tree.items():
-        pkg_label = "\\n".join((pkg.project_name, pkg.installed_version if is_reversed else pkg.version))
-        pkg_key = mermaid_id(pkg.key)
-        nodes.add(f'{pkg_key}["{pkg_label}"]')
-        for dep in deps:
-            edge_label = (dep.req.version_spec or "any") if is_reversed else (dep.version_spec or "any")
-            dep_key = mermaid_id(dep.key)
-            if getattr(dep, "is_missing", None):
-                dep_label = f"{dep.project_name}\\n(missing)"
-                nodes.add(f'{dep_key}["{dep_label}"]:::missing')
-                edges.add(f"{pkg_key} -.-> {dep_key}")
-            else:
-                edges.add(f'{pkg_key} -- "{edge_label}" --> {dep_key}')
+    if isinstance(tree, ReversedPackageDAG):
+        for pkg, rdeps in tree.items():
+            pkg_label = "\\n".join((pkg.project_name, "(missing)" if pkg.is_missing else pkg.installed_version))
+            pkg_key = mermaid_id(pkg.key)
+            nodes.add(f'{pkg_key}["{pkg_label}"]')
+            for rdep in rdeps:
+                edge_label = rdep.req.version_spec or "any"
+                rdep_key = mermaid_id(rdep.key)
+                edges.add(f'{pkg_key} -- "{edge_label}" --> {rdep_key}')
+    else:
+        for pkg, deps in tree.items():
+            pkg_label = "\\n".join((str(pkg.project_name), pkg.version))
+            pkg_key = mermaid_id(pkg.key)
+            nodes.add(f'{pkg_key}["{pkg_label}"]')
+            for dep in deps:
+                edge_label = dep.version_spec or "any"
+                dep_key = mermaid_id(dep.key)
+                if dep.is_missing:
+                    dep_label = f"{dep.project_name}\\n(missing)"
+                    nodes.add(f'{dep_key}["{dep_label}"]:::missing')
+                    edges.add(f"{pkg_key} -.-> {dep_key}")
+                else:
+                    edges.add(f'{pkg_key} -- "{edge_label}" --> {dep_key}')
 
     # Produce the Mermaid Markdown.
     indent = " " * 4

@@ -1,12 +1,13 @@
 import platform
 import random
+import re
 import subprocess
 import sys
 from contextlib import contextmanager
 from itertools import chain
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from textwrap import dedent
+from textwrap import dedent, indent
 
 try:
     from unittest import mock
@@ -327,33 +328,52 @@ def randomized_dag_copy(t):
 def test_render_mermaid():
     """Check both the sorted and randomized package tree produces the same sorted Mermaid output.
 
+    Rendering a reverse dependency tree should produce the same set of nodes. Edges should have
+    the same version spec label, but be resorted after swapping node positions.
+
     `See how this renders
     <https://mermaid.ink/img/pako:eNp9kcluwjAURX_FeutgeUhCErWs-IN21boL4yFEzYAyqKWIf-9LCISyqFf2ufe-QT6BaayDDHzZfJm9bnvyulU1wWNK3XVb50lVdF1R56Tr2-bTrazu0NfqY0aii1O_K9BK1ZKGlCn4uNAd0h1SQSXlN2qQGqQR5ezObBHbizm6QYfQIWSUi7sSHrGf2i0sR5Yji2lCZWsWQZPViijYPAs69cPnhuwetIiux1qTZubpl5xkwZOgoZgNdl7karhON4nuQRzTf3N2yaW3geaYX2L8cdj8n9xNk3dLegigcm2lC4v_exqdCvq9q5yCDK_WeT2UvQJVn9Gqh755OdYGsr4dXADDwerebQudt7qCzOuyQ3rQ9VvTVFcTPiE7wTdkgkVUSiHjlLOERUkYB3AcMeXrhKUp53GYcJ6KcwA_UwVGo_MvVqym_A?type=png)](https://mermaid.live/edit#pako:eNp9kcluwjAURX_FeutgeUhCErWs-IN21boL4yFEzYAyqKWIf-9LCISyqFf2ufe-QT6BaayDDHzZfJm9bnvyulU1wWNK3XVb50lVdF1R56Tr2-bTrazu0NfqY0aii1O_K9BK1ZKGlCn4uNAd0h1SQSXlN2qQGqQR5ezObBHbizm6QYfQIWSUi7sSHrGf2i0sR5Yji2lCZWsWQZPViijYPAs69cPnhuwetIiux1qTZubpl5xkwZOgoZgNdl7karhON4nuQRzTf3N2yaW3geaYX2L8cdj8n9xNk3dLegigcm2lC4v_exqdCvq9q5yCDK_WeT2UvQJVn9Gqh755OdYGsr4dXADDwerebQudt7qCzOuyQ3rQ9VvTVFcTPiE7wTdkgkVUSiHjlLOERUkYB3AcMeXrhKUp53GYcJ6KcwA_UwVGo_MvVqym_A>`_.
     """
+
+    nodes = dedent(
+        """\
+        flowchart TD
+            classDef missing stroke-dasharray: 5
+            a["a\\n3.4.0"]
+            b["b\\n2.3.1"]
+            c["c\\n5.10.0"]
+            d["d\\n2.35"]
+            e["e\\n0.12.1"]
+            f["f\\n3.1"]
+            g["g\\n6.8.3rc1"]
+        """
+    )
+    dep_edges = indent(
+        dedent(
+            """\
+            a -- ">=2.0.0" --> b
+            a -- ">=5.7.1" --> c
+            b -- ">=2.30,<2.42" --> d
+            c -- ">=0.12.1" --> e
+            c -- ">=2.30" --> d
+            d -- ">=0.9.0" --> e
+            f -- ">=2.1.0" --> b
+            g -- ">=0.9.0" --> e
+            g -- ">=3.0.0" --> f
+        """
+        ),
+        " " * 4,
+    ).rstrip()
+    # For reverse dependency edges, swap node positions and resort the output lines
+    rdep_edges = "\n".join(
+        sorted(line for line in re.sub(r"(\w+)( -- .* --> )(\w+)", r"\3\2\1", dep_edges).splitlines())
+    )
+
     for package_tree in (t, randomized_dag_copy(t)):
         output = p.render_mermaid(package_tree)
-        assert output == dedent(
-            """\
-            flowchart TD
-                classDef missing stroke-dasharray: 5
-                a["a\\n3.4.0"]
-                b["b\\n2.3.1"]
-                c["c\\n5.10.0"]
-                d["d\\n2.35"]
-                e["e\\n0.12.1"]
-                f["f\\n3.1"]
-                g["g\\n6.8.3rc1"]
-                a -- ">=2.0.0" --> b
-                a -- ">=5.7.1" --> c
-                b -- ">=2.30,<2.42" --> d
-                c -- ">=0.12.1" --> e
-                c -- ">=2.30" --> d
-                d -- ">=0.9.0" --> e
-                f -- ">=2.1.0" --> b
-                g -- ">=0.9.0" --> e
-                g -- ">=3.0.0" --> f
-            """
-        )
+        assert output.rstrip() == "".join((nodes, dep_edges))
+        reversed_output = p.render_mermaid(package_tree.reverse())
+        assert reversed_output.rstrip() == "".join((nodes, rdep_edges))
 
 
 def test_mermaid_reserved_ids():
