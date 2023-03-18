@@ -606,28 +606,30 @@ def render_mermaid(tree) -> str:
     edges: set[str] = set()
 
     if isinstance(tree, ReversedPackageDAG):
-        for pkg, rdeps in tree.items():
-            pkg_label = "\\n".join((pkg.project_name, "(missing)" if pkg.is_missing else pkg.installed_version))
-            pkg_key = mermaid_id(pkg.key)
-            nodes.add(f'{pkg_key}["{pkg_label}"]')
-            for rdep in rdeps:
-                edge_label = rdep.req.version_spec or "any"
-                rdep_key = mermaid_id(rdep.key)
-                edges.add(f'{pkg_key} -- "{edge_label}" --> {rdep_key}')
+        for package, reverse_dependencies in tree.items():
+            package_label = "\\n".join(
+                (package.project_name, "(missing)" if package.is_missing else package.installed_version)
+            )
+            package_key = mermaid_id(package.key)
+            nodes.add(f'{package_key}["{package_label}"]')
+            for reverse_dependency in reverse_dependencies:
+                edge_label = reverse_dependency.req.version_spec or "any"
+                reverse_dependency_key = mermaid_id(reverse_dependency.key)
+                edges.add(f'{package_key} -- "{edge_label}" --> {reverse_dependency_key}')
     else:
-        for pkg, deps in tree.items():
-            pkg_label = "\\n".join((pkg.project_name, pkg.version))
-            pkg_key = mermaid_id(pkg.key)
-            nodes.add(f'{pkg_key}["{pkg_label}"]')
-            for dep in deps:
-                edge_label = dep.version_spec or "any"
-                dep_key = mermaid_id(dep.key)
-                if dep.is_missing:
-                    dep_label = f"{dep.project_name}\\n(missing)"
-                    nodes.add(f'{dep_key}["{dep_label}"]:::missing')
-                    edges.add(f"{pkg_key} -.-> {dep_key}")
+        for package, dependencies in tree.items():
+            package_label = "\\n".join((package.project_name, package.version))
+            package_key = mermaid_id(package.key)
+            nodes.add(f'{package_key}["{package_label}"]')
+            for dependency in dependencies:
+                edge_label = dependency.version_spec or "any"
+                dependency_key = mermaid_id(dependency.key)
+                if dependency.is_missing:
+                    dependency_label = f"{dependency.project_name}\\n(missing)"
+                    nodes.add(f'{dependency_key}["{dependency_label}"]:::missing')
+                    edges.add(f"{package_key} -.-> {dependency_key}")
                 else:
-                    edges.add(f'{pkg_key} -- "{edge_label}" --> {dep_key}')
+                    edges.add(f'{package_key} -- "{edge_label}" --> {dependency_key}')
 
     # Produce the Mermaid Markdown.
     indent = " " * 4

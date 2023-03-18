@@ -347,7 +347,7 @@ def test_render_mermaid():
             g["g\\n6.8.3rc1"]
         """
     )
-    dep_edges = indent(
+    dependency_edges = indent(
         dedent(
             """\
             a -- ">=2.0.0" --> b
@@ -363,7 +363,7 @@ def test_render_mermaid():
         ),
         " " * 4,
     ).rstrip()
-    rdep_edges = indent(
+    reverse_dependency_edges = indent(
         dedent(
             """\
             b -- ">=2.0.0" --> a
@@ -382,9 +382,9 @@ def test_render_mermaid():
 
     for package_tree in (t, randomized_dag_copy(t)):
         output = p.render_mermaid(package_tree)
-        assert output.rstrip() == nodes + dep_edges
+        assert output.rstrip() == nodes + dependency_edges
         reversed_output = p.render_mermaid(package_tree.reverse())
-        assert reversed_output.rstrip() == nodes + rdep_edges
+        assert reversed_output.rstrip() == nodes + reverse_dependency_edges
 
 
 def test_mermaid_reserved_ids():

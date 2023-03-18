@@ -27,8 +27,6 @@ mpkgs
 nk
 pipdeptree
 pkgs
-rdep
-rdeps
 readouterr
 reqs
 rhs
