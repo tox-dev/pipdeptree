@@ -616,7 +616,7 @@ def render_mermaid(tree) -> str:
                 edges.add(f'{pkg_key} -- "{edge_label}" --> {rdep_key}')
     else:
         for pkg, deps in tree.items():
-            pkg_label = "\\n".join((str(pkg.project_name), pkg.version))
+            pkg_label = "\\n".join((pkg.project_name, pkg.version))
             pkg_key = mermaid_id(pkg.key)
             nodes.add(f'{pkg_key}["{pkg_label}"]')
             for dep in deps:
