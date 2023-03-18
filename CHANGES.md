@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.0
+
+- Handle mermaid output for a reversed tree
+
 ## 2.5.2
 
 - Fix Mermaid not working with reserved keyword package names.
