@@ -1,6 +1,5 @@
 import platform
 import random
-import re
 import subprocess
 import sys
 from contextlib import contextmanager
@@ -364,10 +363,22 @@ def test_render_mermaid():
         ),
         " " * 4,
     ).rstrip()
-    # For reverse dependency edges, swap node positions and resort the output lines
-    rdep_edges = "\n".join(
-        sorted(line for line in re.sub(r"(\w+)( -- .* --> )(\w+)", r"\3\2\1", dep_edges).splitlines())
-    )
+    rdep_edges = indent(
+        dedent(
+            """\
+            b -- ">=2.0.0" --> a
+            b -- ">=2.1.0" --> f
+            c -- ">=5.7.1" --> a
+            d -- ">=2.30" --> c
+            d -- ">=2.30,<2.42" --> b
+            e -- ">=0.12.1" --> c
+            e -- ">=0.9.0" --> d
+            e -- ">=0.9.0" --> g
+            f -- ">=3.0.0" --> g
+        """
+        ),
+        " " * 4,
+    ).rstrip()
 
     for package_tree in (t, randomized_dag_copy(t)):
         output = p.render_mermaid(package_tree)
