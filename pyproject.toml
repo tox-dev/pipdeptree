@@ -45,7 +45,7 @@ optional-dependencies.test = [
   "pytest>=7.2.2",
   "pytest-cov>=4",
   "pytest-mock>=3.10",
-  "virtualenv<21,>=20.20",
+  "virtualenv<21,>=20.21",
 ]
 urls.Changelog = "https://github.com/tox-dev/pipdeptree/blob/main/CHANGES.md"
 urls.Documentation = "https://github.com/tox-dev/pipdeptree/blob/main/README.md#pipdeptree"
