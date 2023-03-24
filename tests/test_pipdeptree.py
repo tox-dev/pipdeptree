@@ -94,6 +94,38 @@ def test_package_dag_filter():
         dag_to_dict(t.filter({"d"}, {"D", "e"}))
 
 
+t_fnmatch = mock_package_dag(
+    {
+        ("a.a", "1"): [("a.b", []), ("a.c", [])],
+        ("a.b", "1"): [("a.c", [])],
+        ("b.a", "1"): [("b.b", [])],
+        ("b.b", "1"): [("a.b", [])],
+    }
+)
+
+
+def test_package_dag_filter_fnmatch():
+    # test include for a.*
+    # in the result we got only a.* nodes
+    graph_1 = dag_to_dict(t_fnmatch.filter({"a.*"}, None))
+    assert graph_1 == {"a.a": ["a.b", "a.c"], "a.b": ["a.c"]}
+
+    # test include for b.*, which has a.b and a.c in tree, but not a.a
+    # in the result we got the b.* nodes plus the a.b node as child in the tree
+    graph_2 = dag_to_dict(t_fnmatch.filter({"b.*"}, None))
+    assert graph_2 == {"b.a": ["b.b"], "b.b": ["a.b"], "a.b": ["a.c"]}
+
+    # test exclude for b.*
+    # in the result we got only a.* nodes
+    graph_3 = dag_to_dict(t_fnmatch.filter(None, {"b.*"}))
+    assert graph_3 == {"a.a": ["a.b", "a.c"], "a.b": ["a.c"]}
+
+    # test exclude for a.*
+    # in the result we got only b.* nodes
+    graph_4 = dag_to_dict(t_fnmatch.filter(None, {"a.*"}))
+    assert graph_4 == {"b.a": ["b.b"], "b.b": []}
+
+
 def test_package_dag_reverse():
     t1 = t.reverse()
     expected = {"a": [], "b": ["a", "f"], "c": ["a"], "d": ["b", "c"], "e": ["c", "d", "g"], "f": ["g"], "g": []}

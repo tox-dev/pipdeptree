@@ -8,7 +8,7 @@ works for packages installed globally on a machine as well as in a virtualenv. S
 as a flat list, finding out which are the top level packages and which packages do they depend on requires some effort.
 It\'s also tedious to resolve conflicting dependencies that could have been installed because older version of `pip`
 didn\'t have true dependency resolution[^1]. `pipdeptree` can help here by identifying conflicting dependencies
-installed in the environment.R
+installed in the environment.
 
 To some extent, `pipdeptree` is inspired by the `lein deps :tree` command of [Leiningen](http://leiningen.org/).
 
@@ -27,7 +27,7 @@ pipdeptree has been tested with Python versions `3.7`, `3.8`, `3.9` and `3.10`.
 If you want to run pipdeptree in the context of a particular virtualenv, you can specify the `--python` option. Note
 that this capability has been recently added in version `2.0.0`.
 
-Alternately, you may also install pipdeptree inside the virtualenv and then run it from there.
+Alternatively, you may also install pipdeptree inside the virtualenv and then run it from there.
 
 ## Usage and examples
 
@@ -250,10 +250,12 @@ optional arguments:
                         packages that need them under them.
   -p PACKAGES, --packages PACKAGES
                         Comma separated list of select packages to show in the
-                        output. If set, --all will be ignored.
+                        output. Wildcards are supported, like 'somepackage.*'.
+                        If set, --all will be ignored.
   -e PACKAGES, --exclude PACKAGES
                         Comma separated list of select packages to exclude
-                        from the output. If set, --all will be ignored.
+                        from the output. Wildcards are supported, like
+                        'somepackage.*'. If set, --all will be ignored.
   -j, --json            Display dependency tree as json. This will yield "raw"
                         output that may be used by external tools. This option
                         overrides all other options.

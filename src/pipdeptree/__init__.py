@@ -1,4 +1,5 @@
 import argparse
+import fnmatch
 import inspect
 import json
 import os
@@ -350,14 +351,14 @@ class PackageDAG(Mapping):
         m = {}
         seen = set()
         for node in self._obj.keys():
-            if node.key in exclude:
+            if any(fnmatch.fnmatch(node.key, e) for e in exclude):
                 continue
-            if include is None or node.key in include:
+            if include is None or any(fnmatch.fnmatch(node.key, i) for i in include):
                 stack.append(node)
             while True:
                 if len(stack) > 0:
                     n = stack.pop()
-                    cldn = [c for c in self._obj[n] if c.key not in exclude]
+                    cldn = [c for c in self._obj[n] if not any(fnmatch.fnmatch(c.key, e) for e in exclude)]
                     m[n] = cldn
                     seen.add(n.key)
                     for c in cldn:
@@ -844,12 +845,20 @@ def get_parser():
     parser.add_argument(
         "-p",
         "--packages",
-        help="Comma separated list of select packages to show " "in the output. If set, --all will be ignored.",
+        help=(
+            "Comma separated list of select packages to show in the output. "
+            "Wildcards are supported, like 'somepackage.*'. "
+            "If set, --all will be ignored."
+        ),
     )
     parser.add_argument(
         "-e",
         "--exclude",
-        help="Comma separated list of select packages to exclude " "from the output. If set, --all will be ignored.",
+        help=(
+            "Comma separated list of select packages to exclude from the output. "
+            "Wildcards are supported, like 'somepackage.*'. "
+            "If set, --all will be ignored."
+        ),
         metavar="PACKAGES",
     )
     parser.add_argument(
