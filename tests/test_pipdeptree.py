@@ -137,16 +137,16 @@ def test_package_dag_reverse():
     expected = {"a": [], "b": ["a", "f"], "c": ["a"], "d": ["b", "c"], "e": ["c", "d", "g"], "f": ["g"], "g": []}
     assert isinstance(t1, p.ReversedPackageDAG)
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t1))
-    assert all([isinstance(k, p.ReqPackage) for k in t1.keys()])
-    assert all([isinstance(v, p.DistPackage) for v in chain.from_iterable(t1.values())])
+    assert all(isinstance(k, p.ReqPackage) for k in t1.keys())
+    assert all(isinstance(v, p.DistPackage) for v in chain.from_iterable(t1.values()))
 
     # testing reversal of ReversedPackageDAG instance
     expected = {"a": ["b", "c"], "b": ["d"], "c": ["d", "e"], "d": ["e"], "e": [], "f": ["b"], "g": ["e", "f"]}
     t2 = t1.reverse()
     assert isinstance(t2, p.PackageDAG)
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t2))
-    assert all([isinstance(k, p.DistPackage) for k in t2.keys()])
-    assert all([isinstance(v, p.ReqPackage) for v in chain.from_iterable(t2.values())])
+    assert all(isinstance(k, p.DistPackage) for k in t2.keys())
+    assert all(isinstance(v, p.ReqPackage) for v in chain.from_iterable(t2.values()))
 
 
 # Tests for Package classes
