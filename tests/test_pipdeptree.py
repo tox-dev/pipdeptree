@@ -660,6 +660,8 @@ def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
         expected = {"cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}
     else:
         raise ValueError(implementation)
+    if sys.version_info >= (3, 12):
+        expected -= {"setuptools", "wheel"}
     assert found == expected, out
 
     monkeypatch.setattr(sys, "argv", cmd + ["--graph-output", "something"])
