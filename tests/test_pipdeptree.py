@@ -468,7 +468,104 @@ def test_render_text(capsys, list_all, reverse, unicode, expected_output):
     tree = t.reverse() if reverse else t
     encoding = "utf-8" if unicode else "ascii"
     with mock.patch("sys.stdout", MockStdout(encoding)):
-        p.render_text(tree, list_all=list_all, frozen=False)
+        p.render_text(tree, float("inf"), list_all=list_all, frozen=False)
+        captured = capsys.readouterr()
+        assert "\n".join(expected_output).strip() == captured.out.strip()
+
+
+@pytest.mark.parametrize(
+    ("unicode", "level", "expected_output"),
+    [
+        (
+            True,
+            0,
+            [
+                "a==3.4.0",
+                "b==2.3.1",
+                "c==5.10.0",
+                "d==2.35",
+                "e==0.12.1",
+                "f==3.1",
+                "g==6.8.3rc1",
+            ],
+        ),
+        (
+            False,
+            0,
+            [
+                "a==3.4.0",
+                "b==2.3.1",
+                "c==5.10.0",
+                "d==2.35",
+                "e==0.12.1",
+                "f==3.1",
+                "g==6.8.3rc1",
+            ],
+        ),
+        (
+            True,
+            2,
+            [
+                "a==3.4.0",
+                "├── b [required: >=2.0.0, installed: 2.3.1]",
+                "│   └── d [required: >=2.30,<2.42, installed: 2.35]",
+                "└── c [required: >=5.7.1, installed: 5.10.0]",
+                "    ├── d [required: >=2.30, installed: 2.35]",
+                "    └── e [required: >=0.12.1, installed: 0.12.1]",
+                "b==2.3.1",
+                "└── d [required: >=2.30,<2.42, installed: 2.35]",
+                "    └── e [required: >=0.9.0, installed: 0.12.1]",
+                "c==5.10.0",
+                "├── d [required: >=2.30, installed: 2.35]",
+                "│   └── e [required: >=0.9.0, installed: 0.12.1]",
+                "└── e [required: >=0.12.1, installed: 0.12.1]",
+                "d==2.35",
+                "└── e [required: >=0.9.0, installed: 0.12.1]",
+                "e==0.12.1",
+                "f==3.1",
+                "└── b [required: >=2.1.0, installed: 2.3.1]",
+                "    └── d [required: >=2.30,<2.42, installed: 2.35]",
+                "g==6.8.3rc1",
+                "├── e [required: >=0.9.0, installed: 0.12.1]",
+                "└── f [required: >=3.0.0, installed: 3.1]",
+                "    └── b [required: >=2.1.0, installed: 2.3.1]",
+            ],
+        ),
+        (
+            False,
+            2,
+            [
+                "a==3.4.0",
+                "  - b [required: >=2.0.0, installed: 2.3.1]",
+                "    - d [required: >=2.30,<2.42, installed: 2.35]",
+                "  - c [required: >=5.7.1, installed: 5.10.0]",
+                "    - d [required: >=2.30, installed: 2.35]",
+                "    - e [required: >=0.12.1, installed: 0.12.1]",
+                "b==2.3.1",
+                "  - d [required: >=2.30,<2.42, installed: 2.35]",
+                "    - e [required: >=0.9.0, installed: 0.12.1]",
+                "c==5.10.0",
+                "  - d [required: >=2.30, installed: 2.35]",
+                "    - e [required: >=0.9.0, installed: 0.12.1]",
+                "  - e [required: >=0.12.1, installed: 0.12.1]",
+                "d==2.35",
+                "  - e [required: >=0.9.0, installed: 0.12.1]",
+                "e==0.12.1",
+                "f==3.1",
+                "  - b [required: >=2.1.0, installed: 2.3.1]",
+                "    - d [required: >=2.30,<2.42, installed: 2.35]",
+                "g==6.8.3rc1",
+                "  - e [required: >=0.9.0, installed: 0.12.1]",
+                "  - f [required: >=3.0.0, installed: 3.1]",
+                "    - b [required: >=2.1.0, installed: 2.3.1]",
+            ],
+        ),
+    ],
+)
+def test_render_text_given_depth(capsys, unicode, level, expected_output):
+    encoding = "utf-8" if unicode else "ascii"
+    with mock.patch("sys.stdout", MockStdout(encoding)):
+        p.render_text(t, level)
         captured = capsys.readouterr()
         assert "\n".join(expected_output).strip() == captured.out.strip()
 
@@ -774,6 +871,27 @@ def test_parser_svg():
     args = parser.parse_args(["--graph-output", "svg"])
     assert args.output_format == "svg"
     assert not args.json
+
+
+@pytest.mark.parametrize(
+    ("should_be_error", "depth_arg", "expected_value"),
+    [
+        (True, ["-d", "-1"], None),
+        (True, ["--depth", "string"], None),
+        (False, ["-d", "0"], 0),
+        (False, ["--depth", "8"], 8),
+        (False, [], float("inf")),
+    ],
+)
+def test_parser_depth(should_be_error, depth_arg, expected_value):
+    parser = p.get_parser()
+
+    if should_be_error:
+        with pytest.raises(SystemExit):
+            parser.parse_args(depth_arg)
+    else:
+        args = parser.parse_args(depth_arg)
+        assert args.depth == expected_value
 
 
 @pytest.mark.parametrize("args_joined", [True, False])
