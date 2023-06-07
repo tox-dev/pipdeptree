@@ -455,7 +455,7 @@ class ReversedPackageDAG(PackageDAG):
         return PackageDAG(dict(m))
 
 
-def render_text(tree, list_all=True, frozen=False):
+def render_text(tree, max_depth, list_all=True, frozen=False):
     """Print tree as text on console
 
     :param dict tree: the package tree
@@ -471,12 +471,12 @@ def render_text(tree, list_all=True, frozen=False):
         nodes = [p for p in nodes if p.key not in branch_keys]
 
     if sys.stdout.encoding.lower() in ("utf-8", "utf-16", "utf-32"):
-        _render_text_with_unicode(tree, nodes, frozen)
+        _render_text_with_unicode(tree, nodes, max_depth, frozen)
     else:
-        _render_text_without_unicode(tree, nodes, frozen)
+        _render_text_without_unicode(tree, nodes, max_depth, frozen)
 
 
-def _render_text_with_unicode(tree, nodes, frozen):
+def _render_text_with_unicode(tree, nodes, max_depth, frozen):
     use_bullets = not frozen
 
     def aux(
@@ -533,7 +533,7 @@ def _render_text_with_unicode(tree, nodes, frozen):
                 parent_is_last_child=is_last_child,
             )
             for c in children
-            if c.project_name not in cur_chain
+            if c.project_name not in cur_chain and depth + 1 <= max_depth
         ]
 
         result += list(chain.from_iterable(children_strings))
@@ -543,10 +543,10 @@ def _render_text_with_unicode(tree, nodes, frozen):
     print("\n".join(lines))
 
 
-def _render_text_without_unicode(tree, nodes, frozen):
+def _render_text_without_unicode(tree, nodes, max_depth, frozen):
     use_bullets = not frozen
 
-    def aux(node, parent=None, indent=0, cur_chain=None):
+    def aux(node, parent=None, indent=0, cur_chain=None, depth=0):
         cur_chain = cur_chain or []
         node_str = node.render(parent, frozen)
         if parent:
@@ -554,9 +554,9 @@ def _render_text_without_unicode(tree, nodes, frozen):
             node_str = prefix + node_str
         result = [node_str]
         children = [
-            aux(c, node, indent=indent + 2, cur_chain=cur_chain + [c.project_name])
+            aux(c, node, indent=indent + 2, cur_chain=cur_chain + [c.project_name], depth=depth + 1)
             for c in tree.get_children(node.key)
-            if c.project_name not in cur_chain
+            if c.project_name not in cur_chain and depth + 1 <= max_depth
         ]
         result += list(chain.from_iterable(children))
         return result
@@ -971,6 +971,16 @@ def get_parser():
             "GraphViz, e.g.: dot, jpeg, pdf, png, svg"
         ),
     )
+    parser.add_argument(
+        "-d",
+        "--depth",
+        type=lambda x: int(x) if x.isdigit() and (int(x) >= 0) else parser.error("Depth must be a number that is >= 0"),
+        default=float("inf"),
+        help=(
+            "Display dependency tree up to a depth >=0 using the default text display. All other display options"
+            " ignore this argument."
+        ),
+    )
     return parser
 
 
@@ -1077,6 +1087,6 @@ def main():
         output = dump_graphviz(tree, output_format=args.output_format, is_reverse=args.reverse)
         print_graphviz(output)
     else:
-        render_text(tree, args.all, args.freeze)
+        render_text(tree, args.depth, args.all, args.freeze)
 
     return return_code
