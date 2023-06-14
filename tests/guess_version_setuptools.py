@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 
 import pipdeptree
@@ -13,4 +15,4 @@ def raise_import_error(name):
 
 
 importlib_metadata.version = raise_import_error
-print(pipdeptree.guess_version("setuptools"), end="")
+print(pipdeptree.guess_version("setuptools"), end="")  # noqa: T201

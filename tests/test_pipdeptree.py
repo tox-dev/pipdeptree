@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import platform
 import random
 import subprocess
 import sys
-from contextlib import contextmanager
 from itertools import chain
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from textwrap import dedent, indent
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 try:
     from unittest import mock
@@ -18,6 +18,9 @@ import pytest
 import virtualenv
 
 import pipdeptree as p
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 # Tests for DAG classes
 
@@ -44,7 +47,7 @@ def mock_package_dag(simple_graph):
 
 # util for comparing tree contents with a simple graph
 def dag_to_dict(g):
-    return {k.key: [v.key for v in vs] for k, vs in g._obj.items()}
+    return {k.key: [v.key for v in vs] for k, vs in g._obj.items()}  # noqa: SLF001
 
 
 def sort_map_values(m):
@@ -60,39 +63,38 @@ t = mock_package_dag(
         ("e", "0.12.1"): [],
         ("f", "3.1"): [("b", [(">=", "2.1.0")])],
         ("g", "6.8.3rc1"): [("e", [(">=", "0.9.0")]), ("f", [(">=", "3.0.0")])],
-    }
+    },
 )
 
 
 def test_package_dag_get_node_as_parent():
-    assert "b" == t.get_node_as_parent("b").key
-    assert "c" == t.get_node_as_parent("c").key
+    assert t.get_node_as_parent("b").key == "b"
+    assert t.get_node_as_parent("c").key == "c"
 
 
 def test_package_dag_filter():
     # When both show_only and exclude are not specified, same tree
-    # object is returned
-    assert t.filter(None, None) is t
+    assert t.filter_nodes(None, None) is t
 
     # when show_only is specified
-    g1 = dag_to_dict(t.filter({"a", "d"}, None))
+    g1 = dag_to_dict(t.filter_nodes({"a", "d"}, None))
     expected = {"a": ["b", "c"], "b": ["d"], "c": ["d", "e"], "d": ["e"], "e": []}
     assert expected == g1
 
     # when exclude is specified
-    g2 = dag_to_dict(t.filter(None, ["d"]))
+    g2 = dag_to_dict(t.filter_nodes(None, ["d"]))
     expected = {"a": ["b", "c"], "b": [], "c": ["e"], "e": [], "f": ["b"], "g": ["e", "f"]}
     assert expected == g2
 
     # when both show_only and exclude are specified
-    g3 = dag_to_dict(t.filter({"a", "g"}, {"d", "e"}))
+    g3 = dag_to_dict(t.filter_nodes({"a", "g"}, {"d", "e"}))
     expected = {"a": ["b", "c"], "b": [], "c": [], "f": ["b"], "g": ["f"]}
     assert expected == g3
 
     # when conflicting values in show_only and exclude, AssertionError
     # is raised
     with pytest.raises(AssertionError):
-        dag_to_dict(t.filter({"d"}, {"D", "e"}))
+        dag_to_dict(t.filter_nodes({"d"}, {"D", "e"}))
 
 
 @pytest.fixture(scope="session")
@@ -103,32 +105,32 @@ def t_fnmatch() -> Any:
             ("a.b", "1"): [("a.c", [])],
             ("b.a", "1"): [("b.b", [])],
             ("b.b", "1"): [("a.b", [])],
-        }
+        },
     )
 
 
 def test_package_dag_filter_fnmatch_include_a(t_fnmatch: Any) -> None:
     # test include for a.*in the result we got only a.* nodes
-    graph = dag_to_dict(t_fnmatch.filter({"a.*"}, None))
+    graph = dag_to_dict(t_fnmatch.filter_nodes({"a.*"}, None))
     assert graph == {"a.a": ["a.b", "a.c"], "a.b": ["a.c"]}
 
 
 def test_package_dag_filter_fnmatch_include_b(t_fnmatch: Any) -> None:
     # test include for b.*, which has a.b and a.c in tree, but not a.a
     # in the result we got the b.* nodes plus the a.b node as child in the tree
-    graph = dag_to_dict(t_fnmatch.filter({"b.*"}, None))
+    graph = dag_to_dict(t_fnmatch.filter_nodes({"b.*"}, None))
     assert graph == {"b.a": ["b.b"], "b.b": ["a.b"], "a.b": ["a.c"]}
 
 
 def test_package_dag_filter_fnmatch_exclude_c(t_fnmatch: Any) -> None:
     # test exclude for b.* in the result we got only a.* nodes
-    graph = dag_to_dict(t_fnmatch.filter(None, {"b.*"}))
+    graph = dag_to_dict(t_fnmatch.filter_nodes(None, {"b.*"}))
     assert graph == {"a.a": ["a.b", "a.c"], "a.b": ["a.c"]}
 
 
 def test_package_dag_filter_fnmatch_exclude_a(t_fnmatch: Any) -> None:
     # test exclude for a.* in the result we got only b.* nodes
-    graph = dag_to_dict(t_fnmatch.filter(None, {"a.*"}))
+    graph = dag_to_dict(t_fnmatch.filter_nodes(None, {"a.*"}))
     assert graph == {"b.a": ["b.b"], "b.b": []}
 
 
@@ -137,7 +139,7 @@ def test_package_dag_reverse():
     expected = {"a": [], "b": ["a", "f"], "c": ["a"], "d": ["b", "c"], "e": ["c", "d", "g"], "f": ["g"], "g": []}
     assert isinstance(t1, p.ReversedPackageDAG)
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t1))
-    assert all(isinstance(k, p.ReqPackage) for k in t1.keys())
+    assert all(isinstance(k, p.ReqPackage) for k in t1)
     assert all(isinstance(v, p.DistPackage) for v in chain.from_iterable(t1.values()))
 
     # testing reversal of ReversedPackageDAG instance
@@ -145,7 +147,7 @@ def test_package_dag_reverse():
     t2 = t1.reverse()
     assert isinstance(t2, p.PackageDAG)
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t2))
-    assert all(isinstance(k, p.DistPackage) for k in t2.keys())
+    assert all(isinstance(k, p.DistPackage) for k in t2)
     assert all(isinstance(v, p.ReqPackage) for v in chain.from_iterable(t2.values()))
 
 
@@ -159,7 +161,7 @@ def test_dist_package_render_as_root():
     foo = mock.Mock(key="foo", project_name="foo", version="20.4.1")
     dp = p.DistPackage(foo)
     is_frozen = False
-    assert "foo==20.4.1" == dp.render_as_root(is_frozen)
+    assert dp.render_as_root(is_frozen) == "foo==20.4.1"
 
 
 def test_dist_package_render_as_branch():
@@ -169,7 +171,7 @@ def test_dist_package_render_as_branch():
     rp = p.ReqPackage(bar_req, dist=bar)
     dp = p.DistPackage(foo).as_parent_of(rp)
     is_frozen = False
-    assert "foo==20.4.1 [requires: bar>=4.0]" == dp.render_as_branch(is_frozen)
+    assert dp.render_as_branch(is_frozen) == "foo==20.4.1 [requires: bar>=4.0]"
 
 
 def test_dist_package_as_parent_of():
@@ -181,7 +183,7 @@ def test_dist_package_as_parent_of():
     bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
     rp = p.ReqPackage(bar_req, dist=bar)
     dp1 = dp.as_parent_of(rp)
-    assert dp1._obj == dp._obj
+    assert dp1._obj == dp._obj  # noqa: SLF001
     assert dp1.req is rp
 
     dp2 = dp.as_parent_of(None)
@@ -201,7 +203,7 @@ def test_req_package_render_as_root():
     bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
     rp = p.ReqPackage(bar_req, dist=bar)
     is_frozen = False
-    assert "bar==4.1.0" == rp.render_as_root(is_frozen)
+    assert rp.render_as_root(is_frozen) == "bar==4.1.0"
 
 
 def test_req_package_render_as_branch():
@@ -209,7 +211,7 @@ def test_req_package_render_as_branch():
     bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
     rp = p.ReqPackage(bar_req, dist=bar)
     is_frozen = False
-    assert "bar [required: >=4.0, installed: 4.1.0]" == rp.render_as_branch(is_frozen)
+    assert rp.render_as_branch(is_frozen) == "bar [required: >=4.0, installed: 4.1.0]"
 
 
 def test_req_package_as_dict():
@@ -230,7 +232,7 @@ class MockStdout:
     and `write()` (so that `print()` calls can write to stdout).
     """
 
-    def __init__(self, encoding):
+    def __init__(self, encoding) -> None:
         self.stdout = sys.stdout
         self.encoding = encoding
 
@@ -577,13 +579,13 @@ def randomized_dag_copy(t):
     """Returns a copy of the package tree fixture with dependencies in randomized order."""
     # Extract the dependency graph from the package tree and randomize it.
     randomized_graph = {}
-    randomized_nodes = list(t._obj.keys())
+    randomized_nodes = list(t._obj.keys())  # noqa: SLF001
     random.shuffle(randomized_nodes)
     for node in randomized_nodes:
-        edges = t._obj[node]
+        edges = t._obj[node]  # noqa: SLF001
         random.shuffle(edges)
         randomized_graph[node] = edges
-    assert set(randomized_graph) == set(t._obj)
+    assert set(randomized_graph) == set(t._obj)  # noqa: SLF001
 
     # Create a randomized package tree.
     randomized_dag = p.PackageDAG(randomized_graph)
@@ -612,7 +614,7 @@ def test_render_mermaid():
             e["e\\n0.12.1"]
             f["f\\n3.1"]
             g["g\\n6.8.3rc1"]
-        """
+        """,
     )
     dependency_edges = indent(
         dedent(
@@ -626,7 +628,7 @@ def test_render_mermaid():
             f -- ">=2.1.0" --> b
             g -- ">=0.9.0" --> e
             g -- ">=3.0.0" --> f
-        """
+        """,
         ),
         " " * 4,
     ).rstrip()
@@ -642,7 +644,7 @@ def test_render_mermaid():
             e -- ">=0.9.0" --> d
             e -- ">=0.9.0" --> g
             f -- ">=3.0.0" --> g
-        """
+        """,
         ),
         " " * 4,
     ).rstrip()
@@ -658,7 +660,7 @@ def test_mermaid_reserved_ids():
     package_tree = mock_package_dag(
         {
             ("click", "3.4.0"): [("click-extra", [(">=", "2.0.0")])],
-        }
+        },
     )
     output = p.render_mermaid(package_tree)
     assert output == dedent(
@@ -668,7 +670,7 @@ def test_mermaid_reserved_ids():
             click-extra["click-extra\\n(missing)"]:::missing
             click_0["click\\n3.4.0"]
             click_0 -.-> click-extra
-        """
+        """,
     )
 
 
@@ -700,27 +702,18 @@ def test_render_dot(capsys):
             \tg [label="g\\n6.8.3rc1"]
             }
 
-            """
+            """,
         )
 
 
-def test_render_pdf():
+def test_render_pdf(tmp_path: Path, mocker: MockerFixture) -> None:
     output = p.dump_graphviz(t, output_format="pdf")
-
-    @contextmanager
-    def redirect_stdout(new_target):
-        old_target, sys.stdout = sys.stdout, new_target
-        try:
-            yield new_target
-        finally:
-            sys.stdout = old_target
-
-    with NamedTemporaryFile(delete=True) as f:
-        with redirect_stdout(f):
+    res = tmp_path / "file"
+    with pytest.raises(OSError, match="Bad file descriptor"):  # noqa: PT012, SIM117 # because we reopen the file
+        with res.open("wb") as buf:
+            mocker.patch.object(sys, "stdout", buf)
             p.print_graphviz(output)
-        rf = open(f.name, "rb")
-        assert b"%PDF" == rf.read()[:4]
-        # @NOTE: rf is not closed to avoid "bad filedescriptor" error
+    assert res.read_bytes()[:4] == b"%PDF"
 
 
 def test_render_svg(capsys):
@@ -914,13 +907,13 @@ def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
         expected -= {"setuptools", "wheel"}
     assert found == expected, out
 
-    monkeypatch.setattr(sys, "argv", cmd + ["--graph-output", "something"])
+    monkeypatch.setattr(sys, "argv", [*cmd, "--graph-output", "something"])
     with pytest.raises(SystemExit) as context:
         p.main()
     out, err = capfd.readouterr()
     assert context.value.code == 1
     assert not out
-    assert err == "graphviz functionality is not supported when querying" " non-host python\n"
+    assert err == "graphviz functionality is not supported when querying non-host python\n"
 
 
 def test_guess_version_setuptools():
