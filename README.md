@@ -199,8 +199,6 @@ $ pipdeptree --json-tree
 
 ## Visualizing the dependency graph
 
-![image](https://raw.githubusercontent.com/tox-dev/pipdeptree/main/docs/twine-pdt.png)
-
 The dependency graph can also be visualized using [GraphViz](http://www.graphviz.org/):
 
 ```bash
