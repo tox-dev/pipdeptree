@@ -709,7 +709,7 @@ def test_render_dot(capsys):
 def test_render_pdf(tmp_path: Path, mocker: MockerFixture) -> None:
     output = p.dump_graphviz(t, output_format="pdf")
     res = tmp_path / "file"
-    with pytest.raises(OSError, match="Bad file descriptor"):  # noqa: PT012, SIM117 # because we reopen the file
+    with pytest.raises(OSError, match="Bad file"):  # noqa: PT012, SIM117 # because we reopen the file
         with res.open("wb") as buf:
             mocker.patch.object(sys, "stdout", buf)
             p.print_graphviz(output)
