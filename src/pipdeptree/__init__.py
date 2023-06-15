@@ -270,7 +270,19 @@ class PackageDAG(Mapping):
     def from_pkgs(cls, pkgs):
         pkgs = [DistPackage(p) for p in pkgs]
         idx = {p.key: p for p in pkgs}
-        m = {p: [ReqPackage(r, idx.get(r.key)) for r in p.requires()] for p in pkgs}
+        m = {}
+        for p in pkgs:
+            reqs = []
+            for r in p.requires():
+                d = idx.get(r.key)
+                # pip's _vendor.packaging.requirements.Requirement uses the exact casing of a dependency's name found in
+                # a project's build config, which is not ideal when rendering.
+                # See https://github.com/tox-dev/pipdeptree/issues/242
+                r.project_name = d.project_name if d is not None else r.project_name
+                pkg = ReqPackage(r, d)
+                reqs.append(pkg)
+            m[p] = reqs
+
         return cls(m)
 
     def __init__(self, m) -> None:
