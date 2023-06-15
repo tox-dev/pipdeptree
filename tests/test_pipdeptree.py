@@ -8,16 +8,27 @@ from itertools import chain
 from pathlib import Path
 from textwrap import dedent, indent
 from typing import TYPE_CHECKING, Any
-
-try:
-    from unittest import mock
-except ImportError:
-    from unittest import mock
+from unittest import mock
 
 import pytest
 import virtualenv
 
-import pipdeptree as p
+from pipdeptree import (
+    DistPackage,
+    PackageDAG,
+    ReqPackage,
+    ReversedPackageDAG,
+    conflicting_deps,
+    cyclic_deps,
+    dump_graphviz,
+    get_parser,
+    main,
+    print_graphviz,
+    render_conflicts_text,
+    render_cycles_text,
+    render_mermaid,
+    render_text,
+)
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -42,7 +53,7 @@ def mock_pkgs(simple_graph):
 
 def mock_package_dag(simple_graph):
     pkgs = list(mock_pkgs(simple_graph))
-    return p.PackageDAG.from_pkgs(pkgs)
+    return PackageDAG.from_pkgs(pkgs)
 
 
 # util for comparing tree contents with a simple graph
@@ -137,18 +148,18 @@ def test_package_dag_filter_fnmatch_exclude_a(t_fnmatch: Any) -> None:
 def test_package_dag_reverse():
     t1 = t.reverse()
     expected = {"a": [], "b": ["a", "f"], "c": ["a"], "d": ["b", "c"], "e": ["c", "d", "g"], "f": ["g"], "g": []}
-    assert isinstance(t1, p.ReversedPackageDAG)
+    assert isinstance(t1, ReversedPackageDAG)
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t1))
-    assert all(isinstance(k, p.ReqPackage) for k in t1)
-    assert all(isinstance(v, p.DistPackage) for v in chain.from_iterable(t1.values()))
+    assert all(isinstance(k, ReqPackage) for k in t1)
+    assert all(isinstance(v, DistPackage) for v in chain.from_iterable(t1.values()))
 
     # testing reversal of ReversedPackageDAG instance
     expected = {"a": ["b", "c"], "b": ["d"], "c": ["d", "e"], "d": ["e"], "e": [], "f": ["b"], "g": ["e", "f"]}
     t2 = t1.reverse()
-    assert isinstance(t2, p.PackageDAG)
+    assert isinstance(t2, PackageDAG)
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t2))
-    assert all(isinstance(k, p.DistPackage) for k in t2)
-    assert all(isinstance(v, p.ReqPackage) for v in chain.from_iterable(t2.values()))
+    assert all(isinstance(k, DistPackage) for k in t2)
+    assert all(isinstance(v, ReqPackage) for v in chain.from_iterable(t2.values()))
 
 
 # Tests for Package classes
@@ -159,7 +170,7 @@ def test_package_dag_reverse():
 
 def test_dist_package_render_as_root():
     foo = mock.Mock(key="foo", project_name="foo", version="20.4.1")
-    dp = p.DistPackage(foo)
+    dp = DistPackage(foo)
     is_frozen = False
     assert dp.render_as_root(is_frozen) == "foo==20.4.1"
 
@@ -168,20 +179,20 @@ def test_dist_package_render_as_branch():
     foo = mock.Mock(key="foo", project_name="foo", version="20.4.1")
     bar = mock.Mock(key="bar", project_name="bar", version="4.1.0")
     bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
-    rp = p.ReqPackage(bar_req, dist=bar)
-    dp = p.DistPackage(foo).as_parent_of(rp)
+    rp = ReqPackage(bar_req, dist=bar)
+    dp = DistPackage(foo).as_parent_of(rp)
     is_frozen = False
     assert dp.render_as_branch(is_frozen) == "foo==20.4.1 [requires: bar>=4.0]"
 
 
 def test_dist_package_as_parent_of():
     foo = mock.Mock(key="foo", project_name="foo", version="20.4.1")
-    dp = p.DistPackage(foo)
+    dp = DistPackage(foo)
     assert dp.req is None
 
     bar = mock.Mock(key="bar", project_name="bar", version="4.1.0")
     bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
-    rp = p.ReqPackage(bar_req, dist=bar)
+    rp = ReqPackage(bar_req, dist=bar)
     dp1 = dp.as_parent_of(rp)
     assert dp1._obj == dp._obj  # noqa: SLF001
     assert dp1.req is rp
@@ -192,7 +203,7 @@ def test_dist_package_as_parent_of():
 
 def test_dist_package_as_dict():
     foo = mock.Mock(key="foo", project_name="foo", version="1.3.2b1")
-    dp = p.DistPackage(foo)
+    dp = DistPackage(foo)
     result = dp.as_dict()
     expected = {"key": "foo", "package_name": "foo", "installed_version": "1.3.2b1"}
     assert expected == result
@@ -201,7 +212,7 @@ def test_dist_package_as_dict():
 def test_req_package_render_as_root():
     bar = mock.Mock(key="bar", project_name="bar", version="4.1.0")
     bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
-    rp = p.ReqPackage(bar_req, dist=bar)
+    rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
     assert rp.render_as_root(is_frozen) == "bar==4.1.0"
 
@@ -209,7 +220,7 @@ def test_req_package_render_as_root():
 def test_req_package_render_as_branch():
     bar = mock.Mock(key="bar", project_name="bar", version="4.1.0")
     bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
-    rp = p.ReqPackage(bar_req, dist=bar)
+    rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
     assert rp.render_as_branch(is_frozen) == "bar [required: >=4.0, installed: 4.1.0]"
 
@@ -217,7 +228,7 @@ def test_req_package_render_as_branch():
 def test_req_package_as_dict():
     bar = mock.Mock(key="bar", project_name="bar", version="4.1.0")
     bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
-    rp = p.ReqPackage(bar_req, dist=bar)
+    rp = ReqPackage(bar_req, dist=bar)
     result = rp.as_dict()
     expected = {"key": "bar", "package_name": "bar", "installed_version": "4.1.0", "required_version": ">=4.0"}
     assert expected == result
@@ -470,7 +481,7 @@ def test_render_text(capsys, list_all, reverse, unicode, expected_output):
     tree = t.reverse() if reverse else t
     encoding = "utf-8" if unicode else "ascii"
     with mock.patch("sys.stdout", MockStdout(encoding)):
-        p.render_text(tree, float("inf"), list_all=list_all, frozen=False)
+        render_text(tree, float("inf"), list_all=list_all, frozen=False)
         captured = capsys.readouterr()
         assert "\n".join(expected_output).strip() == captured.out.strip()
 
@@ -567,7 +578,7 @@ def test_render_text(capsys, list_all, reverse, unicode, expected_output):
 def test_render_text_given_depth(capsys, unicode, level, expected_output):
     encoding = "utf-8" if unicode else "ascii"
     with mock.patch("sys.stdout", MockStdout(encoding)):
-        p.render_text(t, level)
+        render_text(t, level)
         captured = capsys.readouterr()
         assert "\n".join(expected_output).strip() == captured.out.strip()
 
@@ -588,7 +599,7 @@ def randomized_dag_copy(t):
     assert set(randomized_graph) == set(t._obj)  # noqa: SLF001
 
     # Create a randomized package tree.
-    randomized_dag = p.PackageDAG(randomized_graph)
+    randomized_dag = PackageDAG(randomized_graph)
     assert len(t) == len(randomized_dag)
     return randomized_dag
 
@@ -650,9 +661,9 @@ def test_render_mermaid():
     ).rstrip()
 
     for package_tree in (t, randomized_dag_copy(t)):
-        output = p.render_mermaid(package_tree)
+        output = render_mermaid(package_tree)
         assert output.rstrip() == nodes + dependency_edges
-        reversed_output = p.render_mermaid(package_tree.reverse())
+        reversed_output = render_mermaid(package_tree.reverse())
         assert reversed_output.rstrip() == nodes + reverse_dependency_edges
 
 
@@ -662,7 +673,7 @@ def test_mermaid_reserved_ids():
             ("click", "3.4.0"): [("click-extra", [(">=", "2.0.0")])],
         },
     )
-    output = p.render_mermaid(package_tree)
+    output = render_mermaid(package_tree)
     assert output == dedent(
         """\
         flowchart TD
@@ -678,8 +689,8 @@ def test_render_dot(capsys):
     # Check both the sorted and randomized package tree produces the same sorted
     # graphviz output.
     for package_tree in (t, randomized_dag_copy(t)):
-        output = p.dump_graphviz(package_tree, output_format="dot")
-        p.print_graphviz(output)
+        output = dump_graphviz(package_tree, output_format="dot")
+        print_graphviz(output)
         out, _ = capsys.readouterr()
         assert out == dedent(
             """\
@@ -707,18 +718,18 @@ def test_render_dot(capsys):
 
 
 def test_render_pdf(tmp_path: Path, mocker: MockerFixture) -> None:
-    output = p.dump_graphviz(t, output_format="pdf")
+    output = dump_graphviz(t, output_format="pdf")
     res = tmp_path / "file"
     with pytest.raises(OSError, match="Bad file"):  # noqa: PT012, SIM117 # because we reopen the file
         with res.open("wb") as buf:
             mocker.patch.object(sys, "stdout", buf)
-            p.print_graphviz(output)
+            print_graphviz(output)
     assert res.read_bytes()[:4] == b"%PDF"
 
 
 def test_render_svg(capsys):
-    output = p.dump_graphviz(t, output_format="svg")
-    p.print_graphviz(output)
+    output = dump_graphviz(t, output_format="svg")
+    print_graphviz(output)
     out, _ = capsys.readouterr()
     assert out.startswith("<?xml")
     assert "<svg" in out
@@ -769,10 +780,10 @@ def test_render_svg(capsys):
 )
 def test_conflicting_deps(capsys, mpkgs, expected_keys, expected_output):
     tree = mock_package_dag(mpkgs)
-    result = p.conflicting_deps(tree)
+    result = conflicting_deps(tree)
     result_keys = {k.key: [v.key for v in vs] for k, vs in result.items()}
     assert expected_keys == result_keys
-    p.render_conflicts_text(result)
+    render_conflicts_text(result)
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.err.strip()
 
@@ -804,10 +815,10 @@ def test_conflicting_deps(capsys, mpkgs, expected_keys, expected_output):
 )
 def test_cyclic_deps(capsys, mpkgs, expected_keys, expected_output):
     tree = mock_package_dag(mpkgs)
-    result = p.cyclic_deps(tree)
+    result = cyclic_deps(tree)
     result_keys = [(a.key, b.key, c.key) for (a, b, c) in result]
     assert sorted(expected_keys) == sorted(result_keys)
-    p.render_cycles_text(result)
+    render_cycles_text(result)
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.err.strip()
 
@@ -816,28 +827,28 @@ def test_cyclic_deps(capsys, mpkgs, expected_keys, expected_output):
 
 
 def test_parser_default():
-    parser = p.get_parser()
+    parser = get_parser()
     args = parser.parse_args([])
     assert not args.json
     assert args.output_format is None
 
 
 def test_parser_j():
-    parser = p.get_parser()
+    parser = get_parser()
     args = parser.parse_args(["-j"])
     assert args.json
     assert args.output_format is None
 
 
 def test_parser_json():
-    parser = p.get_parser()
+    parser = get_parser()
     args = parser.parse_args(["--json"])
     assert args.json
     assert args.output_format is None
 
 
 def test_parser_json_tree():
-    parser = p.get_parser()
+    parser = get_parser()
     args = parser.parse_args(["--json-tree"])
     assert args.json_tree
     assert not args.json
@@ -845,7 +856,7 @@ def test_parser_json_tree():
 
 
 def test_parser_mermaid():
-    parser = p.get_parser()
+    parser = get_parser()
     args = parser.parse_args(["--mermaid"])
     assert args.mermaid
     assert not args.json
@@ -853,14 +864,14 @@ def test_parser_mermaid():
 
 
 def test_parser_pdf():
-    parser = p.get_parser()
+    parser = get_parser()
     args = parser.parse_args(["--graph-output", "pdf"])
     assert args.output_format == "pdf"
     assert not args.json
 
 
 def test_parser_svg():
-    parser = p.get_parser()
+    parser = get_parser()
     args = parser.parse_args(["--graph-output", "svg"])
     assert args.output_format == "svg"
     assert not args.json
@@ -877,7 +888,7 @@ def test_parser_svg():
     ],
 )
 def test_parser_depth(should_be_error, depth_arg, expected_value):
-    parser = p.get_parser()
+    parser = get_parser()
 
     if should_be_error:
         with pytest.raises(SystemExit):
@@ -889,11 +900,13 @@ def test_parser_depth(should_be_error, depth_arg, expected_value):
 
 @pytest.mark.parametrize("args_joined", [True, False])
 def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
-    result = virtualenv.cli_run([str(tmp_path), "--activators", ""])
+    result = virtualenv.cli_run([str(tmp_path / "venv"), "--activators", ""])
     cmd = [sys.executable]
-    cmd += [f"--python={result.creator.exe}"] if args_joined else ["--python", str(result.creator.exe)]
+    monkeypatch.chdir(tmp_path)
+    py = str(result.creator.exe.relative_to(tmp_path))
+    cmd += [f"--python={result.creator.exe}"] if args_joined else ["--python", py]
     monkeypatch.setattr(sys, "argv", cmd)
-    p.main()
+    main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
     implementation = platform.python_implementation()
@@ -909,7 +922,7 @@ def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
 
     monkeypatch.setattr(sys, "argv", [*cmd, "--graph-output", "something"])
     with pytest.raises(SystemExit) as context:
-        p.main()
+        main()
     out, err = capfd.readouterr()
     assert context.value.code == 1
     assert not out
