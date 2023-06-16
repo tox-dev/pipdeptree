@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 def mock_pkgs(simple_graph):
     for node, children in simple_graph.items():
         nk, nv = node
-        m = mock.Mock(key=nk, project_name=nk, version=nv)
+        m = mock.Mock(key=nk.lower(), project_name=nk, version=nv)
         as_req = mock.Mock(key=nk, project_name=nk, specs=[("==", nv)])
         m.as_requirement = mock.Mock(return_value=as_req)
         reqs = []
@@ -160,6 +160,20 @@ def test_package_dag_reverse():
     assert sort_map_values(expected) == sort_map_values(dag_to_dict(t2))
     assert all(isinstance(k, DistPackage) for k in t2)
     assert all(isinstance(v, ReqPackage) for v in chain.from_iterable(t2.values()))
+
+
+def test_package_dag_from_pkgs():
+    # when pip's _vendor.packaging.requirements.Requirement's requires() gives a lowercased package name but the actual
+    # package name in PyPI is mixed case, expect the mixed case version
+    graph = {
+        ("examplePy", "1.2.3"): [("hellopy", [(">=", "2.0.0")])],
+        ("HelloPy", "2.2.0"): [],
+    }
+    t = mock_package_dag(graph)
+    parent_key = "examplepy"
+    c = t.get_children(parent_key)
+    assert len(c) == 1
+    assert c[0].project_name == "HelloPy"
 
 
 # Tests for Package classes
