@@ -494,10 +494,9 @@ class MockStdout:
 def test_render_text(capsys, list_all, reverse, unicode, expected_output):
     tree = t.reverse() if reverse else t
     encoding = "utf-8" if unicode else "ascii"
-    with mock.patch("sys.stdout", MockStdout(encoding)):
-        render_text(tree, float("inf"), list_all=list_all, frozen=False)
-        captured = capsys.readouterr()
-        assert "\n".join(expected_output).strip() == captured.out.strip()
+    render_text(tree, float("inf"), encoding, list_all=list_all, frozen=False)
+    captured = capsys.readouterr()
+    assert "\n".join(expected_output).strip() == captured.out.strip()
 
 
 @pytest.mark.parametrize(
@@ -590,18 +589,15 @@ def test_render_text(capsys, list_all, reverse, unicode, expected_output):
     ],
 )
 def test_render_text_given_depth(capsys, unicode, level, expected_output):
-    encoding = "utf-8" if unicode else "ascii"
-    with mock.patch("sys.stdout", MockStdout(encoding)):
-        render_text(t, level)
-        captured = capsys.readouterr()
-        assert "\n".join(expected_output).strip() == captured.out.strip()
+    render_text(t, level, encoding="utf-8" if unicode else "ascii")
+    captured = capsys.readouterr()
+    assert "\n".join(expected_output).strip() == captured.out.strip()
 
 
 @pytest.mark.parametrize(
-    ("unicode", "level", "encoding_type", "expected_output"),
+    ("level", "encoding", "expected_output"),
     [
         (
-            True,
             0,
             "utf-8",
             [
@@ -615,7 +611,6 @@ def test_render_text_given_depth(capsys, unicode, level, expected_output):
             ],
         ),
         (
-            False,
             0,
             "utf-8",
             [
@@ -629,7 +624,6 @@ def test_render_text_given_depth(capsys, unicode, level, expected_output):
             ],
         ),
         (
-            True,
             2,
             "utf-8",
             [
@@ -659,7 +653,6 @@ def test_render_text_given_depth(capsys, unicode, level, expected_output):
             ],
         ),
         (
-            False,
             2,
             "ascii",
             [
@@ -689,7 +682,6 @@ def test_render_text_given_depth(capsys, unicode, level, expected_output):
             ],
         ),
         (
-            False,
             2,
             "utf-8",
             [
@@ -719,7 +711,6 @@ def test_render_text_given_depth(capsys, unicode, level, expected_output):
             ],
         ),
         (
-            True,
             2,
             "ascii",
             [
@@ -750,12 +741,10 @@ def test_render_text_given_depth(capsys, unicode, level, expected_output):
         ),
     ],
 )
-def test_render_text_encoding(capsys, unicode, level, encoding_type, expected_output):
-    encoding = "utf-8" if unicode else "ascii"
-    with mock.patch("sys.stdout", MockStdout(encoding)):
-        render_text(t, level, True, False, encoding_type)
-        captured = capsys.readouterr()
-        assert "\n".join(expected_output).strip() == captured.out.strip()
+def test_render_text_encoding(capsys, level, encoding, expected_output):
+    render_text(t, level, encoding, True, False)
+    captured = capsys.readouterr()
+    assert "\n".join(expected_output).strip() == captured.out.strip()
 
 
 # Tests for graph outputs

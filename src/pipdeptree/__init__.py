@@ -464,7 +464,7 @@ class ReversedPackageDAG(PackageDAG):
         return PackageDAG(dict(m))
 
 
-def render_text(tree, max_depth, list_all=True, frozen=False, encoding_type=None):  # noqa: FBT002
+def render_text(tree, max_depth, encoding, list_all=True, frozen=False):  # noqa: FBT002
     """
     Print tree as text on console.
 
@@ -480,10 +480,7 @@ def render_text(tree, max_depth, list_all=True, frozen=False, encoding_type=None
     if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
-    if encoding_type is None:
-        encoding_type = sys.stdout.encoding.lower()
-
-    if encoding_type in ("utf-8", "utf-16", "utf-32"):
+    if encoding in ("utf-8", "utf-16", "utf-32"):
         _render_text_with_unicode(tree, nodes, max_depth, frozen)
     else:
         _render_text_without_unicode(tree, nodes, max_depth, frozen)
@@ -1003,11 +1000,8 @@ def get_parser():
     parser.add_argument(
         "--encoding",
         dest="encoding_type",
-        default=None,
-        help=(
-            "Display dependency tree as text using specified encoding (defaults to ascii)"
-            "This option overrides default unicode detection."
-        ),
+        default=sys.stdout.encoding,
+        help="Display dependency tree as text using specified encoding",
     )
     return parser
 
@@ -1126,4 +1120,4 @@ def _render(args, tree):
         output = dump_graphviz(tree, output_format=args.output_format, is_reverse=args.reverse)
         print_graphviz(output)
     else:
-        render_text(tree, args.depth, args.all, args.freeze, args.encoding_type)
+        render_text(tree, args.depth, args.encoding_type, args.all, args.freeze)
