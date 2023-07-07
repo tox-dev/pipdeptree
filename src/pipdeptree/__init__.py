@@ -407,7 +407,7 @@ class PackageDAG(Mapping):
                 # as we're using array mutation
                 try:
                     node = [p for p in m if p.key == v.key][0]
-                except IndexError:
+                except IndexError:  # noqa: PERF203
                     node = v
                 m[node].append(k.as_parent_of(v))
             if k.key not in child_keys:
@@ -456,7 +456,7 @@ class ReversedPackageDAG(PackageDAG):
             for v in vs:
                 try:
                     node = [p for p in m if p.key == v.key][0]
-                except IndexError:
+                except IndexError:  # noqa: PERF203
                     node = v.as_parent_of(None)
                 m[node].append(k)
             if k.key not in child_keys:
@@ -831,7 +831,7 @@ def print_graphviz(dump_output):
             bytestream.write(dump_output)
 
 
-def conflicting_deps(tree):
+def conflicting_deps(tree: PackageDAG) -> dict[DistPackage, list[ReqPackage]]:
     """
     Returns dependencies which are not present or conflict with the requirements of other packages.
 
@@ -842,10 +842,10 @@ def conflicting_deps(tree):
     :rtype: dict
     """
     conflicting = defaultdict(list)
-    for p, rs in tree.items():
-        for req in rs:
+    for package, requires in tree.items():
+        for req in requires:
             if req.is_conflicting():
-                conflicting[p].append(req)
+                conflicting[package].append(req)  # noqa: PERF401
     return conflicting
 
 
