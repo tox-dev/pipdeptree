@@ -494,10 +494,9 @@ class MockStdout:
 def test_render_text(capsys, list_all, reverse, unicode, expected_output):
     tree = t.reverse() if reverse else t
     encoding = "utf-8" if unicode else "ascii"
-    with mock.patch("sys.stdout", MockStdout(encoding)):
-        render_text(tree, float("inf"), list_all=list_all, frozen=False)
-        captured = capsys.readouterr()
-        assert "\n".join(expected_output).strip() == captured.out.strip()
+    render_text(tree, float("inf"), encoding, list_all=list_all, frozen=False)
+    captured = capsys.readouterr()
+    assert "\n".join(expected_output).strip() == captured.out.strip()
 
 
 @pytest.mark.parametrize(
@@ -590,11 +589,162 @@ def test_render_text(capsys, list_all, reverse, unicode, expected_output):
     ],
 )
 def test_render_text_given_depth(capsys, unicode, level, expected_output):
-    encoding = "utf-8" if unicode else "ascii"
-    with mock.patch("sys.stdout", MockStdout(encoding)):
-        render_text(t, level)
-        captured = capsys.readouterr()
-        assert "\n".join(expected_output).strip() == captured.out.strip()
+    render_text(t, level, encoding="utf-8" if unicode else "ascii")
+    captured = capsys.readouterr()
+    assert "\n".join(expected_output).strip() == captured.out.strip()
+
+
+@pytest.mark.parametrize(
+    ("level", "encoding", "expected_output"),
+    [
+        (
+            0,
+            "utf-8",
+            [
+                "a==3.4.0",
+                "b==2.3.1",
+                "c==5.10.0",
+                "d==2.35",
+                "e==0.12.1",
+                "f==3.1",
+                "g==6.8.3rc1",
+            ],
+        ),
+        (
+            0,
+            "utf-8",
+            [
+                "a==3.4.0",
+                "b==2.3.1",
+                "c==5.10.0",
+                "d==2.35",
+                "e==0.12.1",
+                "f==3.1",
+                "g==6.8.3rc1",
+            ],
+        ),
+        (
+            2,
+            "utf-8",
+            [
+                "a==3.4.0",
+                "├── b [required: >=2.0.0, installed: 2.3.1]",
+                "│   └── d [required: >=2.30,<2.42, installed: 2.35]",
+                "└── c [required: >=5.7.1, installed: 5.10.0]",
+                "    ├── d [required: >=2.30, installed: 2.35]",
+                "    └── e [required: >=0.12.1, installed: 0.12.1]",
+                "b==2.3.1",
+                "└── d [required: >=2.30,<2.42, installed: 2.35]",
+                "    └── e [required: >=0.9.0, installed: 0.12.1]",
+                "c==5.10.0",
+                "├── d [required: >=2.30, installed: 2.35]",
+                "│   └── e [required: >=0.9.0, installed: 0.12.1]",
+                "└── e [required: >=0.12.1, installed: 0.12.1]",
+                "d==2.35",
+                "└── e [required: >=0.9.0, installed: 0.12.1]",
+                "e==0.12.1",
+                "f==3.1",
+                "└── b [required: >=2.1.0, installed: 2.3.1]",
+                "    └── d [required: >=2.30,<2.42, installed: 2.35]",
+                "g==6.8.3rc1",
+                "├── e [required: >=0.9.0, installed: 0.12.1]",
+                "└── f [required: >=3.0.0, installed: 3.1]",
+                "    └── b [required: >=2.1.0, installed: 2.3.1]",
+            ],
+        ),
+        (
+            2,
+            "ascii",
+            [
+                "a==3.4.0",
+                "  - b [required: >=2.0.0, installed: 2.3.1]",
+                "    - d [required: >=2.30,<2.42, installed: 2.35]",
+                "  - c [required: >=5.7.1, installed: 5.10.0]",
+                "    - d [required: >=2.30, installed: 2.35]",
+                "    - e [required: >=0.12.1, installed: 0.12.1]",
+                "b==2.3.1",
+                "  - d [required: >=2.30,<2.42, installed: 2.35]",
+                "    - e [required: >=0.9.0, installed: 0.12.1]",
+                "c==5.10.0",
+                "  - d [required: >=2.30, installed: 2.35]",
+                "    - e [required: >=0.9.0, installed: 0.12.1]",
+                "  - e [required: >=0.12.1, installed: 0.12.1]",
+                "d==2.35",
+                "  - e [required: >=0.9.0, installed: 0.12.1]",
+                "e==0.12.1",
+                "f==3.1",
+                "  - b [required: >=2.1.0, installed: 2.3.1]",
+                "    - d [required: >=2.30,<2.42, installed: 2.35]",
+                "g==6.8.3rc1",
+                "  - e [required: >=0.9.0, installed: 0.12.1]",
+                "  - f [required: >=3.0.0, installed: 3.1]",
+                "    - b [required: >=2.1.0, installed: 2.3.1]",
+            ],
+        ),
+        (
+            2,
+            "utf-8",
+            [
+                "a==3.4.0",
+                "├── b [required: >=2.0.0, installed: 2.3.1]",
+                "│   └── d [required: >=2.30,<2.42, installed: 2.35]",
+                "└── c [required: >=5.7.1, installed: 5.10.0]",
+                "    ├── d [required: >=2.30, installed: 2.35]",
+                "    └── e [required: >=0.12.1, installed: 0.12.1]",
+                "b==2.3.1",
+                "└── d [required: >=2.30,<2.42, installed: 2.35]",
+                "    └── e [required: >=0.9.0, installed: 0.12.1]",
+                "c==5.10.0",
+                "├── d [required: >=2.30, installed: 2.35]",
+                "│   └── e [required: >=0.9.0, installed: 0.12.1]",
+                "└── e [required: >=0.12.1, installed: 0.12.1]",
+                "d==2.35",
+                "└── e [required: >=0.9.0, installed: 0.12.1]",
+                "e==0.12.1",
+                "f==3.1",
+                "└── b [required: >=2.1.0, installed: 2.3.1]",
+                "    └── d [required: >=2.30,<2.42, installed: 2.35]",
+                "g==6.8.3rc1",
+                "├── e [required: >=0.9.0, installed: 0.12.1]",
+                "└── f [required: >=3.0.0, installed: 3.1]",
+                "    └── b [required: >=2.1.0, installed: 2.3.1]",
+            ],
+        ),
+        (
+            2,
+            "ascii",
+            [
+                "a==3.4.0",
+                "  - b [required: >=2.0.0, installed: 2.3.1]",
+                "    - d [required: >=2.30,<2.42, installed: 2.35]",
+                "  - c [required: >=5.7.1, installed: 5.10.0]",
+                "    - d [required: >=2.30, installed: 2.35]",
+                "    - e [required: >=0.12.1, installed: 0.12.1]",
+                "b==2.3.1",
+                "  - d [required: >=2.30,<2.42, installed: 2.35]",
+                "    - e [required: >=0.9.0, installed: 0.12.1]",
+                "c==5.10.0",
+                "  - d [required: >=2.30, installed: 2.35]",
+                "    - e [required: >=0.9.0, installed: 0.12.1]",
+                "  - e [required: >=0.12.1, installed: 0.12.1]",
+                "d==2.35",
+                "  - e [required: >=0.9.0, installed: 0.12.1]",
+                "e==0.12.1",
+                "f==3.1",
+                "  - b [required: >=2.1.0, installed: 2.3.1]",
+                "    - d [required: >=2.30,<2.42, installed: 2.35]",
+                "g==6.8.3rc1",
+                "  - e [required: >=0.9.0, installed: 0.12.1]",
+                "  - f [required: >=3.0.0, installed: 3.1]",
+                "    - b [required: >=2.1.0, installed: 2.3.1]",
+            ],
+        ),
+    ],
+)
+def test_render_text_encoding(capsys, level, encoding, expected_output):
+    render_text(t, level, encoding, True, False)
+    captured = capsys.readouterr()
+    assert "\n".join(expected_output).strip() == captured.out.strip()
 
 
 # Tests for graph outputs

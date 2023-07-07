@@ -407,7 +407,7 @@ class PackageDAG(Mapping):
                 # as we're using array mutation
                 try:
                     node = [p for p in m if p.key == v.key][0]
-                except IndexError:
+                except IndexError:  # noqa: PERF203
                     node = v
                 m[node].append(k.as_parent_of(v))
             if k.key not in child_keys:
@@ -456,7 +456,7 @@ class ReversedPackageDAG(PackageDAG):
             for v in vs:
                 try:
                     node = [p for p in m if p.key == v.key][0]
-                except IndexError:
+                except IndexError:  # noqa: PERF203
                     node = v.as_parent_of(None)
                 m[node].append(k)
             if k.key not in child_keys:
@@ -464,7 +464,7 @@ class ReversedPackageDAG(PackageDAG):
         return PackageDAG(dict(m))
 
 
-def render_text(tree, max_depth, list_all=True, frozen=False):  # noqa: FBT002
+def render_text(tree, max_depth, encoding, list_all=True, frozen=False):  # noqa: FBT002
     """
     Print tree as text on console.
 
@@ -480,7 +480,7 @@ def render_text(tree, max_depth, list_all=True, frozen=False):  # noqa: FBT002
     if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
-    if sys.stdout.encoding.lower() in ("utf-8", "utf-16", "utf-32"):
+    if encoding in ("utf-8", "utf-16", "utf-32"):
         _render_text_with_unicode(tree, nodes, max_depth, frozen)
     else:
         _render_text_without_unicode(tree, nodes, max_depth, frozen)
@@ -828,7 +828,7 @@ def print_graphviz(dump_output):
             bytestream.write(dump_output)
 
 
-def conflicting_deps(tree):
+def conflicting_deps(tree: PackageDAG) -> dict[DistPackage, list[ReqPackage]]:
     """
     Returns dependencies which are not present or conflict with the requirements of other packages.
 
@@ -839,10 +839,10 @@ def conflicting_deps(tree):
     :rtype: dict
     """
     conflicting = defaultdict(list)
-    for p, rs in tree.items():
-        for req in rs:
+    for package, requires in tree.items():
+        for req in requires:
             if req.is_conflicting():
-                conflicting[p].append(req)
+                conflicting[package].append(req)  # noqa: PERF401
     return conflicting
 
 
@@ -997,6 +997,12 @@ def get_parser():
             " ignore this argument."
         ),
     )
+    parser.add_argument(
+        "--encoding",
+        dest="encoding_type",
+        default=sys.stdout.encoding,
+        help="Display dependency tree as text using specified encoding",
+    )
     return parser
 
 
@@ -1114,4 +1120,4 @@ def _render(args, tree):
         output = dump_graphviz(tree, output_format=args.output_format, is_reverse=args.reverse)
         print_graphviz(output)
     else:
-        render_text(tree, args.depth, args.all, args.freeze)
+        render_text(tree, args.depth, args.encoding_type, args.all, args.freeze)
