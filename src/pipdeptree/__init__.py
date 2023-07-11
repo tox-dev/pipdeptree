@@ -15,7 +15,7 @@ from importlib import import_module
 from itertools import chain
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Iterator, List, Mapping, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Iterator, List, Mapping, cast
 
 from pip._vendor.pkg_resources import Distribution, Requirement
 
@@ -253,10 +253,6 @@ class ReqPackage(Package):
             "installed_version": self.installed_version,
             "required_version": self.version_spec,
         }
-
-
-_T = TypeVar("_T")
-_V = TypeVar("_V")
 
 
 class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
