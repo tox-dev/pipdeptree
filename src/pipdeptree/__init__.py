@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import fnmatch
 import inspect
 import json
@@ -9,43 +8,50 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from abc import ABC, abstractmethod
+from argparse import ArgumentParser, Namespace
 from collections import defaultdict, deque
-from collections.abc import Mapping
 from importlib import import_module
 from itertools import chain
 from pathlib import Path
 from textwrap import dedent
+from typing import TYPE_CHECKING, Any, Iterator, List, Mapping, TypeVar, cast
 
-from pip._vendor import pkg_resources
+from pip._vendor.pkg_resources import Distribution, Requirement
 
 from .version import version as __version__
 
 try:
     from pip._internal.operations.freeze import FrozenRequirement
 except ImportError:
-    from pip import FrozenRequirement
+    from pip import FrozenRequirement  # type: ignore[attr-defined, no-redef]
 
 
-def sorted_tree(tree):
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from pip._internal.metadata import BaseDistribution
+    from pip._vendor.pkg_resources import DistInfoDistribution
+
+
+def sorted_tree(tree: dict[DistPackage, list[ReqPackage]]) -> dict[DistPackage, list[ReqPackage]]:
     """
     Sorts the dict representation of the tree. The root packages as well as the intermediate packages are sorted in the
     alphabetical order of the package names.
 
-    :param dict tree: the pkg dependency tree obtained by calling `construct_tree` function
+    :param tree: the pkg dependency tree obtained by calling `construct_tree` function
     :returns: sorted tree
-    :rtype: dict
     """
     return {k: sorted(v) for k, v in sorted(tree.items())}
 
 
-def guess_version(pkg_key, default="?"):
+def guess_version(pkg_key: str, default: str = "?") -> str:
     """
     Guess the version of a pkg when pip doesn't provide it.
 
-    :param str pkg_key: key of the package
-    :param str default: default version to return if unable to find
+    :param pkg_key: key of the package
+    :param default: default version to return if unable to find
     :returns: version
-    :rtype: string
     """
     try:
         if sys.version_info >= (3, 8):  # pragma: >=3.8 cover
@@ -69,7 +75,7 @@ def guess_version(pkg_key, default="?"):
         return v
 
 
-def frozen_req_from_dist(dist):
+def frozen_req_from_dist(dist: Distribution) -> FrozenRequirement:
     # The `pip._internal.metadata` modules were introduced in 21.1.1
     # and the `pip._internal.operations.freeze.FrozenRequirement`
     # class now expects dist to be a subclass of
@@ -83,50 +89,56 @@ def frozen_req_from_dist(dist):
     try:
         from pip._internal import metadata
     except ImportError:
-        pass
+        our_dist: BaseDistribution = dist  # type: ignore[assignment]
     else:
-        dist = metadata.pkg_resources.Distribution(dist)
+        our_dist = metadata.pkg_resources.Distribution(dist)
 
     try:
-        return FrozenRequirement.from_dist(dist)
+        return FrozenRequirement.from_dist(our_dist)
     except TypeError:
-        return FrozenRequirement.from_dist(dist, [])
+        return FrozenRequirement.from_dist(our_dist, [])  # type: ignore[call-arg]
 
 
-class Package:
+class Package(ABC):
     """
     Abstract class for wrappers around objects that pip returns. This class needs to be subclassed with implementations
     for `render_as_root` and `render_as_branch` methods.
     """
 
-    def __init__(self, obj) -> None:
-        self._obj = obj
-        self.project_name = obj.project_name
-        self.key = obj.key
+    def __init__(self, obj: DistInfoDistribution) -> None:
+        self._obj: DistInfoDistribution = obj
+        self.project_name: str = obj.project_name
+        self.key: str = obj.key
 
-    def render_as_root(self, frozen):  # noqa: ARG002
-        return NotImplementedError
+    @abstractmethod
+    def render_as_root(self, frozen: bool) -> str:  # noqa: FBT001
+        raise NotImplementedError
 
-    def render_as_branch(self, frozen):  # noqa: ARG002
-        return NotImplementedError
+    @abstractmethod
+    def render_as_branch(self, frozen: bool) -> str:  # noqa: FBT001
+        raise NotImplementedError
 
-    def render(self, parent=None, frozen=False):  # noqa: FBT002
+    def render(
+        self,
+        parent: DistPackage | ReqPackage | None = None,
+        frozen: bool = False,  # noqa: FBT001, FBT002
+    ) -> str:
         if not parent:
             return self.render_as_root(frozen)
         return self.render_as_branch(frozen)
 
     @staticmethod
-    def frozen_repr(obj):
+    def frozen_repr(obj: DistInfoDistribution) -> str:
         fr = frozen_req_from_dist(obj)
         return str(fr).strip()
 
-    def __getattr__(self, key):
+    def __getattr__(self, key: str) -> Any:
         return getattr(self._obj, key)
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}("{self.key}")>'
 
-    def __lt__(self, rhs):
+    def __lt__(self, rhs: Package) -> bool:
         return self.key < rhs.key
 
 
@@ -139,17 +151,17 @@ class DistPackage(Package):
         in reverse
     """
 
-    def __init__(self, obj, req=None) -> None:
+    def __init__(self, obj: DistInfoDistribution, req: ReqPackage | None = None) -> None:
         super().__init__(obj)
         self.version_spec = None
         self.req = req
 
-    def render_as_root(self, frozen):
+    def render_as_root(self, frozen: bool) -> str:  # noqa: FBT001
         if not frozen:
             return f"{self.project_name}=={self.version}"
         return self.__class__.frozen_repr(self._obj)
 
-    def render_as_branch(self, frozen):
+    def render_as_branch(self, frozen: bool) -> str:  # noqa: FBT001
         assert self.req is not None  # noqa: S101
         if not frozen:
             parent_ver_spec = self.req.version_spec
@@ -159,11 +171,11 @@ class DistPackage(Package):
             return f"{self.project_name}=={self.version} [requires: {parent_str}]"
         return self.render_as_root(frozen)
 
-    def as_requirement(self):
+    def as_requirement(self) -> ReqPackage:
         """Return a ReqPackage representation of this DistPackage."""
-        return ReqPackage(self._obj.as_requirement(), dist=self)
+        return ReqPackage(self._obj.as_requirement(), dist=self)  # type: ignore[no-untyped-call]
 
-    def as_parent_of(self, req):
+    def as_parent_of(self, req: ReqPackage | None) -> DistPackage:
         """
         Return a DistPackage instance associated to a requirement. This association is necessary for reversing the
         PackageDAG.
@@ -178,7 +190,7 @@ class DistPackage(Package):
             return self
         return self.__class__(self._obj, req)
 
-    def as_dict(self):
+    def as_dict(self) -> dict[str, str]:
         return {"key": self.key, "package_name": self.project_name, "installed_version": self.version}
 
 
@@ -192,49 +204,49 @@ class ReqPackage(Package):
 
     UNKNOWN_VERSION = "?"
 
-    def __init__(self, obj, dist=None) -> None:
+    def __init__(self, obj: Requirement, dist: DistPackage | None = None) -> None:
         super().__init__(obj)
         self.dist = dist
 
     @property
-    def version_spec(self):
+    def version_spec(self) -> str | None:
         specs = sorted(self._obj.specs, reverse=True)  # `reverse` makes '>' prior to '<'
         return ",".join(["".join(sp) for sp in specs]) if specs else None
 
     @property
-    def installed_version(self):
+    def installed_version(self) -> str:
         if not self.dist:
             return guess_version(self.key, self.UNKNOWN_VERSION)
-        return self.dist.version
+        return cast(str, self.dist.version)
 
     @property
-    def is_missing(self):
+    def is_missing(self) -> bool:
         return self.installed_version == self.UNKNOWN_VERSION
 
-    def is_conflicting(self):
+    def is_conflicting(self) -> bool:
         """If installed version conflicts with required version."""
         # unknown installed version is also considered conflicting
         if self.installed_version == self.UNKNOWN_VERSION:
             return True
         ver_spec = self.version_spec if self.version_spec else ""
         req_version_str = f"{self.project_name}{ver_spec}"
-        req_obj = pkg_resources.Requirement.parse(req_version_str)
+        req_obj = Requirement.parse(req_version_str)  # type: ignore[no-untyped-call]
         return self.installed_version not in req_obj
 
-    def render_as_root(self, frozen):
+    def render_as_root(self, frozen: bool) -> str:  # noqa: FBT001
         if not frozen:
             return f"{self.project_name}=={self.installed_version}"
         if self.dist:
             return self.__class__.frozen_repr(self.dist._obj)  # noqa: SLF001
         return self.project_name
 
-    def render_as_branch(self, frozen):
+    def render_as_branch(self, frozen: bool) -> str:  # noqa: FBT001
         if not frozen:
             req_ver = self.version_spec if self.version_spec else "Any"
             return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}]"
         return self.render_as_root(frozen)
 
-    def as_dict(self):
+    def as_dict(self) -> dict[str, str | None]:
         return {
             "key": self.key,
             "package_name": self.project_name,
@@ -243,7 +255,11 @@ class ReqPackage(Package):
         }
 
 
-class PackageDAG(Mapping):
+_T = TypeVar("_T")
+_V = TypeVar("_V")
+
+
+class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
     """
     Representation of Package dependencies as directed acyclic graph using a dict (Mapping) as the underlying
     datastructure.
@@ -267,11 +283,11 @@ class PackageDAG(Mapping):
     """
 
     @classmethod
-    def from_pkgs(cls, pkgs):
-        pkgs = [DistPackage(p) for p in pkgs]
-        idx = {p.key: p for p in pkgs}
-        m = {}
-        for p in pkgs:
+    def from_pkgs(cls, pkgs: list[DistInfoDistribution]) -> PackageDAG:
+        dist_pkgs = [DistPackage(p) for p in pkgs]
+        idx = {p.key: p for p in dist_pkgs}
+        m: dict[DistPackage, list[ReqPackage]] = {}
+        for p in dist_pkgs:
             reqs = []
             for r in p.requires():
                 d = idx.get(r.key)
@@ -285,7 +301,7 @@ class PackageDAG(Mapping):
 
         return cls(m)
 
-    def __init__(self, m) -> None:
+    def __init__(self, m: dict[DistPackage, list[ReqPackage]]) -> None:
         """
         Initialize the PackageDAG object.
 
@@ -294,10 +310,10 @@ class PackageDAG(Mapping):
         :rtype: NoneType
 
         """
-        self._obj = m
-        self._index = {p.key: p for p in list(self._obj)}
+        self._obj: dict[DistPackage, list[ReqPackage]] = m
+        self._index: dict[str, DistPackage] = {p.key: p for p in list(self._obj)}
 
-    def get_node_as_parent(self, node_key):
+    def get_node_as_parent(self, node_key: str) -> DistPackage | None:
         """
         Get the node from the keys of the dict representing the DAG.
 
@@ -306,34 +322,31 @@ class PackageDAG(Mapping):
 
         :param node_key: identifier corresponding to key attr of node obj
         :returns: node obj (as present in the keys of the dict)
-        :rtype: Object
         """
         try:
             return self._index[node_key]
         except KeyError:
             return None
 
-    def get_children(self, node_key):
+    def get_children(self, node_key: str) -> list[ReqPackage]:
         """
         Get child nodes for a node by its key.
 
-        :param str node_key: key of the node to get children of
-        :returns: list of child nodes
-        :rtype: ReqPackage[]
+        :param node_key: key of the node to get children of
+        :returns: child nodes
         """
         node = self.get_node_as_parent(node_key)
         return self._obj[node] if node else []
 
-    def filter_nodes(self, include, exclude):  # noqa: C901, PLR0912
+    def filter_nodes(self, include: set[str] | None, exclude: set[str] | None) -> PackageDAG:  # noqa: C901, PLR0912
         """
         Filters nodes in a graph by given parameters.
 
         If a node is included, then all it's children are also included.
 
-        :param set include: set of node keys to include (or None)
-        :param set exclude: set of node keys to exclude (or None)
+        :param include: set of node keys to include (or None)
+        :param exclude: set of node keys to exclude (or None)
         :returns: filtered version of the graph
-        :rtype: PackageDAG
         """
         # If neither of the filters are specified, short circuit
         if include is None and exclude is None:
@@ -355,8 +368,8 @@ class PackageDAG(Mapping):
 
         # Traverse the graph in a depth first manner and filter the
         # nodes according to `show_only` and `exclude` sets
-        stack = deque()
-        m = {}
+        stack: deque[DistPackage] = deque()
+        m: dict[DistPackage, list[ReqPackage]] = {}
         seen = set()
         for node in self._obj:
             if any(fnmatch.fnmatch(node.key, e) for e in exclude):
@@ -383,7 +396,7 @@ class PackageDAG(Mapping):
 
         return self.__class__(m)
 
-    def reverse(self):
+    def reverse(self) -> ReversedPackageDAG:
         """
         Reverse the DAG, or turn it upside-down.
 
@@ -396,9 +409,8 @@ class PackageDAG(Mapping):
         "child" nodes is as per the reversed DAG.
 
         :returns: DAG in the reversed form
-        :rtype: ReversedPackageDAG
         """
-        m = defaultdict(list)
+        m: defaultdict[ReqPackage, list[DistPackage]] = defaultdict(list)
         child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
         for k, vs in self._obj.items():
             for v in vs:
@@ -406,15 +418,15 @@ class PackageDAG(Mapping):
                 # we are using the same object. This check is required
                 # as we're using array mutation
                 try:
-                    node = [p for p in m if p.key == v.key][0]
+                    node: ReqPackage = [p for p in m if p.key == v.key][0]
                 except IndexError:  # noqa: PERF203
                     node = v
                 m[node].append(k.as_parent_of(v))
             if k.key not in child_keys:
                 m[k.as_requirement()] = []
-        return ReversedPackageDAG(dict(m))
+        return ReversedPackageDAG(dict(m))  # type: ignore[arg-type]
 
-    def sort(self):
+    def sort(self) -> PackageDAG:
         """
         Return sorted tree in which the underlying _obj dict is an dict, sorted alphabetically by the keys.
 
@@ -423,10 +435,10 @@ class PackageDAG(Mapping):
         return self.__class__(sorted_tree(self._obj))
 
     # Methods required by the abstract base class Mapping
-    def __getitem__(self, *args):
-        return self._obj.get(*args)
+    def __getitem__(self, arg: DistPackage) -> list[ReqPackage] | None:  # type: ignore[override]
+        return self._obj.get(arg)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[DistPackage]:
         return self._obj.__iter__()
 
     def __len__(self) -> int:
@@ -443,14 +455,13 @@ class ReversedPackageDAG(PackageDAG):
     Typically, this object will be obtained by calling `PackageDAG.reverse`.
     """
 
-    def reverse(self):
+    def reverse(self) -> PackageDAG:  # type: ignore[override]
         """
         Reverse the already reversed DAG to get the PackageDAG again.
 
         :returns: reverse of the reversed DAG
-        :rtype: PackageDAG
         """
-        m = defaultdict(list)
+        m: defaultdict[DistPackage, list[ReqPackage]] = defaultdict(list)
         child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
         for k, vs in self._obj.items():
             for v in vs:
@@ -458,23 +469,29 @@ class ReversedPackageDAG(PackageDAG):
                     node = [p for p in m if p.key == v.key][0]
                 except IndexError:  # noqa: PERF203
                     node = v.as_parent_of(None)
-                m[node].append(k)
+                m[node].append(k)  # type: ignore[arg-type]
             if k.key not in child_keys:
                 m[k.dist] = []
         return PackageDAG(dict(m))
 
 
-def render_text(tree, max_depth, encoding, list_all=True, frozen=False):  # noqa: FBT002
+def render_text(
+    tree: PackageDAG,
+    max_depth: float,
+    encoding: str,
+    list_all: bool = True,  # noqa: FBT001, FBT002
+    frozen: bool = False,  # noqa: FBT001, FBT002
+) -> None:
     """
     Print tree as text on console.
 
-    :param dict tree: the package tree
-    :param bool list_all: whether to list all the pgks at the root level or only those that are the sub-dependencies
-    :param bool frozen: show the names of the pkgs in the output that's favourable to pip --freeze
+    :param tree: the package tree
+    :param list_all: whether to list all the pgks at the root level or only those that are the sub-dependencies
+    :param frozen: show the names of the pkgs in the output that's favourable to pip --freeze
     :returns: None
     """
     tree = tree.sort()
-    nodes = tree.keys()
+    nodes = list(tree.keys())
     branch_keys = {r.key for r in chain.from_iterable(tree.values())}
 
     if not list_all:
@@ -486,20 +503,25 @@ def render_text(tree, max_depth, encoding, list_all=True, frozen=False):  # noqa
         _render_text_without_unicode(tree, nodes, max_depth, frozen)
 
 
-def _render_text_with_unicode(tree, nodes, max_depth, frozen):
+def _render_text_with_unicode(
+    tree: PackageDAG,
+    nodes: list[DistPackage],
+    max_depth: float,
+    frozen: bool,  # noqa: FBT001
+) -> None:
     use_bullets = not frozen
 
     def aux(  # noqa: PLR0913
-        node,
-        parent=None,
-        indent=0,
-        cur_chain=None,
-        prefix="",
-        depth=0,
-        has_grand_parent=False,  # noqa: FBT002
-        is_last_child=False,  # noqa: FBT002
-        parent_is_last_child=False,  # noqa: FBT002
-    ):
+        node: DistPackage | ReqPackage,
+        parent: DistPackage | ReqPackage | None = None,
+        indent: int = 0,
+        cur_chain: list[str] | None = None,
+        prefix: str = "",
+        depth: int = 0,
+        has_grand_parent: bool = False,  # noqa: FBT001, FBT002
+        is_last_child: bool = False,  # noqa: FBT001, FBT002
+        parent_is_last_child: bool = False,  # noqa: FBT001, FBT002
+    ) -> list[Any]:
         cur_chain = cur_chain or []
         node_str = node.render(parent, frozen)
         next_prefix = ""
@@ -553,10 +575,21 @@ def _render_text_with_unicode(tree, nodes, max_depth, frozen):
     print("\n".join(lines))  # noqa: T201
 
 
-def _render_text_without_unicode(tree, nodes, max_depth, frozen):
+def _render_text_without_unicode(
+    tree: PackageDAG,
+    nodes: list[DistPackage],
+    max_depth: float,
+    frozen: bool,  # noqa: FBT001
+) -> None:
     use_bullets = not frozen
 
-    def aux(node, parent=None, indent=0, cur_chain=None, depth=0):
+    def aux(
+        node: DistPackage | ReqPackage,
+        parent: DistPackage | ReqPackage | None = None,
+        indent: int = 0,
+        cur_chain: list[str] | None = None,
+        depth: int = 0,
+    ) -> list[Any]:
         cur_chain = cur_chain or []
         node_str = node.render(parent, frozen)
         if parent:
@@ -575,7 +608,7 @@ def _render_text_without_unicode(tree, nodes, max_depth, frozen):
     print("\n".join(lines))  # noqa: T201
 
 
-def render_json(tree, indent):
+def render_json(tree: PackageDAG, indent: int) -> str:
     """
     Converts the tree into a flat json representation.
 
@@ -583,10 +616,9 @@ def render_json(tree, indent):
       - package
       - dependencies: list of dependencies
 
-    :param dict tree: dependency tree
-    :param int indent: no. of spaces to indent json
+    :param tree: dependency tree
+    :param indent: no. of spaces to indent json
     :returns: json representation of the tree
-    :rtype: str
     """
     tree = tree.sort()
     return json.dumps(
@@ -595,7 +627,7 @@ def render_json(tree, indent):
     )
 
 
-def render_json_tree(tree, indent):
+def render_json_tree(tree: PackageDAG, indent: int) -> str:
     """
     Converts the tree into a nested json representation.
 
@@ -607,20 +639,23 @@ def render_json_tree(tree, indent):
       - installed_version
       - dependencies: list of dependencies
 
-    :param dict tree: dependency tree
-    :param int indent: no. of spaces to indent json
+    :param tree: dependency tree
+    :param indent: no. of spaces to indent json
     :returns: json representation of the tree
-    :rtype: str
     """
     tree = tree.sort()
     branch_keys = {r.key for r in chain.from_iterable(tree.values())}
     nodes = [p for p in tree if p.key not in branch_keys]
 
-    def aux(node, parent=None, cur_chain=None):
+    def aux(
+        node: DistPackage | ReqPackage,
+        parent: DistPackage | ReqPackage | None = None,
+        cur_chain: list[str] | None = None,
+    ) -> dict[str, Any]:
         if cur_chain is None:
             cur_chain = [node.project_name]
 
-        d = node.as_dict()
+        d: dict[str, str | list[Any] | None] = node.as_dict()  # type: ignore[assignment]
         if parent:
             d["required_version"] = node.version_spec if node.version_spec else "Any"
         else:
@@ -637,11 +672,11 @@ def render_json_tree(tree, indent):
     return json.dumps([aux(p) for p in nodes], indent=indent)
 
 
-def render_mermaid(tree) -> str:  # noqa: C901
+def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
     """
     Produce a Mermaid flowchart from the dependency graph.
 
-    :param dict tree: dependency graph
+    :param tree: dependency graph
     """
     # List of reserved keywords in Mermaid that cannot be used as node names.
     # See: https://github.com/mermaid-js/mermaid/issues/4182#issuecomment-1454787806
@@ -667,7 +702,7 @@ def render_mermaid(tree) -> str:  # noqa: C901
         "style",
         "subgraph",
     }
-    node_ids_map: dict[str:str] = {}
+    node_ids_map: dict[str, str] = {}
 
     def mermaid_id(key: str) -> str:
         """Returns a valid Mermaid node ID from a string."""
@@ -735,7 +770,11 @@ def render_mermaid(tree) -> str:  # noqa: C901
     return output
 
 
-def dump_graphviz(tree, output_format="dot", is_reverse=False):  # noqa: C901, FBT002, PLR0912
+def dump_graphviz(  # noqa: C901, PLR0912
+    tree: PackageDAG,
+    output_format: str = "dot",
+    is_reverse: bool = False,  # noqa: FBT001, FBT002
+) -> str | bytes:
     """
     Output dependency graph as one of the supported GraphViz output formats.
 
@@ -776,7 +815,17 @@ def dump_graphviz(tree, output_format="dot", is_reverse=False):  # noqa: C901, F
 
     graph = Digraph(format=output_format)
 
-    if not is_reverse:
+    if is_reverse:
+        for dep_rev, parents in tree.items():
+            dep_label = f"{dep_rev.project_name}\\n{dep_rev.installed_version}"
+            graph.node(dep_rev.key, label=dep_label)
+            for parent in parents:
+                # req reference of the dep associated with this
+                # particular parent package
+                req_ref = parent.req
+                edge_label = req_ref.version_spec or "any"
+                graph.edge(dep_rev.key, parent.key, label=edge_label)
+    else:
         for pkg, deps in tree.items():
             pkg_label = f"{pkg.project_name}\\n{pkg.version}"
             graph.node(pkg.key, label=pkg_label)
@@ -788,16 +837,6 @@ def dump_graphviz(tree, output_format="dot", is_reverse=False):  # noqa: C901, F
                     graph.edge(pkg.key, dep.key, style="dashed")
                 else:
                     graph.edge(pkg.key, dep.key, label=edge_label)
-    else:
-        for dep, parents in tree.items():
-            dep_label = f"{dep.project_name}\\n{dep.installed_version}"
-            graph.node(dep.key, label=dep_label)
-            for parent in parents:
-                # req reference of the dep associated with this
-                # particular parent package
-                req_ref = parent.req
-                edge_label = req_ref.version_spec or "any"
-                graph.edge(dep.key, parent.key, label=edge_label)
 
     # Allow output of dot format, even if GraphViz isn't installed.
     if output_format == "dot":
@@ -810,12 +849,12 @@ def dump_graphviz(tree, output_format="dot", is_reverse=False):  # noqa: C901, F
     # As it's unknown if the selected output format is binary or not, try to
     # decode it as UTF8 and only print it out in binary if that's not possible.
     try:
-        return graph.pipe().decode("utf-8")
+        return graph.pipe().decode("utf-8")  # type: ignore[no-any-return]
     except UnicodeDecodeError:
-        return graph.pipe()
+        return graph.pipe()  # type: ignore[no-any-return]
 
 
-def print_graphviz(dump_output):
+def print_graphviz(dump_output: str | bytes) -> None:
     """
     Dump the data generated by GraphViz to stdout.
 
@@ -846,7 +885,7 @@ def conflicting_deps(tree: PackageDAG) -> dict[DistPackage, list[ReqPackage]]:
     return conflicting
 
 
-def render_conflicts_text(conflicts):
+def render_conflicts_text(conflicts: dict[DistPackage, list[ReqPackage]]) -> None:
     if conflicts:
         print("Warning!!! Possibly conflicting dependencies found:", file=sys.stderr)  # noqa: T201
         # Enforce alphabetical order when listing conflicts
@@ -859,25 +898,29 @@ def render_conflicts_text(conflicts):
                 print(f" - {req_str}", file=sys.stderr)  # noqa: T201
 
 
-def cyclic_deps(tree):
+def cyclic_deps(tree: PackageDAG) -> list[tuple[DistPackage, ReqPackage, ReqPackage]]:
     """
     Return cyclic dependencies as list of tuples.
 
-    :param PackageDAG tree: package tree/dag
+    :param  tree: package tree/dag
     :returns: list of tuples representing cyclic dependencies
-    :rtype: list
+
     """
     index = {p.key: {r.key for r in rs} for p, rs in tree.items()}
-    cyclic = []
+    cyclic: list[tuple[DistPackage, ReqPackage, ReqPackage]] = []
     for p, rs in tree.items():
         for r in rs:
             if p.key in index.get(r.key, []):
-                p_as_dep_of_r = [x for x in tree.get(tree.get_node_as_parent(r.key)) if x.key == p.key][0]
-                cyclic.append((p, r, p_as_dep_of_r))
+                val = tree.get_node_as_parent(r.key)
+                if val is not None:
+                    entry = tree.get(val)
+                    if entry is not None:
+                        p_as_dep_of_r = [x for x in entry if x.key == p.key][0]
+                        cyclic.append((p, r, p_as_dep_of_r))
     return cyclic
 
 
-def render_cycles_text(cycles):
+def render_cycles_text(cycles: list[tuple[DistPackage, ReqPackage, ReqPackage]]) -> None:
     if cycles:
         print("Warning!! Cyclic dependencies found:", file=sys.stderr)  # noqa: T201
         # List in alphabetical order of the dependency that's cycling
@@ -887,8 +930,8 @@ def render_cycles_text(cycles):
             print(f"* {a.project_name} => {b.project_name} => {c.project_name}", file=sys.stderr)  # noqa: T201
 
 
-def get_parser():
-    parser = argparse.ArgumentParser(description="Dependency tree of the installed python packages")
+def get_parser() -> ArgumentParser:
+    parser = ArgumentParser(description="Dependency tree of the installed python packages")
     parser.add_argument("-v", "--version", action="version", version=f"{__version__}")
     parser.add_argument("-f", "--freeze", action="store_true", help="Print names so as to write freeze files")
     parser.add_argument(
@@ -1006,12 +1049,29 @@ def get_parser():
     return parser
 
 
-def _get_args():
+class Options(Namespace):
+    freeze: bool
+    python: str
+    all: bool  # noqa: A003
+    local_only: bool
+    warn: Literal["silence", "suppress", "fail"]
+    reverse: bool
+    packages: str
+    exclude: str
+    json: bool
+    json_tree: bool
+    mermaid: bool
+    graph_output: str | None
+    depth: float
+    encoding: str
+
+
+def _get_args() -> Options:
     parser = get_parser()
-    return parser.parse_args()
+    return cast(Options, parser.parse_args())
 
 
-def handle_non_host_target(args):
+def handle_non_host_target(args: Options) -> int | None:
     # if target is not current python re-invoke it under the actual host
     py_path = Path(args.python).absolute()
     if py_path != Path(sys.executable).absolute():
@@ -1031,18 +1091,22 @@ def handle_non_host_target(args):
                 del argv[py_at]
 
         main_file = inspect.getsourcefile(sys.modules[__name__])
+        assert main_file is not None  # noqa: S101
         with tempfile.TemporaryDirectory() as project:
             shutil.copytree(Path(main_file).parent, Path(project) / "pipdeptree")
             # invoke from an empty folder to avoid cwd altering sys.path
             env = os.environ.copy()
             env["PYTHONPATH"] = project
-            cmd = [py_path, "-m", "pipdeptree"]
+            cmd: list[Path | str] = [py_path, "-m", "pipdeptree"]
             cmd.extend(argv)
             return subprocess.call(cmd, cwd=project, env=env)  # noqa: S603
     return None
 
 
-def get_installed_distributions(local_only=False, user_only=False):  # noqa: FBT002
+def get_installed_distributions(
+    local_only: bool = False,  # noqa: FBT001, FBT002
+    user_only: bool = False,  # noqa: FBT001, FBT002
+) -> list[DistInfoDistribution]:
     try:
         from pip._internal.metadata import pkg_resources
     except ImportError:
@@ -1051,17 +1115,21 @@ def get_installed_distributions(local_only=False, user_only=False):  # noqa: FBT
         # version 2.7)
         from pip._internal.utils import misc
 
-        return misc.get_installed_distributions(local_only=local_only, user_only=user_only)
+        return misc.get_installed_distributions(  # type: ignore[no-any-return,attr-defined]
+            local_only=local_only,
+            user_only=user_only,
+        )
+
     else:
         dists = pkg_resources.Environment.from_paths(None).iter_installed_distributions(
             local_only=local_only,
             skip=(),
             user_only=user_only,
         )
-        return [d._dist for d in dists]  # noqa: SLF001
+        return [d._dist for d in dists]  # type: ignore[attr-defined] # noqa: SLF001
 
 
-def main():
+def main() -> None | int:
     args = _get_args()
     result = handle_non_host_target(args)
     if result is not None:
@@ -1089,7 +1157,7 @@ def main():
     return return_code
 
 
-def _check_cycle_conflict(args, is_text_output, tree):
+def _check_cycle_conflict(args: Options, is_text_output: bool, tree: PackageDAG) -> int:  # noqa: FBT001
     # Before any reversing or filtering, show warnings to console
     # about possibly conflicting or cyclic deps if found and warnings
     # are enabled (i.e. only if output is to be printed to console)
@@ -1109,7 +1177,7 @@ def _check_cycle_conflict(args, is_text_output, tree):
     return 0
 
 
-def _render(args, tree):
+def _render(args: Options, tree: PackageDAG) -> None:
     if args.json:
         print(render_json(tree, indent=4))  # noqa: T201
     elif args.json_tree:
