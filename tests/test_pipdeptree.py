@@ -7,8 +7,8 @@ import sys
 from itertools import chain
 from pathlib import Path
 from textwrap import dedent, indent
-from typing import TYPE_CHECKING, Any
-from unittest import mock
+from typing import TYPE_CHECKING, Any, Iterator
+from unittest.mock import Mock
 
 import pytest
 import virtualenv
@@ -36,36 +36,36 @@ if TYPE_CHECKING:
 # Tests for DAG classes
 
 
-def mock_pkgs(simple_graph):
+def mock_pkgs(simple_graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]]) -> Iterator[Mock]:
     for node, children in simple_graph.items():
         nk, nv = node
-        m = mock.Mock(key=nk.lower(), project_name=nk, version=nv)
-        as_req = mock.Mock(key=nk, project_name=nk, specs=[("==", nv)])
-        m.as_requirement = mock.Mock(return_value=as_req)
+        m = Mock(key=nk.lower(), project_name=nk, version=nv)
+        as_req = Mock(key=nk, project_name=nk, specs=[("==", nv)])
+        m.as_requirement = Mock(return_value=as_req)
         reqs = []
         for child in children:
             ck, cv = child
-            r = mock.Mock(key=ck, project_name=ck, specs=cv)
+            r = Mock(key=ck, project_name=ck, specs=cv)
             reqs.append(r)
-        m.requires = mock.Mock(return_value=reqs)
+        m.requires = Mock(return_value=reqs)
         yield m
 
 
-def mock_package_dag(simple_graph):
+def mock_package_dag(simple_graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]]) -> PackageDAG:
     pkgs = list(mock_pkgs(simple_graph))
-    return PackageDAG.from_pkgs(pkgs)
+    return PackageDAG.from_pkgs(pkgs)  # type: ignore[arg-type]
 
 
 # util for comparing tree contents with a simple graph
-def dag_to_dict(g):
+def dag_to_dict(g: PackageDAG) -> dict[str, list[str]]:
     return {k.key: [v.key for v in vs] for k, vs in g._obj.items()}  # noqa: SLF001
 
 
-def sort_map_values(m):
+def sort_map_values(m: dict[str, Any]) -> dict[str, Any]:
     return {k: sorted(v) for k, v in m.items()}
 
 
-t = mock_package_dag(
+t: PackageDAG = mock_package_dag(
     {
         ("a", "3.4.0"): [("b", [(">=", "2.0.0")]), ("c", [(">=", "5.7.1")])],
         ("b", "2.3.1"): [("d", [(">=", "2.30"), ("<", "2.42")])],
@@ -78,12 +78,16 @@ t = mock_package_dag(
 )
 
 
-def test_package_dag_get_node_as_parent():
-    assert t.get_node_as_parent("b").key == "b"
-    assert t.get_node_as_parent("c").key == "c"
+def test_package_dag_get_node_as_parent() -> None:
+    node = t.get_node_as_parent("b")
+    assert node is not None
+    assert node.key == "b"
+    node = t.get_node_as_parent("c")
+    assert node is not None
+    assert node.key == "c"
 
 
-def test_package_dag_filter():
+def test_package_dag_filter() -> None:
     # When both show_only and exclude are not specified, same tree
     assert t.filter_nodes(None, None) is t
 
@@ -93,7 +97,7 @@ def test_package_dag_filter():
     assert expected == g1
 
     # when exclude is specified
-    g2 = dag_to_dict(t.filter_nodes(None, ["d"]))
+    g2 = dag_to_dict(t.filter_nodes(None, {"d"}))
     expected = {"a": ["b", "c"], "b": [], "c": ["e"], "e": [], "f": ["b"], "g": ["e", "f"]}
     assert expected == g2
 
@@ -145,7 +149,7 @@ def test_package_dag_filter_fnmatch_exclude_a(t_fnmatch: Any) -> None:
     assert graph == {"b.a": ["b.b"], "b.b": []}
 
 
-def test_package_dag_reverse():
+def test_package_dag_reverse() -> None:
     t1 = t.reverse()
     expected = {"a": [], "b": ["a", "f"], "c": ["a"], "d": ["b", "c"], "e": ["c", "d", "g"], "f": ["g"], "g": []}
     assert isinstance(t1, ReversedPackageDAG)
@@ -162,16 +166,16 @@ def test_package_dag_reverse():
     assert all(isinstance(v, ReqPackage) for v in chain.from_iterable(t2.values()))
 
 
-def test_package_dag_from_pkgs():
+def test_package_dag_from_pkgs() -> None:
     # when pip's _vendor.packaging.requirements.Requirement's requires() gives a lowercased package name but the actual
     # package name in PyPI is mixed case, expect the mixed case version
-    graph = {
+    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
         ("examplePy", "1.2.3"): [("hellopy", [(">=", "2.0.0")])],
         ("HelloPy", "2.2.0"): [],
     }
-    t = mock_package_dag(graph)
+    package_dag = mock_package_dag(graph)
     parent_key = "examplepy"
-    c = t.get_children(parent_key)
+    c = package_dag.get_children(parent_key)
     assert len(c) == 1
     assert c[0].project_name == "HelloPy"
 
@@ -182,30 +186,30 @@ def test_package_dag_from_pkgs():
 # as mocks with frozen=True are a lot more complicated
 
 
-def test_dist_package_render_as_root():
-    foo = mock.Mock(key="foo", project_name="foo", version="20.4.1")
+def test_dist_package_render_as_root() -> None:
+    foo = Mock(key="foo", project_name="foo", version="20.4.1")
     dp = DistPackage(foo)
     is_frozen = False
     assert dp.render_as_root(is_frozen) == "foo==20.4.1"
 
 
-def test_dist_package_render_as_branch():
-    foo = mock.Mock(key="foo", project_name="foo", version="20.4.1")
-    bar = mock.Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
+def test_dist_package_render_as_branch() -> None:
+    foo = Mock(key="foo", project_name="foo", version="20.4.1")
+    bar = Mock(key="bar", project_name="bar", version="4.1.0")
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
     rp = ReqPackage(bar_req, dist=bar)
     dp = DistPackage(foo).as_parent_of(rp)
     is_frozen = False
     assert dp.render_as_branch(is_frozen) == "foo==20.4.1 [requires: bar>=4.0]"
 
 
-def test_dist_package_as_parent_of():
-    foo = mock.Mock(key="foo", project_name="foo", version="20.4.1")
+def test_dist_package_as_parent_of() -> None:
+    foo = Mock(key="foo", project_name="foo", version="20.4.1")
     dp = DistPackage(foo)
     assert dp.req is None
 
-    bar = mock.Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
+    bar = Mock(key="bar", project_name="bar", version="4.1.0")
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
     rp = ReqPackage(bar_req, dist=bar)
     dp1 = dp.as_parent_of(rp)
     assert dp1._obj == dp._obj  # noqa: SLF001
@@ -215,33 +219,33 @@ def test_dist_package_as_parent_of():
     assert dp2 is dp
 
 
-def test_dist_package_as_dict():
-    foo = mock.Mock(key="foo", project_name="foo", version="1.3.2b1")
+def test_dist_package_as_dict() -> None:
+    foo = Mock(key="foo", project_name="foo", version="1.3.2b1")
     dp = DistPackage(foo)
     result = dp.as_dict()
     expected = {"key": "foo", "package_name": "foo", "installed_version": "1.3.2b1"}
     assert expected == result
 
 
-def test_req_package_render_as_root():
-    bar = mock.Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
+def test_req_package_render_as_root() -> None:
+    bar = Mock(key="bar", project_name="bar", version="4.1.0")
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
     rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
     assert rp.render_as_root(is_frozen) == "bar==4.1.0"
 
 
-def test_req_package_render_as_branch():
-    bar = mock.Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
+def test_req_package_render_as_branch() -> None:
+    bar = Mock(key="bar", project_name="bar", version="4.1.0")
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
     rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
     assert rp.render_as_branch(is_frozen) == "bar [required: >=4.0, installed: 4.1.0]"
 
 
-def test_req_package_as_dict():
-    bar = mock.Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = mock.Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
+def test_req_package_as_dict() -> None:
+    bar = Mock(key="bar", project_name="bar", version="4.1.0")
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
     rp = ReqPackage(bar_req, dist=bar)
     result = rp.as_dict()
     expected = {"key": "bar", "package_name": "bar", "installed_version": "4.1.0", "required_version": ">=4.0"}
@@ -257,14 +261,11 @@ class MockStdout:
     and `write()` (so that `print()` calls can write to stdout).
     """
 
-    def __init__(self, encoding) -> None:
+    def __init__(self, encoding: str) -> None:
         self.stdout = sys.stdout
         self.encoding = encoding
 
-    def encoding(self):
-        return self.encoding
-
-    def write(self, text):
+    def write(self, text: str) -> None:
         self.stdout.write(text)
 
 
@@ -491,7 +492,13 @@ class MockStdout:
         ),
     ],
 )
-def test_render_text(capsys, list_all, reverse, unicode, expected_output):
+def test_render_text(
+    capsys: pytest.CaptureFixture[str],
+    list_all: bool,
+    reverse: bool,
+    unicode: bool,
+    expected_output: list[str],
+) -> None:
     tree = t.reverse() if reverse else t
     encoding = "utf-8" if unicode else "ascii"
     render_text(tree, float("inf"), encoding, list_all=list_all, frozen=False)
@@ -588,7 +595,12 @@ def test_render_text(capsys, list_all, reverse, unicode, expected_output):
         ),
     ],
 )
-def test_render_text_given_depth(capsys, unicode, level, expected_output):
+def test_render_text_given_depth(
+    capsys: pytest.CaptureFixture[str],
+    unicode: str,
+    level: int,
+    expected_output: list[str],
+) -> None:
     render_text(t, level, encoding="utf-8" if unicode else "ascii")
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
@@ -741,7 +753,12 @@ def test_render_text_given_depth(capsys, unicode, level, expected_output):
         ),
     ],
 )
-def test_render_text_encoding(capsys, level, encoding, expected_output):
+def test_render_text_encoding(
+    capsys: pytest.CaptureFixture[str],
+    level: int,
+    encoding: str,
+    expected_output: list[str],
+) -> None:
     render_text(t, level, encoding, True, False)
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
@@ -750,25 +767,25 @@ def test_render_text_encoding(capsys, level, encoding, expected_output):
 # Tests for graph outputs
 
 
-def randomized_dag_copy(t):
+def randomized_dag_copy(raw: PackageDAG) -> PackageDAG:
     """Returns a copy of the package tree fixture with dependencies in randomized order."""
     # Extract the dependency graph from the package tree and randomize it.
     randomized_graph = {}
-    randomized_nodes = list(t._obj.keys())  # noqa: SLF001
+    randomized_nodes = list(raw._obj.keys())  # noqa: SLF001
     random.shuffle(randomized_nodes)
     for node in randomized_nodes:
-        edges = t._obj[node]  # noqa: SLF001
+        edges = raw._obj[node]  # noqa: SLF001
         random.shuffle(edges)
         randomized_graph[node] = edges
-    assert set(randomized_graph) == set(t._obj)  # noqa: SLF001
+    assert set(randomized_graph) == set(raw._obj)  # noqa: SLF001
 
     # Create a randomized package tree.
     randomized_dag = PackageDAG(randomized_graph)
-    assert len(t) == len(randomized_dag)
+    assert len(raw) == len(randomized_dag)
     return randomized_dag
 
 
-def test_render_mermaid():
+def test_render_mermaid() -> None:
     """Check both the sorted and randomized package tree produces the same sorted Mermaid output.
 
     Rendering a reverse dependency tree should produce the same set of nodes. Edges should have
@@ -831,7 +848,7 @@ def test_render_mermaid():
         assert reversed_output.rstrip() == nodes + reverse_dependency_edges
 
 
-def test_mermaid_reserved_ids():
+def test_mermaid_reserved_ids() -> None:
     package_tree = mock_package_dag(
         {
             ("click", "3.4.0"): [("click-extra", [(">=", "2.0.0")])],
@@ -849,7 +866,7 @@ def test_mermaid_reserved_ids():
     )
 
 
-def test_render_dot(capsys):
+def test_render_dot(capsys: pytest.CaptureFixture[str]) -> None:
     # Check both the sorted and randomized package tree produces the same sorted
     # graphviz output.
     for package_tree in (t, randomized_dag_copy(t)):
@@ -891,7 +908,7 @@ def test_render_pdf(tmp_path: Path, mocker: MockerFixture) -> None:
     assert res.read_bytes()[:4] == b"%PDF"
 
 
-def test_render_svg(capsys):
+def test_render_svg(capsys: pytest.CaptureFixture[str]) -> None:
     output = dump_graphviz(t, output_format="svg")
     print_graphviz(output)
     out, _ = capsys.readouterr()
@@ -942,7 +959,12 @@ def test_render_svg(capsys):
         ),
     ],
 )
-def test_conflicting_deps(capsys, mpkgs, expected_keys, expected_output):
+def test_conflicting_deps(
+    capsys: pytest.CaptureFixture[str],
+    mpkgs: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]],
+    expected_keys: dict[str, list[str]],
+    expected_output: list[str],
+) -> None:
     tree = mock_package_dag(mpkgs)
     result = conflicting_deps(tree)
     result_keys = {k.key: [v.key for v in vs] for k, vs in result.items()}
@@ -977,7 +999,12 @@ def test_conflicting_deps(capsys, mpkgs, expected_keys, expected_output):
         ),
     ],
 )
-def test_cyclic_deps(capsys, mpkgs, expected_keys, expected_output):
+def test_cyclic_deps(
+    capsys: pytest.CaptureFixture[str],
+    mpkgs: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]],
+    expected_keys: list[tuple[str, ...]],
+    expected_output: list[str],
+) -> None:
     tree = mock_package_dag(mpkgs)
     result = cyclic_deps(tree)
     result_keys = [(a.key, b.key, c.key) for (a, b, c) in result]
@@ -990,28 +1017,28 @@ def test_cyclic_deps(capsys, mpkgs, expected_keys, expected_output):
 # Tests for the argparse parser
 
 
-def test_parser_default():
+def test_parser_default() -> None:
     parser = get_parser()
     args = parser.parse_args([])
     assert not args.json
     assert args.output_format is None
 
 
-def test_parser_j():
+def test_parser_j() -> None:
     parser = get_parser()
     args = parser.parse_args(["-j"])
     assert args.json
     assert args.output_format is None
 
 
-def test_parser_json():
+def test_parser_json() -> None:
     parser = get_parser()
     args = parser.parse_args(["--json"])
     assert args.json
     assert args.output_format is None
 
 
-def test_parser_json_tree():
+def test_parser_json_tree() -> None:
     parser = get_parser()
     args = parser.parse_args(["--json-tree"])
     assert args.json_tree
@@ -1019,7 +1046,7 @@ def test_parser_json_tree():
     assert args.output_format is None
 
 
-def test_parser_mermaid():
+def test_parser_mermaid() -> None:
     parser = get_parser()
     args = parser.parse_args(["--mermaid"])
     assert args.mermaid
@@ -1027,14 +1054,14 @@ def test_parser_mermaid():
     assert args.output_format is None
 
 
-def test_parser_pdf():
+def test_parser_pdf() -> None:
     parser = get_parser()
     args = parser.parse_args(["--graph-output", "pdf"])
     assert args.output_format == "pdf"
     assert not args.json
 
 
-def test_parser_svg():
+def test_parser_svg() -> None:
     parser = get_parser()
     args = parser.parse_args(["--graph-output", "svg"])
     assert args.output_format == "svg"
@@ -1051,7 +1078,7 @@ def test_parser_svg():
         (False, [], float("inf")),
     ],
 )
-def test_parser_depth(should_be_error, depth_arg, expected_value):
+def test_parser_depth(should_be_error: bool, depth_arg: list[str], expected_value: None | int | float) -> None:
     parser = get_parser()
 
     if should_be_error:
@@ -1063,7 +1090,12 @@ def test_parser_depth(should_be_error, depth_arg, expected_value):
 
 
 @pytest.mark.parametrize("args_joined", [True, False])
-def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
+def test_custom_interpreter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+    args_joined: bool,
+) -> None:
     result = virtualenv.cli_run([str(tmp_path / "venv"), "--activators", ""])
     cmd = [sys.executable]
     monkeypatch.chdir(tmp_path)
@@ -1093,7 +1125,7 @@ def test_custom_interpreter(tmp_path, monkeypatch, capfd, args_joined):
     assert err == "graphviz functionality is not supported when querying non-host python\n"
 
 
-def test_guess_version_setuptools():
+def test_guess_version_setuptools() -> None:
     script = Path(__file__).parent / "guess_version_setuptools.py"
     output = subprocess.check_output([sys.executable, script], text=True)
     assert output == "?"

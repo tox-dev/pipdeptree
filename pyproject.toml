@@ -74,10 +74,12 @@ isort = {known-first-party = ["pipdeptree"], required-imports = ["from __future_
 ignore = [
   "INP001", # no implicit namespace
   "D",  # ignore documentation for now
-  "ANN",  # No type annotations for now
   "D203",  # `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible
   "D212",  # `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible
   "S104",  # Possible binding to all interface
+  "ANN101",  # No type annotation for self
+  "ANN102",  # Missing type annotation for `cls` in classmethod
+  "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed in
 ]
 [tool.ruff.per-file-ignores]
 "tests/**/*.py" = [
@@ -94,3 +96,13 @@ html.skip_covered = false
 paths.source = ["src", ".tox/*/lib/python*/site-packages", "*/src"]
 run.parallel = true
 run.plugins = ["covdefaults"]
+
+[tool.mypy]
+show_error_codes = true
+strict = true
+overrides = [
+  { module = [
+    "graphviz.*",
+    "virtualenv.*",
+  ], ignore_missing_imports = true },
+]
