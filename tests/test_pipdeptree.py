@@ -774,7 +774,7 @@ def randomized_dag_copy(raw: PackageDAG) -> PackageDAG:
     randomized_nodes = list(raw._obj.keys())  # noqa: SLF001
     random.shuffle(randomized_nodes)
     for node in randomized_nodes:
-        edges = raw._obj[node]  # noqa: SLF001
+        edges = raw._obj[node].copy()  # noqa: SLF001
         random.shuffle(edges)
         randomized_graph[node] = edges
     assert set(randomized_graph) == set(raw._obj)  # noqa: SLF001
