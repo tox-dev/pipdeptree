@@ -10,9 +10,10 @@ from .text import render_text
 
 if TYPE_CHECKING:
     from pipdeptree._cli import Options
+    from pipdeptree._models import PackageDAG
 
 
-def render(options: Options, tree: PackageDAG) -> None:  # noqa: F821
+def render(options: Options, tree: PackageDAG) -> None:
     if options.json:
         print(render_json(tree))  # noqa: T201
     elif options.json_tree:
@@ -20,6 +21,7 @@ def render(options: Options, tree: PackageDAG) -> None:  # noqa: F821
     elif options.mermaid:
         print(render_mermaid(tree))  # noqa: T201
     elif options.output_format:
+        assert options.graph_output is not None  # noqa: S101
         render_graphviz(tree, output_format=options.graph_output, reverse=options.reverse)
     else:
         render_text(tree, options.depth, options.encoding_type, options.all, options.freeze)
