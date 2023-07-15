@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from pipdeptree._models import DistPackage, PackageDAG, ReqPackage
 
 
-def render_json_tree(tree: PackageDAG, indent: int) -> str:
+def render_json_tree(tree: PackageDAG) -> str:
     """
     Converts the tree into a nested json representation.
 
@@ -21,7 +21,6 @@ def render_json_tree(tree: PackageDAG, indent: int) -> str:
       - dependencies: list of dependencies
 
     :param tree: dependency tree
-    :param indent: no. of spaces to indent json
     :returns: json representation of the tree
     """
     tree = tree.sort()
@@ -50,7 +49,7 @@ def render_json_tree(tree: PackageDAG, indent: int) -> str:
 
         return d
 
-    return json.dumps([aux(p) for p in nodes], indent=indent)
+    return json.dumps([aux(p) for p in nodes], indent=4)
 
 
 __all__ = [

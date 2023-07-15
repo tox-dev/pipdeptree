@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
 from typing import TYPE_CHECKING, cast
 
 from .version import __version__
@@ -27,23 +27,14 @@ class Options(Namespace):
     encoding: str
 
 
+class _Formatter(ArgumentDefaultsHelpFormatter):
+    def __init__(self, prog: str) -> None:
+        super().__init__(prog, max_help_position=22, width=240)
+
+
 def build_parser() -> ArgumentParser:
-    parser = ArgumentParser(description="Dependency tree of the installed python packages")
+    parser = ArgumentParser(description="Dependency tree of the installed python packages", formatter_class=_Formatter)
     parser.add_argument("-v", "--version", action="version", version=f"{__version__}")
-    parser.add_argument("-f", "--freeze", action="store_true", help="Print names so as to write freeze files")
-    parser.add_argument(
-        "--python",
-        default=sys.executable,
-        help="Python to use to look for packages in it (default: where installed)",
-    )
-    parser.add_argument("-a", "--all", action="store_true", help="list all deps at top level")
-    parser.add_argument(
-        "-l",
-        "--local-only",
-        action="store_true",
-        help="If in a virtualenv that has global access do not show globally installed packages",
-    )
-    parser.add_argument("-u", "--user-only", action="store_true", help="Only show installations in the user site dir")
     parser.add_argument(
         "-w",
         "--warn",
@@ -53,12 +44,8 @@ def build_parser() -> ArgumentParser:
         default="suppress",
         choices=("silence", "suppress", "fail"),
         help=(
-            'Warning control. "suppress" will show warnings '
-            "but return 0 whether or not they are present. "
-            '"silence" will not show warnings at all and '
-            'always return 0. "fail" will show warnings and '
-            "return 1 if any are present. The default is "
-            '"suppress".'
+            "warning control: suppress will show warnings but return 0 whether or not they are present; silence will "
+            "not show warnings at all and  always return 0; fail will show warnings and  return 1 if any are present"
         ),
     )
     parser.add_argument(
@@ -67,81 +54,83 @@ def build_parser() -> ArgumentParser:
         action="store_true",
         default=False,
         help=(
-            "Shows the dependency tree in the reverse fashion "
-            "ie. the sub-dependencies are listed with the "
-            "list of packages that need them under them."
+            "render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of "
+            "packages that need them under them"
         ),
     )
-    parser.add_argument(
+
+    select = parser.add_argument_group(title="select", description="choose what to render")
+    select.add_argument("--python", default=sys.executable, help="Python interpreter to inspect")
+    scope = select.add_mutually_exclusive_group()
+    scope.add_argument(
+        "-l",
+        "--local-only",
+        action="store_true",
+        help="if in a virtualenv that has global access do not show globally installed packages",
+    )
+    scope.add_argument("-u", "--user-only", action="store_true", help="only show installations in the user site dir")
+
+    package = select.add_mutually_exclusive_group()
+    package.add_argument(
         "-p",
         "--packages",
-        help=(
-            "Comma separated list of select packages to show in the output. "
-            "Wildcards are supported, like 'somepackage.*'. "
-            "If set, --all will be ignored."
-        ),
+        help="comma separated list of packages to show - wildcards are supported, like 'somepackage.*'",
+        metavar="P",
     )
-    parser.add_argument(
+    package.add_argument(
         "-e",
         "--exclude",
-        help=(
-            "Comma separated list of select packages to exclude from the output. "
-            "Wildcards are supported, like 'somepackage.*'. "
-            "If set, --all will be ignored."
-        ),
-        metavar="PACKAGES",
+        help="comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'",
+        metavar="P",
     )
-    parser.add_argument(
-        "-j",
-        "--json",
-        action="store_true",
-        default=False,
-        help=(
-            "Display dependency tree as json. This will yield "
-            '"raw" output that may be used by external tools. '
-            "This option overrides all other options."
-        ),
+    package.add_argument("-a", "--all", action="store_true", help="list all deps at top level")
+
+    render = parser.add_argument_group(
+        title="render",
+        description="choose how to render the dependency tree (by default will use text mode)",
     )
-    parser.add_argument(
-        "--json-tree",
-        action="store_true",
-        default=False,
-        help=(
-            "Display dependency tree as json which is nested "
-            "the same way as the plain text output printed by default. "
-            "This option overrides all other options (except --json)."
-        ),
+    render.add_argument("-f", "--freeze", action="store_true", help="print names so as to write freeze files")
+    render.add_argument(
+        "--encoding",
+        dest="encoding_type",
+        default=sys.stdout.encoding,
+        help="the encoding to use when writing to the output",
+        metavar="E",
     )
-    parser.add_argument(
-        "--mermaid",
-        action="store_true",
-        default=False,
-        help="Display dependency tree as a Mermaid graph. This option overrides all other options.",
-    )
-    parser.add_argument(
-        "--graph-output",
-        dest="output_format",
-        help=(
-            "Print a dependency graph in the specified output "
-            "format. Available are all formats supported by "
-            "GraphViz, e.g.: dot, jpeg, pdf, png, svg"
-        ),
-    )
-    parser.add_argument(
+    render.add_argument(
         "-d",
         "--depth",
         type=lambda x: int(x) if x.isdigit() and (int(x) >= 0) else parser.error("Depth must be a number that is >= 0"),
         default=float("inf"),
-        help=(
-            "Display dependency tree up to a depth >=0 using the default text display. All other display options"
-            " ignore this argument."
-        ),
+        help="limit the depth of the tree (text render only)",
+        metavar="D",
     )
-    parser.add_argument(
-        "--encoding",
-        dest="encoding_type",
-        default=sys.stdout.encoding,
-        help="Display dependency tree as text using specified encoding",
+
+    render_type = render.add_mutually_exclusive_group()
+    render_type.add_argument(
+        "-j",
+        "--json",
+        action="store_true",
+        default=False,
+        help="raw JSON - this will yield output that may be used by external tools",
+    )
+    render_type.add_argument(
+        "--json-tree",
+        action="store_true",
+        default=False,
+        help="nested JSON - mimics the text format layout",
+    )
+    render_type.add_argument(
+        "--mermaid",
+        action="store_true",
+        default=False,
+        help="https://mermaid.js.org flow diagram",
+    )
+    render_type.add_argument(
+        "--graph-output",
+        metavar="FMT",
+        dest="output_format",
+        help="Graphviz rendering with the value being the graphviz output e.g.: dot, jpeg, pdf, png, svg",
     )
     return parser
 
