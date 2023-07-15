@@ -18,12 +18,11 @@ jobs:
       fail-fast: false
       matrix:
         py:
-          - "3.12.0-beta.2"
+          - "3.12.0-beta.4"
           - "3.11"
           - "3.10"
           - "3.9"
           - "3.8"
-          - "3.7"
     steps:
       - name: Install OS dependencies
         run: |
@@ -60,7 +59,7 @@ jobs:
 
   check:
     name: tox env ${{ matrix.tox_env }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:

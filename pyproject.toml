@@ -21,7 +21,7 @@ maintainers = [
   { name = "Bernát Gábor", email = "gaborjbernat@gmail.com" },
   { name = "Vineet Naik", email = "naikvin@gmail.com" },
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
@@ -30,7 +30,6 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.7",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
@@ -69,7 +68,7 @@ line-length = 120
 [tool.ruff]
 select = ["ALL"]
 line-length = 120
-target-version = "py37"
+target-version = "py38"
 isort = {known-first-party = ["pipdeptree"], required-imports = ["from __future__ import annotations"]}
 ignore = [
   "INP001", # no implicit namespace

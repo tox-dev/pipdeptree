@@ -1,5 +1,9 @@
 # pipdeptree
 
+[![PyPI](https://img.shields.io/pypi/v/tox)](https://pypi.org/project/pipdeptree/)
+[![Supported Python
+versions](https://img.shields.io/pypi/pyversions/tox.svg)](https://pypi.org/project/pipdeptree/)
+[![Downloads](https://pepy.tech/badge/tox/month)](https://pepy.tech/project/pipdeptree)
 [![check](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yml/badge.svg)](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/tox-dev/pipdeptree/main.svg)](https://results.pre-commit.ci/latest/github/tox-dev/pipdeptree/main)
 
@@ -17,8 +21,6 @@ To some extent, `pipdeptree` is inspired by the `lein deps :tree` command of [Le
 ```bash
 pip install pipdeptree
 ```
-
-pipdeptree has been tested with Python versions `3.7`, `3.8`, `3.9` and `3.10`.
 
 ## Running in virtualenvs
 
