@@ -61,6 +61,7 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
             if new_id not in node_ids_map:
                 node_ids_map[key] = new_id
                 return new_id
+        return None
 
     # Use a sets to avoid duplicate entries.
     nodes: set[str] = set()
