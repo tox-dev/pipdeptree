@@ -2,7 +2,7 @@
 build-backend = "hatchling.build"
 requires = [
   "hatch-vcs>=0.3",
-  "hatchling>=1.17.1",
+  "hatchling>=1.18",
 ]
 
 [project]
@@ -96,6 +96,7 @@ html.skip_covered = false
 paths.source = ["src", ".tox/*/lib/python*/site-packages", "*/src"]
 run.parallel = true
 run.plugins = ["covdefaults"]
+subtract_omit = "*/__main__.py"
 
 [tool.mypy]
 show_error_codes = true
