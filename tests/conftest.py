@@ -21,8 +21,7 @@ def mock_pkgs() -> Callable[[MockGraph], Iterator[Mock]]:
             as_req = Mock(key=nk, project_name=nk, specs=[("==", nv)])
             m.as_requirement = Mock(return_value=as_req)
             reqs = []
-            for child in children:
-                ck, cv = child
+            for ck, cv in children:
                 r = Mock(key=ck, project_name=ck, specs=cv)
                 reqs.append(r)
             m.requires = Mock(return_value=reqs)

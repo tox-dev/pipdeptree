@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from textwrap import dedent
+import itertools as it
 from typing import TYPE_CHECKING, Final
 
 from pipdeptree._models import ReversedPackageDAG
@@ -56,13 +56,11 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
             node_ids_map[key] = key
             return key
         # If the key is a reserved keyword, append a number to it.
-        number = 0
-        while True:
+        for number in it.count():
             new_id = f"{key}_{number}"
             if new_id not in node_ids_map:
                 node_ids_map[key] = new_id
                 return new_id
-            number += 1
 
     # Use a sets to avoid duplicate entries.
     nodes: set[str] = set()
@@ -95,20 +93,13 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
                     edges.add(f'{package_key} -- "{edge_label}" --> {dependency_key}')
 
     # Produce the Mermaid Markdown.
-    indent = " " * 4
-    output = dedent(
-        f"""\
-        flowchart TD
-        {indent}classDef missing stroke-dasharray: 5
-        """,
-    )
-    # Sort the nodes and edges to make the output deterministic.
-    output += indent
-    output += f"\n{indent}".join(node for node in sorted(nodes))
-    output += "\n" + indent
-    output += f"\n{indent}".join(edge for edge in sorted(edges))
-    output += "\n"
-    return output
+    lines = [
+        "flowchart TD",
+        "classDef missing stroke-dasharray: 5",
+        *sorted(nodes),
+        *sorted(edges),
+    ]
+    return "".join(f"{'    ' if i else ''}{line}\n" for i, line in enumerate(lines))
 
 
 __all__ = [
