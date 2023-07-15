@@ -76,7 +76,7 @@ def cyclic_deps(tree: PackageDAG) -> list[tuple[DistPackage, ReqPackage, ReqPack
                 if val is not None:
                     entry = tree.get(val)
                     if entry is not None:
-                        p_as_dep_of_r = [x for x in entry if x.key == p.key][0]
+                        p_as_dep_of_r = next(x for x in entry if x.key == p.key)
                         cyclic.append((p, r, p_as_dep_of_r))
     return cyclic
 

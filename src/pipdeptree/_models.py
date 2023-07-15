@@ -256,7 +256,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         node = self.get_node_as_parent(node_key)
         return self._obj[node] if node else []
 
-    def filter_nodes(self, include: set[str] | None, exclude: set[str] | None) -> PackageDAG:  # noqa: C901, PLR0912
+    def filter_nodes(self, include: set[str] | None, exclude: set[str] | None) -> PackageDAG:  # noqa: C901
         """
         Filters nodes in a graph by given parameters.
 
@@ -294,23 +294,20 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
                 continue
             if include is None or any(fnmatch(node.key, i) for i in include):
                 stack.append(node)
-            while True:
-                if len(stack) > 0:
-                    n = stack.pop()
-                    cldn = [c for c in self._obj[n] if not any(fnmatch(c.key, e) for e in exclude)]
-                    m[n] = cldn
-                    seen.add(n.key)
-                    for c in cldn:
-                        if c.key not in seen:
-                            cld_node = self.get_node_as_parent(c.key)
-                            if cld_node:
-                                stack.append(cld_node)
-                            else:
-                                # It means there's no root node corresponding to the child node i.e.
-                                # a dependency is missing
-                                continue
-                else:
-                    break
+            while stack:
+                n = stack.pop()
+                cldn = [c for c in self._obj[n] if not any(fnmatch(c.key, e) for e in exclude)]
+                m[n] = cldn
+                seen.add(n.key)
+                for c in cldn:
+                    if c.key not in seen:
+                        cld_node = self.get_node_as_parent(c.key)
+                        if cld_node:
+                            stack.append(cld_node)
+                        else:
+                            # It means there's no root node corresponding to the child node i.e.
+                            # a dependency is missing
+                            continue
 
         return self.__class__(m)
 
@@ -335,10 +332,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
                 # if v is already added to the dict, then ensure that
                 # we are using the same object. This check is required
                 # as we're using array mutation
-                try:
-                    node: ReqPackage = [p for p in m if p.key == v.key][0]
-                except IndexError:  # noqa: PERF203
-                    node = v
+                node: ReqPackage = next((p for p in m if p.key == v.key), v)
                 m[node].append(k.as_parent_of(v))
             if k.key not in child_keys:
                 m[k.as_requirement()] = []
@@ -383,10 +377,7 @@ class ReversedPackageDAG(PackageDAG):
         child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
         for k, vs in self._obj.items():
             for v in vs:
-                try:
-                    node = [p for p in m if p.key == v.key][0]
-                except IndexError:  # noqa: PERF203
-                    node = v.as_parent_of(None)
+                node = next((p for p in m if p.key == v.key), v.as_parent_of(None))
                 m[node].append(k)  # type: ignore[arg-type]
             if k.key not in child_keys:
                 m[k.dist] = []
