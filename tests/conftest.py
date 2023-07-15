@@ -33,7 +33,7 @@ def mock_pkgs() -> Callable[[MockGraph], Iterator[Mock]]:
 
 @pytest.fixture()
 def example_dag(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> PackageDAG:
-    packages = {
+    packages: MockGraph = {
         ("a", "3.4.0"): [("b", [(">=", "2.0.0")]), ("c", [(">=", "5.7.1")])],
         ("b", "2.3.1"): [("d", [(">=", "2.30"), ("<", "2.42")])],
         ("c", "5.10.0"): [("d", [(">=", "2.30")]), ("e", [(">=", "0.12.1")])],

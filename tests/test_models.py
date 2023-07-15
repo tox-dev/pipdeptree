@@ -65,7 +65,7 @@ def test_package_dag_filter(example_dag: PackageDAG) -> None:
 
 @pytest.fixture(scope="session")
 def t_fnmatch(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> Any:
-    graph = {
+    graph: MockGraph = {
         ("a.a", "1"): [("a.b", []), ("a.c", [])],
         ("a.b", "1"): [("a.c", [])],
         ("b.a", "1"): [("b.b", [])],

@@ -4,7 +4,7 @@ from textwrap import dedent, indent
 from typing import TYPE_CHECKING, Callable, Iterator
 
 from pipdeptree._models import PackageDAG
-from pipdeptree._render import render_mermaid
+from pipdeptree._render.mermaid import render_mermaid
 
 if TYPE_CHECKING:
     from unittest.mock import Mock

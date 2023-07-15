@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pipdeptree._render import render_text
+from pipdeptree._render.text import render_text
 
 if TYPE_CHECKING:
     from pipdeptree._models import PackageDAG

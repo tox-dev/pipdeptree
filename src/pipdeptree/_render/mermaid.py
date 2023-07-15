@@ -1,23 +1,15 @@
 from __future__ import annotations
 
 from textwrap import dedent
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from pipdeptree._models import ReversedPackageDAG
 
 if TYPE_CHECKING:
     from pipdeptree._models import PackageDAG
 
-
-def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
-    """
-    Produce a Mermaid flowchart from the dependency graph.
-
-    :param tree: dependency graph
-    """
-    # List of reserved keywords in Mermaid that cannot be used as node names.
-    # See: https://github.com/mermaid-js/mermaid/issues/4182#issuecomment-1454787806
-    reserved_ids: set[str] = {
+_RESERVED_IDS: Final[frozenset[str]] = frozenset(
+    [
         "C4Component",
         "C4Container",
         "C4Deployment",
@@ -38,7 +30,19 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
         "linkStyle",
         "style",
         "subgraph",
-    }
+    ],
+)
+
+
+def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
+    """
+    Produce a Mermaid flowchart from the dependency graph.
+
+    :param tree: dependency graph
+    """
+    # List of reserved keywords in Mermaid that cannot be used as node names.
+    # See: https://github.com/mermaid-js/mermaid/issues/4182#issuecomment-1454787806
+
     node_ids_map: dict[str, str] = {}
 
     def mermaid_id(key: str) -> str:
@@ -48,7 +52,7 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
         if canonical_id is not None:
             return canonical_id
         # If the key is not a reserved keyword, return it as is, and update the map.
-        if key not in reserved_ids:
+        if key not in _RESERVED_IDS:
             node_ids_map[key] = key
             return key
         # If the key is a reserved keyword, append a number to it.

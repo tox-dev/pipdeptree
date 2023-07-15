@@ -2,12 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-try:  # noqa: SIM105
-    from pip._internal.operations.freeze import FrozenRequirement  # noqa: F401
-except ImportError:
-    pass  # type: ignore[attr-defined, no-redef]
-
-
 if TYPE_CHECKING:
     from pip._vendor.pkg_resources import DistInfoDistribution
 
