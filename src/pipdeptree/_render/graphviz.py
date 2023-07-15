@@ -105,7 +105,11 @@ def print_graphviz(dump_output: str | bytes) -> None:
             bytestream.write(dump_output)
 
 
+def render_graphviz(tree: PackageDAG, *, output_format: str, reverse: bool) -> None:
+    output = dump_graphviz(tree, output_format=output_format, is_reverse=reverse)
+    print_graphviz(output)
+
+
 __all__ = [
-    "dump_graphviz",
-    "print_graphviz",
+    "render_graphviz",
 ]

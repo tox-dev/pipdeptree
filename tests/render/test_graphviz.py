@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pipdeptree._render import dump_graphviz, print_graphviz
+from pipdeptree._render.graphviz import dump_graphviz, print_graphviz
 
 if TYPE_CHECKING:
     from pathlib import Path

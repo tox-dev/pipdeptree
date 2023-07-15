@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from pipdeptree._models import PackageDAG
 
 
-def render_json(tree: PackageDAG, indent: int) -> str:
+def render_json(tree: PackageDAG) -> str:
     """
     Converts the tree into a flat json representation.
 
@@ -16,13 +16,12 @@ def render_json(tree: PackageDAG, indent: int) -> str:
       - dependencies: list of dependencies
 
     :param tree: dependency tree
-    :param indent: no. of spaces to indent json
     :returns: JSON representation of the tree
     """
     tree = tree.sort()
     return json.dumps(
         [{"package": k.as_dict(), "dependencies": [v.as_dict() for v in vs]} for k, vs in tree.items()],
-        indent=indent,
+        indent=4,
     )
 
 
