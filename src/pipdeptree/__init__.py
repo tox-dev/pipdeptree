@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import fnmatch
 import inspect
+import itertools as it
 import json
 import os
 import shutil
@@ -12,9 +13,7 @@ from abc import ABC, abstractmethod
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict, deque
 from importlib import import_module
-from itertools import chain
 from pathlib import Path
-from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Iterator, List, Mapping, cast
 
 from pip._vendor.pkg_resources import Distribution, Requirement
@@ -338,7 +337,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         """
         Filters nodes in a graph by given parameters.
 
-        If a node is included, then all it's children are also included.
+        If a node is included, then all its children are also included.
 
         :param include: set of node keys to include (or None)
         :param exclude: set of node keys to exclude (or None)
@@ -372,23 +371,20 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
                 continue
             if include is None or any(fnmatch.fnmatch(node.key, i) for i in include):
                 stack.append(node)
-            while True:
-                if len(stack) > 0:
-                    n = stack.pop()
-                    cldn = [c for c in self._obj[n] if not any(fnmatch.fnmatch(c.key, e) for e in exclude)]
-                    m[n] = cldn
-                    seen.add(n.key)
-                    for c in cldn:
-                        if c.key not in seen:
-                            cld_node = self.get_node_as_parent(c.key)
-                            if cld_node:
-                                stack.append(cld_node)
-                            else:
-                                # It means there's no root node corresponding to the child node i.e.
-                                # a dependency is missing
-                                continue
-                else:
-                    break
+            while stack:
+                n = stack.pop()
+                cldn = [c for c in self._obj[n] if not any(fnmatch.fnmatch(c.key, e) for e in exclude)]
+                m[n] = cldn
+                seen.add(n.key)
+                for c in cldn:
+                    if c.key not in seen:
+                        cld_node = self.get_node_as_parent(c.key)
+                        if cld_node:
+                            stack.append(cld_node)
+                        else:
+                            # It means there's no root node corresponding to the child node i.e.
+                            # a dependency is missing
+                            continue
 
         return self.__class__(m)
 
@@ -400,23 +396,20 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
 
         Note that this function purely works on the nodes in the graph. This implies that to perform a combination of
         filtering and reversing, the order in which `filter` and `reverse` methods should be applied is important. For
-        e.g., if reverse is called on a filtered graph, then only the filtered nodes and it's children will be
+        e.g., if reverse is called on a filtered graph, then only the filtered nodes and its children will be
         considered when reversing. On the other hand, if filter is called on reversed DAG, then the definition of
         "child" nodes is as per the reversed DAG.
 
         :returns: DAG in the reversed form
         """
         m: defaultdict[ReqPackage, list[DistPackage]] = defaultdict(list)
-        child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
+        child_keys = {r.key for r in it.chain.from_iterable(self._obj.values())}
         for k, vs in self._obj.items():
             for v in vs:
                 # if v is already added to the dict, then ensure that
                 # we are using the same object. This check is required
                 # as we're using array mutation
-                try:
-                    node: ReqPackage = [p for p in m if p.key == v.key][0]
-                except IndexError:  # noqa: PERF203
-                    node = v
+                node: ReqPackage = next((p for p in m if p.key == v.key), v)
                 m[node].append(k.as_parent_of(v))
             if k.key not in child_keys:
                 m[k.as_requirement()] = []
@@ -445,7 +438,7 @@ class ReversedPackageDAG(PackageDAG):
     """
     Representation of Package dependencies in the reverse order.
 
-    Similar to it's super class `PackageDAG`, the underlying datastructure is a dict, but here the keys are expected to
+    Similar to its super class `PackageDAG`, the underlying datastructure is a dict, but here the keys are expected to
     be of type `ReqPackage` and each item in the values of type `DistPackage`.
 
     Typically, this object will be obtained by calling `PackageDAG.reverse`.
@@ -458,13 +451,10 @@ class ReversedPackageDAG(PackageDAG):
         :returns: reverse of the reversed DAG
         """
         m: defaultdict[DistPackage, list[ReqPackage]] = defaultdict(list)
-        child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
+        child_keys = {r.key for r in it.chain.from_iterable(self._obj.values())}
         for k, vs in self._obj.items():
             for v in vs:
-                try:
-                    node = [p for p in m if p.key == v.key][0]
-                except IndexError:  # noqa: PERF203
-                    node = v.as_parent_of(None)
+                node = next((p for p in m if p.key == v.key), v.as_parent_of(None))
                 m[node].append(k)  # type: ignore[arg-type]
             if k.key not in child_keys:
                 m[k.dist] = []
@@ -488,7 +478,7 @@ def render_text(
     """
     tree = tree.sort()
     nodes = list(tree.keys())
-    branch_keys = {r.key for r in chain.from_iterable(tree.values())}
+    branch_keys = {r.key for r in it.chain.from_iterable(tree.values())}
 
     if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
@@ -564,10 +554,10 @@ def _render_text_with_unicode(
             if c.project_name not in cur_chain and depth + 1 <= max_depth
         ]
 
-        result += list(chain.from_iterable(children_strings))
+        result += list(it.chain.from_iterable(children_strings))
         return result
 
-    lines = chain.from_iterable([aux(p) for p in nodes])
+    lines = it.chain.from_iterable([aux(p) for p in nodes])
     print("\n".join(lines))  # noqa: T201
 
 
@@ -597,10 +587,10 @@ def _render_text_without_unicode(
             for c in tree.get_children(node.key)
             if c.project_name not in cur_chain and depth + 1 <= max_depth
         ]
-        result += list(chain.from_iterable(children))
+        result += list(it.chain.from_iterable(children))
         return result
 
-    lines = chain.from_iterable([aux(p) for p in nodes])
+    lines = it.chain.from_iterable([aux(p) for p in nodes])
     print("\n".join(lines))  # noqa: T201
 
 
@@ -640,7 +630,7 @@ def render_json_tree(tree: PackageDAG, indent: int) -> str:
     :returns: json representation of the tree
     """
     tree = tree.sort()
-    branch_keys = {r.key for r in chain.from_iterable(tree.values())}
+    branch_keys = {r.key for r in it.chain.from_iterable(tree.values())}
     nodes = [p for p in tree if p.key not in branch_keys]
 
     def aux(
@@ -711,13 +701,11 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
             node_ids_map[key] = key
             return key
         # If the key is a reserved keyword, append a number to it.
-        number = 0
-        while True:
+        for number in it.count():
             new_id = f"{key}_{number}"
             if new_id not in node_ids_map:
                 node_ids_map[key] = new_id
                 return new_id
-            number += 1
 
     # Use a sets to avoid duplicate entries.
     nodes: set[str] = set()
@@ -750,20 +738,13 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
                     edges.add(f'{package_key} -- "{edge_label}" --> {dependency_key}')
 
     # Produce the Mermaid Markdown.
-    indent = " " * 4
-    output = dedent(
-        f"""\
-        flowchart TD
-        {indent}classDef missing stroke-dasharray: 5
-        """,
-    )
-    # Sort the nodes and edges to make the output deterministic.
-    output += indent
-    output += f"\n{indent}".join(node for node in sorted(nodes))
-    output += "\n" + indent
-    output += f"\n{indent}".join(edge for edge in sorted(edges))
-    output += "\n"
-    return output
+    lines = [
+        "flowchart TD",
+        "classDef missing stroke-dasharray: 5",
+        *sorted(nodes),
+        *sorted(edges),
+    ]
+    return "".join(f"{'    ' if i else ''}{line}\n" for i, line in enumerate(lines))
 
 
 def dump_graphviz(  # noqa: C901, PLR0912
@@ -911,7 +892,7 @@ def cyclic_deps(tree: PackageDAG) -> list[tuple[DistPackage, ReqPackage, ReqPack
                 if val is not None:
                     entry = tree.get(val)
                     if entry is not None:
-                        p_as_dep_of_r = [x for x in entry if x.key == p.key][0]
+                        p_as_dep_of_r = next(x for x in entry if x.key == p.key)
                         cyclic.append((p, r, p_as_dep_of_r))
     return cyclic
 

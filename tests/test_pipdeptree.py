@@ -43,8 +43,7 @@ def mock_pkgs(simple_graph: dict[tuple[str, str], list[tuple[str, list[tuple[str
         as_req = Mock(key=nk, project_name=nk, specs=[("==", nv)])
         m.as_requirement = Mock(return_value=as_req)
         reqs = []
-        for child in children:
-            ck, cv = child
+        for ck, cv in children:
             r = Mock(key=ck, project_name=ck, specs=cv)
             reqs.append(r)
         m.requires = Mock(return_value=reqs)
