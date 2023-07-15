@@ -56,7 +56,7 @@ urls.Documentation = "https://github.com/tox-dev/pipdeptree/blob/main/README.md#
 urls.Homepage = "https://github.com/tox-dev/pipdeptree"
 urls.Source = "https://github.com/tox-dev/pipdeptree"
 urls.Tracker = "https://github.com/tox-dev/pipdeptree/issues"
-scripts.pipdeptree = "pipdeptree:main"
+scripts.pipdeptree = "pipdeptree.__main__:main"
 
 [tool.hatch]
 build.hooks.vcs.version-file = "src/pipdeptree/version.py"
