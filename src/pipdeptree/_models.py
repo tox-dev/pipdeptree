@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import sys
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from fnmatch import fnmatch
 from importlib import import_module
+from importlib.metadata import PackageNotFoundError, version
 from inspect import ismodule
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Iterator, List, Mapping, cast
@@ -413,12 +413,8 @@ def guess_version(pkg_key: str, default: str = "?") -> str:
     :returns: version
     """
     try:
-        if sys.version_info >= (3, 8):  # pragma: >=3.8 cover
-            import importlib.metadata as importlib_metadata
-        else:  # pragma: <3.8 cover
-            import importlib_metadata
-        return importlib_metadata.version(pkg_key)
-    except ImportError:
+        return version(pkg_key)
+    except PackageNotFoundError:
         pass
     # Avoid AssertionError with setuptools, see https://github.com/tox-dev/pipdeptree/issues/162
     if pkg_key in {"setuptools"}:

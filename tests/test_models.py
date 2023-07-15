@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import sys
+from importlib.metadata import PackageNotFoundError
 from itertools import chain
-from pathlib import Path
-from subprocess import check_output
 from typing import TYPE_CHECKING, Any, Callable, Iterator
 from unittest.mock import Mock
 
 import pytest
 
-from pipdeptree._models import DistPackage, PackageDAG, ReqPackage, ReversedPackageDAG
+from pipdeptree._models import DistPackage, PackageDAG, ReqPackage, ReversedPackageDAG, guess_version
 
 if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
     from tests.our_types import MockGraph
 
 
@@ -23,10 +23,10 @@ def dag_to_dict(g: PackageDAG) -> dict[str, list[str]]:
     return {k.key: [v.key for v in vs] for k, vs in g._obj.items()}  # noqa: SLF001
 
 
-def test_guess_version_setuptools() -> None:
-    script = Path(__file__).parent / "guess_version_setuptools.py"
-    output = check_output([sys.executable, script], text=True)
-    assert output == "?"
+def test_guess_version_setuptools(mocker: MockerFixture) -> None:
+    mocker.patch("pipdeptree._models.version", side_effect=PackageNotFoundError)
+    result = guess_version("setuptools")
+    assert result == "?"
 
 
 def test_package_dag_get_node_as_parent(example_dag: PackageDAG) -> None:
