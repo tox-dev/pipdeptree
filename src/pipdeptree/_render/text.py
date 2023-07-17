@@ -56,7 +56,7 @@ def _render_text_with_unicode(
         parent_is_last_child: bool = False,  # noqa: FBT001, FBT002
     ) -> list[Any]:
         cur_chain = cur_chain or []
-        node_str = node.render(parent, frozen)
+        node_str = node.render(parent, frozen=frozen)
         next_prefix = ""
         next_indent = indent + 2
 
@@ -124,7 +124,7 @@ def _render_text_without_unicode(
         depth: int = 0,
     ) -> list[Any]:
         cur_chain = cur_chain or []
-        node_str = node.render(parent, frozen)
+        node_str = node.render(parent, frozen=frozen)
         if parent:
             prefix = " " * indent + ("- " if use_bullets else "")
             node_str = prefix + node_str

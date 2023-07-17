@@ -71,6 +71,7 @@ line-length = 120
 target-version = "py38"
 isort = {known-first-party = ["pipdeptree"], required-imports = ["from __future__ import annotations"]}
 ignore = [
+  "S101",  # asserts allowed
   "INP001", # no implicit namespace
   "D",  # ignore documentation for now
   "D203",  # `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible
@@ -82,7 +83,6 @@ ignore = [
 ]
 [tool.ruff.per-file-ignores]
 "tests/**/*.py" = [
-  "S101",  # asserts allowed in tests...
   "FBT",  # don"t care about booleans as positional arguments in tests
   "D",  # don"t care about documentation in tests
   "S603",  # `subprocess` call: check for execution of untrusted input

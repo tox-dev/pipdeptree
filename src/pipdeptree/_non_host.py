@@ -33,7 +33,7 @@ def handle_non_host_target(args: Options) -> int | None:
                 del argv[py_at]
 
         src = getsourcefile(sys.modules[__name__])
-        assert src is not None  # noqa: S101
+        assert src is not None
         our_root = Path(src).parent
 
         with TemporaryDirectory() as project:

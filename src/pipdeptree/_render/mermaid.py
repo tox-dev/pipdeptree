@@ -3,7 +3,7 @@ from __future__ import annotations
 import itertools as it
 from typing import TYPE_CHECKING, Final
 
-from pipdeptree._models import ReversedPackageDAG
+from pipdeptree._models import DistPackage, ReqPackage, ReversedPackageDAG
 
 if TYPE_CHECKING:
     from pipdeptree._models import PackageDAG
@@ -69,13 +69,17 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
 
     if isinstance(tree, ReversedPackageDAG):
         for package, reverse_dependencies in tree.items():
+            assert isinstance(package, ReqPackage)
             package_label = "\\n".join(
                 (package.project_name, "(missing)" if package.is_missing else package.installed_version),
             )
             package_key = mermaid_id(package.key)
             nodes.add(f'{package_key}["{package_label}"]')
             for reverse_dependency in reverse_dependencies:
-                edge_label = reverse_dependency.req.version_spec or "any"
+                assert isinstance(reverse_dependency, DistPackage)
+                edge_label = (
+                    reverse_dependency.req.version_spec if reverse_dependency.req is not None else None
+                ) or "any"
                 reverse_dependency_key = mermaid_id(reverse_dependency.key)
                 edges.add(f'{package_key} -- "{edge_label}" --> {reverse_dependency_key}')
     else:

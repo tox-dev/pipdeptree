@@ -4,6 +4,8 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
+from pipdeptree._models import DistPackage, ReqPackage
+
 if TYPE_CHECKING:
     from pipdeptree._models import PackageDAG
 
@@ -55,13 +57,13 @@ def dump_graphviz(  # noqa: C901, PLR0912
 
     if is_reverse:
         for dep_rev, parents in tree.items():
+            assert isinstance(dep_rev, ReqPackage)
             dep_label = f"{dep_rev.project_name}\\n{dep_rev.installed_version}"
             graph.node(dep_rev.key, label=dep_label)
             for parent in parents:
-                # req reference of the dep associated with this
-                # particular parent package
-                req_ref = parent.req
-                edge_label = req_ref.version_spec or "any"
+                # req reference of the dep associated with this particular parent package
+                assert isinstance(parent, DistPackage)
+                edge_label = (parent.req.version_spec if parent.req is not None else None) or "any"
                 graph.edge(dep_rev.key, parent.key, label=edge_label)
     else:
         for pkg, deps in tree.items():

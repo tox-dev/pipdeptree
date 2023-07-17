@@ -52,10 +52,10 @@ def render_conflicts_text(conflicts: dict[DistPackage, list[ReqPackage]]) -> Non
         # Enforce alphabetical order when listing conflicts
         pkgs = sorted(conflicts.keys())
         for p in pkgs:
-            pkg = p.render_as_root(False)  # noqa: FBT003
+            pkg = p.render_as_root(frozen=False)
             print(f"* {pkg}", file=sys.stderr)  # noqa: T201
             for req in conflicts[p]:
-                req_str = req.render_as_branch(False)  # noqa: FBT003
+                req_str = req.render_as_branch(frozen=False)
                 print(f" - {req_str}", file=sys.stderr)  # noqa: T201
 
 

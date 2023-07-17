@@ -1,180 +1,15 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from fnmatch import fnmatch
-from importlib import import_module
-from importlib.metadata import PackageNotFoundError, version
-from inspect import ismodule
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Iterator, List, Mapping, cast
-
-from pip._vendor.pkg_resources import Distribution, Requirement
+from typing import TYPE_CHECKING, Iterator, List, Mapping
 
 if TYPE_CHECKING:
-    from pip._internal.metadata import BaseDistribution
     from pip._vendor.pkg_resources import DistInfoDistribution
 
-try:
-    from pip._internal.operations.freeze import FrozenRequirement
-except ImportError:
-    from pip import FrozenRequirement  # type: ignore[attr-defined, no-redef]
 
-
-class Package(ABC):
-    """
-    Abstract class for wrappers around objects that pip returns. This class needs to be subclassed with implementations
-    for `render_as_root` and `render_as_branch` methods.
-    """
-
-    def __init__(self, obj: DistInfoDistribution) -> None:
-        self._obj: DistInfoDistribution = obj
-        self.project_name: str = obj.project_name
-        self.key: str = obj.key
-
-    @abstractmethod
-    def render_as_root(self, frozen: bool) -> str:  # noqa: FBT001
-        raise NotImplementedError
-
-    @abstractmethod
-    def render_as_branch(self, frozen: bool) -> str:  # noqa: FBT001
-        raise NotImplementedError
-
-    def render(
-        self,
-        parent: DistPackage | ReqPackage | None = None,
-        frozen: bool = False,  # noqa: FBT001, FBT002
-    ) -> str:
-        if not parent:
-            return self.render_as_root(frozen)
-        return self.render_as_branch(frozen)
-
-    @staticmethod
-    def frozen_repr(obj: DistInfoDistribution) -> str:
-        fr = frozen_req_from_dist(obj)
-        return str(fr).strip()
-
-    def __getattr__(self, key: str) -> Any:
-        return getattr(self._obj, key)
-
-    def __repr__(self) -> str:
-        return f'<{self.__class__.__name__}("{self.key}")>'
-
-    def __lt__(self, rhs: Package) -> bool:
-        return self.key < rhs.key
-
-
-class DistPackage(Package):
-    """
-    Wrapper class for pkg_resources.Distribution instances.
-
-    :param obj: pkg_resources.Distribution to wrap over
-    :param req: optional ReqPackage object to associate this DistPackage with. This is useful for displaying the tree
-        in reverse
-    """
-
-    def __init__(self, obj: DistInfoDistribution, req: ReqPackage | None = None) -> None:
-        super().__init__(obj)
-        self.version_spec = None
-        self.req = req
-
-    def render_as_root(self, frozen: bool) -> str:  # noqa: FBT001
-        if not frozen:
-            return f"{self.project_name}=={self.version}"
-        return self.__class__.frozen_repr(self._obj)
-
-    def render_as_branch(self, frozen: bool) -> str:  # noqa: FBT001
-        assert self.req is not None  # noqa: S101
-        if not frozen:
-            parent_ver_spec = self.req.version_spec
-            parent_str = self.req.project_name
-            if parent_ver_spec:
-                parent_str += parent_ver_spec
-            return f"{self.project_name}=={self.version} [requires: {parent_str}]"
-        return self.render_as_root(frozen)
-
-    def as_requirement(self) -> ReqPackage:
-        """Return a ReqPackage representation of this DistPackage."""
-        return ReqPackage(self._obj.as_requirement(), dist=self)  # type: ignore[no-untyped-call]
-
-    def as_parent_of(self, req: ReqPackage | None) -> DistPackage:
-        """
-        Return a DistPackage instance associated to a requirement. This association is necessary for reversing the
-        PackageDAG.
-
-        If `req` is None, and the `req` attribute of the current instance is also None, then the same instance will be
-        returned.
-
-        :param ReqPackage req: the requirement to associate with
-        :returns: DistPackage instance
-        """
-        if req is None and self.req is None:
-            return self
-        return self.__class__(self._obj, req)
-
-    def as_dict(self) -> dict[str, str]:
-        return {"key": self.key, "package_name": self.project_name, "installed_version": self.version}
-
-
-class ReqPackage(Package):
-    """
-    Wrapper class for Requirements instance.
-
-    :param obj: The `Requirements` instance to wrap over
-    :param dist: optional `pkg_resources.Distribution` instance for this requirement
-    """
-
-    UNKNOWN_VERSION = "?"
-
-    def __init__(self, obj: Requirement, dist: DistPackage | None = None) -> None:
-        super().__init__(obj)
-        self.dist = dist
-
-    @property
-    def version_spec(self) -> str | None:
-        specs = sorted(self._obj.specs, reverse=True)  # `reverse` makes '>' prior to '<'
-        return ",".join(["".join(sp) for sp in specs]) if specs else None
-
-    @property
-    def installed_version(self) -> str:
-        if not self.dist:
-            return guess_version(self.key, self.UNKNOWN_VERSION)
-        return cast(str, self.dist.version)
-
-    @property
-    def is_missing(self) -> bool:
-        return self.installed_version == self.UNKNOWN_VERSION
-
-    def is_conflicting(self) -> bool:
-        """If installed version conflicts with required version."""
-        # unknown installed version is also considered conflicting
-        if self.installed_version == self.UNKNOWN_VERSION:
-            return True
-        ver_spec = self.version_spec if self.version_spec else ""
-        req_version_str = f"{self.project_name}{ver_spec}"
-        req_obj = Requirement.parse(req_version_str)  # type: ignore[no-untyped-call]
-        return self.installed_version not in req_obj
-
-    def render_as_root(self, frozen: bool) -> str:  # noqa: FBT001
-        if not frozen:
-            return f"{self.project_name}=={self.installed_version}"
-        if self.dist:
-            return self.__class__.frozen_repr(self.dist._obj)  # noqa: SLF001
-        return self.project_name
-
-    def render_as_branch(self, frozen: bool) -> str:  # noqa: FBT001
-        if not frozen:
-            req_ver = self.version_spec if self.version_spec else "Any"
-            return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}]"
-        return self.render_as_root(frozen)
-
-    def as_dict(self) -> dict[str, str | None]:
-        return {
-            "key": self.key,
-            "package_name": self.project_name,
-            "installed_version": self.installed_version,
-            "required_version": self.version_spec,
-        }
+from .package import DistPackage, ReqPackage
 
 
 class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
@@ -282,7 +117,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         # Check for mutual exclusion of show_only and exclude sets
         # after normalizing the values to lowercase
         if include and exclude:
-            assert not (include & exclude)  # noqa: S101
+            assert not (include & exclude)
 
         # Traverse the graph in a depth first manner and filter the
         # nodes according to `show_only` and `exclude` sets
@@ -344,7 +179,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
 
         :returns: Instance of same class with dict
         """
-        return self.__class__(sorted_tree(self._obj))
+        return self.__class__({k: sorted(v) for k, v in sorted(self._obj.items())})
 
     # Methods required by the abstract base class Mapping
     def __getitem__(self, arg: DistPackage) -> list[ReqPackage] | None:  # type: ignore[override]
@@ -377,77 +212,17 @@ class ReversedPackageDAG(PackageDAG):
         child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
         for k, vs in self._obj.items():
             for v in vs:
+                assert isinstance(v, DistPackage)
                 node = next((p for p in m if p.key == v.key), v.as_parent_of(None))
                 m[node].append(k)  # type: ignore[arg-type]
             if k.key not in child_keys:
+                assert isinstance(k, ReqPackage)
+                assert k.dist is not None
                 m[k.dist] = []
         return PackageDAG(dict(m))
 
 
-def sorted_tree(tree: dict[DistPackage, list[ReqPackage]]) -> dict[DistPackage, list[ReqPackage]]:
-    """
-    Sorts the dict representation of the tree. The root packages as well as the intermediate packages are sorted in the
-    alphabetical order of the package names.
-
-    :param tree: the pkg dependency tree obtained by calling `construct_tree` function
-    :returns: sorted tree
-    """
-    return {k: sorted(v) for k, v in sorted(tree.items())}
-
-
-def guess_version(pkg_key: str, default: str = "?") -> str:
-    """
-    Guess the version of a pkg when pip doesn't provide it.
-
-    :param pkg_key: key of the package
-    :param default: default version to return if unable to find
-    :returns: version
-    """
-    try:
-        return version(pkg_key)
-    except PackageNotFoundError:
-        pass
-    # Avoid AssertionError with setuptools, see https://github.com/tox-dev/pipdeptree/issues/162
-    if pkg_key in {"setuptools"}:
-        return default
-    try:
-        m = import_module(pkg_key)
-    except ImportError:
-        return default
-    else:
-        v = getattr(m, "__version__", default)
-        if ismodule(v):
-            return getattr(v, "__version__", default)
-        return v
-
-
-def frozen_req_from_dist(dist: Distribution) -> FrozenRequirement:
-    # The `pip._internal.metadata` modules were introduced in 21.1.1
-    # and the `pip._internal.operations.freeze.FrozenRequirement`
-    # class now expects dist to be a subclass of
-    # `pip._internal.metadata.BaseDistribution`, however the
-    # `pip._internal.utils.misc.get_installed_distributions` continues
-    # to return objects of type
-    # pip._vendor.pkg_resources.DistInfoDistribution.
-    #
-    # This is a hacky backward compatible (with older versions of pip)
-    # fix.
-    try:
-        from pip._internal import metadata
-    except ImportError:
-        our_dist: BaseDistribution = dist  # type: ignore[assignment]
-    else:
-        our_dist = metadata.pkg_resources.Distribution(dist)
-
-    try:
-        return FrozenRequirement.from_dist(our_dist)
-    except TypeError:
-        return FrozenRequirement.from_dist(our_dist, [])  # type: ignore[call-arg]
-
-
 __all__ = [
-    "DistPackage",
-    "ReqPackage",
     "PackageDAG",
     "ReversedPackageDAG",
 ]
