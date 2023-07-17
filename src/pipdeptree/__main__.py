@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from typing import Sequence
 
 from pipdeptree._cli import get_options
 from pipdeptree._discovery import get_installed_distributions
@@ -11,29 +12,29 @@ from pipdeptree._render import render
 from ._validate import validate
 
 
-def main() -> None | int:
-    args = get_options()
-    result = handle_non_host_target(args)
+def main(args: Sequence[str] | None = None) -> None | int:
+    options = get_options(args)
+    result = handle_non_host_target(options)
     if result is not None:
         return result
 
-    pkgs = get_installed_distributions(local_only=args.local_only, user_only=args.user_only)
+    pkgs = get_installed_distributions(local_only=options.local_only, user_only=options.user_only)
     tree = PackageDAG.from_pkgs(pkgs)
-    is_text_output = not any([args.json, args.json_tree, args.output_format])
+    is_text_output = not any([options.json, options.json_tree, options.output_format])
 
-    return_code = validate(args, is_text_output, tree)
+    return_code = validate(options, is_text_output, tree)
 
     # Reverse the tree (if applicable) before filtering, thus ensuring, that the filter will be applied on ReverseTree
-    if args.reverse:
+    if options.reverse:
         tree = tree.reverse()
 
-    show_only = set(args.packages.split(",")) if args.packages else None
-    exclude = set(args.exclude.split(",")) if args.exclude else None
+    show_only = set(options.packages.split(",")) if options.packages else None
+    exclude = set(options.exclude.split(",")) if options.exclude else None
 
     if show_only is not None or exclude is not None:
         tree = tree.filter_nodes(show_only, exclude)
 
-    render(args, tree)
+    render(options, tree)
 
     return return_code
 

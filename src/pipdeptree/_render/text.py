@@ -9,10 +9,11 @@ if TYPE_CHECKING:
 
 def render_text(
     tree: PackageDAG,
+    *,
     max_depth: float,
     encoding: str,
-    list_all: bool = True,  # noqa: FBT001, FBT002
-    frozen: bool = False,  # noqa: FBT001, FBT002
+    list_all: bool = True,
+    frozen: bool = False,
 ) -> None:
     """
     Print tree as text on console.

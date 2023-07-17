@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,20 +8,6 @@ from pipdeptree._render.text import render_text
 
 if TYPE_CHECKING:
     from pipdeptree._models import PackageDAG
-
-
-class MockStdout:
-    """
-    A wrapper to stdout that mocks the `encoding` attribute (to have `render_text()` render with unicode/non-unicode)
-    and `write()` (so that `print()` calls can write to stdout).
-    """
-
-    def __init__(self, encoding: str) -> None:
-        self.stdout = sys.stdout
-        self.encoding = encoding
-
-    def write(self, text: str) -> None:
-        self.stdout.write(text)
 
 
 @pytest.mark.parametrize(
@@ -258,7 +243,7 @@ def test_render_text(  # noqa: PLR0913
 ) -> None:
     tree = example_dag.reverse() if reverse else example_dag
     encoding = "utf-8" if unicode else "ascii"
-    render_text(tree, float("inf"), encoding, list_all=list_all, frozen=False)
+    render_text(tree, max_depth=float("inf"), encoding=encoding, list_all=list_all, frozen=False)
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
 
@@ -359,7 +344,7 @@ def test_render_text_given_depth(
     expected_output: list[str],
     example_dag: PackageDAG,
 ) -> None:
-    render_text(example_dag, level, encoding="utf-8" if unicode else "ascii")
+    render_text(example_dag, max_depth=level, encoding="utf-8" if unicode else "ascii")
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
 
@@ -518,6 +503,6 @@ def test_render_text_encoding(
     expected_output: list[str],
     example_dag: PackageDAG,
 ) -> None:
-    render_text(example_dag, level, encoding, True, False)
+    render_text(example_dag, max_depth=level, encoding=encoding, list_all=True, frozen=False)
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
