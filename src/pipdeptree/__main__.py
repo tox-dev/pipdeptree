@@ -8,8 +8,7 @@ from pipdeptree._discovery import get_installed_distributions
 from pipdeptree._models import PackageDAG
 from pipdeptree._non_host import handle_non_host_target
 from pipdeptree._render import render
-
-from ._validate import validate
+from pipdeptree._validate import validate
 
 
 def main(args: Sequence[str] | None = None) -> None | int:
