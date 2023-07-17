@@ -21,10 +21,16 @@ def render(options: Options, tree: PackageDAG) -> None:
     elif options.mermaid:
         print(render_mermaid(tree))  # noqa: T201
     elif options.output_format:
-        assert options.graph_output is not None  # noqa: S101
-        render_graphviz(tree, output_format=options.graph_output, reverse=options.reverse)
+        assert options.output_format is not None  # noqa: S101
+        render_graphviz(tree, output_format=options.output_format, reverse=options.reverse)
     else:
-        render_text(tree, options.depth, options.encoding_type, options.all, options.freeze)
+        render_text(
+            tree,
+            max_depth=options.depth,
+            encoding=options.encoding_type,
+            list_all=options.all,
+            frozen=options.freeze,
+        )
 
 
 __all__ = [

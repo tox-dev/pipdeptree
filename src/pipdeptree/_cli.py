@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Sequence, cast
 
 from .version import __version__
 
@@ -22,7 +22,7 @@ class Options(Namespace):
     json: bool
     json_tree: bool
     mermaid: bool
-    graph_output: str | None
+    output_format: str | None
     depth: float
     encoding: str
 
@@ -135,9 +135,9 @@ def build_parser() -> ArgumentParser:
     return parser
 
 
-def get_options() -> Options:
+def get_options(args: Sequence[str] | None) -> Options:
     parser = build_parser()
-    return cast(Options, parser.parse_args())
+    return cast(Options, parser.parse_args(args))
 
 
 __all__ = [
