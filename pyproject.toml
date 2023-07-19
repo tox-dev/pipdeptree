@@ -44,12 +44,12 @@ optional-dependencies.graphviz = [
 ]
 optional-dependencies.test = [
   "covdefaults>=2.3",
-  "diff-cover>=7.6",
-  "pip>=23.1.2",
+  "diff-cover>=7.7",
+  "pip>=23.2",
   "pytest>=7.4",
   "pytest-cov>=4.1",
   "pytest-mock>=3.11.1",
-  "virtualenv<21,>=20.23.1",
+  "virtualenv<21,>=20.24",
 ]
 urls.Changelog = "https://github.com/tox-dev/pipdeptree/blob/main/CHANGES.md"
 urls.Documentation = "https://github.com/tox-dev/pipdeptree/blob/main/README.md#pipdeptree"
