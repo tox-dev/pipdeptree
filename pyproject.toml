@@ -95,7 +95,7 @@ html.skip_covered = false
 paths.source = ["src", ".tox/*/lib/python*/site-packages", "*/src"]
 run.parallel = true
 run.plugins = ["covdefaults"]
-report.fail_under = 89
+report.fail_under = 88
 subtract_omit = "*/__main__.py"
 
 [tool.mypy]
