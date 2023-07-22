@@ -61,6 +61,21 @@ def build_parser() -> ArgumentParser:
 
     select = parser.add_argument_group(title="select", description="choose what to render")
     select.add_argument("--python", default=sys.executable, help="Python interpreter to inspect")
+    select.add_argument(
+        "-p",
+        "--packages",
+        help="comma separated list of packages to show - wildcards are supported, like 'somepackage.*'",
+        metavar="P",
+    )
+    select.add_argument(
+        "-e",
+        "--exclude",
+        help="comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'."
+        " Cannot be used with -p or -a.",
+        metavar="P",
+    )
+    select.add_argument("-a", "--all", action="store_true", help="list all deps at top level")
+
     scope = select.add_mutually_exclusive_group()
     scope.add_argument(
         "-l",
@@ -69,21 +84,6 @@ def build_parser() -> ArgumentParser:
         help="if in a virtualenv that has global access do not show globally installed packages",
     )
     scope.add_argument("-u", "--user-only", action="store_true", help="only show installations in the user site dir")
-
-    package = select.add_mutually_exclusive_group()
-    package.add_argument(
-        "-p",
-        "--packages",
-        help="comma separated list of packages to show - wildcards are supported, like 'somepackage.*'",
-        metavar="P",
-    )
-    package.add_argument(
-        "-e",
-        "--exclude",
-        help="comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'",
-        metavar="P",
-    )
-    package.add_argument("-a", "--all", action="store_true", help="list all deps at top level")
 
     render = parser.add_argument_group(
         title="render",
@@ -137,7 +137,12 @@ def build_parser() -> ArgumentParser:
 
 def get_options(args: Sequence[str] | None) -> Options:
     parser = build_parser()
-    return cast(Options, parser.parse_args(args))
+    parsed_args = parser.parse_args(args)
+
+    if parsed_args.exclude and (parsed_args.all or parsed_args.packages):
+        return parser.error("cannot use --exclude with --packages or --all")
+
+    return cast(Options, parsed_args)
 
 
 __all__ = [

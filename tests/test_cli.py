@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from pipdeptree._cli import build_parser
+from pipdeptree._cli import build_parser, get_options
 
 
 def test_parser_default() -> None:
@@ -75,3 +75,23 @@ def test_parser_depth(should_be_error: bool, depth_arg: list[str], expected_valu
     else:
         args = parser.parse_args(depth_arg)
         assert args.depth == expected_value
+
+
+@pytest.mark.parametrize(
+    ("should_be_error", "args", "expected_value"),
+    [
+        (True, ["--exclude", "examplepy", "--all"], None),
+        (True, ["-e", "examplepy", "--packages", "anotherpy"], None),
+        (True, ["-e", "examplepy", "-p", "anotherpy", "-a"], None),
+        (False, ["--exclude", "examplepy"], "examplepy"),
+    ],
+)
+def test_parser_get_options_exclude_mutual_exclusion(
+    should_be_error: bool, args: list[str], expected_value: str
+) -> None:
+    if should_be_error:
+        with pytest.raises(SystemExit):
+            get_options(args)
+    else:
+        parsed_args = get_options(args)
+        assert parsed_args.exclude == expected_value
