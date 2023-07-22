@@ -78,22 +78,22 @@ def test_parser_depth(should_be_error: bool, depth_arg: list[str], expected_valu
 
 
 @pytest.mark.parametrize(
-    ("should_be_error", "args", "expected_value"),
+    "args",
     [
-        (True, ["--exclude", "examplepy", "--all"], None),
-        (True, ["-e", "examplepy", "--packages", "anotherpy"], None),
-        (True, ["-e", "examplepy", "-p", "anotherpy", "-a"], None),
-        (False, ["--exclude", "examplepy"], "examplepy"),
+        pytest.param(["--exclude", "py", "--all"], id="exclude-all"),
+        pytest.param(["-e", "py", "--packages", "py2"], id="exclude-packages"),
+        pytest.param(["-e", "py", "-p", "py2", "-a"], id="exclude-packages-all"),
     ],
 )
-def test_parser_get_options_exclude_mutual_exclusion(
-    should_be_error: bool,
-    args: list[str],
-    expected_value: str,
-) -> None:
-    if should_be_error:
-        with pytest.raises(SystemExit):
-            get_options(args)
-    else:
-        parsed_args = get_options(args)
-        assert parsed_args.exclude == expected_value
+def test_parser_get_options_exclude_combine_not_supported(args: list[str], capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(args)
+
+    out, err = capsys.readouterr()
+    assert not out
+    assert "cannot use --exclude with --packages or --all" in err
+
+
+def test_parser_get_options_exclude_only() -> None:
+    parsed_args = get_options(["--exclude", "py"])
+    assert parsed_args.exclude == "py"
