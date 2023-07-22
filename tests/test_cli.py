@@ -87,7 +87,9 @@ def test_parser_depth(should_be_error: bool, depth_arg: list[str], expected_valu
     ],
 )
 def test_parser_get_options_exclude_mutual_exclusion(
-    should_be_error: bool, args: list[str], expected_value: str
+    should_be_error: bool,
+    args: list[str],
+    expected_value: str,
 ) -> None:
     if should_be_error:
         with pytest.raises(SystemExit):

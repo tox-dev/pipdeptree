@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, Iterator
-from unittest.mock import Mock
 
 import pytest
 
-from pipdeptree._render.text import render_text
-from tests.our_types import MockGraph
-
 from pipdeptree._models import PackageDAG
+from pipdeptree._render.text import render_text
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
+
+    from tests.our_types import MockGraph
 
 
 @pytest.mark.parametrize(

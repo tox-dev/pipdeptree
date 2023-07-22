@@ -70,8 +70,8 @@ def build_parser() -> ArgumentParser:
     select.add_argument(
         "-e",
         "--exclude",
-        help="comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'."
-        " Cannot be used with -p or -a.",
+        help="comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'. "
+        "(cannot combine with -p or -a)",
         metavar="P",
     )
     select.add_argument("-a", "--all", action="store_true", help="list all deps at top level")
