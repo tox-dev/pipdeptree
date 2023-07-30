@@ -4,9 +4,9 @@ import sys
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from pipdeptree._models.package import Package
-
 if TYPE_CHECKING:
+    from pipdeptree._models.package import Package
+
     from ._cli import Options
     from ._models import DistPackage, PackageDAG, ReqPackage
 
@@ -91,7 +91,7 @@ def cyclic_deps(tree: PackageDAG) -> list[list[Package]]:
 
     cycles: list[list[Package]] = []
 
-    for p in tree.keys():
+    for p in tree:
         cdeps: list[Package] = []
         visited: set[str] = set()
         if dfs(p, p, visited, cdeps):
