@@ -107,7 +107,7 @@ def render_cycles_text(cycles: list[list[Package]]) -> None:
         # List in alphabetical order the dependency that caused the cycle (i.e. the second-to-last Package element)
         cycles = sorted(cycles, key=lambda c: c[len(c) - 2].key)
         for cycle in cycles:
-            print("*", end=" ", file=sys.stderr)
+            print("*", end=" ", file=sys.stderr)  # noqa: T201
 
             size = len(cycle) - 1
             for idx, pkg in enumerate(cycle):
@@ -115,7 +115,7 @@ def render_cycles_text(cycles: list[list[Package]]) -> None:
                     print(f"{pkg.project_name}", end="", file=sys.stderr)  # noqa: T201
                 else:
                     print(f"{pkg.project_name} =>", end=" ", file=sys.stderr)  # noqa: T201
-            print(file=sys.stderr)
+            print(file=sys.stderr)  # noqa: T201
 
 
 __all__ = [
