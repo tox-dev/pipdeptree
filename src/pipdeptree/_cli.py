@@ -15,6 +15,7 @@ class Options(Namespace):
     python: str
     all: bool  # noqa: A003
     local_only: bool
+    user_only: bool
     warn: Literal["silence", "suppress", "fail"]
     reverse: bool
     packages: str
