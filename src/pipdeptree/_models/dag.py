@@ -91,7 +91,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         node = self.get_node_as_parent(node_key)
         return self._obj[node] if node else []
 
-    def filter_nodes(self, include: list[str] | None, exclude: set[str] | None) -> PackageDAG:  # noqa: C901
+    def filter_nodes(self, include: list[str] | None, exclude: set[str] | None) -> PackageDAG:  # noqa: C901, PLR0912
         """
         Filters nodes in a graph by given parameters.
 
