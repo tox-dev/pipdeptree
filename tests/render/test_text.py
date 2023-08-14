@@ -525,7 +525,7 @@ def test_render_text_list_all_and_packages_options_used(
     package_dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
 
     # NOTE: Mimicking the --packages option being used here.
-    package_dag = package_dag.filter_nodes({"examplePy"}, None)
+    package_dag = package_dag.filter_nodes(["examplePy"], None)
 
     render_text(package_dag, max_depth=float("inf"), encoding="utf-8", list_all=True, frozen=False)
     captured = capsys.readouterr()

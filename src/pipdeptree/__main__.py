@@ -27,11 +27,17 @@ def main(args: Sequence[str] | None = None) -> None | int:
     if options.reverse:
         tree = tree.reverse()
 
-    show_only = set(options.packages.split(",")) if options.packages else None
+    show_only = options.packages.split(",") if options.packages else None
     exclude = set(options.exclude.split(",")) if options.exclude else None
 
     if show_only is not None or exclude is not None:
-        tree = tree.filter_nodes(show_only, exclude)
+        try:
+            tree = tree.filter_nodes(show_only, exclude)
+        except ValueError as e:
+            if options.warn in ("suppress", "fail"):
+                print(e, file=sys.stderr)  # noqa: T201
+                return_code |= 1 if options.warn == "fail" else 0
+            return return_code
 
     render(options, tree)
 
