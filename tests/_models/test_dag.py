@@ -39,14 +39,14 @@ def dag_to_dict(g: PackageDAG) -> dict[str, list[str]]:
 
 def test_package_dag_filter_fnmatch_include_a(t_fnmatch: PackageDAG) -> None:
     # test include for a.*in the result we got only a.* nodes
-    graph = dag_to_dict(t_fnmatch.filter_nodes({"a.*"}, None))
+    graph = dag_to_dict(t_fnmatch.filter_nodes(["a.*"], None))
     assert graph == {"a.a": ["a.b", "a.c"], "a.b": ["a.c"]}
 
 
 def test_package_dag_filter_fnmatch_include_b(t_fnmatch: PackageDAG) -> None:
     # test include for b.*, which has a.b and a.c in tree, but not a.a
     # in the result we got the b.* nodes plus the a.b node as child in the tree
-    graph = dag_to_dict(t_fnmatch.filter_nodes({"b.*"}, None))
+    graph = dag_to_dict(t_fnmatch.filter_nodes(["b.*"], None))
     assert graph == {"b.a": ["b.b"], "b.b": ["a.b"], "a.b": ["a.c"]}
 
 
@@ -60,6 +60,11 @@ def test_package_dag_filter_fnmatch_exclude_a(t_fnmatch: PackageDAG) -> None:
     # test exclude for a.* in the result we got only b.* nodes
     graph = dag_to_dict(t_fnmatch.filter_nodes(None, {"a.*"}))
     assert graph == {"b.a": ["b.b"], "b.b": []}
+
+
+def test_package_dag_filter_nonexistent_packages(t_fnmatch: PackageDAG) -> None:
+    with pytest.raises(ValueError, match="No packages matched using the following patterns: x, y, z"):
+        t_fnmatch.filter_nodes(["x", "y", "z"], None)
 
 
 def test_package_dag_reverse(example_dag: PackageDAG) -> None:

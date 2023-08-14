@@ -91,14 +91,15 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         node = self.get_node_as_parent(node_key)
         return self._obj[node] if node else []
 
-    def filter_nodes(self, include: set[str] | None, exclude: set[str] | None) -> PackageDAG:  # noqa: C901
+    def filter_nodes(self, include: list[str] | None, exclude: set[str] | None) -> PackageDAG:  # noqa: C901
         """
         Filters nodes in a graph by given parameters.
 
         If a node is included, then all it's children are also included.
 
-        :param include: set of node keys to include (or None)
+        :param include: list of node keys to include (or None)
         :param exclude: set of node keys to exclude (or None)
+        :raises ValueError: If include has node keys that do not exist in the graph
         :returns: filtered version of the graph
         """
         # If neither of the filters are specified, short circuit
@@ -110,25 +111,40 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         # documentation, `key` is simply
         # `project_name.lower()`. Refer:
         # https://setuptools.readthedocs.io/en/latest/pkg_resources.html#distribution-objects
+        include_with_casing_preserved: list[str] = []
         if include:
-            include = {s.lower() for s in include}
+            include_with_casing_preserved = include
+            include = [s.lower() for s in include]
         exclude = {s.lower() for s in exclude} if exclude else set()
 
         # Check for mutual exclusion of show_only and exclude sets
         # after normalizing the values to lowercase
         if include and exclude:
-            assert not (include & exclude)
+            assert not (set(include) & exclude)
 
         # Traverse the graph in a depth first manner and filter the
         # nodes according to `show_only` and `exclude` sets
         stack: deque[DistPackage] = deque()
         m: dict[DistPackage, list[ReqPackage]] = {}
         seen = set()
+        matched_includes: set[str] = set()
         for node in self._obj:
             if any(fnmatch(node.key, e) for e in exclude):
                 continue
-            if include is None or any(fnmatch(node.key, i) for i in include):
+            if include is None:
                 stack.append(node)
+            else:
+                should_append = False
+                for i in include:
+                    if fnmatch(node.key, i):
+                        # Add all patterns that match with the node key. Otherwise if we break, patterns like py* or
+                        # pytest* (which both should match "pytest") may cause one pattern to be missed and will
+                        # raise an error
+                        matched_includes.add(i)
+                        should_append = True
+                if should_append:
+                    stack.append(node)
+
             while stack:
                 n = stack.pop()
                 cldn = [c for c in self._obj[n] if not any(fnmatch(c.key, e) for e in exclude)]
@@ -143,6 +159,10 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
                             # It means there's no root node corresponding to the child node i.e.
                             # a dependency is missing
                             continue
+
+        non_existent_includes = [i for i in include_with_casing_preserved if i.lower() not in matched_includes]
+        if non_existent_includes:
+            raise ValueError("No packages matched using the following patterns: " + ", ".join(non_existent_includes))
 
         return self.__class__(m)
 
