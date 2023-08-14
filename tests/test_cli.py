@@ -66,7 +66,7 @@ def test_parser_svg() -> None:
         (False, [], float("inf")),
     ],
 )
-def test_parser_depth(should_be_error: bool, depth_arg: list[str], expected_value: None | int | float) -> None:
+def test_parser_depth(should_be_error: bool, depth_arg: list[str], expected_value: None | float) -> None:
     parser = build_parser()
 
     if should_be_error:
