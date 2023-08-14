@@ -62,6 +62,11 @@ def test_package_dag_filter_fnmatch_exclude_a(t_fnmatch: PackageDAG) -> None:
     assert graph == {"b.a": ["b.b"], "b.b": []}
 
 
+def test_package_dag_filter_include_exclude_both_used(t_fnmatch: PackageDAG) -> None:
+    with pytest.raises(AssertionError):
+        t_fnmatch.filter_nodes(["a.a", "a.b"], {"a.b"})
+
+
 def test_package_dag_filter_nonexistent_packages(t_fnmatch: PackageDAG) -> None:
     with pytest.raises(ValueError, match="No packages matched using the following patterns: x, y, z"):
         t_fnmatch.filter_nodes(["x", "y", "z"], None)
