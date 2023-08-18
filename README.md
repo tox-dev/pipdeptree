@@ -3,7 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/pipdeptree)](https://pypi.org/project/pipdeptree/)
 [![Supported Python
 versions](https://img.shields.io/pypi/pyversions/pipdeptree.svg)](https://pypi.org/project/pipdeptree/)
-[![Downloads](https://pepy.tech/badge/pipdeptree/month)](https://pepy.tech/project/pipdeptree)
+[![Downloads](https://static.pepy.tech/badge/pipdeptree/month)](https://pepy.tech/project/pipdeptree)
 [![check](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yml/badge.svg)](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/tox-dev/pipdeptree/main.svg)](https://results.pre-commit.ci/latest/github/tox-dev/pipdeptree/main)
 
