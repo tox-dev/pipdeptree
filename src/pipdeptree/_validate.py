@@ -44,7 +44,7 @@ def conflicting_deps(tree: PackageDAG) -> dict[DistPackage, list[ReqPackage]]:
     for package, requires in tree.items():
         for req in requires:
             if req.is_conflicting():
-                conflicting[package].append(req)  # noqa: PERF401
+                conflicting[package].append(req)
     return conflicting
 
 
