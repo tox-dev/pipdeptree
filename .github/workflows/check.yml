@@ -37,7 +37,7 @@ jobs:
           python-version: "3.11"
       - name: install tox
         run: python -m pip install tox
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: setup python for test ${{ matrix.py }}
@@ -68,7 +68,7 @@ jobs:
           - dev
           - readme
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: setup Python 3.11
         uses: actions/setup-python@v4
         with:
@@ -91,7 +91,7 @@ jobs:
           python-version: "3.11"
       - name: install build
         run: python -m pip install build
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: build package
         run: python -m build --sdist --wheel . -o dist
       - name: publish to PyPI
