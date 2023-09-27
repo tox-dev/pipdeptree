@@ -96,8 +96,7 @@ class Package(ABC):
 
 
 class DistPackage(Package):
-    """
-    Wrapper class for pkg_resources.Distribution instances.
+    """Wrapper class for pkg_resources.Distribution instances.
 
     :param obj: pkg_resources.Distribution to wrap over
     :param req: optional ReqPackage object to associate this DistPackage with. This is useful for displaying the tree in
@@ -129,10 +128,9 @@ class DistPackage(Package):
         return ReqPackage(self._obj.as_requirement(), dist=self)  # type: ignore[no-untyped-call]
 
     def as_parent_of(self, req: ReqPackage | None) -> DistPackage:
-        """
-        Return a DistPackage instance associated to a requirement. This association is necessary for reversing the
-        PackageDAG.
+        """Return a DistPackage instance associated to a requirement.
 
+        This association is necessary for reversing the PackageDAG.
         If `req` is None, and the `req` attribute of the current instance is also None, then the same instance will be
         returned.
 
@@ -149,8 +147,7 @@ class DistPackage(Package):
 
 
 class ReqPackage(Package):
-    """
-    Wrapper class for Requirements instance.
+    """Wrapper class for Requirements instance.
 
     :param obj: The `Requirements` instance to wrap over
     :param dist: optional `pkg_resources.Distribution` instance for this requirement

@@ -35,8 +35,7 @@ _RESERVED_IDS: Final[frozenset[str]] = frozenset(
 
 
 def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
-    """
-    Produce a Mermaid flowchart from the dependency graph.
+    """Produce a Mermaid flowchart from the dependency graph.
 
     :param tree: dependency graph
 
@@ -47,7 +46,7 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
     node_ids_map: dict[str, str] = {}
 
     def mermaid_id(key: str) -> str:
-        """Returns a valid Mermaid node ID from a string."""
+        """Return a valid Mermaid node ID from a string."""
         # If we have already seen this key, return the canonical ID.
         canonical_id = node_ids_map.get(key)
         if canonical_id is not None:

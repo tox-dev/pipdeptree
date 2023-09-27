@@ -31,8 +31,7 @@ def validate(args: Options, is_text_output: bool, tree: PackageDAG) -> int:  # n
 
 
 def conflicting_deps(tree: PackageDAG) -> dict[DistPackage, list[ReqPackage]]:
-    """
-    Returns dependencies which are not present or conflict with the requirements of other packages.
+    """Return dependencies which are not present or conflict with the requirements of other packages.
 
     e.g. will warn if pkg1 requires pkg2==2.0 and pkg2==1.0 is installed
 
@@ -63,8 +62,7 @@ def render_conflicts_text(conflicts: dict[DistPackage, list[ReqPackage]]) -> Non
 
 
 def cyclic_deps(tree: PackageDAG) -> list[list[Package]]:
-    """
-    Return cyclic dependencies as list of lists.
+    """Return cyclic dependencies as list of lists.
 
     :param  tree: package tree/dag
     :returns: list of lists, where each list represents a cycle
