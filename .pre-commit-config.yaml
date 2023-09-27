@@ -1,9 +1,24 @@
+default_language_version:
+  python: python3
+
+ci:
+  autofix_prs: true
+  autoupdate_commit_msg: "[pre-commit.ci] pre-commit suggestions"
+  autoupdate_schedule: quarterly
+  # submodules: true
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.11.1
+    hooks:
+      - id: pyupgrade
+        args: ["--py38-plus"]
+        name: Upgrade code
   - repo: https://github.com/psf/black
     rev: 23.9.1
     hooks:
