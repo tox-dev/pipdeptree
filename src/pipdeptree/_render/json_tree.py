@@ -22,6 +22,7 @@ def render_json_tree(tree: PackageDAG) -> str:
 
     :param tree: dependency tree
     :returns: json representation of the tree
+
     """
     tree = tree.sort()
     branch_keys = {r.key for r in chain.from_iterable(tree.values())}

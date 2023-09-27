@@ -39,6 +39,7 @@ def conflicting_deps(tree: PackageDAG) -> dict[DistPackage, list[ReqPackage]]:
     :param tree: the requirements tree (dict)
     :returns: dict of DistPackage -> list of unsatisfied/unknown ReqPackage
     :rtype: dict
+
     """
     conflicting = defaultdict(list)
     for package, requires in tree.items():
@@ -67,6 +68,7 @@ def cyclic_deps(tree: PackageDAG) -> list[list[Package]]:
 
     :param  tree: package tree/dag
     :returns: list of lists, where each list represents a cycle
+
     """
 
     def dfs(root: DistPackage, current: Package, visited: set[str], cdeps: list[Package]) -> bool:

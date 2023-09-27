@@ -100,8 +100,9 @@ class DistPackage(Package):
     Wrapper class for pkg_resources.Distribution instances.
 
     :param obj: pkg_resources.Distribution to wrap over
-    :param req: optional ReqPackage object to associate this DistPackage with. This is useful for displaying the tree
-        in reverse
+    :param req: optional ReqPackage object to associate this DistPackage with. This is useful for displaying the tree in
+        reverse
+
     """
 
     def __init__(self, obj: DistInfoDistribution, req: ReqPackage | None = None) -> None:
@@ -137,6 +138,7 @@ class DistPackage(Package):
 
         :param ReqPackage req: the requirement to associate with
         :returns: DistPackage instance
+
         """
         if req is None and self.req is None:
             return self
@@ -152,6 +154,7 @@ class ReqPackage(Package):
 
     :param obj: The `Requirements` instance to wrap over
     :param dist: optional `pkg_resources.Distribution` instance for this requirement
+
     """
 
     UNKNOWN_VERSION = "?"

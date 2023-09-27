@@ -39,6 +39,7 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
     Produce a Mermaid flowchart from the dependency graph.
 
     :param tree: dependency graph
+
     """
     # List of reserved keywords in Mermaid that cannot be used as node names.
     # See: https://github.com/mermaid-js/mermaid/issues/4182#issuecomment-1454787806

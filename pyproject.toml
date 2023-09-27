@@ -65,13 +65,6 @@ version.source = "vcs"
 [tool.black]
 line-length = 120
 
-[tool.docformatter]
-recursive = true
-# this need to be shorter as some docstings are r"""...
-wrap-summaries = 119
-wrap-descriptions = 120
-blank = true
-
 [tool.ruff]
 select = ["ALL"]
 line-length = 120
@@ -113,3 +106,10 @@ overrides = [
     "virtualenv.*",
   ], ignore_missing_imports = true },
 ]
+
+[tool.docformatter]
+recursive = true
+# this need to be shorter as some docstings are r"""...
+wrap-summaries = 119
+wrap-descriptions = 120
+blank = true

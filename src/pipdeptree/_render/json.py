@@ -17,6 +17,7 @@ def render_json(tree: PackageDAG) -> str:
 
     :param tree: dependency tree
     :returns: JSON representation of the tree
+
     """
     tree = tree.sort()
     return json.dumps(

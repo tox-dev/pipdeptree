@@ -33,6 +33,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
     A node is expected to be an instance of a subclass of `Package`. The keys are must be of class `DistPackage` and
     each item in values must be of class `ReqPackage`. (See also ReversedPackageDAG where the key and value types are
     interchanged).
+
     """
 
     @classmethod
@@ -75,6 +76,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
 
         :param node_key: identifier corresponding to key attr of node obj
         :returns: node obj (as present in the keys of the dict)
+
         """
         try:
             return self._index[node_key]
@@ -87,6 +89,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
 
         :param node_key: key of the node to get children of
         :returns: child nodes
+
         """
         node = self.get_node_as_parent(node_key)
         return self._obj[node] if node else []
@@ -101,6 +104,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         :param exclude: set of node keys to exclude (or None)
         :raises ValueError: If include has node keys that do not exist in the graph
         :returns: filtered version of the graph
+
         """
         # If neither of the filters are specified, short circuit
         if include is None and exclude is None:
@@ -179,6 +183,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         "child" nodes is as per the reversed DAG.
 
         :returns: DAG in the reversed form
+
         """
         m: defaultdict[ReqPackage, list[DistPackage]] = defaultdict(list)
         child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
@@ -198,6 +203,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         Return sorted tree in which the underlying _obj dict is an dict, sorted alphabetically by the keys.
 
         :returns: Instance of same class with dict
+
         """
         return self.__class__({k: sorted(v) for k, v in sorted(self._obj.items())})
 
@@ -220,6 +226,7 @@ class ReversedPackageDAG(PackageDAG):
     be of type `ReqPackage` and each item in the values of type `DistPackage`.
 
     Typically, this object will be obtained by calling `PackageDAG.reverse`.
+
     """
 
     def reverse(self) -> PackageDAG:  # type: ignore[override]
@@ -227,6 +234,7 @@ class ReversedPackageDAG(PackageDAG):
         Reverse the already reversed DAG to get the PackageDAG again.
 
         :returns: reverse of the reversed DAG
+
         """
         m: defaultdict[DistPackage, list[ReqPackage]] = defaultdict(list)
         child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
