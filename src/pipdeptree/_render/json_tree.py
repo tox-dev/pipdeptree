@@ -9,8 +9,7 @@ if TYPE_CHECKING:
 
 
 def render_json_tree(tree: PackageDAG) -> str:
-    """
-    Converts the tree into a nested json representation.
+    """Convert the tree into a nested json representation.
 
     The json repr will be a list of hashes, each hash having the following fields:
 
@@ -22,6 +21,7 @@ def render_json_tree(tree: PackageDAG) -> str:
 
     :param tree: dependency tree
     :returns: json representation of the tree
+
     """
     tree = tree.sort()
     branch_keys = {r.key for r in chain.from_iterable(tree.values())}

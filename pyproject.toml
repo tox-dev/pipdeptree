@@ -72,10 +72,8 @@ target-version = "py38"
 isort = {known-first-party = ["pipdeptree"], required-imports = ["from __future__ import annotations"]}
 ignore = [
   "S101",  # asserts allowed
-  "INP001", # no implicit namespace
-  "D",  # ignore documentation for now
-  "D203",  # `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible
-  "D212",  # `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible
+  "INP001",  # no implicit namespace
+  "D104",  # Missing docstring in public package
   "S104",  # Possible binding to all interface
   "ANN101",  # No type annotation for self
   "ANN102",  # Missing type annotation for `cls` in classmethod
@@ -107,3 +105,10 @@ overrides = [
     "virtualenv.*",
   ], ignore_missing_imports = true },
 ]
+
+[tool.docformatter]
+recursive = true
+# this need to be shorter as some docstings are r"""...
+wrap-summaries = 119
+wrap-descriptions = 120
+blank = true

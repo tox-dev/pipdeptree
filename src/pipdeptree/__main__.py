@@ -1,3 +1,4 @@
+"""The main entry point used for CLI."""
 from __future__ import annotations
 
 import sys
@@ -12,6 +13,7 @@ from pipdeptree._validate import validate
 
 
 def main(args: Sequence[str] | None = None) -> None | int:
+    """CLI - The main function called as entry point."""
     options = get_options(args)
     result = handle_non_host_target(options)
     if result is not None:

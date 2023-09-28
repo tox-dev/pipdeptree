@@ -8,8 +8,7 @@ if TYPE_CHECKING:
 
 
 def render_json(tree: PackageDAG) -> str:
-    """
-    Converts the tree into a flat json representation.
+    """Convert the tree into a flat json representation.
 
     The json repr will be a list of hashes, each hash having 2 fields:
       - package
@@ -17,6 +16,7 @@ def render_json(tree: PackageDAG) -> str:
 
     :param tree: dependency tree
     :returns: JSON representation of the tree
+
     """
     tree = tree.sort()
     return json.dumps(

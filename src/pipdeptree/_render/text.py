@@ -15,13 +15,13 @@ def render_text(
     list_all: bool = True,
     frozen: bool = False,
 ) -> None:
-    """
-    Print tree as text on console.
+    """Print tree as text on console.
 
     :param tree: the package tree
     :param list_all: whether to list all the pgks at the root level or only those that are the sub-dependencies
     :param frozen: show the names of the pkgs in the output that's favourable to pip --freeze
     :returns: None
+
     """
     tree = tree.sort()
     nodes = list(tree.keys())
