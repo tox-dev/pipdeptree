@@ -4,6 +4,11 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.5
+    hooks:
+      - id: codespell
+        #args: ["--write-changes"] # uncomment if you want to get automatic fixing
   - repo: https://github.com/myint/docformatter
     rev: v1.7.5
     hooks:

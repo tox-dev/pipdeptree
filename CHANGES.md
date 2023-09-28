@@ -79,13 +79,13 @@
   > - Dropped support for python [3.3]{.title-ref} and added support for python [3.7]{.title-ref} and [3.8]{.title-ref}
 
 - Another problem with older version was that tests setup was convoluted and involved loading packages pickled from one
-  env into the current env (in which tests are run). Moreover there was no separation between unit tests and integration
-  tests (flaky)
+  env into the current env (in which tests are run). Moreover, there was no separation between unit tests and
+  integration tests (flaky)
 
   > - Tests have been separated into 2 suites (1) unit tests that totally rely on mock objects and run on every commit (
   >   travis.ci) and (2) end-to-end tests that need to be run manually.
-  > - The test setup for end-to-end tests has been greatly simplified although the \"flakyness\"\" still remains because
-  >   these tests are run against unpinned versions of [pip]{.title-ref}. However this is by design because we want to
+  > - The test setup for end-to-end tests has been greatly simplified although the \"flakiness\" still remains because
+  >   these tests are run against unpinned versions of [pip]{.title-ref}. However, this is by design because we want to
   >   know when [pipdeptree]{.title-ref} fails with a new version of [pip]{.title-ref}.
 
 - Move continuous integration from Travis to Github Actions.
