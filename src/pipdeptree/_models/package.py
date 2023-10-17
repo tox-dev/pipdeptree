@@ -81,13 +81,6 @@ class Package(ABC):
             fr = FrozenRequirement.from_dist(our_dist, [])  # type: ignore[call-arg]
         return str(fr).strip()
 
-    def requires(self) -> list[Requirement]:
-        return self._obj.requires()  # type: ignore[no-untyped-call,no-any-return]
-
-    @property
-    def version(self) -> str:
-        return self._obj.version  # type: ignore[no-any-return]
-
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}("{self.key}")>'
 
@@ -107,6 +100,13 @@ class DistPackage(Package):
     def __init__(self, obj: DistInfoDistribution, req: ReqPackage | None = None) -> None:
         super().__init__(obj)
         self.req = req
+
+    def requires(self) -> list[Requirement]:
+        return self._obj.requires()  # type: ignore[no-untyped-call,no-any-return]
+
+    @property
+    def version(self) -> str:
+        return self._obj.version  # type: ignore[no-any-return]
 
     def render_as_root(self, *, frozen: bool) -> str:
         if not frozen:
