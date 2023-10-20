@@ -164,7 +164,7 @@
 ## 0.6.0
 
 - Better checking for possibly \"confusing\" dependencies, hence the word \"confusing\" in the warning message is now
-  replaced with \"coflicting\" \[PR#37\]
+  replaced with \"conflicting\" \[PR#37\]
 - Fix a bug when rendering dependencies of packages \[PR#38\]
 - The `--nowarn` flag is now replaced with `--warn` with \'silence\', \'suppress\' and \'fail\' as possible values, thus
   giving more control over what should happen when there are warnings. The default behaviour (ie. when the flag is not
