@@ -89,7 +89,9 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         node = self.get_node_as_parent(node_key)
         return self._obj[node] if node else []
 
-    def filter_nodes(self, include: list[str] | None, exclude: set[str] | None) -> PackageDAG:  # noqa: C901, PLR0912
+    def filter_nodes(
+        self, include: list[str] | None, exclude: set[str] | None, check_non_existent_includes: bool = True
+    ) -> PackageDAG:  # noqa: C901, PLR0912
         """Filter nodes in a graph by given parameters.
 
         If a node is included, then all it's children are also included.
@@ -158,9 +160,12 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
                             # a dependency is missing
                             continue
 
-        non_existent_includes = [i for i in include_with_casing_preserved if i.lower() not in matched_includes]
-        if non_existent_includes:
-            raise ValueError("No packages matched using the following patterns: " + ", ".join(non_existent_includes))
+        if check_non_existent_includes:
+            non_existent_includes = [i for i in include_with_casing_preserved if i.lower() not in matched_includes]
+            if non_existent_includes:
+                raise ValueError(
+                    "No packages matched using the following patterns: " + ", ".join(non_existent_includes)
+                )
 
         return self.__class__(m)
 
