@@ -16,7 +16,7 @@ repos:
         additional_dependencies: [tomli]
         args: ["--in-place"]
   - repo: https://github.com/psf/black
-    rev: 23.10.0
+    rev: 23.10.1
     hooks:
       - id: black
   - repo: https://github.com/tox-dev/tox-ini-fmt
@@ -25,7 +25,7 @@ repos:
       - id: tox-ini-fmt
         args: ["-p", "fix"]
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "1.2.0"
+    rev: "1.3.0"
     hooks:
       - id: pyproject-fmt
         additional_dependencies: ["tox>=4.8"]
@@ -35,7 +35,7 @@ repos:
       - id: prettier
         args: ["--print-width=120", "--prose-wrap=always"]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.1.1"
+    rev: "v0.1.3"
     hooks:
       - id: ruff
         args: ["--fix"]
