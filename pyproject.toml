@@ -87,6 +87,13 @@ ignore = [
   "PLR2004",  # Magic value used in comparison, consider replacing with a constant variable
 ]
 
+[tool.docformatter]
+recursive = true
+# this need to be shorter as some docstings are r"""...
+wrap-summaries = 119
+wrap-descriptions = 120
+blank = true
+
 [tool.coverage]
 html.show_contexts = true
 html.skip_covered = false
@@ -105,10 +112,3 @@ overrides = [
     "virtualenv.*",
   ], ignore_missing_imports = true },
 ]
-
-[tool.docformatter]
-recursive = true
-# this need to be shorter as some docstings are r"""...
-wrap-summaries = 119
-wrap-descriptions = 120
-blank = true
