@@ -222,51 +222,39 @@ In earlier versions, `--json`, `--json-tree` and `--graph-output` options overri
 ## Usage
 
 ```bash
-usage: pipdeptree.py [-h] [-v] [-f] [--python PYTHON] [-a] [-l] [-u]
-                     [-w [{silence,suppress,fail}]] [-r] [-p PACKAGES]
-                     [-e PACKAGES] [-j] [--json-tree]
-                     [--graph-output OUTPUT_FORMAT]
+% pipdeptree --help
+usage: pipdeptree [-h] [-v] [-w [{silence,suppress,fail}]] [-r] [--python PYTHON] [-p P] [-e P] [-a] [-l | -u] [-f] [--encoding E] [-d D] [-j | --json-tree | --mermaid | --graph-output FMT]
 
 Dependency tree of the installed python packages
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  -f, --freeze          Print names so as to write freeze files
-  --python PYTHON       Python to use to look for packages in it (default:
-                        where installed)
-  -a, --all             list all deps at top level
-  -l, --local-only      If in a virtualenv that has global access do not show
-                        globally installed packages
-  -u, --user-only       Only show installations in the user site dir
+options:
+  -h, --help          show this help message and exit
+  -v, --version       show program's version number and exit
   -w [{silence,suppress,fail}], --warn [{silence,suppress,fail}]
-                        Warning control. "suppress" will show warnings but
-                        return 0 whether or not they are present. "silence"
-                        will not show warnings at all and always return 0.
-                        "fail" will show warnings and return 1 if any are
-                        present. The default is "suppress".
-  -r, --reverse         Shows the dependency tree in the reverse fashion ie.
-                        the sub-dependencies are listed with the list of
-                        packages that need them under them.
-  -p PACKAGES, --packages PACKAGES
-                        Comma separated list of select packages to show in the
-                        output. Wildcards are supported, like 'somepackage.*'.
-                        If set, --all will be ignored.
-  -e PACKAGES, --exclude PACKAGES
-                        Comma separated list of select packages to exclude
-                        from the output. Wildcards are supported, like
-                        'somepackage.*'. If set, --all will be ignored.
-  -j, --json            Display dependency tree as json. This will yield "raw"
-                        output that may be used by external tools. This option
-                        overrides all other options.
-  --json-tree           Display dependency tree as json which is nested the
-                        same way as the plain text output printed by default.
-                        This option overrides all other options (except
-                        --json).
-  --graph-output OUTPUT_FORMAT
-                        Print a dependency graph in the specified output
-                        format. Available are all formats supported by
-                        GraphViz, e.g.: dot, jpeg, pdf, png, svg
+                      warning control: suppress will show warnings but return 0 whether or not they are present; silence will not show warnings at all and always return 0; fail will show warnings and return 1 if any are present (default:
+                      suppress)
+  -r, --reverse       render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of packages that need them under them (default: False)
+
+select:
+  choose what to render
+
+  --python PYTHON     Python interpreter to inspect (default: /Users/dlq/miniconda3/envs/jai/bin/python3.11)
+  -p P, --packages P  comma separated list of packages to show - wildcards are supported, like 'somepackage.*' (default: None)
+  -e P, --exclude P   comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'. (cannot combine with -p or -a) (default: None)
+  -a, --all           list all deps at top level (default: False)
+  -l, --local-only    if in a virtualenv that has global access do not show globally installed packages (default: False)
+  -u, --user-only     only show installations in the user site dir (default: False)
+
+render:
+  choose how to render the dependency tree (by default will use text mode)
+
+  -f, --freeze        print names so as to write freeze files (default: False)
+  --encoding E        the encoding to use when writing to the output (default: utf-8)
+  -d D, --depth D     limit the depth of the tree (text render only) (default: inf)
+  -j, --json          raw JSON - this will yield output that may be used by external tools (default: False)
+  --json-tree         nested JSON - mimics the text format layout (default: False)
+  --mermaid           https://mermaid.js.org flow diagram (default: False)
+  --graph-output FMT  Graphviz rendering with the value being the graphviz output e.g.: dot, jpeg, pdf, png, svg (default: None)
 ```
 
 ## Known issues
