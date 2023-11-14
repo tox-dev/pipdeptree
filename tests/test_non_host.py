@@ -33,7 +33,11 @@ def test_custom_interpreter(
     if implementation == "CPython":
         expected = {"pip", "setuptools", "wheel"}
     elif implementation == "PyPy":
-        expected = {"cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}
+        # hpy added in 7.3.2, enabled in 7.3.3
+        if sys.pypy_version_info >= (7, 3, 3):  # type: ignore[attr-defined]
+            expected = {"cffi", "greenlet", "hpy", "pip", "readline", "setuptools", "wheel"}
+        else:
+            expected = {"cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}
     else:
         raise ValueError(implementation)
     if sys.version_info >= (3, 12):
