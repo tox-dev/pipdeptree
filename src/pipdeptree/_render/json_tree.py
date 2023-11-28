@@ -4,8 +4,10 @@ import json
 from itertools import chain
 from typing import TYPE_CHECKING, Any
 
+from pipdeptree._models import ReqPackage
+
 if TYPE_CHECKING:
-    from pipdeptree._models import DistPackage, PackageDAG, ReqPackage
+    from pipdeptree._models import DistPackage, PackageDAG
 
 
 def render_json_tree(tree: PackageDAG) -> str:
@@ -37,7 +39,7 @@ def render_json_tree(tree: PackageDAG) -> str:
 
         d: dict[str, str | list[Any] | None] = node.as_dict()  # type: ignore[assignment]
         if parent:
-            d["required_version"] = node.version_spec if node.version_spec else "Any"
+            d["required_version"] = node.version_spec if isinstance(node, ReqPackage) and node.version_spec else "Any"
         else:
             d["required_version"] = d["installed_version"]
 

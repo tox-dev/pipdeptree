@@ -39,10 +39,6 @@ class Package(ABC):
     def as_dict(self) -> dict[str, str | None]:
         raise NotImplementedError
 
-    @property
-    def version_spec(self) -> None | str:
-        return None
-
     def render(
         self,
         parent: DistPackage | ReqPackage | None = None,
