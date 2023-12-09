@@ -1,7 +1,7 @@
 [build-system]
 build-backend = "hatchling.build"
 requires = [
-  "hatch-vcs>=0.3",
+  "hatch-vcs>=0.4",
   "hatchling>=1.18",
 ]
 
@@ -44,12 +44,12 @@ optional-dependencies.graphviz = [
 ]
 optional-dependencies.test = [
   "covdefaults>=2.3",
-  "diff-cover>=7.7",
-  "pip>=23.2.1",
-  "pytest>=7.4",
+  "diff-cover>=8.0.1",
+  "pip>=23.3.1",
+  "pytest>=7.4.3",
   "pytest-cov>=4.1",
-  "pytest-mock>=3.11.1",
-  "virtualenv<21,>=20.24.3",
+  "pytest-mock>=3.12",
+  "virtualenv<21,>=20.25",
 ]
 urls.Changelog = "https://github.com/tox-dev/pipdeptree/blob/main/CHANGES.md"
 urls.Documentation = "https://github.com/tox-dev/pipdeptree/blob/main/README.md#pipdeptree"
