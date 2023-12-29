@@ -84,3 +84,12 @@ def test_req_package_as_dict() -> None:
     result = rp.as_dict()
     expected = {"key": "bar", "package_name": "bar", "installed_version": "4.1.0", "required_version": ">=4.0"}
     assert expected == result
+
+
+def test_req_package_as_dict_with_no_version_spec() -> None:
+    bar = Mock(key="bar", project_name="bar", version="4.1.0")
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[])
+    rp = ReqPackage(bar_req, dist=bar)
+    result = rp.as_dict()
+    expected = {"key": "bar", "package_name": "bar", "installed_version": "4.1.0", "required_version": "Any"}
+    assert expected == result
