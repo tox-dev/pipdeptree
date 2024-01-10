@@ -36,7 +36,7 @@ class Package(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def as_dict(self) -> dict[str, str | None]:
+    def as_dict(self) -> dict[str, str]:
         raise NotImplementedError
 
     def render(
@@ -138,7 +138,7 @@ class DistPackage(Package):
             return self
         return self.__class__(self._obj, req)
 
-    def as_dict(self) -> dict[str, str | None]:
+    def as_dict(self) -> dict[str, str]:
         return {"key": self.key, "package_name": self.project_name, "installed_version": self.version}
 
 
@@ -209,12 +209,12 @@ class ReqPackage(Package):
         req_obj = Requirement.parse(req_version_str)  # type: ignore[no-untyped-call]
         return self.installed_version not in req_obj
 
-    def as_dict(self) -> dict[str, str | None]:
+    def as_dict(self) -> dict[str, str]:
         return {
             "key": self.key,
             "package_name": self.project_name,
             "installed_version": self.installed_version,
-            "required_version": self.version_spec,
+            "required_version": self.version_spec if self.version_spec is not None else "Any",
         }
 
 
