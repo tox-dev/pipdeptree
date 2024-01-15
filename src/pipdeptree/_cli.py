@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class Options(Namespace):
     freeze: bool
     python: str
-    all: bool  # noqa: A003
+    all: bool
     local_only: bool
     user_only: bool
     warn: Literal["silence", "suppress", "fail"]
