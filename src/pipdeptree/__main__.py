@@ -1,4 +1,5 @@
 """The main entry point used for CLI."""
+
 from __future__ import annotations
 
 import sys
