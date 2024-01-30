@@ -16,7 +16,7 @@ repos:
         additional_dependencies: [tomli>=2.0.1]
         args: ["--in-place"]
   - repo: https://github.com/psf/black
-    rev: 23.12.1
+    rev: 24.1.1
     hooks:
       - id: black
   - repo: https://github.com/tox-dev/tox-ini-fmt
