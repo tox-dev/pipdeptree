@@ -15,11 +15,12 @@ def render_text(
     list_all: bool = True,
     frozen: bool = False,
 ) -> None:
-    """Print tree as text on console.
+    """
+    Print tree as text on console.
 
     :param tree: the package tree
     :param list_all: whether to list all the pgks at the root level or only those that are the sub-dependencies
-    :param frozen: show the names of the pkgs in the output that's favourable to pip --freeze
+    :param frozen: show the names of the pkgs in the output that's favorable to pip --freeze
     :returns: None
 
     """
@@ -30,7 +31,7 @@ def render_text(
     if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
-    if encoding in ("utf-8", "utf-16", "utf-32"):
+    if encoding in {"utf-8", "utf-16", "utf-32"}:
         _render_text_with_unicode(tree, nodes, max_depth, frozen)
     else:
         _render_text_without_unicode(tree, nodes, max_depth, frozen)
@@ -44,7 +45,7 @@ def _render_text_with_unicode(
 ) -> None:
     use_bullets = not frozen
 
-    def aux(  # noqa: PLR0913
+    def aux(  # noqa: PLR0913, PLR0917
         node: DistPackage | ReqPackage,
         parent: DistPackage | ReqPackage | None = None,
         indent: int = 0,

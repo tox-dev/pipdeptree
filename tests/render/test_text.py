@@ -236,7 +236,7 @@ if TYPE_CHECKING:
         ),
     ],
 )
-def test_render_text(  # noqa: PLR0913
+def test_render_text(
     example_dag: PackageDAG,
     capsys: pytest.CaptureFixture[str],
     list_all: bool,

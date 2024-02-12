@@ -147,6 +147,6 @@ def get_options(args: Sequence[str] | None) -> Options:
 
 
 __all__ = [
-    "get_options",
     "Options",
+    "get_options",
 ]

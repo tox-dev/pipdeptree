@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 
 
 def render_json_tree(tree: PackageDAG) -> str:
-    """Convert the tree into a nested json representation.
+    """
+    Convert the tree into a nested json representation.
 
     The json repr will be a list of hashes, each hash having the following fields:
 
