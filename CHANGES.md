@@ -115,7 +115,7 @@
 - In case of multiple version specs eg. \<x,\>=y, fix the order to ensure consistent output. The sorting is naive - puts
   the \'\>\' prior to \'\<\', and \'!\'.
 - \[Developer affecting\] Updated dependencies in test environments, thereby fixing the long standing issue of
-  inconsistent test behaviour.
+  inconsistent test behavior.
 
 ## 0.12.1
 
@@ -127,13 +127,13 @@
 
 ## 0.11.0
 
-- Added support for nested json output ([\--json-tree]{.title-ref} flag). Behaviour of [\--json]{.title-ref} stays the
+- Added support for nested json output ([\--json-tree]{.title-ref} flag). Behavior of [\--json]{.title-ref} stays the
   same.
 - Test environments have been updated to fix the builds.
 
 ## 0.10.1
 
-- Fixed change of behaviour due to support for `--json` and `--packages` together. PR #65 was reverted for this.
+- Fixed change of behavior due to support for `--json` and `--packages` together. PR #65 was reverted for this.
 
 ## 0.10.0
 
@@ -167,7 +167,7 @@
   replaced with \"conflicting\" \[PR#37\]
 - Fix a bug when rendering dependencies of packages \[PR#38\]
 - The `--nowarn` flag is now replaced with `--warn` with \'silence\', \'suppress\' and \'fail\' as possible values, thus
-  giving more control over what should happen when there are warnings. The default behaviour (ie. when the flag is not
+  giving more control over what should happen when there are warnings. The default behavior (ie. when the flag is not
   specified) remains the same. \[PR#39\]
 - Fixes for Python 3.5 support \[PR#40\]
 

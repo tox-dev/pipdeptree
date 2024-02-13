@@ -6,7 +6,7 @@ from importlib.metadata import PackageNotFoundError, version
 from inspect import ismodule
 from typing import TYPE_CHECKING
 
-from pip._vendor.pkg_resources import Requirement
+from pip._vendor.pkg_resources import Requirement  # noqa: PLC2701
 
 if TYPE_CHECKING:
     from pip._internal.metadata import BaseDistribution
@@ -60,12 +60,12 @@ class Package(ABC):
         #
         # This is a hacky backward compatible (with older versions of pip) fix.
         try:
-            from pip._internal.operations.freeze import FrozenRequirement
+            from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415 # pragma: no cover
         except ImportError:
-            from pip import FrozenRequirement  # type: ignore[attr-defined, no-redef]
+            from pip import FrozenRequirement  # type: ignore[attr-defined, no-redef] # noqa: PLC0415 # pragma: no cover
 
         try:
-            from pip._internal import metadata
+            from pip._internal import metadata  # noqa: PLC0415, PLC2701 # pragma: no cover
         except ImportError:
             our_dist: BaseDistribution = obj  # type: ignore[assignment]
         else:
@@ -85,7 +85,8 @@ class Package(ABC):
 
 
 class DistPackage(Package):
-    """Wrapper class for pkg_resources.Distribution instances.
+    """
+    Wrapper class for pkg_resources.Distribution instances.
 
     :param obj: pkg_resources.Distribution to wrap over
     :param req: optional ReqPackage object to associate this DistPackage with. This is useful for displaying the tree in
@@ -124,7 +125,8 @@ class DistPackage(Package):
         return ReqPackage(self._obj.as_requirement(), dist=self)  # type: ignore[no-untyped-call]
 
     def as_parent_of(self, req: ReqPackage | None) -> DistPackage:
-        """Return a DistPackage instance associated to a requirement.
+        """
+        Return a DistPackage instance associated to a requirement.
 
         This association is necessary for reversing the PackageDAG.
         If `req` is None, and the `req` attribute of the current instance is also None, then the same instance will be
@@ -143,7 +145,8 @@ class DistPackage(Package):
 
 
 class ReqPackage(Package):
-    """Wrapper class for Requirements instance.
+    """
+    Wrapper class for Requirements instance.
 
     :param obj: The `Requirements` instance to wrap over
     :param dist: optional `pkg_resources.Distribution` instance for this requirement
@@ -182,7 +185,7 @@ class ReqPackage(Package):
             except PackageNotFoundError:
                 pass
             # Avoid AssertionError with setuptools, see https://github.com/tox-dev/pipdeptree/issues/162
-            if self.key in {"setuptools"}:
+            if self.key == "setuptools":
                 return self.UNKNOWN_VERSION
             try:
                 m = import_module(self.key)

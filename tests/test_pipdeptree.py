@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from subprocess import check_call
+from subprocess import check_call  # noqa: S404
 
 
 def test_main() -> None:
