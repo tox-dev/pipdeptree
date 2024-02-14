@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Callable, Iterator
 import pytest
 
 from pipdeptree._models import PackageDAG
+from pipdeptree._models.package import DistPackage
 from pipdeptree._render.text import render_text
 
 if TYPE_CHECKING:
@@ -466,4 +467,47 @@ def test_render_text_list_all_and_packages_options_used(
         "worldpy==0.0.2",
     ]
 
+    assert "\n".join(expected_output).strip() == captured.out.strip()
+
+
+@pytest.mark.parametrize(
+    ("encoding", "expected_output"),
+    [
+        (
+            "utf-8",
+            [
+                "a==3.4.0 (TEST)",
+                "└── c [required: ==1.0.0, installed: 1.0.0]",
+                "b==2.3.1 (TEST)",
+                "c==1.0.0 (TEST)",
+            ],
+        ),
+        (
+            "ascii",
+            [
+                "a==3.4.0 (TEST)",
+                "  - c [required: ==1.0.0, installed: 1.0.0]",
+                "b==2.3.1 (TEST)",
+                "c==1.0.0 (TEST)",
+            ],
+        ),
+    ],
+)
+def test_render_text_with_license_info(
+    encoding: str,
+    expected_output: str,
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+        ("a", "3.4.0"): [("c", [("==", "1.0.0")])],
+        ("b", "2.3.1"): [],
+        ("c", "1.0.0"): [],
+    }
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    monkeypatch.setattr(DistPackage, "licenses", lambda _: "(TEST)")
+
+    render_text(dag, max_depth=float("inf"), encoding=encoding, include_license=True)
+    captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()

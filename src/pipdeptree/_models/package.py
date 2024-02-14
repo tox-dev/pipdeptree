@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from importlib import import_module
-from importlib.metadata import PackageNotFoundError, version
+from importlib.metadata import PackageNotFoundError, metadata, version
 from inspect import ismodule
 from typing import TYPE_CHECKING
 
@@ -94,12 +94,34 @@ class DistPackage(Package):
 
     """
 
+    UNKNOWN_LICENSE_STR = "(Unknown license)"
+
     def __init__(self, obj: DistInfoDistribution, req: ReqPackage | None = None) -> None:
         super().__init__(obj)
         self.req = req
 
     def requires(self) -> list[Requirement]:
         return self._obj.requires()  # type: ignore[no-untyped-call,no-any-return]
+
+    def licenses(self) -> str:
+        try:
+            dist_metadata = metadata(self.key)
+        except PackageNotFoundError:
+            return self.UNKNOWN_LICENSE_STR
+
+        license_strs: list[str] = []
+        classifiers = dist_metadata.get_all("Classifier", [])
+
+        for classifier in classifiers:
+            line = str(classifier)
+            if line.startswith("License"):
+                license_str = line.split(":: ")[-1]
+                license_strs.append(license_str)
+
+        if len(license_strs) == 0:
+            return self.UNKNOWN_LICENSE_STR
+
+        return f'({", ".join(license_strs)})'
 
     @property
     def version(self) -> str:

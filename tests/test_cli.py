@@ -97,3 +97,12 @@ def test_parser_get_options_exclude_combine_not_supported(args: list[str], capsy
 def test_parser_get_options_exclude_only() -> None:
     parsed_args = get_options(["--exclude", "py"])
     assert parsed_args.exclude == "py"
+
+
+def test_parser_get_options_license_and_freeze_together_not_supported(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["--license", "--freeze"])
+
+    out, err = capsys.readouterr()
+    assert not out
+    assert "cannot use --license with --freeze" in err

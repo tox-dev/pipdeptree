@@ -234,6 +234,7 @@ options:
                       warning control: suppress will show warnings but return 0 whether or not they are present; silence will not show warnings at all and always return 0; fail will show warnings and return 1 if any are present (default:
                       suppress)
   -r, --reverse       render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of packages that need them under them (default: False)
+  --license           list the license(s) of a package (text render only) (default: False)
 
 select:
   choose what to render
