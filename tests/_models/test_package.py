@@ -4,6 +4,8 @@ from importlib.metadata import PackageNotFoundError
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
+import pytest
+
 from pipdeptree._models import DistPackage, ReqPackage
 
 if TYPE_CHECKING:
@@ -59,6 +61,52 @@ def test_dist_package_as_dict() -> None:
     result = dp.as_dict()
     expected = {"key": "foo", "package_name": "foo", "installed_version": "1.3.2b1"}
     assert expected == result
+
+
+@pytest.mark.parametrize(
+    ("mocked_metadata", "expected_output"),
+    [
+        pytest.param(
+            Mock(get_all=lambda *args, **kwargs: []),  # noqa: ARG005
+            DistPackage.UNKNOWN_LICENSE_STR,
+            id="no-license",
+        ),
+        pytest.param(
+            Mock(
+                get_all=lambda *args, **kwargs: [  # noqa: ARG005
+                    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+                    "Operating System :: OS Independent",
+                ]
+            ),
+            "(GNU General Public License v2 (GPLv2))",
+            id="one-license-with-one-non-license",
+        ),
+        pytest.param(
+            Mock(
+                get_all=lambda *args, **kwargs: [  # noqa: ARG005
+                    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+                    "License :: OSI Approved :: Apache Software License",
+                ]
+            ),
+            "(GNU General Public License v2 (GPLv2), Apache Software License)",
+            id="more-than-one-license",
+        ),
+    ],
+)
+def test_dist_package_licenses(mocked_metadata: Mock, expected_output: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pipdeptree._models.package.metadata", lambda _: mocked_metadata)
+    dist = DistPackage(Mock(project_name="a"))
+    licenses_str = dist.licenses()
+
+    assert licenses_str == expected_output
+
+
+def test_dist_package_licenses_importlib_cant_find_package(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pipdeptree._models.package.metadata", Mock(side_effect=PackageNotFoundError()))
+    dist = DistPackage(Mock(project_name="a"))
+    licenses_str = dist.licenses()
+
+    assert licenses_str == DistPackage.UNKNOWN_LICENSE_STR
 
 
 def test_req_package_render_as_root() -> None:

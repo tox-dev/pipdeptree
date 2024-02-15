@@ -3,17 +3,20 @@ from __future__ import annotations
 from itertools import chain
 from typing import TYPE_CHECKING, Any
 
+from pipdeptree._models import DistPackage
+
 if TYPE_CHECKING:
-    from pipdeptree._models import DistPackage, PackageDAG, ReqPackage
+    from pipdeptree._models import PackageDAG, ReqPackage
 
 
-def render_text(
+def render_text(  # noqa: PLR0913
     tree: PackageDAG,
     *,
     max_depth: float,
     encoding: str,
     list_all: bool = True,
     frozen: bool = False,
+    include_license: bool = False,
 ) -> None:
     """
     Print tree as text on console.
@@ -32,9 +35,9 @@ def render_text(
         nodes = [p for p in nodes if p.key not in branch_keys]
 
     if encoding in {"utf-8", "utf-16", "utf-32"}:
-        _render_text_with_unicode(tree, nodes, max_depth, frozen)
+        _render_text_with_unicode(tree, nodes, max_depth, frozen, include_license)
     else:
-        _render_text_without_unicode(tree, nodes, max_depth, frozen)
+        _render_text_without_unicode(tree, nodes, max_depth, frozen, include_license)
 
 
 def _render_text_with_unicode(
@@ -42,7 +45,10 @@ def _render_text_with_unicode(
     nodes: list[DistPackage],
     max_depth: float,
     frozen: bool,  # noqa: FBT001
+    include_license: bool,  # noqa: FBT001
 ) -> None:
+    assert not (frozen and include_license)
+
     use_bullets = not frozen
 
     def aux(  # noqa: PLR0913, PLR0917
@@ -83,6 +89,10 @@ def _render_text_with_unicode(
                 prefix += " " if use_bullets else ""
             next_prefix = prefix
             node_str = prefix + bullet + node_str
+
+        if include_license and isinstance(node, DistPackage):
+            node_str += " " + node.licenses()
+
         result = [node_str]
 
         children = tree.get_children(node.key)
@@ -114,7 +124,10 @@ def _render_text_without_unicode(
     nodes: list[DistPackage],
     max_depth: float,
     frozen: bool,  # noqa: FBT001
+    include_license: bool,  # noqa: FBT001
 ) -> None:
+    assert not (frozen and include_license)
+
     use_bullets = not frozen
 
     def aux(
@@ -129,6 +142,8 @@ def _render_text_without_unicode(
         if parent:
             prefix = " " * indent + ("- " if use_bullets else "")
             node_str = prefix + node_str
+        if include_license and isinstance(node, DistPackage):
+            node_str += " " + node.licenses()
         result = [node_str]
         children = [
             aux(c, node, indent=indent + 2, cur_chain=[*cur_chain, c.project_name], depth=depth + 1)

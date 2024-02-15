@@ -37,4 +37,6 @@ def test_grahpviz_routing(mocker: MockerFixture) -> None:
 def test_text_routing(mocker: MockerFixture) -> None:
     render = mocker.patch("pipdeptree._render.render_text")
     main([])
-    render.assert_called_once_with(ANY, encoding="utf-8", frozen=False, list_all=False, max_depth=inf)
+    render.assert_called_once_with(
+        ANY, encoding="utf-8", frozen=False, list_all=False, max_depth=inf, include_license=False
+    )

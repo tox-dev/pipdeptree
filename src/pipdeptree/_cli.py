@@ -26,6 +26,7 @@ class Options(Namespace):
     output_format: str | None
     depth: float
     encoding: str
+    license: bool
 
 
 class _Formatter(ArgumentDefaultsHelpFormatter):
@@ -58,6 +59,12 @@ def build_parser() -> ArgumentParser:
             "render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of "
             "packages that need them under them"
         ),
+    )
+
+    parser.add_argument(
+        "--license",
+        action="store_true",
+        help="list the license(s) of a package (text render only)",
     )
 
     select = parser.add_argument_group(title="select", description="choose what to render")
@@ -142,6 +149,8 @@ def get_options(args: Sequence[str] | None) -> Options:
 
     if parsed_args.exclude and (parsed_args.all or parsed_args.packages):
         return parser.error("cannot use --exclude with --packages or --all")
+    if parsed_args.license and parsed_args.freeze:
+        return parser.error("cannot use --license with --freeze")
 
     return cast(Options, parsed_args)
 
