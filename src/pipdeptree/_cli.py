@@ -50,22 +50,6 @@ def build_parser() -> ArgumentParser:
             "not show warnings at all and  always return 0; fail will show warnings and  return 1 if any are present"
         ),
     )
-    parser.add_argument(
-        "-r",
-        "--reverse",
-        action="store_true",
-        default=False,
-        help=(
-            "render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of "
-            "packages that need them under them"
-        ),
-    )
-
-    parser.add_argument(
-        "--license",
-        action="store_true",
-        help="list the license(s) of a package (text render only)",
-    )
 
     select = parser.add_argument_group(title="select", description="choose what to render")
     select.add_argument("--python", default=sys.executable, help="Python interpreter to inspect")
@@ -112,6 +96,21 @@ def build_parser() -> ArgumentParser:
         default=float("inf"),
         help="limit the depth of the tree (text render only)",
         metavar="D",
+    )
+    render.add_argument(
+        "-r",
+        "--reverse",
+        action="store_true",
+        default=False,
+        help=(
+            "render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of "
+            "packages that need them under them"
+        ),
+    )
+    render.add_argument(
+        "--license",
+        action="store_true",
+        help="list the license(s) of a package (text render only)",
     )
 
     render_type = render.add_mutually_exclusive_group()
