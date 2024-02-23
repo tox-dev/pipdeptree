@@ -223,7 +223,7 @@ In earlier versions, `--json`, `--json-tree` and `--graph-output` options overri
 
 ```bash
 % pipdeptree --help
-usage: pipdeptree [-h] [-v] [-w [{silence,suppress,fail}]] [-r] [--python PYTHON] [-p P] [-e P] [-a] [-l | -u] [-f] [--encoding E] [-d D] [-j | --json-tree | --mermaid | --graph-output FMT]
+usage: pipdeptree [-h] [-v] [-w [{silence,suppress,fail}]] [--python PYTHON] [-p P] [-e P] [-a] [-l | -u] [-f] [--encoding E] [-d D] [-r] [--license] [-j | --json-tree | --mermaid | --graph-output FMT]
 
 Dependency tree of the installed python packages
 
@@ -233,13 +233,11 @@ options:
   -w [{silence,suppress,fail}], --warn [{silence,suppress,fail}]
                       warning control: suppress will show warnings but return 0 whether or not they are present; silence will not show warnings at all and always return 0; fail will show warnings and return 1 if any are present (default:
                       suppress)
-  -r, --reverse       render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of packages that need them under them (default: False)
-  --license           list the license(s) of a package (text render only) (default: False)
 
 select:
   choose what to render
 
-  --python PYTHON     Python interpreter to inspect (default: /Users/dlq/miniconda3/envs/jai/bin/python3.11)
+  --python PYTHON     Python interpreter to inspect (default: /usr/local/bin/python)
   -p P, --packages P  comma separated list of packages to show - wildcards are supported, like 'somepackage.*' (default: None)
   -e P, --exclude P   comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'. (cannot combine with -p or -a) (default: None)
   -a, --all           list all deps at top level (default: False)
@@ -252,6 +250,8 @@ render:
   -f, --freeze        print names so as to write freeze files (default: False)
   --encoding E        the encoding to use when writing to the output (default: utf-8)
   -d D, --depth D     limit the depth of the tree (text render only) (default: inf)
+  -r, --reverse       render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of packages that need them under them (default: False)
+  --license           list the license(s) of a package (text render only) (default: False)
   -j, --json          raw JSON - this will yield output that may be used by external tools (default: False)
   --json-tree         nested JSON - mimics the text format layout (default: False)
   --mermaid           https://mermaid.js.org flow diagram (default: False)
