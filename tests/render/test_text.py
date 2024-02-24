@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Callable, Iterator
 import pytest
 
 from pipdeptree._models import PackageDAG
-from pipdeptree._models.package import DistPackage
+from pipdeptree._models.package import Package
 from pipdeptree._render.text import render_text
 
 if TYPE_CHECKING:
@@ -506,7 +506,57 @@ def test_render_text_with_license_info(
         ("c", "1.0.0"): [],
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    monkeypatch.setattr(DistPackage, "licenses", lambda _: "(TEST)")
+    monkeypatch.setattr(Package, "licenses", lambda _: "(TEST)")
+
+    render_text(dag, max_depth=float("inf"), encoding=encoding, include_license=True)
+    captured = capsys.readouterr()
+    assert "\n".join(expected_output).strip() == captured.out.strip()
+
+
+@pytest.mark.parametrize(
+    ("encoding", "expected_output"),
+    [
+        (
+            "utf-8",
+            [
+                "a==3.4.0 (TEST)",
+                "b==2.3.1 (TEST)",
+                "└── a==3.4.0 [requires: b==2.3.1]",
+                "c==1.0.0 (TEST)",
+                "├── a==3.4.0 [requires: c==1.0.0]",
+                "└── b==2.3.1 [requires: c==1.0.0]",
+                "    └── a==3.4.0 [requires: b==2.3.1]",
+            ],
+        ),
+        (
+            "ascii",
+            [
+                "a==3.4.0 (TEST)",
+                "b==2.3.1 (TEST)",
+                "  - a==3.4.0 [requires: b==2.3.1]",
+                "c==1.0.0 (TEST)",
+                "  - a==3.4.0 [requires: c==1.0.0]",
+                "  - b==2.3.1 [requires: c==1.0.0]",
+                "    - a==3.4.0 [requires: b==2.3.1]",
+            ],
+        ),
+    ],
+)
+def test_render_text_with_license_info_and_reversed_tree(
+    encoding: str,
+    expected_output: str,
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+        ("a", "3.4.0"): [("b", [("==", "2.3.1")]), ("c", [("==", "1.0.0")])],
+        ("b", "2.3.1"): [("c", [("==", "1.0.0")])],
+        ("c", "1.0.0"): [],
+    }
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    dag = dag.reverse()
+    monkeypatch.setattr(Package, "licenses", lambda _: "(TEST)")
 
     render_text(dag, max_depth=float("inf"), encoding=encoding, include_license=True)
     captured = capsys.readouterr()

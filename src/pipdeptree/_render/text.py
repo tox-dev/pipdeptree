@@ -3,10 +3,8 @@ from __future__ import annotations
 from itertools import chain
 from typing import TYPE_CHECKING, Any
 
-from pipdeptree._models import DistPackage
-
 if TYPE_CHECKING:
-    from pipdeptree._models import PackageDAG, ReqPackage
+    from pipdeptree._models import DistPackage, PackageDAG, ReqPackage
 
 
 def render_text(  # noqa: PLR0913
@@ -89,8 +87,7 @@ def _render_text_with_unicode(
                 prefix += " " if use_bullets else ""
             next_prefix = prefix
             node_str = prefix + bullet + node_str
-
-        if include_license and isinstance(node, DistPackage):
+        elif include_license:
             node_str += " " + node.licenses()
 
         result = [node_str]
@@ -142,7 +139,7 @@ def _render_text_without_unicode(
         if parent:
             prefix = " " * indent + ("- " if use_bullets else "")
             node_str = prefix + node_str
-        if include_license and isinstance(node, DistPackage):
+        elif include_license:
             node_str += " " + node.licenses()
         result = [node_str]
         children = [

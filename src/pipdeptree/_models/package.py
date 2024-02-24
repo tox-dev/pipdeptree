@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 class Package(ABC):
     """Abstract class for wrappers around objects that pip returns."""
 
+    UNKNOWN_LICENSE_STR = "(Unknown license)"
+
     def __init__(self, obj: DistInfoDistribution) -> None:
         self._obj: DistInfoDistribution = obj
 
@@ -26,6 +28,26 @@ class Package(ABC):
     @property
     def project_name(self) -> str:
         return self._obj.project_name  # type: ignore[no-any-return]
+
+    def licenses(self) -> str:
+        try:
+            dist_metadata = metadata(self.key)
+        except PackageNotFoundError:
+            return self.UNKNOWN_LICENSE_STR
+
+        license_strs: list[str] = []
+        classifiers = dist_metadata.get_all("Classifier", [])
+
+        for classifier in classifiers:
+            line = str(classifier)
+            if line.startswith("License"):
+                license_str = line.split(":: ")[-1]
+                license_strs.append(license_str)
+
+        if len(license_strs) == 0:
+            return self.UNKNOWN_LICENSE_STR
+
+        return f'({", ".join(license_strs)})'
 
     @abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:
@@ -94,34 +116,12 @@ class DistPackage(Package):
 
     """
 
-    UNKNOWN_LICENSE_STR = "(Unknown license)"
-
     def __init__(self, obj: DistInfoDistribution, req: ReqPackage | None = None) -> None:
         super().__init__(obj)
         self.req = req
 
     def requires(self) -> list[Requirement]:
         return self._obj.requires()  # type: ignore[no-untyped-call,no-any-return]
-
-    def licenses(self) -> str:
-        try:
-            dist_metadata = metadata(self.key)
-        except PackageNotFoundError:
-            return self.UNKNOWN_LICENSE_STR
-
-        license_strs: list[str] = []
-        classifiers = dist_metadata.get_all("Classifier", [])
-
-        for classifier in classifiers:
-            line = str(classifier)
-            if line.startswith("License"):
-                license_str = line.split(":: ")[-1]
-                license_strs.append(license_str)
-
-        if len(license_strs) == 0:
-            return self.UNKNOWN_LICENSE_STR
-
-        return f'({", ".join(license_strs)})'
 
     @property
     def version(self) -> str:
