@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import pytest
 
 from pipdeptree._models import DistPackage, ReqPackage
+from pipdeptree._models.package import Package
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -68,7 +69,7 @@ def test_dist_package_as_dict() -> None:
     [
         pytest.param(
             Mock(get_all=lambda *args, **kwargs: []),  # noqa: ARG005
-            DistPackage.UNKNOWN_LICENSE_STR,
+            Package.UNKNOWN_LICENSE_STR,
             id="no-license",
         ),
         pytest.param(
@@ -106,7 +107,7 @@ def test_dist_package_licenses_importlib_cant_find_package(monkeypatch: pytest.M
     dist = DistPackage(Mock(project_name="a"))
     licenses_str = dist.licenses()
 
-    assert licenses_str == DistPackage.UNKNOWN_LICENSE_STR
+    assert licenses_str == Package.UNKNOWN_LICENSE_STR
 
 
 def test_req_package_render_as_root() -> None:
