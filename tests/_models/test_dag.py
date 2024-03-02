@@ -25,10 +25,10 @@ def test_package_dag_get_node_as_parent(example_dag: PackageDAG) -> None:
 @pytest.fixture(scope="session")
 def t_fnmatch(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> PackageDAG:
     graph: MockGraph = {
-        ("a.a", "1"): [("a.b", []), ("a.c", [])],
-        ("a.b", "1"): [("a.c", [])],
-        ("b.a", "1"): [("b.b", [])],
-        ("b.b", "1"): [("a.b", [])],
+        ("a-a", "1"): [("a-b", []), ("a-c", [])],
+        ("a-b", "1"): [("a-c", [])],
+        ("b-a", "1"): [("b-b", [])],
+        ("b-b", "1"): [("a-b", [])],
     }
     return PackageDAG.from_pkgs(list(mock_pkgs(graph)))
 
@@ -38,33 +38,33 @@ def dag_to_dict(g: PackageDAG) -> dict[str, list[str]]:
 
 
 def test_package_dag_filter_fnmatch_include_a(t_fnmatch: PackageDAG) -> None:
-    # test include for a.*in the result we got only a.* nodes
-    graph = dag_to_dict(t_fnmatch.filter_nodes(["a.*"], None))
-    assert graph == {"a.a": ["a.b", "a.c"], "a.b": ["a.c"]}
+    # test include for a-*in the result we got only a-* nodes
+    graph = dag_to_dict(t_fnmatch.filter_nodes(["a-*"], None))
+    assert graph == {"a-a": ["a-b", "a-c"], "a-b": ["a-c"]}
 
 
 def test_package_dag_filter_fnmatch_include_b(t_fnmatch: PackageDAG) -> None:
-    # test include for b.*, which has a.b and a.c in tree, but not a.a
-    # in the result we got the b.* nodes plus the a.b node as child in the tree
-    graph = dag_to_dict(t_fnmatch.filter_nodes(["b.*"], None))
-    assert graph == {"b.a": ["b.b"], "b.b": ["a.b"], "a.b": ["a.c"]}
+    # test include for b-*, which has a-b and a-c in tree, but not a-a
+    # in the result we got the b-* nodes plus the a-b node as child in the tree
+    graph = dag_to_dict(t_fnmatch.filter_nodes(["b-*"], None))
+    assert graph == {"b-a": ["b-b"], "b-b": ["a-b"], "a-b": ["a-c"]}
 
 
 def test_package_dag_filter_fnmatch_exclude_c(t_fnmatch: PackageDAG) -> None:
-    # test exclude for b.* in the result we got only a.* nodes
-    graph = dag_to_dict(t_fnmatch.filter_nodes(None, {"b.*"}))
-    assert graph == {"a.a": ["a.b", "a.c"], "a.b": ["a.c"]}
+    # test exclude for b-* in the result we got only a-* nodes
+    graph = dag_to_dict(t_fnmatch.filter_nodes(None, {"b-*"}))
+    assert graph == {"a-a": ["a-b", "a-c"], "a-b": ["a-c"]}
 
 
 def test_package_dag_filter_fnmatch_exclude_a(t_fnmatch: PackageDAG) -> None:
-    # test exclude for a.* in the result we got only b.* nodes
-    graph = dag_to_dict(t_fnmatch.filter_nodes(None, {"a.*"}))
-    assert graph == {"b.a": ["b.b"], "b.b": []}
+    # test exclude for a-* in the result we got only b-* nodes
+    graph = dag_to_dict(t_fnmatch.filter_nodes(None, {"a-*"}))
+    assert graph == {"b-a": ["b-b"], "b-b": []}
 
 
 def test_package_dag_filter_include_exclude_both_used(t_fnmatch: PackageDAG) -> None:
     with pytest.raises(AssertionError):
-        t_fnmatch.filter_nodes(["a.a", "a.b"], {"a.b"})
+        t_fnmatch.filter_nodes(["a-a", "a-b"], {"a-b"})
 
 
 def test_package_dag_filter_nonexistent_packages(t_fnmatch: PackageDAG) -> None:
@@ -104,3 +104,16 @@ def test_package_dag_from_pkgs(mock_pkgs: Callable[[MockGraph], Iterator[Mock]])
     c = package_dag.get_children(parent_key)
     assert len(c) == 1
     assert c[0].project_name == "HelloPy"
+
+
+def test_package_dag_from_pkgs_uses_pep503normalize(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+    # ensure that requirement gets matched with a dists even when it's key needs pep503 normalization to match
+    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+        ("parent-package", "1.2.3"): [("flufl.lock", [(">=", "2.0.0")])],
+        ("flufl-lock", "2.2.0"): [],
+    }
+    package_dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    parent_key = "parent-package"
+    c = package_dag.get_children(parent_key)
+    assert c[0].dist
+    assert c[0].project_name == "flufl-lock"

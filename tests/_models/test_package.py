@@ -96,7 +96,7 @@ def test_dist_package_as_dict() -> None:
 )
 def test_dist_package_licenses(mocked_metadata: Mock, expected_output: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("pipdeptree._models.package.metadata", lambda _: mocked_metadata)
-    dist = DistPackage(Mock(project_name="a"))
+    dist = DistPackage(Mock(project_name="a", key="a"))
     licenses_str = dist.licenses()
 
     assert licenses_str == expected_output
@@ -104,10 +104,29 @@ def test_dist_package_licenses(mocked_metadata: Mock, expected_output: str, monk
 
 def test_dist_package_licenses_importlib_cant_find_package(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("pipdeptree._models.package.metadata", Mock(side_effect=PackageNotFoundError()))
-    dist = DistPackage(Mock(project_name="a"))
+    dist = DistPackage(Mock(project_name="a", key="a"))
     licenses_str = dist.licenses()
 
     assert licenses_str == Package.UNKNOWN_LICENSE_STR
+
+
+def test_dist_package_project_name_recovered(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pipdeptree._models.package.metadata", lambda _: {"name": "good"})
+    foo = Mock(key="foo", project_name="bad", version="20.4.1")
+    dp = DistPackage(foo)
+    assert dp.project_name == "good"
+
+
+def test_dist_package_key_pep503_normalized() -> None:
+    foobar = Mock(key="foo.bar", project_name="foo.bar", version="20.4.1")
+    dp = DistPackage(foobar)
+    assert dp.key == "foo-bar"
+
+
+def test_req_package_key_pep503_normalized() -> None:
+    bar_req = Mock(key="bar.bar-bar-bar", project_name="Bar.Bar-Bar_Bar", version="4.1.0", specs=[(">=", "4.0")])
+    rp = ReqPackage(bar_req)
+    assert rp.key == "bar-bar-bar-bar"
 
 
 def test_req_package_render_as_root() -> None:
