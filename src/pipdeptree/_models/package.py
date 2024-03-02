@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import PackageNotFoundError, metadata, version
@@ -13,6 +14,10 @@ if TYPE_CHECKING:
     from pip._vendor.pkg_resources import DistInfoDistribution
 
 
+def pep503_normalize(name: str) -> str:
+    return re.sub("[-_.]+", "-", name)
+
+
 class Package(ABC):
     """Abstract class for wrappers around objects that pip returns."""
 
@@ -20,10 +25,7 @@ class Package(ABC):
 
     def __init__(self, obj: DistInfoDistribution) -> None:
         self._obj: DistInfoDistribution = obj
-
-    @property
-    def key(self) -> str:
-        return self._obj.key  # type: ignore[no-any-return]
+        self.key = pep503_normalize(obj.key)
 
     @property
     def project_name(self) -> str:
@@ -119,9 +121,19 @@ class DistPackage(Package):
     def __init__(self, obj: DistInfoDistribution, req: ReqPackage | None = None) -> None:
         super().__init__(obj)
         self.req = req
+        self._project_name = ""
 
     def requires(self) -> list[Requirement]:
         return self._obj.requires()  # type: ignore[no-untyped-call,no-any-return]
+
+    @property
+    def project_name(self) -> str:
+        if not self._project_name:
+            try:
+                self._project_name = metadata(self.key)["name"]
+            except (PackageNotFoundError, KeyError):
+                self._project_name = self._obj.project_name
+        return self._project_name
 
     @property
     def version(self) -> str:

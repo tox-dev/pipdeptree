@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from pip._vendor.pkg_resources import DistInfoDistribution
 
 
-from .package import DistPackage, ReqPackage
+from .package import DistPackage, ReqPackage, pep503_normalize
 
 
 class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
@@ -43,7 +43,8 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         for p in dist_pkgs:
             reqs = []
             for r in p.requires():
-                d = idx.get(r.key)
+                # Requirement key is not sufficiently normalized in pkg_resources - apply additional normalization
+                d = idx.get(pep503_normalize(r.key))
                 # pip's _vendor.packaging.requirements.Requirement uses the exact casing of a dependency's name found in
                 # a project's build config, which is not ideal when rendering.
                 # See https://github.com/tox-dev/pipdeptree/issues/242

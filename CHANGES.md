@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.0
+
+- Normalize keys with pep503 regex and recover package names from metadata instead of relying on DistInfoDistribution
+
 ## 2.6.0
 
 - Handle mermaid output for a reversed tree
