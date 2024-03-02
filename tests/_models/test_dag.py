@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Callable, Iterator
+from unittest.mock import Mock
 
 import pytest
 
 from pipdeptree._models import DistPackage, PackageDAG, ReqPackage, ReversedPackageDAG
 
 if TYPE_CHECKING:
-    from unittest.mock import Mock
-
     from tests.our_types import MockGraph
 
 
@@ -92,9 +92,16 @@ def test_package_dag_reverse(example_dag: PackageDAG) -> None:
     assert all(isinstance(v, ReqPackage) for v in chain.from_iterable(t2.values()))
 
 
-def test_package_dag_from_pkgs(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_package_dag_from_pkgs(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], monkeypatch: pytest.MonkeyPatch
+) -> None:
     # when pip's _vendor.packaging.requirements.Requirement's requires() gives a lowercased package name but the actual
     # package name in PyPI is mixed case, expect the mixed case version
+
+    # Since DistPackage.project_name will try to use importlib.metadata to grab the project name, let's avoid using
+    # the environment and use the fallback project name (since we control it here anyways).
+    monkeypatch.setattr("pipdeptree._models.package.metadata", Mock(side_effect=PackageNotFoundError()))
+
     graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
         ("examplePy", "1.2.3"): [("hellopy", [(">=", "2.0.0")])],
         ("HelloPy", "2.2.0"): [],
@@ -106,8 +113,13 @@ def test_package_dag_from_pkgs(mock_pkgs: Callable[[MockGraph], Iterator[Mock]])
     assert c[0].project_name == "HelloPy"
 
 
-def test_package_dag_from_pkgs_uses_pep503normalize(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_package_dag_from_pkgs_uses_pep503normalize(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], monkeypatch: pytest.MonkeyPatch
+) -> None:
     # ensure that requirement gets matched with a dists even when it's key needs pep503 normalization to match
+
+    monkeypatch.setattr("pipdeptree._models.package.metadata", Mock(side_effect=PackageNotFoundError()))
+
     graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
         ("parent-package", "1.2.3"): [("flufl.lock", [(">=", "2.0.0")])],
         ("flufl-lock", "2.2.0"): [],
