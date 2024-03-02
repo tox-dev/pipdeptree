@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0
+## 2.7.0
 
 - Normalize keys with pep503 regex and recover package names from metadata instead of relying on DistInfoDistribution
 
