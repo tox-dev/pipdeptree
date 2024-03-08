@@ -97,7 +97,7 @@ jobs:
       - name: build package
         run: python -m build --sdist --wheel . -o dist
       - name: publish to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.8.12
+        uses: pypa/gh-action-pypi-publish@v1.8.14
         with:
           skip_existing: true
           user: __token__
