@@ -66,7 +66,6 @@ def _render_text_with_unicode(
         next_prefix = ""
         next_indent = indent + 2
 
-
         if parent:
             bullet = "├── "
             if is_last_child:

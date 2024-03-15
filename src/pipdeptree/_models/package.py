@@ -3,9 +3,9 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 from importlib import import_module
-from importlib.metadata import PackageNotFoundError, metadata, version, Distribution
+from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
 from inspect import ismodule
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
