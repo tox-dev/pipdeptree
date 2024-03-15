@@ -60,10 +60,12 @@ def _render_text_with_unicode(
         is_last_child: bool = False,  # noqa: FBT001, FBT002
         parent_is_last_child: bool = False,  # noqa: FBT001, FBT002
     ) -> list[Any]:
+
         cur_chain = cur_chain or []
         node_str = node.render(parent, frozen=frozen)
         next_prefix = ""
         next_indent = indent + 2
+
 
         if parent:
             bullet = "├── "

@@ -3,18 +3,18 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 from importlib import import_module
-from importlib.metadata import PackageNotFoundError, metadata, version
+from importlib.metadata import PackageNotFoundError, metadata, version, Distribution
 from inspect import ismodule
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Set
 
-from pip._vendor.pkg_resources import Requirement  # noqa: PLC2701
+from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
 
 if TYPE_CHECKING:
-    from pip._internal.metadata import BaseDistribution
-    from pip._vendor.pkg_resources import DistInfoDistribution
-
+    from importlib.metadata import Distribution
 
 def pep503_normalize(name: str) -> str:
+
     return re.sub("[-_.]+", "-", name)
 
 
@@ -23,13 +23,14 @@ class Package(ABC):
 
     UNKNOWN_LICENSE_STR = "(Unknown license)"
 
-    def __init__(self, obj: DistInfoDistribution) -> None:
-        self._obj: DistInfoDistribution = obj
-        self.key = pep503_normalize(obj.key)
+    def __init__(self, obj: Distribution) -> None:
+        self._obj: Distribution = obj
+        self.key = pep503_normalize(obj.name)
+        self.editable = False
 
     @property
     def project_name(self) -> str:
-        return self._obj.project_name  # type: ignore[no-any-return]
+        return self._obj.name  # type: ignore[no-any-return]
 
     def licenses(self) -> str:
         try:
@@ -73,7 +74,7 @@ class Package(ABC):
         return render(frozen=frozen)
 
     @staticmethod
-    def as_frozen_repr(obj: DistInfoDistribution) -> str:
+    def as_frozen_repr(obj: DistPackage) -> str:
         # The `pip._internal.metadata` modules were introduced in 21.1.1
         # and the `pip._internal.operations.freeze.FrozenRequirement`
         # class now expects dist to be a subclass of
@@ -83,22 +84,13 @@ class Package(ABC):
         # pip._vendor.pkg_resources.DistInfoDistribution.
         #
         # This is a hacky backward compatible (with older versions of pip) fix.
-        try:
-            from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415 # pragma: no cover
-        except ImportError:
-            from pip import FrozenRequirement  # type: ignore[attr-defined, no-redef] # noqa: PLC0415 # pragma: no cover
+        if not obj.key:
+            return ""
 
-        try:
-            from pip._internal import metadata  # noqa: PLC0415, PLC2701 # pragma: no cover
-        except ImportError:
-            our_dist: BaseDistribution = obj  # type: ignore[assignment]
-        else:
-            our_dist = metadata.pkg_resources.Distribution(obj)
+        from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415 # pragma: no cover
 
-        try:
-            fr = FrozenRequirement.from_dist(our_dist)
-        except TypeError:
-            fr = FrozenRequirement.from_dist(our_dist, [])  # type: ignore[call-arg]
+        fr = FrozenRequirement.from_dist(obj)
+
         return str(fr).strip()
 
     def __repr__(self) -> str:
@@ -118,21 +110,21 @@ class DistPackage(Package):
 
     """
 
-    def __init__(self, obj: DistInfoDistribution, req: ReqPackage | None = None) -> None:
+    def __init__(self, obj: Distribution, req: ReqPackage | None = None) -> None:
         super().__init__(obj)
         self.req = req
         self._project_name = ""
+        self.editable = False
+        self.direct_url = None
+        self.raw_name = self.project_name
 
     def requires(self) -> list[Requirement]:
-        return self._obj.requires()  # type: ignore[no-untyped-call,no-any-return]
+        return [Requirement(r) for r in self._obj.requires] if self._obj.requires else []
 
     @property
     def project_name(self) -> str:
         if not self._project_name:
-            try:
-                self._project_name = metadata(self.key)["name"]
-            except (PackageNotFoundError, KeyError):
-                self._project_name = self._obj.project_name
+            self._project_name = self.key
         return self._project_name
 
     @property
@@ -142,7 +134,7 @@ class DistPackage(Package):
     def render_as_root(self, *, frozen: bool) -> str:
         if not frozen:
             return f"{self.project_name}=={self.version}"
-        return self.as_frozen_repr(self._obj)
+        return self.as_frozen_repr(self)
 
     def render_as_branch(self, *, frozen: bool) -> str:
         assert self.req is not None
@@ -197,19 +189,23 @@ class ReqPackage(Package):
         if not frozen:
             return f"{self.project_name}=={self.installed_version}"
         if self.dist:
-            return self.as_frozen_repr(self.dist._obj)  # noqa: SLF001
+            return self.as_frozen_repr(self.dist)  # noqa: SLF001
         return self.project_name
 
     def render_as_branch(self, *, frozen: bool) -> str:
         if not frozen:
             req_ver = self.version_spec if self.version_spec else "Any"
-            return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}]"
+            return f"{self.project_name} [required: {req_ver}, extra: {self.req_extra}, installed: {self.installed_version}]"
         return self.render_as_root(frozen=frozen)
 
     @property
     def version_spec(self) -> str | None:
-        specs = sorted(self._obj.specs, reverse=True)  # `reverse` makes '>' prior to '<'
-        return ",".join(["".join(sp) for sp in specs]) if specs else None
+        result = None
+        specs = self._obj.specifier
+        if specs:
+            spec_strings = [str(spec) for spec in specs]
+            result = ",".join(spec_strings)
+        return result
 
     @property
     def installed_version(self) -> str:
@@ -233,6 +229,10 @@ class ReqPackage(Package):
         return self.dist.version
 
     @property
+    def req_extra(self) -> str:
+        return self._obj.marker
+
+    @property
     def is_missing(self) -> bool:
         return self.installed_version == self.UNKNOWN_VERSION
 
@@ -241,9 +241,13 @@ class ReqPackage(Package):
         # unknown installed version is also considered conflicting
         if self.installed_version == self.UNKNOWN_VERSION:
             return True
+
         ver_spec = self.version_spec if self.version_spec else ""
-        req_version_str = f"{self.project_name}{ver_spec}"
-        req_obj = Requirement.parse(req_version_str)  # type: ignore[no-untyped-call]
+        if ver_spec:
+            req_obj = SpecifierSet(ver_spec)
+        else:
+            return False
+
         return self.installed_version not in req_obj
 
     def as_dict(self) -> dict[str, str]:

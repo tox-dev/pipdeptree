@@ -1,36 +1,37 @@
 from __future__ import annotations
 
+import sys
+import site
+from importlib.metadata import distributions
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pip._vendor.pkg_resources import DistInfoDistribution
+    from importlib.metadata import Distribution
 
+def is_virtual_environment() -> bool:
+    return sys.prefix != sys.base_prefix
+
+def get_site_packages_directory() -> list[str] | None:
+    if is_virtual_environment():
+        return site.getsitepackages()
+    else:
+        return None
 
 def get_installed_distributions(
     local_only: bool = False,  # noqa: FBT001, FBT002
     user_only: bool = False,  # noqa: FBT001, FBT002
-) -> list[DistInfoDistribution]:
-    try:
-        from pip._internal.metadata import pkg_resources  # noqa: PLC0415, PLC2701
-    except ImportError:
-        # For backward compatibility with python ver. 2.7 and pip
-        # version 20.3.4 (the latest pip version that works with python
-        # version 2.7)
-        from pip._internal.utils import misc  # noqa: PLC0415, PLC2701 # pragma: no cover
+) -> list[Distribution]:
+    dists = distributions()
 
-        return misc.get_installed_distributions(  # type: ignore[no-any-return,attr-defined]
-            local_only=local_only,
-            user_only=user_only,
-        )
+    if local_only:
+        site_packages = get_site_packages_directory()
+        dists = [d for d in dists if str(d.locate_file("")) in site_packages]
 
-    else:
-        dists = pkg_resources.Environment.from_paths(None).iter_installed_distributions(
-            local_only=local_only,
-            skip=(),
-            user_only=user_only,
-        )
-        return [d._dist for d in dists]  # type: ignore[attr-defined] # noqa: SLF001
+    if user_only:
+        user_site = site.getusersitepackages()
+        dists = [d for d in dists if str(d.locate_file("")) == user_site]
 
+    return dists
 
 __all__ = [
     "get_installed_distributions",

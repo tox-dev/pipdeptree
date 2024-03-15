@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import TYPE_CHECKING, Sequence, cast, Union
 
 from .version import __version__
 
@@ -23,7 +23,7 @@ class Options(Namespace):
     json: bool
     json_tree: bool
     mermaid: bool
-    output_format: str | None
+    output_format: Union[str, None]
     depth: float
     encoding: str
     license: bool

@@ -6,7 +6,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Iterator, List, Mapping
 
 if TYPE_CHECKING:
-    from pip._vendor.pkg_resources import DistInfoDistribution
+    from importlib.metadata import Distribution
 
 
 from .package import DistPackage, ReqPackage, pep503_normalize
@@ -36,19 +36,14 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
     """
 
     @classmethod
-    def from_pkgs(cls, pkgs: list[DistInfoDistribution]) -> PackageDAG:
-        dist_pkgs = [DistPackage(p) for p in pkgs]
+    def from_pkgs(cls, pkgs: list[Distribution]) -> PackageDAG:
+        dist_pkgs = [DistPackage(p) for p in pkgs if p.name]
         idx = {p.key: p for p in dist_pkgs}
         m: dict[DistPackage, list[ReqPackage]] = {}
         for p in dist_pkgs:
             reqs = []
             for r in p.requires():
-                # Requirement key is not sufficiently normalized in pkg_resources - apply additional normalization
-                d = idx.get(pep503_normalize(r.key))
-                # pip's _vendor.packaging.requirements.Requirement uses the exact casing of a dependency's name found in
-                # a project's build config, which is not ideal when rendering.
-                # See https://github.com/tox-dev/pipdeptree/issues/242
-                r.project_name = d.project_name if d is not None else r.project_name
+                d = idx.get(pep503_normalize(r.name))
                 pkg = ReqPackage(r, d)
                 reqs.append(pkg)
             m[p] = reqs
