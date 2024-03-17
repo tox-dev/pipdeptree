@@ -105,16 +105,11 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         if include is None and exclude is None:
             return self
 
-        # Note: In following comparisons, we use lower cased values so
-        # that user may specify `key` or `project_name`. As per the
-        # documentation, `key` is simply
-        # `project_name.lower()`. Refer:
-        # https://setuptools.readthedocs.io/en/latest/pkg_resources.html#distribution-objects
         include_with_casing_preserved: list[str] = []
         if include:
             include_with_casing_preserved = include
-            include = [s.lower() for s in include]
-        exclude = {s.lower() for s in exclude} if exclude else set()
+            include = [pep503_normalize(i) for i in include]
+        exclude = {pep503_normalize(s) for s in exclude} if exclude else set()
 
         # Check for mutual exclusion of show_only and exclude sets
         # after normalizing the values to lowercase
@@ -159,7 +154,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
                             # a dependency is missing
                             continue
 
-        non_existent_includes = [i for i in include_with_casing_preserved if i.lower() not in matched_includes]
+        non_existent_includes = [i for i in include_with_casing_preserved if pep503_normalize(i) not in matched_includes]
         if non_existent_includes:
             raise ValueError("No packages matched using the following patterns: " + ", ".join(non_existent_includes))
 

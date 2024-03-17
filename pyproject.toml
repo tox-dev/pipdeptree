@@ -21,9 +21,6 @@ maintainers = [
   { name = "Bernát Gábor", email = "gaborjbernat@gmail.com" },
   { name = "Vineet Naik", email = "naikvin@gmail.com" },
 ]
-dependencies = [
-  "packaging",
-]
 requires-python = ">=3.8"
 classifiers = [
   "Development Status :: 5 - Production/Stable",
@@ -41,6 +38,9 @@ classifiers = [
 ]
 dynamic = [
   "version",
+]
+dependencies = [
+  "packaging",
 ]
 optional-dependencies.graphviz = [
   "graphviz>=0.20.1",
