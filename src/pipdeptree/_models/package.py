@@ -25,12 +25,7 @@ class Package(ABC):
 
     def __init__(self, obj: Distribution) -> None:
         self._obj: Distribution = obj
-        self.key = pep503_normalize(obj.name)
-        self.editable = False
-
-    @property
-    def project_name(self) -> str:
-        return self._obj.name  # type: ignore[no-any-return]
+        self.key = pep503_normalize(self._obj.metadata['Name'])
 
     def licenses(self) -> str:
         try:
@@ -51,6 +46,10 @@ class Package(ABC):
             return self.UNKNOWN_LICENSE_STR
 
         return f'({", ".join(license_strs)})'
+
+    @property
+    def project_name(self) -> str:
+        return self._obj.project_name
 
     @abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:
@@ -84,8 +83,6 @@ class Package(ABC):
         # pip._vendor.pkg_resources.DistInfoDistribution.
         #
         # This is a hacky backward compatible (with older versions of pip) fix.
-        if not obj.key:
-            return ""
 
         from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415 # pragma: no cover
 
@@ -113,23 +110,32 @@ class DistPackage(Package):
     def __init__(self, obj: Distribution, req: ReqPackage | None = None) -> None:
         super().__init__(obj)
         self.req = req
-        self._project_name = ""
         self.editable = False
         self.direct_url = None
         self.raw_name = self.project_name
 
     def requires(self) -> list[Requirement]:
-        return [Requirement(r) for r in self._obj.requires] if self._obj.requires else []
+        req_list = []
+        req_name_list = []
+        if self._obj.requires:
+            for r in self._obj.requires:
+                req = Requirement(r)
+                is_extra_req = req.marker and self.contains_extra(str(req.marker))
+                if is_extra_req and req.name not in req_name_list:
+                    req_list.append(req)
+                    req_name_list.append(req.name)
+        return req_list
 
     @property
     def project_name(self) -> str:
-        if not self._project_name:
-            self._project_name = self.key
-        return self._project_name
+        return self._obj.metadata['Name']
 
     @property
     def version(self) -> str:
         return self._obj.version  # type: ignore[no-any-return]
+
+    def contains_extra(self, marker: str) -> bool:
+        return re.search(r'\bextra\s*==', marker)
 
     def render_as_root(self, *, frozen: bool) -> str:
         if not frozen:
@@ -182,7 +188,8 @@ class ReqPackage(Package):
     UNKNOWN_VERSION = "?"
 
     def __init__(self, obj: Requirement, dist: DistPackage | None = None) -> None:
-        super().__init__(obj)
+        self._obj = obj
+        self.key = pep503_normalize(obj.name)
         self.dist = dist
 
     def render_as_root(self, *, frozen: bool) -> str:
@@ -197,6 +204,10 @@ class ReqPackage(Package):
             req_ver = self.version_spec if self.version_spec else "Any"
             return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}]"
         return self.render_as_root(frozen=frozen)
+
+    @property
+    def project_name(self) -> str:
+        return self._obj.name
 
     @property
     def version_spec(self) -> str | None:

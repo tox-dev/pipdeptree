@@ -37,14 +37,12 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
 
     @classmethod
     def from_pkgs(cls, pkgs: list[Distribution]) -> PackageDAG:
-        dist_pkgs = [DistPackage(p) for p in pkgs if p.name]
+        dist_pkgs = [DistPackage(p) for p in pkgs]
         idx = {p.key: p for p in dist_pkgs}
         m: dict[DistPackage, list[ReqPackage]] = {}
         for p in dist_pkgs:
             reqs = []
             for r in p.requires():
-                if pep503_normalize(r.name) in [r_visited.key for r_visited in reqs]:
-                    continue
                 d = idx.get(pep503_normalize(r.name))
                 pkg = ReqPackage(r, d)
                 reqs.append(pkg)
