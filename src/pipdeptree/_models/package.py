@@ -195,7 +195,7 @@ class ReqPackage(Package):
     def render_as_branch(self, *, frozen: bool) -> str:
         if not frozen:
             req_ver = self.version_spec if self.version_spec else "Any"
-            return f"{self.project_name} [required: {req_ver}, extra: {self.req_extra}, installed: {self.installed_version}]"
+            return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}]"
         return self.render_as_root(frozen=frozen)
 
     @property
@@ -227,10 +227,6 @@ class ReqPackage(Package):
                     return getattr(v, "__version__", self.UNKNOWN_VERSION)
                 return v
         return self.dist.version
-
-    @property
-    def req_extra(self) -> str:
-        return self._obj.marker
 
     @property
     def is_missing(self) -> bool:
