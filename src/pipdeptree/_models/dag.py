@@ -156,7 +156,9 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
                             # a dependency is missing
                             continue
 
-        non_existent_includes = [i for i in include_with_casing_preserved if pep503_normalize(i) not in matched_includes]
+        non_existent_includes = [
+            i for i in include_with_casing_preserved if pep503_normalize(i) not in matched_includes
+        ]
         if non_existent_includes:
             raise ValueError("No packages matched using the following patterns: " + ", ".join(non_existent_includes))
 

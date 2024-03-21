@@ -13,8 +13,8 @@ from packaging.specifiers import SpecifierSet
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
 
-def pep503_normalize(name: str) -> str:
 
+def pep503_normalize(name: str) -> str:
     return re.sub("[-_.]+", "-", name)
 
 
@@ -189,7 +189,7 @@ class ReqPackage(Package):
         if not frozen:
             return f"{self.project_name}=={self.installed_version}"
         if self.dist:
-            return self.as_frozen_repr(self.dist)  # noqa: SLF001
+            return self.as_frozen_repr(self.dist)
         return self.project_name
 
     def render_as_branch(self, *, frozen: bool) -> str:
