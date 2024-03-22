@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-import re, os
+import locale
+import os
+import re
 from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
-from pip._internal.models.direct_url import DirectUrl
 from inspect import ismodule
 from typing import TYPE_CHECKING
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
+from pip._internal.models.direct_url import DirectUrl
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
@@ -26,7 +28,7 @@ class Package(ABC):
 
     def __init__(self, obj: Distribution) -> None:
         self._obj: Distribution = obj
-        self.key = pep503_normalize(self._obj.metadata['Name'])
+        self.key = pep503_normalize(self._obj.metadata["Name"])
 
     def licenses(self) -> str:
         try:
@@ -129,7 +131,7 @@ class DistPackage(Package):
 
     @property
     def project_name(self) -> str:
-        return self._obj.metadata['Name']
+        return self._obj.metadata["Name"]
 
     @property
     def version(self) -> str:
@@ -141,16 +143,15 @@ class DistPackage(Package):
             from pip._internal.utils.urls import url_to_path
 
             return url_to_path(self.direct_url)
-        else:
-            from pip._internal.utils.egg_link import egg_link_path_from_sys_path
+        from pip._internal.utils.egg_link import egg_link_path_from_sys_path
 
-            egg_link_path = egg_link_path_from_sys_path(self.raw_name)
-            if egg_link_path:
-                return self.location
+        egg_link_path = egg_link_path_from_sys_path(self.raw_name)
+        if egg_link_path:
+            return self.location
+        return None
 
     @property
     def direct_url_dict(self) -> dict[str, Any]:
-
         result = {"editable": False, "url": None}
 
         if not self._obj.files:
@@ -159,7 +160,7 @@ class DistPackage(Package):
         for path in self._obj.files:
             if os.path.basename(path) == "direct_url.json":
                 abstract_path = self._obj.locate_file(path)
-                with open(abstract_path) as f:
+                with open(abstract_path, encoding=locale.getpreferredencoding(False)) as f:
                     drurl = DirectUrl.from_json(f.read())
                     result["url"] = drurl.url
                     result["editable"] = bool(drurl.is_local_editable)
@@ -168,7 +169,7 @@ class DistPackage(Package):
         return result
 
     def contains_extra(self, marker: str) -> bool:
-        return re.search(r'\bextra\s*==', marker)
+        return re.search(r"\bextra\s*==", marker)
 
     def render_as_root(self, *, frozen: bool) -> str:
         if not frozen:
