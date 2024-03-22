@@ -39,6 +39,9 @@ classifiers = [
 dynamic = [
   "version",
 ]
+dependencies = [
+  "pip>=18.1",
+]
 optional-dependencies.graphviz = [
   "graphviz>=0.20.1",
 ]
