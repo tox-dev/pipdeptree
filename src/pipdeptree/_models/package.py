@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import re
+import re, os
 from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
+from pip._internal.models.direct_url import DirectUrl
 from inspect import ismodule
 from typing import TYPE_CHECKING
 
@@ -110,8 +111,8 @@ class DistPackage(Package):
     def __init__(self, obj: Distribution, req: ReqPackage | None = None) -> None:
         super().__init__(obj)
         self.req = req
-        self.editable = False
-        self.direct_url = None
+        self.editable: bool = self.direct_url_dict["editable"]
+        self.direct_url = self.direct_url_dict["url"]
         self.raw_name = self.project_name
 
     def requires(self) -> list[Requirement]:
@@ -133,6 +134,38 @@ class DistPackage(Package):
     @property
     def version(self) -> str:
         return self._obj.version  # type: ignore[no-any-return]
+
+    @property
+    def editable_project_location(self) -> str:
+        if self.direct_url:
+            from pip._internal.utils.urls import url_to_path
+
+            return url_to_path(self.direct_url)
+        else:
+            from pip._internal.utils.egg_link import egg_link_path_from_sys_path
+
+            egg_link_path = egg_link_path_from_sys_path(self.raw_name)
+            if egg_link_path:
+                return self.location
+
+    @property
+    def direct_url_dict(self) -> dict[str, Any]:
+
+        result = {"editable": False, "url": None}
+
+        if not self._obj.files:
+            return result
+
+        for path in self._obj.files:
+            if os.path.basename(path) == "direct_url.json":
+                abstract_path = self._obj.locate_file(path)
+                with open(abstract_path) as f:
+                    drurl = DirectUrl.from_json(f.read())
+                    result["url"] = drurl.url
+                    result["editable"] = bool(drurl.is_local_editable)
+                break
+
+        return result
 
     def contains_extra(self, marker: str) -> bool:
         return re.search(r'\bextra\s*==', marker)
