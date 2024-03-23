@@ -1,0 +1,16 @@
+name: Make a feature request
+description: Suggest an enhancement for pipdeptree
+labels: ["enhancement", "tobeconfirmed"]
+
+body:
+  - type: textarea
+    attributes:
+      label: Describe the feature
+      description: What's the problem that this feature will solve?
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a feature request!
