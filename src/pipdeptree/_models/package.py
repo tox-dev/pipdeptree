@@ -26,9 +26,9 @@ class Package(ABC):
 
     UNKNOWN_LICENSE_STR = "(Unknown license)"
 
-    def __init__(self, obj: Distribution) -> None:
-        self._obj: Distribution = obj
-        self.key = pep503_normalize(self._obj.metadata["Name"])
+    def __init__(self, project_name: str) -> None:
+        self._project_name = project_name
+        self.key = pep503_normalize(project_name)
 
     def licenses(self) -> str:
         try:
@@ -52,7 +52,7 @@ class Package(ABC):
 
     @property
     def project_name(self) -> str:
-        return self._obj.project_name
+        return self._project_name
 
     @abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:
@@ -111,11 +111,9 @@ class DistPackage(Package):
     """
 
     def __init__(self, obj: Distribution, req: ReqPackage | None = None) -> None:
-        super().__init__(obj)
+        super().__init__(obj.metadata["Name"])
+        self._obj = obj
         self.req = req
-        self.editable: bool = self.direct_url_dict["editable"]
-        self.direct_url = self.direct_url_dict["url"]
-        self.raw_name = self.project_name
 
     def requires(self) -> list[Requirement]:
         req_list = []
@@ -130,8 +128,16 @@ class DistPackage(Package):
         return req_list
 
     @property
-    def project_name(self) -> str:
-        return self._obj.metadata["Name"]
+    def editable(self) -> bool:
+        return self.direct_url_dict["editable"]
+
+    @property
+    def direct_url(self) -> str:
+        return self.direct_url_dict["url"]
+
+    @property
+    def raw_name(self) -> str:
+        return self.project_name
 
     @property
     def version(self) -> str:
@@ -222,8 +228,8 @@ class ReqPackage(Package):
     UNKNOWN_VERSION = "?"
 
     def __init__(self, obj: Requirement, dist: DistPackage | None = None) -> None:
+        super().__init__(obj.name)
         self._obj = obj
-        self.key = pep503_normalize(obj.name)
         self.dist = dist
 
     def render_as_root(self, *, frozen: bool) -> str:
@@ -238,10 +244,6 @@ class ReqPackage(Package):
             req_ver = self.version_spec if self.version_spec else "Any"
             return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}]"
         return self.render_as_root(frozen=frozen)
-
-    @property
-    def project_name(self) -> str:
-        return self._obj.name
 
     @property
     def version_spec(self) -> str | None:
