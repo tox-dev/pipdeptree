@@ -33,7 +33,7 @@ def test_dist_package_render_as_root() -> None:
 def test_dist_package_render_as_branch() -> None:
     foo = Mock(key="foo", project_name="foo", version="20.4.1")
     bar = Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specifier=[">=4.0"])
     rp = ReqPackage(bar_req, dist=bar)
     dp = DistPackage(foo).as_parent_of(rp)
     is_frozen = False
@@ -46,7 +46,7 @@ def test_dist_package_as_parent_of() -> None:
     assert dp.req is None
 
     bar = Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specifier=[">=4.0"])
     rp = ReqPackage(bar_req, dist=bar)
     dp1 = dp.as_parent_of(rp)
     assert dp1._obj == dp._obj  # noqa: SLF001
@@ -124,14 +124,14 @@ def test_dist_package_key_pep503_normalized() -> None:
 
 
 def test_req_package_key_pep503_normalized() -> None:
-    bar_req = Mock(key="bar.bar-bar-bar", project_name="Bar.Bar-Bar_Bar", version="4.1.0", specs=[(">=", "4.0")])
+    bar_req = Mock(key="bar.bar-bar-bar", project_name="Bar.Bar-Bar_Bar", version="4.1.0", specifier=[">=4.0"])
     rp = ReqPackage(bar_req)
     assert rp.key == "bar-bar-bar-bar"
 
 
 def test_req_package_render_as_root() -> None:
     bar = Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specifier=[">=4.0"])
     rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
     assert rp.render_as_root(frozen=is_frozen) == "bar==4.1.0"
@@ -139,7 +139,7 @@ def test_req_package_render_as_root() -> None:
 
 def test_req_package_render_as_branch() -> None:
     bar = Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specifier=[">=4.0"])
     rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
     assert rp.render_as_branch(frozen=is_frozen) == "bar [required: >=4.0, installed: 4.1.0]"
@@ -147,7 +147,7 @@ def test_req_package_render_as_branch() -> None:
 
 def test_req_package_as_dict() -> None:
     bar = Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[(">=", "4.0")])
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specifier=[">=4.0"])
     rp = ReqPackage(bar_req, dist=bar)
     result = rp.as_dict()
     expected = {"key": "bar", "package_name": "bar", "installed_version": "4.1.0", "required_version": ">=4.0"}
@@ -156,7 +156,7 @@ def test_req_package_as_dict() -> None:
 
 def test_req_package_as_dict_with_no_version_spec() -> None:
     bar = Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specs=[])
+    bar_req = Mock(key="bar", project_name="bar", version="4.1.0", specifier=[])
     rp = ReqPackage(bar_req, dist=bar)
     result = rp.as_dict()
     expected = {"key": "bar", "package_name": "bar", "installed_version": "4.1.0", "required_version": "Any"}

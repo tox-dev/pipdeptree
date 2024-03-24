@@ -52,7 +52,7 @@ class Package(ABC):
 
     @property
     def project_name(self) -> str:
-        return self._project_name
+        return pep503_normalize(self._project_name)
 
     @abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:
@@ -111,7 +111,10 @@ class DistPackage(Package):
     """
 
     def __init__(self, obj: Distribution, req: ReqPackage | None = None) -> None:
-        super().__init__(obj.metadata["Name"])
+        if hasattr(obj, "key"):
+            super().__init__(obj.key)
+        else:
+            super().__init__(obj.metadata["Name"])
         self._obj = obj
         self.req = req
 
@@ -122,7 +125,7 @@ class DistPackage(Package):
             for r in self._obj.requires:
                 req = Requirement(r)
                 is_extra_req = req.marker and self.contains_extra(str(req.marker))
-                if is_extra_req and req.name not in req_name_list:
+                if not is_extra_req and req.name not in req_name_list:
                     req_list.append(req)
                     req_name_list.append(req.name)
         return req_list
@@ -228,7 +231,10 @@ class ReqPackage(Package):
     UNKNOWN_VERSION = "?"
 
     def __init__(self, obj: Requirement, dist: DistPackage | None = None) -> None:
-        super().__init__(obj.name)
+        if hasattr(obj, "key"):
+            super().__init__(obj.key)
+        else:
+            super().__init__(obj.name)
         self._obj = obj
         self.dist = dist
 
@@ -248,10 +254,9 @@ class ReqPackage(Package):
     @property
     def version_spec(self) -> str | None:
         result = None
-        specs = self._obj.specifier
+        specs = sorted(map(str, self._obj.specifier), reverse=True)
         if specs:
-            spec_strings = [str(spec) for spec in specs]
-            result = ",".join(spec_strings)
+            result = ",".join(specs)
         return result
 
     @property
