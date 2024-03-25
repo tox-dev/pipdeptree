@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import locale
-import os
 import re
 from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
 from inspect import ismodule
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from pathlib import Path
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
-from pip._internal.models.direct_url import DirectUrl
+from pip._internal.models.direct_url import DirectUrl # noqa: PLC2701
+from pip._internal.utils.urls import url_to_path # noqa: PLC2701
+from pip._internal.utils.egg_link import egg_link_path_from_sys_path # noqa: PLC2701
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
@@ -20,6 +22,8 @@ if TYPE_CHECKING:
 def pep503_normalize(name: str) -> str:
     return re.sub("[-_.]+", "-", name)
 
+def contains_extra(marker: str) -> bool:
+    return re.search(r"\bextra\s*==", marker)
 
 class Package(ABC):
     """Abstract class for wrappers around objects that pip returns."""
@@ -87,7 +91,7 @@ class Package(ABC):
         #
         # This is a hacky backward compatible (with older versions of pip) fix.
 
-        from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415 # pragma: no cover
+        from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415, PLC2701 # pragma: no cover
 
         fr = FrozenRequirement.from_dist(obj)
 
@@ -124,7 +128,7 @@ class DistPackage(Package):
         if self._obj.requires:
             for r in self._obj.requires:
                 req = Requirement(r)
-                is_extra_req = req.marker and self.contains_extra(str(req.marker))
+                is_extra_req = req.marker and contains_extra(str(req.marker))
                 if not is_extra_req and req.name not in req_name_list:
                     req_list.append(req)
                     req_name_list.append(req.name)
@@ -149,10 +153,11 @@ class DistPackage(Package):
     @property
     def editable_project_location(self) -> str:
         if self.direct_url:
-            from pip._internal.utils.urls import url_to_path
+            from pip._internal.utils.urls import url_to_path # noqa: PLC2701, PLC0415
 
             return url_to_path(self.direct_url)
-        from pip._internal.utils.egg_link import egg_link_path_from_sys_path
+
+        from pip._internal.utils.egg_link import egg_link_path_from_sys_path # noqa: PLC2701, PLC0415
 
         egg_link_path = egg_link_path_from_sys_path(self.raw_name)
         if egg_link_path:
@@ -167,18 +172,15 @@ class DistPackage(Package):
             return result
 
         for path in self._obj.files:
-            if os.path.basename(path) == "direct_url.json":
-                abstract_path = self._obj.locate_file(path)
-                with open(abstract_path, encoding=locale.getpreferredencoding(False)) as f:
+            if Path(path).name == "direct_url.json":
+                abstract_path = Path(self._obj.locate_file(path))
+                with abstract_path.open('r') as f:
                     drurl = DirectUrl.from_json(f.read())
                     result["url"] = drurl.url
                     result["editable"] = bool(drurl.is_local_editable)
                 break
 
         return result
-
-    def contains_extra(self, marker: str) -> bool:
-        return re.search(r"\bextra\s*==", marker)
 
     def render_as_root(self, *, frozen: bool) -> str:
         if not frozen:

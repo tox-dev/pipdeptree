@@ -26,11 +26,11 @@ def get_installed_distributions(
     dists = distributions()
 
     if local_only:
-        site_packages = get_site_packages_directory()
+        site_packages = get_site_packages_directory() or []
         dists = [d for d in dists if str(d.locate_file("")) in site_packages]
 
     if user_only:
-        user_site = site.getusersitepackages()
+        user_site = site.getusersitepackages() or []
         dists = [d for d in dists if str(d.locate_file("")) == user_site]
 
     return dists
