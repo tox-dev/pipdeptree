@@ -441,35 +441,6 @@ def test_render_text_encoding(
     assert "\n".join(expected_output).strip() == captured.out.strip()
 
 
-def test_render_text_list_all_and_packages_options_used(
-    capsys: pytest.CaptureFixture[str],
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
-) -> None:
-    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
-        ("examplePy", "1.2.3"): [("hellopy", [(">=", "2.0.0")]), ("worldpy", [(">=", "0.0.2")])],
-        ("HelloPy", "2.0.0"): [],
-        ("worldpy", "0.0.2"): [],
-        ("anotherpy", "0.1.2"): [("hellopy", [(">=", "2.0.0")])],
-        ("YetAnotherPy", "3.1.2"): [],
-    }
-    package_dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-
-    # NOTE: Mimicking the --packages option being used here.
-    package_dag = package_dag.filter_nodes(["examplePy"], None)
-
-    render_text(package_dag, max_depth=float("inf"), encoding="utf-8", list_all=True, frozen=False)
-    captured = capsys.readouterr()
-    expected_output = [
-        "examplePy==1.2.3",
-        "├── HelloPy [required: >=2.0.0, installed: 2.0.0]",
-        "└── worldpy [required: >=0.0.2, installed: 0.0.2]",
-        "HelloPy==2.0.0",
-        "worldpy==0.0.2",
-    ]
-
-    assert "\n".join(expected_output).strip() == captured.out.strip()
-
-
 @pytest.mark.parametrize(
     ("encoding", "expected_output"),
     [

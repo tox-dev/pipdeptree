@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 def pep503_normalize(name: str) -> str:
-    return re.sub("[-_.]+", "-", name)
+    return re.sub("[-_.]+", "-", name).lower()
 
 
 def contains_extra(marker: str) -> bool:
@@ -30,9 +30,9 @@ class Package(ABC):
 
     UNKNOWN_LICENSE_STR = "(Unknown license)"
 
-    def __init__(self, project_name: str) -> None:
-        self._project_name = project_name
-        self.key = pep503_normalize(project_name)
+    def __init__(self, _project_name: str) -> None:
+        self.project_name = _project_name
+        self.key = pep503_normalize(_project_name)
 
     def licenses(self) -> str:
         try:
@@ -53,10 +53,6 @@ class Package(ABC):
             return self.UNKNOWN_LICENSE_STR
 
         return f'({", ".join(license_strs)})'
-
-    @property
-    def project_name(self) -> str:
-        return pep503_normalize(self._project_name)
 
     @abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:
@@ -115,10 +111,7 @@ class DistPackage(Package):
     """
 
     def __init__(self, obj: Distribution, req: ReqPackage | None = None) -> None:
-        if hasattr(obj, "key"):
-            super().__init__(obj.key)
-        else:
-            super().__init__(obj.metadata["Name"])
+        super().__init__(obj.metadata["Name"])
         self._obj = obj
         self.req = req
 
@@ -197,7 +190,8 @@ class DistPackage(Package):
 
     def as_requirement(self) -> ReqPackage:
         """Return a ReqPackage representation of this DistPackage."""
-        return ReqPackage(self._obj.as_requirement(), dist=self)  # type: ignore[no-untyped-call]
+        spec = f"{self.project_name}=={self.version}"
+        return ReqPackage(Requirement(spec), dist=self)  # type: ignore[no-untyped-call]
 
     def as_parent_of(self, req: ReqPackage | None) -> DistPackage:
         """
@@ -231,10 +225,7 @@ class ReqPackage(Package):
     UNKNOWN_VERSION = "?"
 
     def __init__(self, obj: Requirement, dist: DistPackage | None = None) -> None:
-        if hasattr(obj, "key"):
-            super().__init__(obj.key)
-        else:
-            super().__init__(obj.name)
+        super().__init__(obj.name)
         self._obj = obj
         self.dist = dist
 
