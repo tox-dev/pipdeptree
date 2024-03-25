@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-import locale
 import re
 from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
 from inspect import ismodule
-from typing import TYPE_CHECKING, Any
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
-from pip._internal.models.direct_url import DirectUrl # noqa: PLC2701
-from pip._internal.utils.urls import url_to_path # noqa: PLC2701
-from pip._internal.utils.egg_link import egg_link_path_from_sys_path # noqa: PLC2701
+from pip._internal.models.direct_url import DirectUrl  # noqa: PLC2701
+from pip._internal.utils.egg_link import egg_link_path_from_sys_path  # noqa: PLC2701
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
@@ -22,8 +20,10 @@ if TYPE_CHECKING:
 def pep503_normalize(name: str) -> str:
     return re.sub("[-_.]+", "-", name)
 
+
 def contains_extra(marker: str) -> bool:
     return re.search(r"\bextra\s*==", marker)
+
 
 class Package(ABC):
     """Abstract class for wrappers around objects that pip returns."""
@@ -153,11 +153,9 @@ class DistPackage(Package):
     @property
     def editable_project_location(self) -> str:
         if self.direct_url:
-            from pip._internal.utils.urls import url_to_path # noqa: PLC2701, PLC0415
+            from pip._internal.utils.urls import url_to_path  # noqa: PLC2701, PLC0415
 
             return url_to_path(self.direct_url)
-
-        from pip._internal.utils.egg_link import egg_link_path_from_sys_path # noqa: PLC2701, PLC0415
 
         egg_link_path = egg_link_path_from_sys_path(self.raw_name)
         if egg_link_path:
@@ -174,7 +172,7 @@ class DistPackage(Package):
         for path in self._obj.files:
             if Path(path).name == "direct_url.json":
                 abstract_path = Path(self._obj.locate_file(path))
-                with abstract_path.open('r') as f:
+                with abstract_path.open("r") as f:
                     drurl = DirectUrl.from_json(f.read())
                     result["url"] = drurl.url
                     result["editable"] = bool(drurl.is_local_editable)
