@@ -30,7 +30,6 @@ def get_installed_distributions(
     in_venv = sys.prefix != sys.base_prefix
 
     if local_only and in_venv:
-        # TODO: Are venvs given only one site package?
         venv_site_packages = [sp for sp in site.getsitepackages() or [] if sp.startswith(sys.prefix)]
         return list(distributions(path=venv_site_packages))
 
