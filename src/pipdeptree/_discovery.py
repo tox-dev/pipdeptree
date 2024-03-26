@@ -23,17 +23,18 @@ def get_installed_distributions(
     local_only: bool = False,  # noqa: FBT001, FBT002
     user_only: bool = False,  # noqa: FBT001, FBT002
 ) -> list[Distribution]:
-    dists = distributions()
-
-    if local_only:
-        site_packages = get_site_packages_directory() or []
-        dists = [d for d in dists if str(d.locate_file("")) in site_packages]
-
     if user_only:
-        user_site = site.getusersitepackages() or []
-        dists = [d for d in dists if str(d.locate_file("")) == user_site]
+        return list(distributions(path=[site.getusersitepackages()]))
 
-    return dists
+    # NOTE: See https://docs.python.org/3/library/venv.html#how-venvs-work for more details.
+    in_venv = sys.prefix != sys.base_prefix
+
+    if local_only and in_venv:
+        # TODO: Are venvs given only one site package?
+        venv_site_packages = [sp for sp in site.getsitepackages() or [] if sp.startswith(sys.prefix)]
+        return list(distributions(path=venv_site_packages))
+
+    return list(distributions())
 
 
 __all__ = [
