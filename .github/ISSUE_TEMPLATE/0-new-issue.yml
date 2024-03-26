@@ -1,0 +1,32 @@
+name: Report a bug
+description: File a bug report to help improve pipdeptree
+labels: ["bug", "tobeconfirmed"]
+
+body:
+  - type: input
+    attributes:
+      label: What pipdeptree version are you using?
+      description: This can be fetched using `pipdeptree --version`.
+    validations:
+      required: true
+
+  - type: checkboxes
+    attributes:
+      label: Are you running pipdeptree in a virtual environment?
+      options:
+        - label: "Yes"
+
+  - type: textarea
+    attributes:
+      label: Describe the problem
+      description: |
+        What is the problem you are facing?
+
+        If possible, provide a set of steps to reproduce the error.
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file an issue!

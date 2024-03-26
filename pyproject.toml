@@ -41,6 +41,7 @@ dynamic = [
 ]
 dependencies = [
   "packaging",
+  "pip>=23.1.2",
 ]
 optional-dependencies.graphviz = [
   "graphviz>=0.20.1",
@@ -48,7 +49,6 @@ optional-dependencies.graphviz = [
 optional-dependencies.test = [
   "covdefaults>=2.3",
   "diff-cover>=8.0.1",
-  "pip>=23.3.1",
   "pytest>=7.4.3",
   "pytest-cov>=4.1",
   "pytest-mock>=3.12",
