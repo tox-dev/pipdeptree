@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import subprocess # noqa: S404
+import subprocess  # noqa: S404
 import sys
 from platform import python_implementation
 from typing import TYPE_CHECKING
@@ -23,7 +23,9 @@ def test_custom_interpreter(
 ) -> None:
     result = virtualenv.cli_run([str(tmp_path / "venv"), "--activators", ""])
     pip_path = result.creator.exe.parent / "pip"
-    subprocess.run([str(pip_path), "install", "packaging"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    subprocess.run(
+        [str(pip_path), "install", "packaging"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False
+    )
     cmd = [sys.executable]
     monkeypatch.chdir(tmp_path)
     py = str(result.creator.exe.relative_to(tmp_path))
