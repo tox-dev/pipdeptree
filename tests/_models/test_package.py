@@ -26,16 +26,16 @@ def test_guess_version_setuptools(mocker: MockerFixture) -> None:
 
 
 def test_dist_package_render_as_root() -> None:
-    foo = Mock(metadata={"Name": "foo"}, project_name="foo", version="20.4.1")
+    foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
     dp = DistPackage(foo)
     is_frozen = False
     assert dp.render_as_root(frozen=is_frozen) == "foo==20.4.1"
 
 
 def test_dist_package_render_as_branch() -> None:
-    foo = Mock(metadata={"Name": "foo"}, project_name="foo", version="20.4.1")
-    bar = Mock(metadata={"Name": "bar"}, project_name="bar", version="4.1.0")
-    bar_req = MagicMock(project_name="bar", version="4.1.0", specifier=[">=4.0"])
+    foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     dp = DistPackage(foo).as_parent_of(rp)
@@ -44,12 +44,12 @@ def test_dist_package_render_as_branch() -> None:
 
 
 def test_dist_package_as_parent_of() -> None:
-    foo = Mock(metadata={"Name": "foo"}, project_name="foo", version="20.4.1")
+    foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
     dp = DistPackage(foo)
     assert dp.req is None
 
-    bar = Mock(metadata={"Name": "bar"}, project_name="bar", version="4.1.0")
-    bar_req = MagicMock(project_name="bar", version="4.1.0", specifier=[">=4.0"])
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     dp1 = dp.as_parent_of(rp)
@@ -61,7 +61,7 @@ def test_dist_package_as_parent_of() -> None:
 
 
 def test_dist_package_as_dict() -> None:
-    foo = Mock(metadata={"Name": "foo"}, project_name="foo", version="1.3.2b1")
+    foo = Mock(metadata={"Name": "foo"}, version="1.3.2b1")
     dp = DistPackage(foo)
     result = dp.as_dict()
     expected = {"key": "foo", "package_name": "foo", "installed_version": "1.3.2b1"}
@@ -100,7 +100,7 @@ def test_dist_package_as_dict() -> None:
 )
 def test_dist_package_licenses(mocked_metadata: Mock, expected_output: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("pipdeptree._models.package.metadata", lambda _: mocked_metadata)
-    dist = DistPackage(Mock(project_name="a", metadata={"Name": "a"}))
+    dist = DistPackage(Mock(metadata={"Name": "a"}))
     licenses_str = dist.licenses()
 
     assert licenses_str == expected_output
@@ -108,28 +108,28 @@ def test_dist_package_licenses(mocked_metadata: Mock, expected_output: str, monk
 
 def test_dist_package_licenses_importlib_cant_find_package(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("pipdeptree._models.package.metadata", Mock(side_effect=PackageNotFoundError()))
-    dist = DistPackage(Mock(project_name="a", metadata={"Name": "a"}))
+    dist = DistPackage(Mock(metadata={"Name": "a"}))
     licenses_str = dist.licenses()
 
     assert licenses_str == Package.UNKNOWN_LICENSE_STR
 
 
 def test_dist_package_key_pep503_normalized() -> None:
-    foobar = Mock(metadata={"Name": "foo.bar"}, project_name="foo.bar", version="20.4.1")
+    foobar = Mock(metadata={"Name": "foo.bar"}, version="20.4.1")
     dp = DistPackage(foobar)
     assert dp.key == "foo-bar"
 
 
 def test_req_package_key_pep503_normalized() -> None:
-    bar_req = MagicMock(project_name="bar.bar-bar-bar", version="4.1.0", specifier=[">=4.0"])
+    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
     bar_req.name = "bar.bar-bar-bar"
     rp = ReqPackage(bar_req)
     assert rp.key == "bar-bar-bar-bar"
 
 
 def test_req_package_render_as_root() -> None:
-    bar = Mock(metadata={"Name": "bar"}, project_name="bar", version="4.1.0")
-    bar_req = MagicMock(project_name="bar", version="4.1.0", specifier=[">=4.0"])
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
@@ -137,8 +137,8 @@ def test_req_package_render_as_root() -> None:
 
 
 def test_req_package_render_as_branch() -> None:
-    bar = Mock(metadata={"Name": "bar"}, project_name="bar", version="4.1.0")
-    bar_req = MagicMock(project_name="bar", version="4.1.0", specifier=[">=4.0"])
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
@@ -146,8 +146,8 @@ def test_req_package_render_as_branch() -> None:
 
 
 def test_req_package_as_dict() -> None:
-    bar = Mock(metadata={"Name": "bar"}, project_name="bar", version="4.1.0")
-    bar_req = MagicMock(project_name="bar", version="4.1.0", specifier=[">=4.0"])
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     result = rp.as_dict()
@@ -156,8 +156,8 @@ def test_req_package_as_dict() -> None:
 
 
 def test_req_package_as_dict_with_no_version_spec() -> None:
-    bar = Mock(key="bar", project_name="bar", version="4.1.0")
-    bar_req = MagicMock(project_name="bar", version="4.1.0", specifier=[])
+    bar = Mock(key="bar", version="4.1.0")
+    bar_req = MagicMock(version="4.1.0", specifier=[])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     result = rp.as_dict()

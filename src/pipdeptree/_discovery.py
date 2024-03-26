@@ -9,16 +9,6 @@ if TYPE_CHECKING:
     from importlib.metadata import Distribution
 
 
-def is_virtual_environment() -> bool:
-    return sys.prefix != sys.base_prefix
-
-
-def get_site_packages_directory() -> list[str] | None:
-    if is_virtual_environment():
-        return site.getsitepackages()
-    return None
-
-
 def get_installed_distributions(
     local_only: bool = False,  # noqa: FBT001, FBT002
     user_only: bool = False,  # noqa: FBT001, FBT002

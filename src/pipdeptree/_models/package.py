@@ -144,7 +144,7 @@ class DistPackage(Package):
         return self._obj.version  # type: ignore[no-any-return]
 
     @property
-    def editable_project_location(self) -> str:
+    def editable_project_location(self) -> str | None:
         if self.direct_url:
             from pip._internal.utils.urls import url_to_path  # noqa: PLC2701, PLC0415
 
@@ -152,24 +152,20 @@ class DistPackage(Package):
 
         egg_link_path = egg_link_path_from_sys_path(self.raw_name)
         if egg_link_path:
-            return self.location
+            with Path(egg_link_path).open("r") as f:
+                location = f.readline().rstrip()
+            return location
         return None
 
     @property
     def direct_url_dict(self) -> dict[str, Any]:
         result = {"editable": False, "url": None}
 
-        if not self._obj.files:
-            return result
-
-        for path in self._obj.files:
-            if Path(path).name == "direct_url.json":
-                abstract_path = Path(self._obj.locate_file(path))
-                with abstract_path.open("r") as f:
-                    drurl = DirectUrl.from_json(f.read())
-                    result["url"] = drurl.url
-                    result["editable"] = bool(drurl.is_local_editable)
-                break
+        j_content = self.read_text("direct_url.json")
+        if j_content:
+            drurl = DirectUrl.from_json(j_content)
+            result["url"] = drurl.url
+            result["editable"] = bool(drurl.is_local_editable)
 
         return result
 

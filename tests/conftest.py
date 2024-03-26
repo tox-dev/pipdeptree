@@ -17,7 +17,7 @@ def mock_pkgs() -> Callable[[MockGraph], Iterator[Mock]]:
     def func(simple_graph: MockGraph) -> Iterator[Mock]:
         for node, children in simple_graph.items():
             nk, nv = node
-            m = Mock(metadata={"Name": nk.lower()}, project_name=nk, version=nv)
+            m = Mock(metadata={"Name": nk.lower()}, version=nv)
             as_req = MagicMock(specifier=[("==", nv)])
             as_req.name = nk
             m.as_requirement = Mock(return_value=as_req)
