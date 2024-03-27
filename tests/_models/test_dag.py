@@ -92,6 +92,27 @@ def test_package_dag_reverse(example_dag: PackageDAG) -> None:
     assert all(isinstance(v, ReqPackage) for v in chain.from_iterable(t2.values()))
 
 
+def test_package_dag_from_pkgs(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # when pip's _vendor.packaging.requirements.Requirement's requires() gives a lowercased package name but the actual
+    # package name in PyPI is mixed case, expect the mixed case version
+
+    # Since DistPackage.project_name will try to use importlib.metadata to grab the project name, let's avoid using
+    # the environment and use the fallback project name (since we control it here anyways).
+    monkeypatch.setattr("pipdeptree._models.package.metadata", Mock(side_effect=PackageNotFoundError()))
+
+    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+        ("examplePy", "1.2.3"): [("hellopy", [(">=", "2.0.0")])],
+        ("HelloPy", "2.2.0"): [],
+    }
+    package_dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    parent_key = "examplepy"
+    c = package_dag.get_children(parent_key)
+    assert len(c) == 1
+    assert c[0].project_name == "HelloPy"
+
+
 def test_package_dag_from_pkgs_uses_pep503normalize(
     mock_pkgs: Callable[[MockGraph], Iterator[Mock]], monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -44,6 +44,10 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
             reqs = []
             for r in p.requires():
                 d = idx.get(pep503_normalize(r.name))
+                # Distribution.requires only return the name of requirements in metadata file, which may not be
+                # the same with the capitalized one in pip. We should retain the casing of required package name.
+                # see https://github.com/tox-dev/pipdeptree/issues/242
+                r.name = d.project_name if d is not None else r.name
                 pkg = ReqPackage(r, d)
                 reqs.append(pkg)
             m[p] = reqs

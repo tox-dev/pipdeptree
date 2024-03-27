@@ -22,7 +22,7 @@ def pep503_normalize(name: str) -> str:
 
 
 def contains_extra(marker: str) -> bool:
-    return re.search(r"\bextra\s*==", marker)
+    return re.search(r"\bextra\s*==", marker) is not None
 
 
 class Package(ABC):
@@ -30,9 +30,9 @@ class Package(ABC):
 
     UNKNOWN_LICENSE_STR = "(Unknown license)"
 
-    def __init__(self, _project_name: str) -> None:
-        self.project_name = _project_name
-        self.key = pep503_normalize(_project_name)
+    def __init__(self, project_name: str) -> None:
+        self.project_name = project_name
+        self.key = pep503_normalize(project_name)
 
     def licenses(self) -> str:
         try:
@@ -153,15 +153,14 @@ class DistPackage(Package):
         egg_link_path = egg_link_path_from_sys_path(self.raw_name)
         if egg_link_path:
             with Path(egg_link_path).open("r") as f:
-                location = f.readline().rstrip()
-            return location
+                return f.readline().rstrip()
         return None
 
     @property
     def direct_url_dict(self) -> dict[str, Any]:
         result = {"editable": False, "url": None}
 
-        j_content = self.read_text("direct_url.json")
+        j_content = self._obj.read_text("direct_url.json")
         if j_content:
             drurl = DirectUrl.from_json(j_content)
             result["url"] = drurl.url
@@ -241,7 +240,7 @@ class ReqPackage(Package):
     @property
     def version_spec(self) -> str | None:
         result = None
-        specs = sorted(map(str, self._obj.specifier), reverse=True)
+        specs = sorted(map(str, self._obj.specifier), reverse=True)  # `reverse` makes '>' prior to '<'
         if specs:
             result = ",".join(specs)
         return result
