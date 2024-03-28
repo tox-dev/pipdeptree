@@ -40,6 +40,7 @@ dynamic = [
   "version",
 ]
 dependencies = [
+  "packaging>=23.1",
   "pip>=23.1.2",
 ]
 optional-dependencies.graphviz = [
