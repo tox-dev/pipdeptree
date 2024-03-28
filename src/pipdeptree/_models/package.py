@@ -150,11 +150,12 @@ class DistPackage(Package):
 
             return url_to_path(self.direct_url)
 
+        result = None
         egg_link_path = egg_link_path_from_sys_path(self.raw_name)
         if egg_link_path:
             with Path(egg_link_path).open("r") as f:
-                return f.readline().rstrip()
-        return None
+                result = f.readline().rstrip()
+        return result
 
     @property
     def direct_url_dict(self) -> dict[str, Any]:

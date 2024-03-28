@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import sys
+import tempfile
 from importlib.metadata import PackageNotFoundError
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock
 
@@ -41,6 +44,34 @@ def test_dist_package_render_as_branch() -> None:
     dp = DistPackage(foo).as_parent_of(rp)
     is_frozen = False
     assert dp.render_as_branch(frozen=is_frozen) == "foo==20.4.1 [requires: bar>=4.0]"
+
+
+def test_dist_package_render_as_root_with_frozen() -> None:
+    json_text = '{"dir_info": {"editable": true}, "url": "file:///A/B/foo"}'
+    foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
+    foo.read_text = Mock(return_value=json_text)
+    dp = DistPackage(foo)
+    is_frozen = True
+    expect = "# Editable install with no version control (foo===20.4.1)\n-e /A/B/foo"
+    assert dp.render_as_root(frozen=is_frozen) == expect
+
+
+def test_dist_package_render_as_root_with_frozen_none_url() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    file_path = Path(temp_dir.name) / "foo.egg-link"
+    with Path(file_path).open("w") as f:
+        f.write("/A/B/foo")
+
+    sys.path.append(temp_dir.name)
+    json_text = '{"dir_info": {"editable": true}, "url": ""}'
+    foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
+    foo.read_text = Mock(return_value=json_text)
+    dp = DistPackage(foo)
+    is_frozen = True
+    expect = "# Editable install with no version control (foo===20.4.1)\n-e /A/B/foo"
+    assert dp.render_as_root(frozen=is_frozen) == expect
+    sys.path.remove(temp_dir.name)
+    temp_dir.cleanup()
 
 
 def test_dist_package_as_parent_of() -> None:
@@ -134,6 +165,19 @@ def test_req_package_render_as_root() -> None:
     rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
     assert rp.render_as_root(frozen=is_frozen) == "bar==4.1.0"
+
+
+def test_req_package_render_as_root_with_frozen() -> None:
+    json_text = '{"dir_info": {"editable": true}, "url": "file:///A/B/bar"}'
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar.read_text = Mock(return_value=json_text)
+    d = DistPackage(bar)
+    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=d)
+    is_frozen = True
+    expect = "# Editable install with no version control (bar===4.1.0)\n-e /A/B/bar"
+    assert rp.render_as_root(frozen=is_frozen) == expect
 
 
 def test_req_package_render_as_branch() -> None:

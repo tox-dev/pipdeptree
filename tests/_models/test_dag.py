@@ -72,6 +72,22 @@ def test_package_dag_filter_nonexistent_packages(t_fnmatch: PackageDAG) -> None:
         t_fnmatch.filter_nodes(["x", "y", "z"], None)
 
 
+def test_package_dag_filter_packages_uses_pep503normalize(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+) -> None:
+    graph: MockGraph = {
+        ("Pie.Pie", "1"): [],
+    }
+    pkgs = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    pkgs = pkgs.filter_nodes(["Pie.Pie"], None)
+    assert len(pkgs) == 1
+    assert pkgs.get_node_as_parent("pie-pie") is not None
+
+    pkgs = pkgs.filter_nodes(None, {"Pie.Pie"})
+    assert len(pkgs) == 0
+    assert pkgs.get_node_as_parent("pie-pie") is None
+
+
 def test_package_dag_reverse(example_dag: PackageDAG) -> None:
     def sort_map_values(m: dict[str, Any]) -> dict[str, Any]:
         return {k: sorted(v) for k, v in m.items()}
