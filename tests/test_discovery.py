@@ -38,7 +38,7 @@ def test_local_only(
     expected = {"wrapt", "pip", "setuptools", "wheel"}
 
     if sys.version_info >= (3, 12):
-        expected -= {"setuptools", "wheel"}
+        expected -= {"setuptools", "wheel"}  # pragma: no cover
 
     assert found == expected
 

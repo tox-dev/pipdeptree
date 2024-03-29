@@ -13,7 +13,7 @@ from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from pip._internal.models.direct_url import (
     DirectUrl,  # noqa: PLC2701
-    DirectUrlValidationError,
+    DirectUrlValidationError,  # noqa: PLC2701
 )
 from pip._internal.utils.egg_link import egg_link_path_from_sys_path  # noqa: PLC2701
 
@@ -93,7 +93,7 @@ class Package(ABC):
 
         from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415, PLC2701 # pragma: no cover
 
-        fr = FrozenRequirement.from_dist(obj)
+        fr = FrozenRequirement.from_dist(obj) # type: ignore[arg-type]
 
         return str(fr).strip()
 
@@ -137,12 +137,12 @@ class DistPackage(Package):
 
     @property
     def direct_url(self) -> DirectUrl | None:
-        DIRECT_URL_METADATA_NAME = "direct_url.json"
+        direct_url_metadata_name = "direct_url.json"
         result = None
 
         try:
-            j_content = self._obj.read_text(DIRECT_URL_METADATA_NAME)
-        except FileNotFoundError:
+            j_content = self._obj.read_text(direct_url_metadata_name)
+        except FileNotFoundError:  # pragma: no cover
             return result
         try:
             if j_content:
@@ -162,7 +162,7 @@ class DistPackage(Package):
 
     @property
     def version(self) -> str:
-        return self._obj.version  # type: ignore[no-any-return]
+        return self._obj.version
 
     @property
     def editable_project_location(self) -> str | None:
@@ -197,7 +197,7 @@ class DistPackage(Package):
     def as_requirement(self) -> ReqPackage:
         """Return a ReqPackage representation of this DistPackage."""
         spec = f"{self.project_name}=={self.version}"
-        return ReqPackage(Requirement(spec), dist=self)  # type: ignore[no-untyped-call]
+        return ReqPackage(Requirement(spec), dist=self)
 
     def as_parent_of(self, req: ReqPackage | None) -> DistPackage:
         """
@@ -288,12 +288,8 @@ class ReqPackage(Package):
             return True
 
         ver_spec = self.version_spec if self.version_spec else ""
-        if ver_spec:
-            req_obj = SpecifierSet(ver_spec)
-        else:
-            return False
+        return self.installed_version not in SpecifierSet(ver_spec) if ver_spec else False
 
-        return self.installed_version not in req_obj
 
     def as_dict(self) -> dict[str, str]:
         return {
