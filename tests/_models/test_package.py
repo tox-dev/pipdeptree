@@ -63,7 +63,7 @@ def test_dist_package_render_as_root_with_frozen_none_url() -> None:
         f.write("/A/B/foo")
 
     sys.path.append(temp_dir.name)
-    json_text = '{"dir_info": {"editable": true}, "url": ""}'
+    json_text = '{"dir_info": {"editable": true}'
     foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
     foo.read_text = Mock(return_value=json_text)
     dp = DistPackage(foo)

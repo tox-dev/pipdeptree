@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import json
 import re
 from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
 from inspect import ismodule
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
-from pip._internal.models.direct_url import DirectUrl  # noqa: PLC2701
+from pip._internal.models.direct_url import (
+    DirectUrl,  # noqa: PLC2701
+    DirectUrlValidationError,
+)
 from pip._internal.utils.egg_link import egg_link_path_from_sys_path  # noqa: PLC2701
 
 if TYPE_CHECKING:
@@ -129,11 +133,28 @@ class DistPackage(Package):
 
     @property
     def editable(self) -> bool:
-        return self.direct_url_dict["editable"]
+        return bool(self.editable_project_location)
 
     @property
-    def direct_url(self) -> str:
-        return self.direct_url_dict["url"]
+    def direct_url(self) -> DirectUrl | None:
+        DIRECT_URL_METADATA_NAME = "direct_url.json"
+        result = None
+
+        try:
+            j_content = self._obj.read_text(DIRECT_URL_METADATA_NAME)
+        except FileNotFoundError:
+            return result
+        try:
+            if j_content:
+                result = DirectUrl.from_json(j_content)
+
+        except (
+            UnicodeDecodeError,
+            json.JSONDecodeError,
+            DirectUrlValidationError,
+        ):
+            return result
+        return result
 
     @property
     def raw_name(self) -> str:
@@ -145,28 +166,17 @@ class DistPackage(Package):
 
     @property
     def editable_project_location(self) -> str | None:
-        if self.direct_url:
+        direct_url = self.direct_url
+        if direct_url and direct_url.is_local_editable():
             from pip._internal.utils.urls import url_to_path  # noqa: PLC2701, PLC0415
 
-            return url_to_path(self.direct_url)
+            return url_to_path(direct_url.url)
 
         result = None
         egg_link_path = egg_link_path_from_sys_path(self.raw_name)
         if egg_link_path:
             with Path(egg_link_path).open("r") as f:
                 result = f.readline().rstrip()
-        return result
-
-    @property
-    def direct_url_dict(self) -> dict[str, Any]:
-        result = {"editable": False, "url": None}
-
-        j_content = self._obj.read_text("direct_url.json")
-        if j_content:
-            drurl = DirectUrl.from_json(j_content)
-            result["url"] = drurl.url
-            result["editable"] = bool(drurl.is_local_editable)
-
         return result
 
     def render_as_root(self, *, frozen: bool) -> str:
