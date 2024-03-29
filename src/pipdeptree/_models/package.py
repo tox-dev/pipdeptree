@@ -93,7 +93,7 @@ class Package(ABC):
 
         from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415, PLC2701 # pragma: no cover
 
-        fr = FrozenRequirement.from_dist(obj) # type: ignore[arg-type]
+        fr = FrozenRequirement.from_dist(obj)  # type: ignore[arg-type]
 
         return str(fr).strip()
 
@@ -289,7 +289,6 @@ class ReqPackage(Package):
 
         ver_spec = self.version_spec if self.version_spec else ""
         return self.installed_version not in SpecifierSet(ver_spec) if ver_spec else False
-
 
     def as_dict(self) -> dict[str, str]:
         return {
