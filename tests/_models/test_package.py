@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import sys
-import tempfile
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -26,6 +24,19 @@ def test_guess_version_setuptools(mocker: MockerFixture) -> None:
     r.name = "setuptools"
     result = ReqPackage(r).installed_version
     assert result == "?"
+
+
+def test_package_as_frozen_repr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    file_path = tmp_path / "foo.egg-link"
+    with Path(file_path).open("w") as f:
+        f.write("/A/B/foo")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    json_text = '{"dir_info": {"editable": true}}'
+    foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
+    foo.read_text = Mock(return_value=json_text)
+    dp = DistPackage(foo)
+    expected = "# Editable install with no version control (foo===20.4.1)\n-e /A/B/foo"
+    assert Package.as_frozen_repr(dp) == expected
 
 
 def test_dist_package_render_as_root() -> None:
@@ -54,24 +65,6 @@ def test_dist_package_render_as_root_with_frozen() -> None:
     is_frozen = True
     expect = "# Editable install with no version control (foo===20.4.1)\n-e /A/B/foo"
     assert dp.render_as_root(frozen=is_frozen) == expect
-
-
-def test_dist_package_render_as_root_with_frozen_none_url() -> None:
-    temp_dir = tempfile.TemporaryDirectory()
-    file_path = Path(temp_dir.name) / "foo.egg-link"
-    with Path(file_path).open("w") as f:
-        f.write("/A/B/foo")
-
-    sys.path.append(temp_dir.name)
-    json_text = '{"dir_info": {"editable": true}'
-    foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
-    foo.read_text = Mock(return_value=json_text)
-    dp = DistPackage(foo)
-    is_frozen = True
-    expect = "# Editable install with no version control (foo===20.4.1)\n-e /A/B/foo"
-    assert dp.render_as_root(frozen=is_frozen) == expect
-    sys.path.remove(temp_dir.name)
-    temp_dir.cleanup()
 
 
 def test_dist_package_as_parent_of() -> None:

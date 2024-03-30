@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 import re
 from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
 from inspect import ismodule
+from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -81,16 +81,6 @@ class Package(ABC):
 
     @staticmethod
     def as_frozen_repr(obj: DistPackage) -> str:
-        # The `pip._internal.metadata` modules were introduced in 21.1.1
-        # and the `pip._internal.operations.freeze.FrozenRequirement`
-        # class now expects dist to be a subclass of
-        # `pip._internal.metadata.BaseDistribution`, however the
-        # `pip._internal.utils.misc.get_installed_distributions` continues
-        # to return objects of type
-        # pip._vendor.pkg_resources.DistInfoDistribution.
-        #
-        # This is a hacky backward compatible (with older versions of pip) fix.
-
         from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415, PLC2701 # pragma: no cover
 
         fr = FrozenRequirement.from_dist(obj)  # type: ignore[arg-type]
@@ -141,16 +131,12 @@ class DistPackage(Package):
         result = None
 
         try:
-            j_content = self._obj.read_text(direct_url_metadata_name)
-        except FileNotFoundError:  # pragma: no cover
-            return result
-        try:
-            if j_content:
-                result = DirectUrl.from_json(j_content)
-
+            json_str = self._obj.read_text(direct_url_metadata_name)
+            if json_str:
+                result = DirectUrl.from_json(json_str)
         except (
             UnicodeDecodeError,
-            json.JSONDecodeError,
+            JSONDecodeError,
             DirectUrlValidationError,
         ):
             return result
@@ -180,9 +166,7 @@ class DistPackage(Package):
         return result
 
     def render_as_root(self, *, frozen: bool) -> str:
-        if not frozen:
-            return f"{self.project_name}=={self.version}"
-        return self.as_frozen_repr(self)
+        return self.as_frozen_repr(self) if frozen else f"{self.project_name}=={self.version}"
 
     def render_as_branch(self, *, frozen: bool) -> str:
         assert self.req is not None

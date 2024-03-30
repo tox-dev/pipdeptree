@@ -20,7 +20,7 @@ def get_installed_distributions(
     in_venv = sys.prefix != sys.base_prefix
 
     if local_only and in_venv:
-        venv_site_packages = list(site.getsitepackages(sys.prefix) or [])
+        venv_site_packages = site.getsitepackages([sys.prefix])
         return list(distributions(path=venv_site_packages))
 
     return list(distributions())
