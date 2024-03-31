@@ -35,8 +35,8 @@ def test_package_as_frozen_repr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
     foo.read_text = Mock(return_value=json_text)
     dp = DistPackage(foo)
-    expected = "# Editable install with no version control (foo===20.4.1)\n-e /A/B/foo"
-    assert Package.as_frozen_repr(dp) == expected
+    expected = "# Editable install with no version control (foo==20.4.1)\n-e /A/B/foo"
+    assert Package.as_frozen_repr(dp.unwrap()) == expected
 
 
 def test_dist_package_render_as_root() -> None:
@@ -63,7 +63,7 @@ def test_dist_package_render_as_root_with_frozen() -> None:
     foo.read_text = Mock(return_value=json_text)
     dp = DistPackage(foo)
     is_frozen = True
-    expect = "# Editable install with no version control (foo===20.4.1)\n-e /A/B/foo"
+    expect = "# Editable install with no version control (foo==20.4.1)\n-e /A/B/foo"
     assert dp.render_as_root(frozen=is_frozen) == expect
 
 
@@ -169,7 +169,7 @@ def test_req_package_render_as_root_with_frozen() -> None:
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=d)
     is_frozen = True
-    expect = "# Editable install with no version control (bar===4.1.0)\n-e /A/B/bar"
+    expect = "# Editable install with no version control (bar==4.1.0)\n-e /A/B/bar"
     assert rp.render_as_root(frozen=is_frozen) == expect
 
 

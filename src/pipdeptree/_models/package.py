@@ -5,20 +5,15 @@ from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
 from inspect import ismodule
-from json import JSONDecodeError
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
-from pip._internal.models.direct_url import (
-    DirectUrl,  # noqa: PLC2701
-    DirectUrlValidationError,  # noqa: PLC2701
-)
-from pip._internal.utils.egg_link import egg_link_path_from_sys_path  # noqa: PLC2701
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
+
+from pipdeptree._adapter import PipBaseDistributionAdapter
 
 
 def pep503_normalize(name: str) -> str:
@@ -80,10 +75,11 @@ class Package(ABC):
         return render(frozen=frozen)
 
     @staticmethod
-    def as_frozen_repr(obj: DistPackage) -> str:
+    def as_frozen_repr(dist: Distribution) -> str:
         from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415, PLC2701 # pragma: no cover
 
-        fr = FrozenRequirement.from_dist(obj)  # type: ignore[arg-type]
+        adapter = PipBaseDistributionAdapter(dist)
+        fr = FrozenRequirement.from_dist(adapter)  # type: ignore[arg-type]
 
         return str(fr).strip()
 
@@ -96,9 +92,9 @@ class Package(ABC):
 
 class DistPackage(Package):
     """
-    Wrapper class for pkg_resources.Distribution instances.
+    Wrapper class for importlib.metadata.Distribution instances.
 
-    :param obj: pkg_resources.Distribution to wrap over
+    :param obj: importlib.metadata.Distribution to wrap over
     :param req: optional ReqPackage object to associate this DistPackage with. This is useful for displaying the tree in
         reverse
 
@@ -122,51 +118,15 @@ class DistPackage(Package):
         return req_list
 
     @property
-    def editable(self) -> bool:
-        return bool(self.editable_project_location)
-
-    @property
-    def direct_url(self) -> DirectUrl | None:
-        direct_url_metadata_name = "direct_url.json"
-        result = None
-
-        try:
-            json_str = self._obj.read_text(direct_url_metadata_name)
-            if json_str:
-                result = DirectUrl.from_json(json_str)
-        except (
-            UnicodeDecodeError,
-            JSONDecodeError,
-            DirectUrlValidationError,
-        ):
-            return result
-        return result
-
-    @property
-    def raw_name(self) -> str:
-        return self.project_name
-
-    @property
     def version(self) -> str:
         return self._obj.version
 
-    @property
-    def editable_project_location(self) -> str | None:
-        direct_url = self.direct_url
-        if direct_url and direct_url.is_local_editable():
-            from pip._internal.utils.urls import url_to_path  # noqa: PLC2701, PLC0415
-
-            return url_to_path(direct_url.url)
-
-        result = None
-        egg_link_path = egg_link_path_from_sys_path(self.raw_name)
-        if egg_link_path:
-            with Path(egg_link_path).open("r") as f:
-                result = f.readline().rstrip()
-        return result
+    def unwrap(self) -> Distribution:
+        """Exposes the internal `importlib.metadata.Distribution` object."""
+        return self._obj
 
     def render_as_root(self, *, frozen: bool) -> str:
-        return self.as_frozen_repr(self) if frozen else f"{self.project_name}=={self.version}"
+        return self.as_frozen_repr(self._obj) if frozen else f"{self.project_name}=={self.version}"
 
     def render_as_branch(self, *, frozen: bool) -> str:
         assert self.req is not None
@@ -205,10 +165,10 @@ class DistPackage(Package):
 
 class ReqPackage(Package):
     """
-    Wrapper class for Requirements instance.
+    Wrapper class for Requirement instance.
 
-    :param obj: The `Requirements` instance to wrap over
-    :param dist: optional `pkg_resources.Distribution` instance for this requirement
+    :param obj: The `Requirement` instance to wrap over
+    :param dist: optional `importlib.metadata.Distribution` instance for this requirement
 
     """
 
@@ -223,7 +183,7 @@ class ReqPackage(Package):
         if not frozen:
             return f"{self.project_name}=={self.installed_version}"
         if self.dist:
-            return self.as_frozen_repr(self.dist)
+            return self.as_frozen_repr(self.dist.unwrap())
         return self.project_name
 
     def render_as_branch(self, *, frozen: bool) -> str:
