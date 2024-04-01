@@ -227,8 +227,7 @@ class ReqPackage(Package):
         if self.installed_version == self.UNKNOWN_VERSION:
             return True
 
-        ver_spec = self.version_spec if self.version_spec else ""
-        return self.installed_version not in SpecifierSet(ver_spec) if ver_spec else False
+        return self.installed_version not in self._obj.specifier
 
     def as_dict(self) -> dict[str, str]:
         return {
