@@ -238,7 +238,7 @@ class ReversedPackageDAG(PackageDAG):
             for v in vs:
                 assert isinstance(v, DistPackage)
                 node = next((p for p in m if p.key == v.key), v.as_parent_of(None))
-                m[node].append(k)
+                m[node].append(k)  # type: ignore[arg-type]
             if k.key not in child_keys:
                 assert isinstance(k, ReqPackage)
                 assert k.dist is not None

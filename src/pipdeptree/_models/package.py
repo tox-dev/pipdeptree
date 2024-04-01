@@ -20,10 +20,6 @@ def pep503_normalize(name: str) -> str:
     return re.sub("[-_.]+", "-", name).lower()
 
 
-def contains_extra(marker: str) -> bool:
-    return re.search(r"\bextra\s*==", marker) is not None
-
-
 class Package(ABC):
     """Abstract class for wrappers around objects that pip returns."""
 
@@ -107,14 +103,14 @@ class DistPackage(Package):
 
     def requires(self) -> list[Requirement]:
         req_list = []
-        req_name_list = []
-        if self._obj.requires:
-            for r in self._obj.requires:
-                req = Requirement(r)
-                is_extra_req = req.marker and contains_extra(str(req.marker))
-                if not is_extra_req and req.name not in req_name_list:
-                    req_list.append(req)
-                    req_name_list.append(req.name)
+        for r in self._obj.requires or []:
+            req = Requirement(r)
+            if not req.marker or req.marker.evaluate():
+                # Make sure that we're either dealing with a dependency that has no environment markers or does but
+                # are evaluated True against the existing environment (if it's False, it means they cannot be
+                # installed). "extra" markers are always evaluated False here which is what we want when retrieving
+                # only required dependencies.
+                req_list.append(req)
         return req_list
 
     @property

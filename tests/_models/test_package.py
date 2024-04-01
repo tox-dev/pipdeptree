@@ -39,6 +39,26 @@ def test_package_as_frozen_repr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert Package.as_frozen_repr(dp.unwrap()) == expected
 
 
+def test_dist_package_requires() -> None:
+    foo = Mock(
+        metadata={"Name": "foo"},
+        requires=["bar", "baz >=2.7.2"],
+    )
+    dp = DistPackage(foo)
+    reqs = dp.requires()
+    assert len(reqs) == 2
+
+
+def test_dist_package_requires_with_environment_markers_that_eval_to_false() -> None:
+    foo = Mock(
+        metadata={"Name": "foo"},
+        requires=['foo ; sys_platform == "NoexistOS"', "bar >=2.7.2 ; extra == 'testing'"],
+    )
+    dp = DistPackage(foo)
+    reqs = dp.requires()
+    assert len(reqs) == 0
+
+
 def test_dist_package_render_as_root() -> None:
     foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
     dp = DistPackage(foo)
