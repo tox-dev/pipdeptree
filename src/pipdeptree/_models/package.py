@@ -8,7 +8,6 @@ from inspect import ismodule
 from typing import TYPE_CHECKING
 
 from packaging.requirements import Requirement
-from packaging.specifiers import SpecifierSet
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
