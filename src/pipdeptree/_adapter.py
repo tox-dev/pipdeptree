@@ -25,6 +25,8 @@ class PipBaseDistributionAdapter:
     :param dist: Represents an `importlib.metadata.Distribution` object.
     """
 
+    DIRECT_URL_METADATA_NAME = "direct_url.json"
+
     def __init__(self, dist: Distribution) -> None:
         self._dist = dist
         self._raw_name = dist.metadata["Name"]
@@ -44,9 +46,8 @@ class PipBaseDistributionAdapter:
 
     @property
     def direct_url(self) -> DirectUrl | None:
-        direct_url_metadata_name = "direct_url.json"
         result = None
-        json_str = self._dist.read_text(direct_url_metadata_name)
+        json_str = self._dist.read_text(self.DIRECT_URL_METADATA_NAME)
         try:
             if json_str:
                 result = DirectUrl.from_json(json_str)
