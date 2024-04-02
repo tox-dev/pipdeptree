@@ -1,35 +1,29 @@
 from __future__ import annotations
 
+import site
+import sys
+from importlib.metadata import distributions
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pip._vendor.pkg_resources import DistInfoDistribution
+    from importlib.metadata import Distribution
 
 
 def get_installed_distributions(
     local_only: bool = False,  # noqa: FBT001, FBT002
     user_only: bool = False,  # noqa: FBT001, FBT002
-) -> list[DistInfoDistribution]:
-    try:
-        from pip._internal.metadata import pkg_resources  # noqa: PLC0415, PLC2701
-    except ImportError:
-        # For backward compatibility with python ver. 2.7 and pip
-        # version 20.3.4 (the latest pip version that works with python
-        # version 2.7)
-        from pip._internal.utils import misc  # noqa: PLC0415, PLC2701 # pragma: no cover
+) -> list[Distribution]:
+    if user_only:
+        return list(distributions(path=[site.getusersitepackages()]))
 
-        return misc.get_installed_distributions(  # type: ignore[no-any-return,attr-defined]
-            local_only=local_only,
-            user_only=user_only,
-        )
+    # NOTE: See https://docs.python.org/3/library/venv.html#how-venvs-work for more details.
+    in_venv = sys.prefix != sys.base_prefix
 
-    else:
-        dists = pkg_resources.Environment.from_paths(None).iter_installed_distributions(
-            local_only=local_only,
-            skip=(),
-            user_only=user_only,
-        )
-        return [d._dist for d in dists]  # type: ignore[attr-defined] # noqa: SLF001
+    if local_only and in_venv:
+        venv_site_packages = site.getsitepackages([sys.prefix])
+        return list(distributions(path=venv_site_packages))
+
+    return list(distributions())
 
 
 __all__ = [

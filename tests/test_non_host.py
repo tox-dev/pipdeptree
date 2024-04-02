@@ -33,7 +33,7 @@ def test_custom_interpreter(
     if implementation == "CPython":
         expected = {"pip", "setuptools", "wheel"}
     elif implementation == "PyPy":
-        expected = {"cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}
+        expected = {"cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}  # pragma: no cover
     else:
         raise ValueError(implementation)
     if sys.version_info >= (3, 12):

@@ -6,7 +6,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Iterator, List, Mapping
 
 if TYPE_CHECKING:
-    from pip._vendor.pkg_resources import DistInfoDistribution
+    from importlib.metadata import Distribution
 
 
 from .package import DistPackage, ReqPackage, pep503_normalize
@@ -36,19 +36,18 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
     """
 
     @classmethod
-    def from_pkgs(cls, pkgs: list[DistInfoDistribution]) -> PackageDAG:
+    def from_pkgs(cls, pkgs: list[Distribution]) -> PackageDAG:
         dist_pkgs = [DistPackage(p) for p in pkgs]
         idx = {p.key: p for p in dist_pkgs}
         m: dict[DistPackage, list[ReqPackage]] = {}
         for p in dist_pkgs:
             reqs = []
             for r in p.requires():
-                # Requirement key is not sufficiently normalized in pkg_resources - apply additional normalization
-                d = idx.get(pep503_normalize(r.key))
-                # pip's _vendor.packaging.requirements.Requirement uses the exact casing of a dependency's name found in
-                # a project's build config, which is not ideal when rendering.
-                # See https://github.com/tox-dev/pipdeptree/issues/242
-                r.project_name = d.project_name if d is not None else r.project_name
+                d = idx.get(pep503_normalize(r.name))
+                # Distribution.requires only return the name of requirements in metadata file, which may not be
+                # the same with the capitalized one in pip. We should retain the casing of required package name.
+                # see https://github.com/tox-dev/pipdeptree/issues/242
+                r.name = d.project_name if d is not None else r.name
                 pkg = ReqPackage(r, d)
                 reqs.append(pkg)
             m[p] = reqs
@@ -110,16 +109,11 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         if include is None and exclude is None:
             return self
 
-        # Note: In following comparisons, we use lower cased values so
-        # that user may specify `key` or `project_name`. As per the
-        # documentation, `key` is simply
-        # `project_name.lower()`. Refer:
-        # https://setuptools.readthedocs.io/en/latest/pkg_resources.html#distribution-objects
         include_with_casing_preserved: list[str] = []
         if include:
             include_with_casing_preserved = include
-            include = [s.lower() for s in include]
-        exclude = {s.lower() for s in exclude} if exclude else set()
+            include = [pep503_normalize(i) for i in include]
+        exclude = {pep503_normalize(s) for s in exclude} if exclude else set()
 
         # Check for mutual exclusion of show_only and exclude sets
         # after normalizing the values to lowercase
@@ -164,7 +158,9 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
                             # a dependency is missing
                             continue
 
-        non_existent_includes = [i for i in include_with_casing_preserved if i.lower() not in matched_includes]
+        non_existent_includes = [
+            i for i in include_with_casing_preserved if pep503_normalize(i) not in matched_includes
+        ]
         if non_existent_includes:
             raise ValueError("No packages matched using the following patterns: " + ", ".join(non_existent_includes))
 
@@ -242,7 +238,7 @@ class ReversedPackageDAG(PackageDAG):
             for v in vs:
                 assert isinstance(v, DistPackage)
                 node = next((p for p in m if p.key == v.key), v.as_parent_of(None))
-                m[node].append(k)  # type: ignore[arg-type]
+                m[node].append(k)
             if k.key not in child_keys:
                 assert isinstance(k, ReqPackage)
                 assert k.dist is not None
