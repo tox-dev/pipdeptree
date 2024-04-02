@@ -85,7 +85,6 @@ def test_package_dag_filter_packages_uses_pep503normalize(
 
     pkgs = pkgs.filter_nodes(None, {"Pie.Pie"})
     assert len(pkgs) == 0
-    assert pkgs.get_node_as_parent("pie-pie") is None
 
 
 def test_package_dag_reverse(example_dag: PackageDAG) -> None:

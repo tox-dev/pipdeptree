@@ -45,8 +45,7 @@ def test_user_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytes
         f.write("Metadata-Version: 2.3\n" "Name: foo\n" "Version: 1.2.5\n")
 
     monkeypatch.setattr(site, "getusersitepackages", Mock(return_value=str(tmp_path)))
-    cmd = [sys.executable]
-    cmd += ["--user-only"]
+    cmd = [sys.executable, "--user-only"]
     monkeypatch.setattr(sys, "argv", cmd)
     main()
     out, _ = capfd.readouterr()

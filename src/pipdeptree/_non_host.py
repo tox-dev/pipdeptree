@@ -45,8 +45,8 @@ def handle_non_host_target(args: Options) -> int | None:
             assert packaging_src is not None
             packaging_root = Path(packaging_src).parent
             copytree(packaging_root, dest / "packaging")
-            cmd = [str(py_path), "-m", "pipdeptree", *argv]
 
+            cmd = [str(py_path), "-m", "pipdeptree", *argv]
             env = os.environ.copy()
 
             # The cwd is prepended to `sys.path` when executing __main__ using `python -m` (meaning we prepend the tmp
