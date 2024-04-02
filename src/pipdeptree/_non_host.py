@@ -49,7 +49,7 @@ def handle_non_host_target(args: Options) -> int | None:
 
             env = os.environ.copy()
 
-            # The cwd is preprended to `sys.path` when executing __main__ using `python -m` (meaning we prepend the tmp
+            # The cwd is prepended to `sys.path` when executing __main__ using `python -m` (meaning we prepend the tmp
             # directory `project` here).
             # See https://docs.python.org/3/library/sys.html#sys.path
             return call(cmd, cwd=project, env=env)  # noqa: S603
