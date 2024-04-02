@@ -15,17 +15,17 @@ if TYPE_CHECKING:
 
 
 def test_local_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]) -> None:
-    result = virtualenv.cli_run([str(tmp_path / "venv"), "--activators", ""])
-    venv_site_packages = site.getsitepackages([str(tmp_path / "venv")])
+    venv_path = str(tmp_path / "venv")
+    result = virtualenv.cli_run([venv_path, "--activators", ""])
+    venv_site_packages = site.getsitepackages([venv_path])
     fake_dist = Path(venv_site_packages[0]) / "foo-1.2.5.dist-info"
     fake_dist.mkdir()
     fake_metadata = Path(fake_dist) / "METADATA"
-    with Path(fake_metadata).open("w") as f:
+    with fake_metadata.open("w") as f:
         f.write("Metadata-Version: 2.3\n" "Name: foo\n" "Version: 1.2.5\n")
 
-    cmd = [str(result.creator.exe.parent / "python3")]
-    cmd += ["--local-only"]
-    monkeypatch.setattr(sys, "prefix", str(tmp_path / "venv"))
+    cmd = [str(result.creator.exe.parent / "python3"), "--local-only"]
+    monkeypatch.setattr(sys, "prefix", venv_path)
     monkeypatch.setattr(sys, "argv", cmd)
     main()
     out, _ = capfd.readouterr()

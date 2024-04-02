@@ -39,14 +39,19 @@ def handle_non_host_target(args: Options) -> int | None:
         with TemporaryDirectory() as project:
             dest = Path(project)
             copytree(our_root, dest / "pipdeptree")
-            # invoke from an empty folder to avoid cwd altering sys.path
-            env = os.environ.copy()
+
             # We need to also make the Python executable aware of packaging since we use it.
             packaging_src = getsourcefile(sys.modules["packaging"])
             assert packaging_src is not None
             packaging_root = Path(packaging_src).parent
             copytree(packaging_root, dest / "packaging")
             cmd = [str(py_path), "-m", "pipdeptree", *argv]
+
+            env = os.environ.copy()
+
+            # The cwd is preprended to `sys.path` when executing __main__ using `python -m` (meaning we prepend the tmp
+            # directory `project` here).
+            # See https://docs.python.org/3/library/sys.html#sys.path
             return call(cmd, cwd=project, env=env)  # noqa: S603
     return None
 
