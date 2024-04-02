@@ -40,7 +40,7 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "pip>=23.1.2",
+  "pip>=20.2.4",
 ]
 optional-dependencies.graphviz = [
   "graphviz>=0.20.1",
