@@ -7,6 +7,7 @@ from pathlib import Path
 from shutil import copytree
 from subprocess import call  # noqa: S404
 from tempfile import TemporaryDirectory
+from importlib.metadata import Distribution
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -41,7 +42,11 @@ def handle_non_host_target(args: Options) -> int | None:
             copytree(our_root, dest / "pipdeptree")
             # invoke from an empty folder to avoid cwd altering sys.path
             env = os.environ.copy()
-            env["PYTHONPATH"] = project
+            # We need to also make the Python executable aware of packaging since we use it.
+            packaging_src = getsourcefile(sys.modules["packaging"])
+            assert packaging_src is not None
+            packaging_root = Path(packaging_src).parent
+            copytree(packaging_root, dest / "packaging")
             cmd = [str(py_path), "-m", "pipdeptree", *argv]
             return call(cmd, cwd=project, env=env)  # noqa: S603
     return None

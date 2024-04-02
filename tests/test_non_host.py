@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess  # noqa: S404
 import sys
 from platform import python_implementation
 from typing import TYPE_CHECKING
@@ -22,10 +21,6 @@ def test_custom_interpreter(
     args_joined: bool,
 ) -> None:
     result = virtualenv.cli_run([str(tmp_path / "venv"), "--activators", ""])
-    pip_path = result.creator.exe.parent / "pip"
-    subprocess.run(
-        [str(pip_path), "install", "packaging"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False
-    )
     cmd = [sys.executable]
     monkeypatch.chdir(tmp_path)
     py = str(result.creator.exe.relative_to(tmp_path))
@@ -36,9 +31,9 @@ def test_custom_interpreter(
     found = {i.split("==")[0] for i in out.splitlines()}
     implementation = python_implementation()
     if implementation == "CPython":
-        expected = {"packaging", "pip", "setuptools", "wheel"}
+        expected = {"pip", "setuptools", "wheel"}
     elif implementation == "PyPy":
-        expected = {"packaging", "cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}  # pragma: no cover
+        expected = {"cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}  # pragma: no cover
     else:
         raise ValueError(implementation)
     if sys.version_info >= (3, 12):
