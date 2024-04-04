@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
@@ -9,14 +8,12 @@ from typing import TYPE_CHECKING
 
 from packaging.requirements import Requirement
 
+from pipdeptree._util import pep503_normalize
+
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
 
 from pipdeptree._adapter import PipBaseDistributionAdapter
-
-
-def pep503_normalize(name: str) -> str:
-    return re.sub("[-_.]+", "-", name).lower()
 
 
 class Package(ABC):
