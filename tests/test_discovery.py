@@ -61,8 +61,8 @@ def test_duplicate_metadata(monkeypatch: pytest.MonkeyPatch, capfd: pytest.Captu
         "pipdeptree._discovery.distributions",
         Mock(
             return_value=[
-                Mock(metadata={"Name": "foo"}, version="1.2.5", locate_file=Mock(return_value="test")),
-                Mock(metadata={"Name": "foo"}, version="5.9.0", locate_file=Mock(return_value="test")),
+                Mock(metadata={"Name": "foo"}, version="1.2.5", locate_file=Mock(return_value="/path/1")),
+                Mock(metadata={"Name": "foo"}, version="5.9.0", locate_file=Mock(return_value="/path/2")),
             ]
         ),
     )
@@ -74,7 +74,7 @@ def test_duplicate_metadata(monkeypatch: pytest.MonkeyPatch, capfd: pytest.Captu
 
     _, err = capfd.readouterr()
     expected = (
-        'Warning!!! Duplicate package metadata found:\n"test"\n  foo                              5.9.0       '
-        '     (using 1.2.5, "test")\n------------------------------------------------------------------------\n'
+        'Warning!!! Duplicate package metadata found:\n"/path/2"\n  foo                              5.9.0       '
+        '     (using 1.2.5, "/path/1")\n------------------------------------------------------------------------\n'
     )
     assert err == expected
