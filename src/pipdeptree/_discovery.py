@@ -3,6 +3,7 @@ from __future__ import annotations
 import site
 import sys
 from importlib.metadata import Distribution, distributions
+from typing import Tuple
 
 from packaging.utils import canonicalize_name
 
@@ -45,7 +46,7 @@ def get_installed_distributions(
     return dists
 
 
-FirstSeenWithDistsPair = tuple[Distribution, Distribution]
+FirstSeenWithDistsPair = Tuple[Distribution, Distribution]
 
 
 def render_duplicated_dist_metadata_text(
@@ -63,7 +64,10 @@ def render_duplicated_dist_metadata_text(
         print(f'"{entry}"', file=sys.stderr)  # noqa: T201
         for first_seen, dist in pairs:
             print(  # noqa: T201
-                f"  {dist.metadata['Name']:<32} {dist.version:<16} (using {first_seen.version}, \"{first_seen.locate_file('')}\")",
+                (
+                    f"  {dist.metadata['Name']:<32} {dist.version:<16} (using {first_seen.version},"
+                    f" \"{first_seen.locate_file('')}\")"
+                ),
                 file=sys.stderr,
             )
     print("-" * 72, file=sys.stderr)  # noqa: T201

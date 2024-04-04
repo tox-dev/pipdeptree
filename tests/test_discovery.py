@@ -73,5 +73,8 @@ def test_duplicate_metadata(monkeypatch: pytest.MonkeyPatch, capfd: pytest.Captu
     assert dists[0].version == "1.2.5"
 
     _, err = capfd.readouterr()
-    expected = """Warning!!! Duplicate package metadata found:\n"test"\n  foo                              5.9.0            (using 1.2.5, "test")\n------------------------------------------------------------------------\n"""  # noqa: E501
+    expected = (
+        'Warning!!! Duplicate package metadata found:\n"test"\n  foo                              5.9.0       '
+        '     (using 1.2.5, "test")\n------------------------------------------------------------------------\n'
+    )
     assert err == expected
