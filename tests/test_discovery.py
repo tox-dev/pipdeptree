@@ -13,6 +13,7 @@ from pipdeptree._discovery import get_installed_distributions
 
 if TYPE_CHECKING:
     import pytest
+    from pytest_mock import MockerFixture
 
 
 def test_local_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]) -> None:
@@ -56,8 +57,8 @@ def test_user_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytes
     assert found == expected
 
 
-def test_duplicate_metadata(monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]) -> None:
-    monkeypatch.setattr(
+def test_duplicate_metadata(mocker: MockerFixture, capfd: pytest.CaptureFixture[str]) -> None:
+    mocker.patch(
         "pipdeptree._discovery.distributions",
         Mock(
             return_value=[
