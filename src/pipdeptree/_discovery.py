@@ -3,7 +3,7 @@ from __future__ import annotations
 import site
 import sys
 from importlib.metadata import Distribution, distributions
-from typing import Tuple
+from typing import Iterable, Tuple
 
 from packaging.utils import canonicalize_name
 
@@ -14,15 +14,15 @@ def get_installed_distributions(
 ) -> list[Distribution]:
     # See https://docs.python.org/3/library/venv.html#how-venvs-work for more details.
     in_venv = sys.prefix != sys.base_prefix
-    orginal_dists = []
+    original_dists: Iterable[Distribution] = []
 
     if local_only and in_venv:
         venv_site_packages = site.getsitepackages([sys.prefix])
-        orginal_dists = distributions(path=venv_site_packages)
+        original_dists = distributions(path=venv_site_packages)
     elif user_only:
-        orginal_dists = distributions(path=[site.getusersitepackages()])
+        original_dists = distributions(path=[site.getusersitepackages()])
     else:
-        orginal_dists = distributions()
+        original_dists = distributions()
 
     # Since importlib.metadata.distributions() can return duplicate packages, we need to handle this. pip's approach is
     # to keep track of each package metadata it finds, and if it encounters one again it will simply just ignore it. We
@@ -31,7 +31,7 @@ def get_installed_distributions(
     seen_dists: dict[str, Distribution] = {}
     first_seen_to_already_seen_dists_dict: dict[Distribution, list[Distribution]] = {}
     dists = []
-    for dist in orginal_dists:
+    for dist in original_dists:
         normalized_name = canonicalize_name(dist.metadata["Name"])
         if normalized_name not in seen_dists:
             seen_dists[normalized_name] = dist
