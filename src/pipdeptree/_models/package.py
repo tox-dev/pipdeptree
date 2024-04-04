@@ -7,8 +7,7 @@ from inspect import ismodule
 from typing import TYPE_CHECKING
 
 from packaging.requirements import Requirement
-
-from pipdeptree._util import pep503_normalize
+from packaging.utils import canonicalize_name
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
@@ -23,7 +22,7 @@ class Package(ABC):
 
     def __init__(self, project_name: str) -> None:
         self.project_name = project_name
-        self.key = pep503_normalize(project_name)
+        self.key = canonicalize_name(project_name)
 
     def licenses(self) -> str:
         try:

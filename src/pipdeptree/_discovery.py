@@ -4,7 +4,7 @@ import site
 import sys
 from importlib.metadata import Distribution, distributions
 
-from pipdeptree._util import pep503_normalize
+from packaging.utils import canonicalize_name
 
 
 def get_installed_distributions(
@@ -31,7 +31,7 @@ def get_installed_distributions(
     first_seen_to_already_seen_dists_dict: dict[Distribution, list[Distribution]] = {}
     dists = []
     for dist in orginal_dists:
-        normalized_name = pep503_normalize(dist.metadata["Name"])
+        normalized_name = canonicalize_name(dist.metadata["Name"])
         if normalized_name not in seen_dists:
             seen_dists[normalized_name] = dist
             dists.append(dist)
@@ -63,7 +63,7 @@ def render_duplicated_dist_metadata_text(
         print(f'"{entry}"', file=sys.stderr)  # noqa: T201
         for first_seen, dist in pairs:
             print(  # noqa: T201
-                f"  {dist.metadata['Name']:<32} {dist.version:<16} (using {first_seen.version}, \"{first_seen.locate_file('')}\")",  # noqa: E501
+                f"  {dist.metadata['Name']:<32} {dist.version:<16} (using {first_seen.version}, \"{first_seen.locate_file('')}\")",
                 file=sys.stderr,
             )
     print("-" * 72, file=sys.stderr)  # noqa: T201

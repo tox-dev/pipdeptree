@@ -9,6 +9,7 @@ from unittest.mock import Mock
 import virtualenv
 
 from pipdeptree.__main__ import main
+from pipdeptree._discovery import get_installed_distributions
 
 if TYPE_CHECKING:
     import pytest
@@ -53,3 +54,24 @@ def test_user_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytes
     expected = {"foo"}
 
     assert found == expected
+
+
+def test_duplicate_metadata(monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr(
+        "pipdeptree._discovery.distributions",
+        Mock(
+            return_value=[
+                Mock(metadata={"Name": "foo"}, version="1.2.5", locate_file=Mock(return_value="test")),
+                Mock(metadata={"Name": "foo"}, version="5.9.0", locate_file=Mock(return_value="test")),
+            ]
+        ),
+    )
+
+    dists = get_installed_distributions()
+    assert len(dists) == 1
+    # we expect it to use the first distribution found
+    assert dists[0].version == "1.2.5"
+
+    _, err = capfd.readouterr()
+    expected = """Warning!!! Duplicate package metadata found:\n"test"\n  foo                              5.9.0            (using 1.2.5, "test")\n------------------------------------------------------------------------\n"""  # noqa: E501
+    assert err == expected
