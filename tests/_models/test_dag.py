@@ -134,3 +134,19 @@ def test_package_dag_from_pkgs_uses_pep503normalize(mock_pkgs: Callable[[MockGra
     c = package_dag.get_children(parent_key)
     assert c[0].dist
     assert c[0].key == "flufl-lock"
+
+
+def test_package_from_pkgs_given_invalid_requirements(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capfd: pytest.CaptureFixture[str]
+) -> None:
+    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+        ("a-package", "1.2.3"): [("BAD**requirement", [(">=", "2.0.0")])],
+    }
+    package_dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    assert len(package_dag) == 1
+    out, err = capfd.readouterr()
+    assert not out
+    assert err == (
+        "Warning!!! Invalid requirement strings found for the following distributions:\na-package\n  "
+        'Skipping "BAD**requirement>=2.0.0"\n------------------------------------------------------------------------\n'
+    )

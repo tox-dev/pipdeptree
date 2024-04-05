@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from random import shuffle
 from typing import TYPE_CHECKING, Callable, Iterator
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import pytest
 
@@ -18,16 +18,15 @@ def mock_pkgs() -> Callable[[MockGraph], Iterator[Mock]]:
         for node, children in simple_graph.items():
             nk, nv = node
             m = Mock(metadata={"Name": nk}, version=nv)
-            as_req = MagicMock(specifier=[("==", nv)])
-            as_req.name = nk
-            m.as_requirement = Mock(return_value=as_req)
             reqs = []
             for ck, cv in children:
                 r = ck
                 for item in cv:
                     if item:
                         rs, rv = item
-                        r = r + rs + rv + ","
+                        r = r + rs + rv
+                    if item != cv[-1]:
+                        r += ","
                 reqs.append(r)
             m.requires = reqs
             yield m

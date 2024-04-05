@@ -45,7 +45,7 @@ def test_dist_package_requires() -> None:
         requires=["bar", "baz >=2.7.2"],
     )
     dp = DistPackage(foo)
-    reqs = dp.requires()
+    reqs = list(dp.requires())
     assert len(reqs) == 2
 
 
@@ -55,7 +55,7 @@ def test_dist_package_requires_with_environment_markers_that_eval_to_false() -> 
         requires=['foo ; sys_platform == "NoexistOS"', "bar >=2.7.2 ; extra == 'testing'"],
     )
     dp = DistPackage(foo)
-    reqs = dp.requires()
+    reqs = list(dp.requires())
     assert len(reqs) == 0
 
 
