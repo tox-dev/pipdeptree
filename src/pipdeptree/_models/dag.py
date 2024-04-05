@@ -64,15 +64,14 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
                 try:
                     req = next(requires_iterator)
                 except InvalidRequirementError as err:
-                    # We can't work with invalid requirement strings. Let's warn the user about
-                    # them.
+                    # We can't work with invalid requirement strings. Let's warn the user about them.
                     dist_name_to_invalid_reqs_dict.setdefault(p.project_name, []).append(str(err))
                     continue
                 except StopIteration:
                     break
                 d = idx.get(canonicalize_name(req.name))
-                # Distribution.requires only returns the name of requirements in the metadata file, which may not be
-                # the same as the name in PyPI. We should try to retain the original package names for requirements.
+                # Distribution.requires only returns the name of requirements in the metadata file, which may not be the
+                # same as the name in PyPI. We should try to retain the original package names for requirements.
                 # See https://github.com/tox-dev/pipdeptree/issues/242
                 req.name = d.project_name if d is not None else req.name
                 pkg = ReqPackage(req, d)
