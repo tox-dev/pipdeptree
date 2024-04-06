@@ -39,11 +39,3 @@ def test_custom_interpreter(
     if sys.version_info >= (3, 12):
         expected -= {"setuptools", "wheel"}
     assert found == expected, out
-
-    monkeypatch.setattr(sys, "argv", [*cmd, "--graph-output", "something"])
-    with pytest.raises(SystemExit) as context:
-        main()
-    out, err = capfd.readouterr()
-    assert context.value.code == 1
-    assert not out
-    assert err == "graphviz functionality is not supported when querying non-host python\n"

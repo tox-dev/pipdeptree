@@ -1,26 +1,45 @@
 from __future__ import annotations
 
+import ast
 import site
+import subprocess  # noqa: S404
 import sys
 from importlib.metadata import Distribution, distributions
+from pathlib import Path
 from typing import Iterable, Tuple
 
 from packaging.utils import canonicalize_name
 
 
 def get_installed_distributions(
+    interpreter: str = str(sys.executable),
     local_only: bool = False,  # noqa: FBT001, FBT002
     user_only: bool = False,  # noqa: FBT001, FBT002
 ) -> list[Distribution]:
     # See https://docs.python.org/3/library/venv.html#how-venvs-work for more details.
     in_venv = sys.prefix != sys.base_prefix
     original_dists: Iterable[Distribution] = []
+    py_path = Path(interpreter).absolute()
+    using_custom_interpreter = py_path != Path(sys.executable).absolute()
 
-    if local_only and in_venv:
+    if user_only:
+        original_dists = distributions(path=[site.getusersitepackages()])
+    elif using_custom_interpreter:
+        # We query the interpreter directly to get the `path` which is used by distributions(),
+        # so we can search the customer dists with it.
+        # If --python and --local-only are given at the same time, it means the dists only in
+        # customer's env are needed. (.e.g --system-site-packages is given when creating venv)
+        if local_only:
+            args = "import sys, site; print(site.getsitepackages([sys.prefix]))"
+        else:
+            args = "import sys; print(sys.path)"
+
+        cmd = [str(py_path), "-c", args]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, check=False)  # noqa: S603
+        original_dists = distributions(path=ast.literal_eval(result.stdout.decode("utf-8")))
+    elif local_only and in_venv:
         venv_site_packages = site.getsitepackages([sys.prefix])
         original_dists = distributions(path=venv_site_packages)
-    elif user_only:
-        original_dists = distributions(path=[site.getusersitepackages()])
     else:
         original_dists = distributions()
 
