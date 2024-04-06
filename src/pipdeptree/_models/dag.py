@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from collections import defaultdict, deque
 from fnmatch import fnmatch
 from itertools import chain
@@ -11,7 +12,20 @@ if TYPE_CHECKING:
     from importlib.metadata import Distribution
 
 
-from .package import DistPackage, ReqPackage
+from .package import DistPackage, InvalidRequirementError, ReqPackage
+
+
+def render_invalid_reqs_text_if_necessary(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:
+    if not dist_name_to_invalid_reqs_dict:
+        return
+
+    print("Warning!!! Invalid requirement strings found for the following distributions:", file=sys.stderr)  # noqa: T201
+    for dist_name, invalid_reqs in dist_name_to_invalid_reqs_dict.items():
+        print(dist_name, file=sys.stderr)  # noqa: T201
+
+        for invalid_req in invalid_reqs:
+            print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # noqa: T201
+    print("-" * 72, file=sys.stderr)  # noqa: T201
 
 
 class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
@@ -42,17 +56,29 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         dist_pkgs = [DistPackage(p) for p in pkgs]
         idx = {p.key: p for p in dist_pkgs}
         m: dict[DistPackage, list[ReqPackage]] = {}
+        dist_name_to_invalid_reqs_dict: dict[str, list[str]] = {}
         for p in dist_pkgs:
             reqs = []
-            for r in p.requires():
-                d = idx.get(canonicalize_name(r.name))
-                # Distribution.requires only return the name of requirements in metadata file, which may not be
-                # the same with the capitalized one in pip. We should retain the casing of required package name.
-                # see https://github.com/tox-dev/pipdeptree/issues/242
-                r.name = d.project_name if d is not None else r.name
-                pkg = ReqPackage(r, d)
+            requires_iterator = p.requires()
+            while True:
+                try:
+                    req = next(requires_iterator)
+                except InvalidRequirementError as err:
+                    # We can't work with invalid requirement strings. Let's warn the user about them.
+                    dist_name_to_invalid_reqs_dict.setdefault(p.project_name, []).append(str(err))
+                    continue
+                except StopIteration:
+                    break
+                d = idx.get(canonicalize_name(req.name))
+                # Distribution.requires only returns the name of requirements in the metadata file, which may not be the
+                # same as the name in PyPI. We should try to retain the original package names for requirements.
+                # See https://github.com/tox-dev/pipdeptree/issues/242
+                req.name = d.project_name if d is not None else req.name
+                pkg = ReqPackage(req, d)
                 reqs.append(pkg)
             m[p] = reqs
+
+        render_invalid_reqs_text_if_necessary(dist_name_to_invalid_reqs_dict)
 
         return cls(m)
 

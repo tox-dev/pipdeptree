@@ -4,15 +4,23 @@ from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
 from inspect import ismodule
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterator
 
-from packaging.requirements import Requirement
+from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
 
 from pipdeptree._adapter import PipBaseDistributionAdapter
+
+
+class InvalidRequirementError(ValueError):
+    """
+    An invalid requirement string was found.
+
+    When raising an exception, this should provide just the problem requirement string.
+    """
 
 
 class Package(ABC):
@@ -96,17 +104,23 @@ class DistPackage(Package):
         self._obj = obj
         self.req = req
 
-    def requires(self) -> list[Requirement]:
-        req_list = []
+    def requires(self) -> Iterator[Requirement]:
+        """
+        Return an iterator of the distribution's required dependencies.
+
+        :raises InvalidRequirementError: If the metadata contains invalid requirement strings.
+        """
         for r in self._obj.requires or []:
-            req = Requirement(r)
+            try:
+                req = Requirement(r)
+            except InvalidRequirement:
+                raise InvalidRequirementError(r) from None
             if not req.marker or req.marker.evaluate():
                 # Make sure that we're either dealing with a dependency that has no environment markers or does but
                 # are evaluated True against the existing environment (if it's False, it means they cannot be
                 # installed). "extra" markers are always evaluated False here which is what we want when retrieving
                 # only required dependencies.
-                req_list.append(req)
-        return req_list
+                yield req
 
     @property
     def version(self) -> str:
