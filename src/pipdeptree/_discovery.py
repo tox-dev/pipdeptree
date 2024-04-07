@@ -25,20 +25,19 @@ def get_installed_distributions(
     if user_only:
         original_dists = distributions(path=[site.getusersitepackages()])
     elif using_custom_interpreter:
-        # We query the interpreter directly to get the `path` which is used by distributions(),
-        # so we can search the customer dists with it.
-        # If --python and --local-only are given at the same time, it means the dists only in
-        # customer's env are needed. (.e.g --system-site-packages is given when creating venv)
+        # We query the interpreter directly to get its `sys.path` list to be used by `distributions()`.
+        # If --python and --local-only are given, we ensure that we are only using paths associated to the interpreter's
+        # environment.
         if local_only:
-            args = "import sys, site; print(site.getsitepackages([sys.prefix]))"
+            cmd = "import sys; print([p for p in sys.path if p.startswith(sys.prefix)])"
         else:
-            args = "import sys; print(sys.path)"
+            cmd = "import sys; print(sys.path)"
 
-        cmd = [str(py_path), "-c", args]
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, check=False)  # noqa: S603
+        args = [str(py_path), "-c", cmd]
+        result = subprocess.run(args, stdout=subprocess.PIPE, check=False)  # noqa: S603
         original_dists = distributions(path=ast.literal_eval(result.stdout.decode("utf-8")))
     elif local_only and in_venv:
-        venv_site_packages = site.getsitepackages([sys.prefix])
+        venv_site_packages = [p for p in sys.path if p.startswith(sys.prefix)]
         original_dists = distributions(path=venv_site_packages)
     else:
         original_dists = distributions()

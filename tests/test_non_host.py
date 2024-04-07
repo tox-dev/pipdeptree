@@ -39,3 +39,30 @@ def test_custom_interpreter(
     if sys.version_info >= (3, 12):
         expected -= {"setuptools", "wheel"}
     assert found == expected, out
+
+
+def test_custom_interpreter_with_local_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    venv_path = str(tmp_path / "venv")
+
+    result = virtualenv.cli_run([venv_path, "--system-site-packages", "--activators", ""])
+
+    cmd = ["", f"--python={result.creator.exe}", "--local-only"]
+    monkeypatch.setattr(sys, "prefix", venv_path)
+    monkeypatch.setattr(sys, "argv", cmd)
+    main()
+    out, _ = capfd.readouterr()
+    found = {i.split("==")[0] for i in out.splitlines()}
+    implementation = python_implementation()
+    if implementation == "CPython":
+        expected = {"pip", "setuptools", "wheel"}
+    elif implementation == "PyPy":  # pragma: no cover
+        expected = {"cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}  # pragma: no cover
+    else:
+        raise ValueError(implementation)  # pragma: no cover
+    if sys.version_info >= (3, 12):
+        expected -= {"setuptools", "wheel"}  # pragma: no cover
+    assert found == expected, out

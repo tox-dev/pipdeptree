@@ -28,6 +28,8 @@ def test_local_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pyte
 
     cmd = [str(result.creator.exe.parent / "python3"), "--local-only"]
     monkeypatch.setattr(sys, "prefix", venv_path)
+    for s in venv_site_packages:
+        monkeypatch.syspath_prepend(s)
     monkeypatch.setattr(sys, "argv", cmd)
     main()
     out, _ = capfd.readouterr()
