@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -26,11 +27,13 @@ def test_guess_version_setuptools(mocker: MockerFixture) -> None:
     assert result == "?"
 
 
-def test_package_as_frozen_repr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_package_as_frozen_repr(tmp_path: Path, mocker: MockerFixture) -> None:
     file_path = tmp_path / "foo.egg-link"
     with Path(file_path).open("w") as f:
         f.write("/A/B/foo")
-    monkeypatch.syspath_prepend(str(tmp_path))
+    mock_path = sys.path.copy()
+    mock_path.append(str(tmp_path))
+    mocker.patch("pipdeptree._discovery.sys.path", mock_path)
     json_text = '{"dir_info": {"editable": true}}'
     foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
     foo.read_text = Mock(return_value=json_text)

@@ -34,8 +34,8 @@ def get_installed_distributions(
             cmd = "import sys; print(sys.path)"
 
         args = [str(py_path), "-c", cmd]
-        result = subprocess.run(args, stdout=subprocess.PIPE, check=False)  # noqa: S603
-        original_dists = distributions(path=ast.literal_eval(result.stdout.decode("utf-8")))
+        result = subprocess.run(args, stdout=subprocess.PIPE, check=False, text=True)  # noqa: S603
+        original_dists = distributions(path=ast.literal_eval(result.stdout))
     elif local_only and in_venv:
         venv_site_packages = [p for p in sys.path if p.startswith(sys.prefix)]
         original_dists = distributions(path=venv_site_packages)

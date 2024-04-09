@@ -12,10 +12,13 @@ from pipdeptree.__main__ import main
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from pytest_mock import MockerFixture
+
 
 @pytest.mark.parametrize("args_joined", [True, False])
 def test_custom_interpreter(
     tmp_path: Path,
+    mocker: MockerFixture,
     monkeypatch: pytest.MonkeyPatch,
     capfd: pytest.CaptureFixture[str],
     args_joined: bool,
@@ -25,7 +28,7 @@ def test_custom_interpreter(
     monkeypatch.chdir(tmp_path)
     py = str(result.creator.exe.relative_to(tmp_path))
     cmd += [f"--python={result.creator.exe}"] if args_joined else ["--python", py]
-    monkeypatch.setattr(sys, "argv", cmd)
+    mocker.patch("pipdeptree._discovery.sys.argv", cmd)
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
@@ -43,7 +46,7 @@ def test_custom_interpreter(
 
 def test_custom_interpreter_with_local_only(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
     capfd: pytest.CaptureFixture[str],
 ) -> None:
     venv_path = str(tmp_path / "venv")
@@ -51,8 +54,8 @@ def test_custom_interpreter_with_local_only(
     result = virtualenv.cli_run([venv_path, "--system-site-packages", "--activators", ""])
 
     cmd = ["", f"--python={result.creator.exe}", "--local-only"]
-    monkeypatch.setattr(sys, "prefix", venv_path)
-    monkeypatch.setattr(sys, "argv", cmd)
+    mocker.patch("pipdeptree._discovery.sys.prefix", venv_path)
+    mocker.patch("pipdeptree._discovery.sys.argv", cmd)
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
 
-def test_local_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]) -> None:
+def test_local_only(tmp_path: Path, mocker: MockerFixture, capfd: pytest.CaptureFixture[str]) -> None:
     venv_path = str(tmp_path / "venv")
     result = virtualenv.cli_run([venv_path, "--activators", ""])
     venv_site_packages = site.getsitepackages([venv_path])
@@ -27,10 +27,11 @@ def test_local_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pyte
         f.write("Metadata-Version: 2.3\n" "Name: foo\n" "Version: 1.2.5\n")
 
     cmd = [str(result.creator.exe.parent / "python3"), "--local-only"]
-    monkeypatch.setattr(sys, "prefix", venv_path)
-    for s in venv_site_packages:
-        monkeypatch.syspath_prepend(s)
-    monkeypatch.setattr(sys, "argv", cmd)
+    mocker.patch("pipdeptree._discovery.sys.prefix", venv_path)
+    sys_path = sys.path.copy()
+    mock_path = sys_path + venv_site_packages
+    mocker.patch("pipdeptree._discovery.sys.path", mock_path)
+    mocker.patch("pipdeptree._discovery.sys.argv", cmd)
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
@@ -41,16 +42,16 @@ def test_local_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pyte
     assert found == expected
 
 
-def test_user_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]) -> None:
+def test_user_only(tmp_path: Path, mocker: MockerFixture, capfd: pytest.CaptureFixture[str]) -> None:
     fake_dist = Path(tmp_path) / "foo-1.2.5.dist-info"
     fake_dist.mkdir()
     fake_metadata = Path(fake_dist) / "METADATA"
     with Path(fake_metadata).open("w") as f:
         f.write("Metadata-Version: 2.3\n" "Name: foo\n" "Version: 1.2.5\n")
 
-    monkeypatch.setattr(site, "getusersitepackages", Mock(return_value=str(tmp_path)))
     cmd = [sys.executable, "--user-only"]
-    monkeypatch.setattr(sys, "argv", cmd)
+    mocker.patch("pipdeptree._discovery.site.getusersitepackages", Mock(return_value=str(tmp_path)))
+    mocker.patch("pipdeptree._discovery.sys.argv", cmd)
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
