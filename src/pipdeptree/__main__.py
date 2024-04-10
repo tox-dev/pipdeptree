@@ -8,7 +8,6 @@ from typing import Sequence
 from pipdeptree._cli import get_options
 from pipdeptree._discovery import get_installed_distributions
 from pipdeptree._models import PackageDAG
-from pipdeptree._non_host import handle_non_host_target
 from pipdeptree._render import render
 from pipdeptree._validate import validate
 
@@ -16,11 +15,10 @@ from pipdeptree._validate import validate
 def main(args: Sequence[str] | None = None) -> None | int:
     """CLI - The main function called as entry point."""
     options = get_options(args)
-    result = handle_non_host_target(options)
-    if result is not None:
-        return result
 
-    pkgs = get_installed_distributions(local_only=options.local_only, user_only=options.user_only)
+    pkgs = get_installed_distributions(
+        interpreter=options.python, local_only=options.local_only, user_only=options.user_only
+    )
     tree = PackageDAG.from_pkgs(pkgs)
     is_text_output = not any([options.json, options.json_tree, options.output_format])
 
