@@ -50,6 +50,7 @@ optional-dependencies.test = [
   "covdefaults>=2.3",
   "diff-cover>=8.0.1",
   "pytest>=7.4.3",
+  "pytest-console-scripts>=1.4.1",
   "pytest-cov>=4.1",
   "pytest-mock>=3.12",
   "virtualenv<21,>=20.25",
