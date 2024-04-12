@@ -103,6 +103,6 @@ def test_custom_interpreter_ensure_pythonpath_envar_is_honored(
         expected = {"foo", "cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}
     else:  # pragma: no cover
         raise ValueError(implementation)
-    if sys.version_info >= (3, 12):  # pragma: <3.12 no cover
+    if sys.version_info >= (3, 12):  # pragma: >=3.12 cover
         expected -= {"setuptools", "wheel"}
     assert found == expected, out
