@@ -99,10 +99,10 @@ def test_custom_interpreter_ensure_pythonpath_envar_is_honored(
     implementation = python_implementation()
     if implementation == "CPython":
         expected = {"foo", "pip", "setuptools", "wheel"}
-    elif implementation == "PyPy":
-        expected = {"foo", "cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}  # pragma: no cover
-    else:
+    elif implementation == "PyPy":  # pragma: cpython no cover
+        expected = {"foo", "cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}
+    else:  # pragma: no cover
         raise ValueError(implementation)
-    if sys.version_info >= (3, 12):
+    if sys.version_info >= (3, 12):  # pragma: <3.12 no cover
         expected -= {"setuptools", "wheel"}
     assert found == expected, out
