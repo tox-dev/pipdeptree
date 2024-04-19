@@ -10,11 +10,16 @@ body:
     validations:
       required: true
 
-  - type: checkboxes
+  - type: dropdown
     attributes:
       label: Are you running pipdeptree in a virtual environment?
       options:
-        - label: "Yes"
+        - "Yes"
+        - "No"
+      default: 1
+    validations:
+      required: true
+
 
   - type: textarea
     attributes:
