@@ -86,7 +86,7 @@ def _render_text_with_unicode(
                 # Without this extra space, bullets will point to the space just before the project name
                 prefix += " " if use_bullets else ""
             next_prefix = prefix
-            node_str = prefix + bullet + node_str  # noqa: PLR6104
+            node_str = prefix + bullet + node_str
         elif include_license:
             node_str += " " + node.licenses()
 
@@ -138,7 +138,7 @@ def _render_text_without_unicode(
         node_str = node.render(parent, frozen=frozen)
         if parent:
             prefix = " " * indent + ("- " if use_bullets else "")
-            node_str = prefix + node_str  # noqa: PLR6104
+            node_str = prefix + node_str
         elif include_license:
             node_str += " " + node.licenses()
         result = [node_str]
