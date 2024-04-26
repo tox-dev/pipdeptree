@@ -41,7 +41,8 @@ def main(args: Sequence[str] | None = None) -> None | int:
         try:
             tree = tree.filter_nodes(show_only, exclude)
         except ValueError as e:
-            warning_printer.print_single_line(str(e))
+            if warning_printer.should_warn():
+                warning_printer.print_single_line(str(e))
             return _determine_return_code(warning_printer)
 
     render(options, tree)
