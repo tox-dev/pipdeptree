@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Callable, Iterator
 import pytest
 
 from pipdeptree._models import PackageDAG
-from pipdeptree._validate import conflicting_deps, cyclic_deps, render_conflicts_text, render_cycles_text
+from pipdeptree._validate import conflicting_deps, cyclic_deps, render_conflicts_text, render_cycles_text, validate
 
 if TYPE_CHECKING:
     from unittest.mock import Mock
@@ -132,3 +132,43 @@ def test_conflicting_deps(
     render_conflicts_text(result)
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.err.strip()
+
+
+@pytest.mark.parametrize(
+    ("mpkgs", "expected_output"),
+    [
+        (
+            {("a", "1.0.1"): [("b", [(">=", "2.3.0")])], ("b", "1.9.1"): []},
+            [
+                "Warning!!! Possibly conflicting dependencies found:",
+                "* a==1.0.1",
+                " - b [required: >=2.3.0, installed: 1.9.1]",
+                "------------------------------------------------------------------------",
+            ],
+        ),
+        (
+            {
+                ("a", "1.0.1"): [("b", [(">=", "2.0.0")])],
+                ("b", "2.3.0"): [("a", [(">=", "1.0.1")])],
+                ("c", "4.5.0"): [],
+            },
+            [
+                "Warning!!! Cyclic dependencies found:",
+                "* b => a => b",
+                "* a => b => a",
+                "------------------------------------------------------------------------",
+            ],
+        ),
+    ],
+)
+def test_validate(
+    capsys: pytest.CaptureFixture[str],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mpkgs: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]],
+    expected_output: list[str],
+) -> None:
+    tree = PackageDAG.from_pkgs(list(mock_pkgs(mpkgs)))
+    validate(tree)
+    out, err = capsys.readouterr()
+    assert len(out) == 0
+    assert "\n".join(expected_output).strip() == err.strip()
