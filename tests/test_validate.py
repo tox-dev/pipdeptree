@@ -24,7 +24,7 @@ if TYPE_CHECKING:
                 ("d", "2.0"): [],
             },
             [["a", "b", "a"], ["b", "a", "b"]],
-            ["Warning!! Cyclic dependencies found:", "* b => a => b", "* a => b => a"],
+            ["* b => a => b", "* a => b => a"],
             id="depth-of-2",
         ),
         pytest.param(
@@ -42,7 +42,6 @@ if TYPE_CHECKING:
                 ["a", "b", "c", "d", "a"],
             ],
             [
-                "Warning!! Cyclic dependencies found:",
                 "* b => c => d => a => b",
                 "* c => d => a => b => c",
                 "* d => a => b => c => d",
@@ -90,7 +89,6 @@ def test_cyclic_deps(
             {("a", "1.0.1"): [("b", [(">=", "2.3.0")])], ("b", "1.9.1"): []},
             {"a": ["b"]},
             [
-                "Warning!!! Possibly conflicting dependencies found:",
                 "* a==1.0.1",
                 " - b [required: >=2.3.0, installed: 1.9.1]",
             ],
@@ -99,7 +97,6 @@ def test_cyclic_deps(
             {("a", "1.0.1"): [("c", [(">=", "9.4.1")])], ("b", "2.3.0"): [("c", [(">=", "7.0")])], ("c", "8.0.1"): []},
             {"a": ["c"]},
             [
-                "Warning!!! Possibly conflicting dependencies found:",
                 "* a==1.0.1",
                 " - c [required: >=9.4.1, installed: 8.0.1]",
             ],
@@ -108,7 +105,6 @@ def test_cyclic_deps(
             {("a", "1.0.1"): [("c", [(">=", "9.4.1")])], ("b", "2.3.0"): [("c", [(">=", "9.4.0")])]},
             {"a": ["c"], "b": ["c"]},
             [
-                "Warning!!! Possibly conflicting dependencies found:",
                 "* a==1.0.1",
                 " - c [required: >=9.4.1, installed: ?]",
                 "* b==2.3.0",
