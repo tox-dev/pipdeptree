@@ -13,7 +13,6 @@ class WarningPrinter:
     def __init__(self, warning_type: WarningType = WarningType.SUPPRESS) -> None:
         self._warning_type = warning_type
         self._has_warned = False
-        self._file = sys.stderr
 
     @property
     def warning_type(self) -> WarningType:
