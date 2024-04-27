@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-import pytest
+from typing import TYPE_CHECKING
 
-from pipdeptree._warning import WarningPrinter, WarningType, parse_warning_type
+from pipdeptree._warning import WarningPrinter, WarningType
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_warning_printer_print_single_line(capsys: pytest.CaptureFixture[str]) -> None:
@@ -13,17 +16,3 @@ def test_warning_printer_print_single_line(capsys: pytest.CaptureFixture[str]) -
     out, err = capsys.readouterr()
     assert len(out) == 0
     assert err == "test\n"
-
-
-@pytest.mark.parametrize(
-    ("warning_type_str", "expected_warning_type"),
-    [
-        ("silence", WarningType.SILENCE),
-        ("suppress", WarningType.SUPPRESS),
-        ("fail", WarningType.FAIL),
-        ("invalid-type", WarningType.SUPPRESS),
-    ],
-)
-def test_parse_warning_type(warning_type_str: str, expected_warning_type: WarningType) -> None:
-    actual_warning_type = parse_warning_type(warning_type_str)
-    assert expected_warning_type == actual_warning_type

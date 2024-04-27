@@ -10,7 +10,7 @@ from pipdeptree._discovery import get_installed_distributions
 from pipdeptree._models import PackageDAG
 from pipdeptree._render import render
 from pipdeptree._validate import validate
-from pipdeptree._warning import WarningPrinter, WarningType, get_warning_printer, parse_warning_type
+from pipdeptree._warning import WarningPrinter, WarningType, get_warning_printer
 
 
 def main(args: Sequence[str] | None = None) -> None | int:
@@ -19,9 +19,10 @@ def main(args: Sequence[str] | None = None) -> None | int:
 
     # Warnings are only enabled when using text output.
     is_text_output = not any([options.json, options.json_tree, options.output_format])
-    warning_type = WarningType.SILENCE if not is_text_output else parse_warning_type(options.warn)
+    if not is_text_output:
+        options.warn = WarningType.SILENCE
     warning_printer = get_warning_printer()
-    warning_printer.warning_type = warning_type
+    warning_printer.warning_type = options.warn
 
     pkgs = get_installed_distributions(
         interpreter=options.python, local_only=options.local_only, user_only=options.user_only

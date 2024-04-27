@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import argparse
+
 import pytest
 
-from pipdeptree._cli import build_parser, get_options
+from pipdeptree._cli import EnumAction, build_parser, get_options
+from pipdeptree._warning import WarningType
 
 
 def test_parser_default() -> None:
@@ -106,3 +109,35 @@ def test_parser_get_options_license_and_freeze_together_not_supported(capsys: py
     out, err = capsys.readouterr()
     assert not out
     assert "cannot use --license with --freeze" in err
+
+
+@pytest.mark.parametrize(("bad_type"), [None, str])
+def test_enum_action_type_argument(bad_type: any) -> None:
+    with pytest.raises(TypeError, match="type must be a subclass of Enum"):
+        EnumAction("--test", "test", type=bad_type)
+
+
+def test_enum_action_default_argument_not_str() -> None:
+    with pytest.raises(TypeError, match="default must be defined with a string value"):
+        EnumAction("--test", "test", type=WarningType)
+
+
+def test_enum_action_default_argument_not_a_valid_choice() -> None:
+    with pytest.raises(ValueError, match="default value should be among the enum choices"):
+        EnumAction("--test", "test", type=WarningType, default="bad-warning-type")
+
+
+def test_enum_action_call_with_value() -> None:
+    action = EnumAction("--test", "test", type=WarningType, default="silence")
+    namespace = argparse.Namespace()
+    action(None, namespace, "suppress")
+    assert getattr(namespace, "test", None) == WarningType.SUPPRESS
+
+
+def test_enum_action_call_without_value() -> None:
+    # ensures that we end up using the default value in case no value is specified (currently we pass nargs='?' when
+    # creating the --warn option, which is why this test exists)
+    action = EnumAction("--test", "test", type=WarningType, default="silence")
+    namespace = argparse.Namespace()
+    action(None, namespace, None)
+    assert getattr(namespace, "test", None) == WarningType.SILENCE

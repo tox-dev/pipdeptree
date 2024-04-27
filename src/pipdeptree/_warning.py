@@ -58,15 +58,4 @@ def get_warning_printer() -> WarningPrinter:
     return _shared_warning_printer
 
 
-def parse_warning_type(type_str: str) -> WarningType:
-    if type_str == "silence":
-        return WarningType.SILENCE
-    if type_str == "fail":
-        return WarningType.FAIL
-
-    # Either type_str == "suppress" or we were given an invalid string. For the latter case, our argparse configuration
-    # shouldn't allow this to happen, but we'll go ahead and use this warning type since it is the default.
-    return WarningType.SUPPRESS
-
-
-__all__ = ["WarningPrinter", "get_warning_printer", "parse_warning_type"]
+__all__ = ["WarningPrinter", "get_warning_printer"]
