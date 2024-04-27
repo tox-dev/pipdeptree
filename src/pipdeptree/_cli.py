@@ -158,7 +158,7 @@ class EnumAction(Action):
     """
     Generic action that exists to convert a string into a Enum value that is then added into a `Namespace` object.
 
-    This custom action exists because argparse doesn't have support enums.
+    This custom action exists because argparse doesn't have support for enums.
 
     Adapted from: https://github.com/python/cpython/issues/69247#issuecomment-1308082792
     """
