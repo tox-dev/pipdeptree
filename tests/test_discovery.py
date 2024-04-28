@@ -79,6 +79,7 @@ def test_duplicate_metadata(mocker: MockerFixture, capfd: pytest.CaptureFixture[
     _, err = capfd.readouterr()
     expected = (
         'Warning!!! Duplicate package metadata found:\n"/path/2"\n  foo                              5.9.0       '
-        '     (using 1.2.5, "/path/1")\n------------------------------------------------------------------------\n'
+        '     (using 1.2.5, "/path/1")\nNOTE: This warning isn\'t a failure warning.\n---------------------------------'
+        "---------------------------------------\n"
     )
     assert err == expected

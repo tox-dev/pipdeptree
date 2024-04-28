@@ -10,6 +10,8 @@ from typing import Iterable, Tuple
 
 from packaging.utils import canonicalize_name
 
+from pipdeptree._warning import get_warning_printer
+
 
 def get_installed_distributions(
     interpreter: str = str(sys.executable),
@@ -42,6 +44,8 @@ def get_installed_distributions(
     else:
         original_dists = distributions()
 
+    warning_printer = get_warning_printer()
+
     # Since importlib.metadata.distributions() can return duplicate packages, we need to handle this. pip's approach is
     # to keep track of each package metadata it finds, and if it encounters one again it will simply just ignore it. We
     # take it one step further and warn the user that there are duplicate packages in their environment.
@@ -55,11 +59,17 @@ def get_installed_distributions(
             seen_dists[normalized_name] = dist
             dists.append(dist)
             continue
-        already_seen_dists = first_seen_to_already_seen_dists_dict.setdefault(seen_dists[normalized_name], [])
-        already_seen_dists.append(dist)
+        if warning_printer.should_warn():
+            already_seen_dists = first_seen_to_already_seen_dists_dict.setdefault(seen_dists[normalized_name], [])
+            already_seen_dists.append(dist)
 
-    if first_seen_to_already_seen_dists_dict:
-        render_duplicated_dist_metadata_text(first_seen_to_already_seen_dists_dict)
+    should_print_warning = warning_printer.should_warn() and first_seen_to_already_seen_dists_dict
+    if should_print_warning:
+        warning_printer.print_multi_line(
+            "Duplicate package metadata found",
+            lambda: render_duplicated_dist_metadata_text(first_seen_to_already_seen_dists_dict),
+            ignore_fail=True,
+        )
 
     return dists
 
@@ -77,7 +87,6 @@ def render_duplicated_dist_metadata_text(
             dist_list = entries_to_pairs_dict.setdefault(entry, [])
             dist_list.append((first_seen, dist))
 
-    print("Warning!!! Duplicate package metadata found:", file=sys.stderr)  # noqa: T201
     for entry, pairs in entries_to_pairs_dict.items():
         print(f'"{entry}"', file=sys.stderr)  # noqa: T201
         for first_seen, dist in pairs:
@@ -88,7 +97,6 @@ def render_duplicated_dist_metadata_text(
                 ),
                 file=sys.stderr,
             )
-    print("-" * 72, file=sys.stderr)  # noqa: T201
 
 
 __all__ = [
