@@ -160,7 +160,11 @@ class EnumAction(Action):
 
     This custom action exists because argparse doesn't have support for enums.
 
-    Adapted from: https://github.com/python/cpython/issues/69247#issuecomment-1308082792
+    References
+    ----------
+    - https://github.com/python/cpython/issues/69247#issuecomment-1308082792
+    - https://docs.python.org/3/library/argparse.html#action-classes
+
     """
 
     def __init__(  # noqa: PLR0913, PLR0917
@@ -203,7 +207,6 @@ class EnumAction(Action):
 
         self._enum = type
 
-    # See https://docs.python.org/3/library/argparse.html#action-classes as to why we need these params.
     def __call__(
         self,
         parser: ArgumentParser,  # noqa: ARG002
