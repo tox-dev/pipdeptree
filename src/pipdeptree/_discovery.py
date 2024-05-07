@@ -6,7 +6,7 @@ import subprocess  # noqa: S404
 import sys
 from importlib.metadata import Distribution, distributions
 from pathlib import Path
-from typing import Iterable, Tuple
+from typing import Tuple
 
 from packaging.utils import canonicalize_name
 
@@ -18,18 +18,18 @@ def get_installed_distributions(
     local_only: bool = False,  # noqa: FBT001, FBT002
     user_only: bool = False,  # noqa: FBT001, FBT002
 ) -> list[Distribution]:
+    # We assign sys.path here as it used by both importlib.metadata.PathDistribution and pip by default.
+    paths = sys.path
+
     # See https://docs.python.org/3/library/venv.html#how-venvs-work for more details.
     in_venv = sys.prefix != sys.base_prefix
-    original_dists: Iterable[Distribution] = []
+
     py_path = Path(interpreter).absolute()
     using_custom_interpreter = py_path != Path(sys.executable).absolute()
 
-    if user_only:
-        original_dists = distributions(path=[site.getusersitepackages()])
-    elif using_custom_interpreter:
-        # We query the interpreter directly to get its `sys.path` list to be used by `distributions()`.
-        # If --python and --local-only are given, we ensure that we are only using paths associated to the interpreter's
-        # environment.
+    if using_custom_interpreter:
+        # We query the interpreter directly to get its `sys.path`. If both --python and --local-only are given, only
+        # snatch metadata associated to the interpreter's environment.
         if local_only:
             cmd = "import sys; print([p for p in sys.path if p.startswith(sys.prefix)])"
         else:
@@ -37,13 +37,14 @@ def get_installed_distributions(
 
         args = [str(py_path), "-c", cmd]
         result = subprocess.run(args, stdout=subprocess.PIPE, check=False, text=True)  # noqa: S603
-        original_dists = distributions(path=ast.literal_eval(result.stdout))
+        paths = ast.literal_eval(result.stdout)
     elif local_only and in_venv:
-        venv_site_packages = [p for p in sys.path if p.startswith(sys.prefix)]
-        original_dists = distributions(path=venv_site_packages)
-    else:
-        original_dists = distributions()
+        paths = [p for p in paths if p.startswith(sys.prefix)]
 
+    if user_only:
+        paths = [p for p in paths if p.startswith(site.getusersitepackages())]
+
+    original_dists = distributions(path=paths)
     warning_printer = get_warning_printer()
 
     # Since importlib.metadata.distributions() can return duplicate packages, we need to handle this. pip's approach is
