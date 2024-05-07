@@ -42,20 +42,80 @@ def test_local_only(tmp_path: Path, mocker: MockerFixture, capfd: pytest.Capture
     assert found == expected
 
 
-def test_user_only(tmp_path: Path, mocker: MockerFixture, capfd: pytest.CaptureFixture[str]) -> None:
-    fake_dist = Path(tmp_path) / "foo-1.2.5.dist-info"
-    fake_dist.mkdir()
-    fake_metadata = Path(fake_dist) / "METADATA"
-    with Path(fake_metadata).open("w") as f:
-        f.write("Metadata-Version: 2.3\n" "Name: foo\n" "Version: 1.2.5\n")
+def test_user_only(fake_dist: Path, mocker: MockerFixture, capfd: pytest.CaptureFixture[str]) -> None:
+    # Make a fake user site.
+    fake_user_site = str(fake_dist.parent)
+    mocker.patch("pipdeptree._discovery.site.getusersitepackages", Mock(return_value=fake_user_site))
 
-    cmd = [sys.executable, "--user-only"]
-    mocker.patch("pipdeptree._discovery.site.getusersitepackages", Mock(return_value=str(tmp_path)))
-    mocker.patch("pipdeptree._discovery.sys.argv", cmd)
+    # Add fake user site directory into a fake sys.path (normal environments will have the user site in sys.path).
+    fake_sys_path = [*sys.path, fake_user_site]
+    mocker.patch("pipdeptree._discovery.sys.path", fake_sys_path)
+
+    cmd = ["", "--user-only"]
+    mocker.patch("pipdeptree.__main__.sys.argv", cmd)
     main()
-    out, _ = capfd.readouterr()
+
+    out, err = capfd.readouterr()
+    assert not err
     found = {i.split("==")[0] for i in out.splitlines()}
-    expected = {"foo"}
+    expected = {"bar"}
+
+    assert found == expected
+
+
+def test_user_only_when_in_virtual_env(
+    tmp_path: Path, mocker: MockerFixture, capfd: pytest.CaptureFixture[str]
+) -> None:
+    # ensures that we follow `pip list` by not outputting anything when --user-only is set and pipdeptree is running in
+    # a virtual environment
+
+    # Create a virtual environment and mock sys.path to point to the venv's site packages.
+    venv_path = str(tmp_path / "venv")
+    virtualenv.cli_run([venv_path, "--activators", ""])
+    venv_site_packages = site.getsitepackages([venv_path])
+    mocker.patch("pipdeptree._discovery.sys.path", venv_site_packages)
+    mocker.patch("pipdeptree._discovery.sys.prefix", venv_path)
+
+    cmd = ["", "--user-only"]
+    mocker.patch("pipdeptree.__main__.sys.argv", cmd)
+    main()
+
+    out, err = capfd.readouterr()
+    assert not err
+
+    # Here we expect 1 element because print() adds a newline.
+    found = out.splitlines()
+    assert len(found) == 1
+    assert not found[0]
+
+
+def test_user_only_when_in_virtual_env_and_system_site_pkgs_enabled(
+    tmp_path: Path, fake_dist: Path, mocker: MockerFixture, capfd: pytest.CaptureFixture[str]
+) -> None:
+    # ensures that we provide user site metadata when --user-only is set and we're in a virtual env with system site
+    # packages enabled
+
+    # Make a fake user site directory since we don't know what to expect from the real one.
+    fake_user_site = str(fake_dist.parent)
+    mocker.patch("pipdeptree._discovery.site.getusersitepackages", Mock(return_value=fake_user_site))
+
+    # Create a temporary virtual environment. Add the fake user site to path (since user site packages should normally
+    # be there).
+    venv_path = str(tmp_path / "venv")
+    virtualenv.cli_run([venv_path, "--system-site-packages", "--activators", ""])
+    venv_site_packages = site.getsitepackages([venv_path])
+    mock_path = sys.path + venv_site_packages + [fake_user_site]
+    mocker.patch("pipdeptree._discovery.sys.path", mock_path)
+    mocker.patch("pipdeptree._discovery.sys.prefix", venv_path)
+
+    cmd = ["", "--user-only"]
+    mocker.patch("pipdeptree.__main__.sys.argv", cmd)
+    main()
+
+    out, err = capfd.readouterr()
+    assert not err
+    found = {i.split("==")[0] for i in out.splitlines()}
+    expected = {"bar"}
 
     assert found == expected
 

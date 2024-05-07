@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from platform import python_implementation
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 import virtualenv
@@ -72,6 +73,61 @@ def test_custom_interpreter_with_local_only(
     if sys.version_info >= (3, 12):
         expected -= {"setuptools", "wheel"}  # pragma: no cover
     assert found == expected, out
+
+
+def test_custom_interpreter_with_user_only(
+    tmp_path: Path, mocker: MockerFixture, capfd: pytest.CaptureFixture[str]
+) -> None:
+    # ensures there is no output when --user-only and --python are passed
+
+    venv_path = str(tmp_path / "venv")
+
+    result = virtualenv.cli_run([venv_path, "--activators", ""])
+
+    cmd = ["", f"--python={result.creator.exe}", "--user-only"]
+    mocker.patch("pipdeptree.__main__.sys.argv", cmd)
+    main()
+    out, err = capfd.readouterr()
+    assert not err
+
+    # Here we expect 1 element because print() adds a newline.
+    found = out.splitlines()
+    assert len(found) == 1
+    assert not found[0]
+
+
+def test_custom_interpreter_with_user_only_and_system_site_pkgs_enabled(
+    tmp_path: Path,
+    fake_dist: Path,
+    mocker: MockerFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    # ensures that we provide user site metadata when --user-only and --python are passed and the custom interpreter has
+    # system site packages enabled
+
+    # Make a fake user site directory since we don't know what to expect from the real one.
+    fake_user_site = str(fake_dist.parent)
+    mocker.patch("pipdeptree._discovery.site.getusersitepackages", Mock(return_value=fake_user_site))
+
+    # Create a temporary virtual environment.
+    venv_path = str(tmp_path / "venv")
+    result = virtualenv.cli_run([venv_path, "--activators", ""])
+
+    # Use $PYTHONPATH to add the fake user site into the custom interpreter's environment so that it will include it in
+    # its sys.path.
+    monkeypatch.setenv("PYTHONPATH", str(fake_user_site))
+
+    cmd = ["", f"--python={result.creator.exe}", "--user-only"]
+    mocker.patch("pipdeptree.__main__.sys.argv", cmd)
+    main()
+
+    out, err = capfd.readouterr()
+    assert not err
+    found = {i.split("==")[0] for i in out.splitlines()}
+    expected = {"bar"}
+
+    assert found == expected
 
 
 def test_custom_interpreter_ensure_pythonpath_envar_is_honored(
