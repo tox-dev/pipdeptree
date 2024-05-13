@@ -69,8 +69,14 @@ version.source = "vcs"
 [tool.ruff]
 line-length = 120
 target-version = "py38"
-lint.isort = { known-first-party = ["pipdeptree"], required-imports = ["from __future__ import annotations"] }
-lint.select = ["ALL"]
+lint.isort = { known-first-party = [
+  "pipdeptree",
+], required-imports = [
+  "from __future__ import annotations",
+] }
+lint.select = [
+  "ALL",
+]
 lint.ignore = [
   "S101",   # asserts allowed
   "INP001", # no implicit namespace
@@ -109,13 +115,24 @@ ignore-words-list = "master"
 [tool.coverage]
 html.show_contexts = true
 html.skip_covered = false
-paths.source = ["src", ".tox/*/lib/python*/site-packages", "*/src"]
+paths.source = [
+  "src",
+  ".tox/*/lib/python*/site-packages",
+  "*/src",
+]
 run.parallel = true
-run.plugins = ["covdefaults"]
+run.plugins = [
+  "covdefaults",
+]
 report.fail_under = 88
 subtract_omit = "*/__main__.py"
 
 [tool.mypy]
 show_error_codes = true
 strict = true
-overrides = [{ module = ["graphviz.*", "virtualenv.*"], ignore_missing_imports = true }]
+overrides = [
+  { module = [
+    "graphviz.*",
+    "virtualenv.*",
+  ], ignore_missing_imports = true },
+]

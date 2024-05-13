@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import locale
 import sys
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
@@ -29,7 +30,7 @@ def test_guess_version_setuptools(mocker: MockerFixture) -> None:
 
 def test_package_as_frozen_repr(tmp_path: Path, mocker: MockerFixture) -> None:
     file_path = tmp_path / "foo.egg-link"
-    with Path(file_path).open("w") as f:
+    with Path(file_path).open("w", encoding=locale.getpreferredencoding(False)) as f:
         f.write("/A/B/foo")
     mock_path = sys.path.copy()
     mock_path.append(str(tmp_path))
