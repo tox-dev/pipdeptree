@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import locale
 from pathlib import Path
 from random import shuffle
 from typing import TYPE_CHECKING, Callable, Iterator
@@ -75,7 +76,7 @@ def fake_dist(tmp_path: Path) -> Path:
     fake_dist_path = fake_site_pkgs / "bar-2.4.5.dist-info"
     fake_dist_path.mkdir(parents=True)
     fake_metadata = Path(fake_dist_path) / "METADATA"
-    with Path(fake_metadata).open("w") as f:
+    with Path(fake_metadata).open("w", encoding=locale.getpreferredencoding(False)) as f:
         f.write("Metadata-Version: 2.3\n" "Name: bar\n" "Version: 2.4.5\n")
 
     return fake_dist_path
