@@ -6,6 +6,7 @@ import sys
 from typing import Sequence
 
 from pipdeptree._cli import get_options
+from pipdeptree._detect_env import detect_active_interpreter
 from pipdeptree._discovery import get_installed_distributions
 from pipdeptree._models import PackageDAG
 from pipdeptree._render import render
@@ -23,6 +24,9 @@ def main(args: Sequence[str] | None = None) -> None | int:
         options.warn = WarningType.SILENCE
     warning_printer = get_warning_printer()
     warning_printer.warning_type = options.warn
+
+    if options.python == "auto":
+        options.python = detect_active_interpreter()
 
     pkgs = get_installed_distributions(
         interpreter=options.python, local_only=options.local_only, user_only=options.user_only

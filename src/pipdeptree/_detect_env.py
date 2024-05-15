@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+import os
+import platform
+import subprocess  # noqa: S404
+import sys
+from pathlib import Path
+from typing import Callable
+
+
+def detect_active_interpreter() -> str:
+    """
+    Attempt to detect a venv, virtualenv, poetry, or conda environment by looking for certain markers.
+
+    If it fails to find any, it will fallback to using the system interpreter.
+    """
+    detection_funcs: tuple[Callable[[], Path | None]] = (
+        detect_venv_or_virtualenv_interpreter,
+        detect_conda_env_interpreter,
+        detect_poetry_env_interpreter,
+    )
+
+    for detect in detection_funcs:
+        path = detect()
+        if not path:
+            continue
+        if not path.exists():
+            break
+        return str(path)
+
+    return sys.executable
+
+
+def detect_venv_or_virtualenv_interpreter() -> Path | None:
+    # Both virtualenv and venv set this environment variable.
+    env_var = os.environ.get("VIRTUAL_ENV")
+    if not env_var:
+        return None
+
+    path = Path(env_var)
+    path /= determine_bin_dir()
+
+    file_name = determine_interpreter_file_name()
+    return path / file_name if file_name else None
+
+
+def detect_conda_env_interpreter() -> Path | None:
+    # Env var mentioned in https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables.
+    env_var = os.environ.get("CONDA_PREFIX")
+    if not env_var:
+        return None
+
+    path = Path(env_var)
+
+    # See https://docs.conda.io/projects/conda/en/latest/user-guide/concepts/environments.html for the directory layout.
+    path /= determine_bin_dir()
+    file_name = determine_interpreter_file_name()
+
+    return path / file_name if file_name else None
+
+
+def detect_poetry_env_interpreter() -> Path | None:
+    # See https://python-poetry.org/docs/managing-environments/#displaying-the-environment-information. poetry doesn't
+    # expose an environment variable like other implementations, so we instead use its CLI to snatch the active
+    # interpreter.
+    try:
+        result = subprocess.run(
+            ("poetry", "env", "info", "--executable"),  # noqa: S603
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:  # noqa: BLE001
+        return None
+
+    return Path(result.stdout.strip())
+
+
+def determine_bin_dir() -> Path:
+    return "Scripts" if os.name == "nt" else "bin"
+
+
+def determine_interpreter_file_name() -> Path | None:
+    impl_name_to_file_name_dict = {"CPython": "python", "PyPy": "pypy"}
+    name = impl_name_to_file_name_dict.get(platform.python_implementation())
+    if not name:
+        return None
+    if os.name == "nt":  # pragma: nt cover
+        return name + ".exe"
+    return name
+
+
+__all__ = ["detect_active_interpreter"]
