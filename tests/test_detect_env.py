@@ -24,7 +24,7 @@ def test_detect_active_interpreter_using_env_vars(tmp_path: Path, mocker: MockFi
 
 
 def test_detect_active_interpreter_poetry(tmp_path: Path, mocker: MockFixture) -> None:
-    faked_result = CompletedProcess(None, 0, stdout=str(tmp_path))
+    faked_result = CompletedProcess("", 0, stdout=str(tmp_path))
     mocker.patch("pipdeptree._detect_env.subprocess.run", return_value=faked_result)
     mocker.patch("pipdeptree._detect_env.os.environ", {})
 

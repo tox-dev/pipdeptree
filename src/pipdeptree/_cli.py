@@ -56,7 +56,7 @@ def build_parser() -> ArgumentParser:
         "--python",
         default=sys.executable,
         help=(
-            'Python interpreter to inspect. With "auto", it attempts to detect your envrionment and falls back to using'
+            'Python interpreter to inspect. With "auto", it attempts to detect your environment and falls back to using'
             " the system interpreter if it fails."
         ),
     )
