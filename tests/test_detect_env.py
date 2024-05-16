@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from subprocess import CompletedProcess  # noqa: S404
 from typing import TYPE_CHECKING
@@ -41,9 +40,8 @@ def test_detect_active_interpreter_non_supported_python_implementation(
     mocker.patch("pipdeptree._detect_env.Path.exists", return_value=True)
     mocker.patch("pipdeptree._detect_env.platform.python_implementation", return_value="NotSupportedPythonImpl")
 
-    actual_path = detect_active_interpreter()
-
-    assert sys.executable == actual_path
+    with pytest.raises(SystemExit):
+        detect_active_interpreter()
 
 
 def test_detect_active_interpreter_non_existent_path(
@@ -52,6 +50,5 @@ def test_detect_active_interpreter_non_existent_path(
     fake_path = str(Path(*("i", "dont", "exist")))
     mocker.patch("pipdeptree._detect_env.os.environ", {"VIRTUAL_ENV": fake_path})
 
-    actual_path = detect_active_interpreter()
-
-    assert sys.executable == actual_path
+    with pytest.raises(SystemExit):
+        detect_active_interpreter()

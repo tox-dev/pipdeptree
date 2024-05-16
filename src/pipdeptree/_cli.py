@@ -56,8 +56,8 @@ def build_parser() -> ArgumentParser:
         "--python",
         default=sys.executable,
         help=(
-            'Python interpreter to inspect. With "auto", it attempts to detect your environment and falls back to using'
-            " the system interpreter if it fails."
+            'Python interpreter to inspect. With "auto", it attempts to detect your virtual environment and fails if'
+            " it can't."
         ),
     )
     select.add_argument(

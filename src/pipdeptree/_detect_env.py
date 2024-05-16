@@ -12,7 +12,7 @@ def detect_active_interpreter() -> str:
     """
     Attempt to detect a venv, virtualenv, poetry, or conda environment by looking for certain markers.
 
-    If it fails to find any, it will fallback to using the system interpreter.
+    If it fails to find any, it will fail with a message.
     """
     detection_funcs: list[Callable[[], Path | None]] = [
         detect_venv_or_virtualenv_interpreter,
@@ -27,7 +27,8 @@ def detect_active_interpreter() -> str:
             break
         return str(path)
 
-    return sys.executable
+    print("Unable to detect virtual environment.", file=sys.stderr)  # noqa: T201
+    raise SystemExit(1)
 
 
 def detect_venv_or_virtualenv_interpreter() -> Path | None:
