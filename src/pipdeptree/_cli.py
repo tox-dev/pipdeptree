@@ -52,7 +52,14 @@ def build_parser() -> ArgumentParser:
     )
 
     select = parser.add_argument_group(title="select", description="choose what to render")
-    select.add_argument("--python", default=sys.executable, help="Python interpreter to inspect")
+    select.add_argument(
+        "--python",
+        default=sys.executable,
+        help=(
+            'Python interpreter to inspect. With "auto", it attempts to detect your virtual environment and fails if'
+            " it can't."
+        ),
+    )
     select.add_argument(
         "-p",
         "--packages",
