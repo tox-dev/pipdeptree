@@ -3,7 +3,7 @@ from __future__ import annotations
 import locale
 from json import JSONDecodeError
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pip._internal.models.direct_url import (
     DirectUrl,  # noqa: PLC2701
@@ -34,7 +34,7 @@ class PipBaseDistributionAdapter:
         self._version = Version(dist.version)
 
     @property
-    def raw_name(self) -> str:
+    def raw_name(self) -> str | Any:
         return self._raw_name
 
     @property
@@ -71,6 +71,6 @@ class PipBaseDistributionAdapter:
         result = None
         egg_link_path = egg_link_path_from_sys_path(self.raw_name)
         if egg_link_path:
-            with Path(egg_link_path).open("r", encoding=locale.getpreferredencoding(False)) as f:
+            with Path(egg_link_path).open("r", encoding=locale.getpreferredencoding(False)) as f:  # noqa: FBT003
                 result = f.readline().rstrip()
         return result

@@ -31,6 +31,8 @@ that this capability has been recently added in version `2.0.0`.
 
 Alternatively, you may also install pipdeptree inside the virtualenv and then run it from there.
 
+As of version `2.21.0`, you may also pass `--python auto`, where it will attempt to detect your virtual environment and grab the interpreter from there. It will fail if it is unable to detect one.
+
 ## Usage and examples
 
 To give you a brief idea, here is the output of `pipdeptree` compared with `pip freeze`:
