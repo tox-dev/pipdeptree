@@ -24,6 +24,8 @@ jobs:
           - "3.10"
           - "3.9"
           - "3.8"
+          - "pypy3.10"
+          - "pypy3.9"
     steps:
       - name: Install OS dependencies
         run: |
@@ -47,9 +49,14 @@ jobs:
           python-version: ${{ matrix.py }}
       - name: Pick environment to run
         run: |
-          import codecs; import os; import sys
-          env = "TOXENV=py3{}\n".format(sys.version_info[1])
-          print("Picked:\n{}for{}".format(env, sys.version))
+          import codecs; import os; import sys; import platform
+          impl = platform.python_implementation()
+          if impl == "CPython":
+            env = "TOXENV=py3"
+          else:
+            env = "TOXENV=pypy3"
+          env += "{}\n".format(sys.version_info.minor)
+          print("Picked:\n{}for {}".format(env, sys.version))
           with codecs.open(os.environ["GITHUB_ENV"], "a", "utf-8") as file_handler:
                file_handler.write(env)
         shell: python
