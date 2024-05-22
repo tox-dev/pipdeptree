@@ -48,6 +48,7 @@ def test_custom_interpreter(
     result = virtualenv.cli_run([str(tmp_path / "venv"), "--activators", ""])
     py = str(result.creator.exe.relative_to(tmp_path))
     cmd = ["", f"--python={result.creator.exe}"] if args_joined else ["", "--python", py]
+    cmd += ["--all", "--depth", "0"]
     mocker.patch("pipdeptree._discovery.sys.argv", cmd)
     main()
     out, _ = capfd.readouterr()
@@ -84,7 +85,7 @@ def test_custom_interpreter_with_user_only(
     venv_path = str(tmp_path / "venv")
     result = virtualenv.cli_run([venv_path, "--activators", ""])
 
-    cmd = ["", f"--python={result.creator.exe}", "--user-only"]
+    cmd = ["", f"--python={result.creator.exe}", "--all", "--depth", "0", "--user-only"]
     mocker.patch("pipdeptree.__main__.sys.argv", cmd)
     main()
     out, err = capfd.readouterr()
@@ -147,10 +148,10 @@ def test_custom_interpreter_ensure_pythonpath_envar_is_honored(
     fake_metadata = fake_dist / "METADATA"
     with fake_metadata.open("w") as f:
         f.write("Metadata-Version: 2.3\n" "Name: foo\n" "Version: 1.2.3\n")
-    cmd = ["", f"--python={result.creator.exe}"]
+    cmd = ["", f"--python={result.creator.exe}", "--all", "--depth", "0"]
     mocker.patch("pipdeptree._discovery.sys.argv", cmd)
     monkeypatch.setenv("PYTHONPATH", str(another_path))
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
-    assert {*expected_venv_pkgs, "foo"} == found
+    assert {*expected_venv_pkgs, "foo"} == found, out
