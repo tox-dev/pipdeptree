@@ -51,10 +51,10 @@ jobs:
         run: |
           import codecs; import os; import sys; import platform
           impl = platform.python_implementation()
-          if impl == "CPython":
-            env = "TOXENV=py3"
-          else:
+          if impl == "PyPy":
             env = "TOXENV=pypy3"
+          else:
+            env = "TOXENV=py3"
           env += "{}\n".format(sys.version_info.minor)
           print("Picked:\n{}for {}".format(env, sys.version))
           with codecs.open(os.environ["GITHUB_ENV"], "a", "utf-8") as file_handler:

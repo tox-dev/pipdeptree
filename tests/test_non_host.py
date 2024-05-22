@@ -85,7 +85,7 @@ def test_custom_interpreter_with_user_only(
     venv_path = str(tmp_path / "venv")
     result = virtualenv.cli_run([venv_path, "--activators", ""])
 
-    cmd = ["", f"--python={result.creator.exe}", "--all", "--depth", "0", "--user-only"]
+    cmd = ["", f"--python={result.creator.exe}", "--user-only"]
     mocker.patch("pipdeptree.__main__.sys.argv", cmd)
     main()
     out, err = capfd.readouterr()
