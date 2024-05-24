@@ -16,6 +16,21 @@ if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
 
+@pytest.fixture(scope="session")
+def expected_venv_pkgs() -> frozenset[str]:
+    implementation = python_implementation()
+    if implementation == "CPython":  # pragma: cpython cover
+        expected = {"pip", "setuptools", "wheel"}
+    elif implementation == "PyPy":  # pragma: pypy cover
+        expected = {"cffi", "greenlet", "pip", "readline", "hpy", "setuptools", "wheel"}
+    else:  # pragma: no cover
+        raise ValueError(implementation)
+    if sys.version_info >= (3, 12):  # pragma: >=3.12 cover
+        expected -= {"setuptools", "wheel"}
+
+    return frozenset(expected)
+
+
 @pytest.mark.parametrize("args_joined", [True, False])
 def test_custom_interpreter(
     tmp_path: Path,
@@ -23,6 +38,7 @@ def test_custom_interpreter(
     monkeypatch: pytest.MonkeyPatch,
     capfd: pytest.CaptureFixture[str],
     args_joined: bool,
+    expected_venv_pkgs: frozenset[str],
 ) -> None:
     # Delete $PYTHONPATH so that it cannot be passed to the custom interpreter process (since we don't know what
     # distribution metadata to expect when it's used).
@@ -32,20 +48,13 @@ def test_custom_interpreter(
     result = virtualenv.cli_run([str(tmp_path / "venv"), "--activators", ""])
     py = str(result.creator.exe.relative_to(tmp_path))
     cmd = ["", f"--python={result.creator.exe}"] if args_joined else ["", "--python", py]
+    cmd += ["--all", "--depth", "0"]
     mocker.patch("pipdeptree._discovery.sys.argv", cmd)
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
-    implementation = python_implementation()
-    if implementation == "CPython":
-        expected = {"pip", "setuptools", "wheel"}
-    elif implementation == "PyPy":
-        expected = {"cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}  # pragma: no cover
-    else:
-        raise ValueError(implementation)
-    if sys.version_info >= (3, 12):
-        expected -= {"setuptools", "wheel"}
-    assert found == expected, out
+
+    assert expected_venv_pkgs == found, out
 
 
 def test_custom_interpreter_with_local_only(
@@ -54,7 +63,6 @@ def test_custom_interpreter_with_local_only(
     capfd: pytest.CaptureFixture[str],
 ) -> None:
     venv_path = str(tmp_path / "venv")
-
     result = virtualenv.cli_run([venv_path, "--system-site-packages", "--activators", ""])
 
     cmd = ["", f"--python={result.creator.exe}", "--local-only"]
@@ -63,16 +71,10 @@ def test_custom_interpreter_with_local_only(
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
-    implementation = python_implementation()
-    if implementation == "CPython":
-        expected = {"pip", "setuptools", "wheel"}
-    elif implementation == "PyPy":  # pragma: no cover
-        expected = {"cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}  # pragma: no cover
-    else:
-        raise ValueError(implementation)  # pragma: no cover
-    if sys.version_info >= (3, 12):
-        expected -= {"setuptools", "wheel"}  # pragma: no cover
-    assert found == expected, out
+    expected = {"pip", "setuptools", "wheel"}
+    if sys.version_info >= (3, 12):  # pragma: >=3.12 cover
+        expected -= {"setuptools", "wheel"}
+    assert expected == found, out
 
 
 def test_custom_interpreter_with_user_only(
@@ -81,7 +83,6 @@ def test_custom_interpreter_with_user_only(
     # ensures there is no output when --user-only and --python are passed
 
     venv_path = str(tmp_path / "venv")
-
     result = virtualenv.cli_run([venv_path, "--activators", ""])
 
     cmd = ["", f"--python={result.creator.exe}", "--user-only"]
@@ -127,7 +128,7 @@ def test_custom_interpreter_with_user_only_and_system_site_pkgs_enabled(
     found = {i.split("==")[0] for i in out.splitlines()}
     expected = {"bar"}
 
-    assert found == expected
+    assert expected == found
 
 
 def test_custom_interpreter_ensure_pythonpath_envar_is_honored(
@@ -135,6 +136,7 @@ def test_custom_interpreter_ensure_pythonpath_envar_is_honored(
     mocker: MockerFixture,
     monkeypatch: pytest.MonkeyPatch,
     capfd: pytest.CaptureFixture[str],
+    expected_venv_pkgs: frozenset[str],
 ) -> None:
     # ensures that we honor $PYTHONPATH when passing it to the custom interpreter process
     venv_path = str(tmp_path / "venv")
@@ -146,19 +148,10 @@ def test_custom_interpreter_ensure_pythonpath_envar_is_honored(
     fake_metadata = fake_dist / "METADATA"
     with fake_metadata.open("w") as f:
         f.write("Metadata-Version: 2.3\n" "Name: foo\n" "Version: 1.2.3\n")
-    cmd = ["", f"--python={result.creator.exe}"]
+    cmd = ["", f"--python={result.creator.exe}", "--all", "--depth", "0"]
     mocker.patch("pipdeptree._discovery.sys.argv", cmd)
     monkeypatch.setenv("PYTHONPATH", str(another_path))
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
-    implementation = python_implementation()
-    if implementation == "CPython":
-        expected = {"foo", "pip", "setuptools", "wheel"}
-    elif implementation == "PyPy":  # pragma: cpython no cover
-        expected = {"foo", "cffi", "greenlet", "pip", "readline", "setuptools", "wheel"}
-    else:  # pragma: no cover
-        raise ValueError(implementation)
-    if sys.version_info >= (3, 12):  # pragma: >=3.12 cover
-        expected -= {"setuptools", "wheel"}
-    assert found == expected, out
+    assert {*expected_venv_pkgs, "foo"} == found, out
