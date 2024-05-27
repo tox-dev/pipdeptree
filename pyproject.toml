@@ -75,20 +75,6 @@ format.docstring-code-format = true
 lint.select = [
   "ALL",
 ]
-lint.per-file-ignores."tests/**/*.py" = [
-  "D",       # don"t care about documentation in tests
-  "FBT",     # don"t care about booleans as positional arguments in tests
-  "PLC2701", # Private import in tests
-  "PLR0913", # any number of arguments in tests
-  "PLR0917", # any number of arguments in tests
-  "PLR2004", # Magic value used in comparison, consider replacing with a constant variable
-  "S603",    # `subprocess` call: check for execution of untrusted input
-]
-lint.isort = { known-first-party = [
-  "pipdeptree",
-], required-imports = [
-  "from __future__ import annotations",
-] }
 lint.ignore = [
   "ANN101", # No type annotation for self
   "ANN102", # Missing type annotation for `cls` in classmethod
@@ -103,6 +89,20 @@ lint.ignore = [
   "S101",   # asserts allowed
   "S104",   # Possible binding to all interface
 ]
+lint.per-file-ignores."tests/**/*.py" = [
+  "D",       # don"t care about documentation in tests
+  "FBT",     # don"t care about booleans as positional arguments in tests
+  "PLC2701", # Private import in tests
+  "PLR0913", # any number of arguments in tests
+  "PLR0917", # any number of arguments in tests
+  "PLR2004", # Magic value used in comparison, consider replacing with a constant variable
+  "S603",    # `subprocess` call: check for execution of untrusted input
+]
+lint.isort = { known-first-party = [
+  "pipdeptree",
+], required-imports = [
+  "from __future__ import annotations",
+] }
 lint.preview = true
 
 [tool.codespell]
