@@ -143,3 +143,22 @@ def test_duplicate_metadata(mocker: MockerFixture, capfd: pytest.CaptureFixture[
         "---------------------------------------\n"
     )
     assert err == expected
+
+
+def test_invalid_metadata(
+    mocker: MockerFixture, capfd: pytest.CaptureFixture[str], fake_dist_with_invalid_metadata: Path
+) -> None:
+    fake_site_dir = str(fake_dist_with_invalid_metadata.parent)
+    mocked_sys_path = [fake_site_dir]
+    mocker.patch("pipdeptree._discovery.sys.path", mocked_sys_path)
+
+    dists = get_installed_distributions()
+
+    assert len(dists) == 0
+    out, err = capfd.readouterr()
+    assert not out
+    assert err == (
+        "Warning!!! Missing or invalid metadata found in the following site dirs:\n"
+        f"{fake_site_dir}\n"
+        "------------------------------------------------------------------------\n"
+    )
