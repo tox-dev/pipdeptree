@@ -6,7 +6,7 @@ import subprocess  # noqa: S404
 import sys
 from importlib.metadata import Distribution, distributions
 from pathlib import Path
-from typing import Tuple
+from typing import Iterable, Tuple
 
 from packaging.utils import canonicalize_name
 
@@ -44,7 +44,10 @@ def get_installed_distributions(
     if user_only:
         paths = [p for p in paths if p.startswith(site.getusersitepackages())]
 
-    original_dists = distributions(path=paths)
+    return filter_valid_distributions(distributions(path=paths))
+
+
+def filter_valid_distributions(iterable_dists: Iterable[Distribution]) -> list[Distribution]:
     warning_printer = get_warning_printer()
 
     # Since importlib.metadata.distributions() can return duplicate packages, we need to handle this. pip's approach is
@@ -53,8 +56,17 @@ def get_installed_distributions(
     # See https://github.com/pypa/pip/blob/7c49d06ea4be4635561f16a524e3842817d1169a/src/pip/_internal/metadata/importlib/_envs.py#L34
     seen_dists: dict[str, Distribution] = {}
     first_seen_to_already_seen_dists_dict: dict[Distribution, list[Distribution]] = {}
+
+    # We also need to handle invalid metadata, though we can't get paths to invalid distribution metadata directly since
+    # importlib doesn't expose an API for it. We do have the directory they reside in, so let's use that.
+    site_dir_with_invalid_metadata: set[str] = set()
+
     dists = []
-    for dist in original_dists:
+    for dist in iterable_dists:
+        if not has_valid_metadata(dist):
+            site_dir = str(dist.locate_file(""))
+            site_dir_with_invalid_metadata.add(site_dir)
+            continue
         normalized_name = canonicalize_name(dist.metadata["Name"])
         if normalized_name not in seen_dists:
             seen_dists[normalized_name] = dist
@@ -64,15 +76,29 @@ def get_installed_distributions(
             already_seen_dists = first_seen_to_already_seen_dists_dict.setdefault(seen_dists[normalized_name], [])
             already_seen_dists.append(dist)
 
-    should_print_warning = warning_printer.should_warn() and first_seen_to_already_seen_dists_dict
-    if should_print_warning:
-        warning_printer.print_multi_line(
-            "Duplicate package metadata found",
-            lambda: render_duplicated_dist_metadata_text(first_seen_to_already_seen_dists_dict),
-            ignore_fail=True,
-        )
+    if warning_printer.should_warn():
+        if site_dir_with_invalid_metadata:
+            warning_printer.print_multi_line(
+                "Missing or invalid metadata found in the following site dirs",
+                lambda: render_invalid_metadata_text(site_dir_with_invalid_metadata),
+            )
+        if first_seen_to_already_seen_dists_dict:
+            warning_printer.print_multi_line(
+                "Duplicate package metadata found",
+                lambda: render_duplicated_dist_metadata_text(first_seen_to_already_seen_dists_dict),
+                ignore_fail=True,
+            )
 
     return dists
+
+
+def has_valid_metadata(dist: Distribution) -> bool:
+    return dist.metadata["Name"] is not None
+
+
+def render_invalid_metadata_text(site_dirs_with_invalid_metadata: set[str]) -> None:
+    for site_dir in site_dirs_with_invalid_metadata:
+        print(site_dir, file=sys.stderr)  # noqa: T201
 
 
 FirstSeenWithDistsPair = Tuple[Distribution, Distribution]
