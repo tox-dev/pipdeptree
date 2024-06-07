@@ -13,5 +13,5 @@ def test_main() -> None:
 
 
 def test_console(script_runner: ScriptRunner) -> None:
-    result = script_runner.run("pipdeptree", "--help")
+    result = script_runner.run(["pipdeptree", "--help"])
     assert result.success
