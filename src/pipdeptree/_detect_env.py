@@ -15,7 +15,9 @@ def detect_active_interpreter(log_resolved: bool = False) -> str:
     If it fails to find any, it will fail with a message.
 
     Args:
+    ----
         log_resolved (bool): If True, logs the resolved Python path.
+
     """
     detection_funcs: list[Callable[[], Path | None]] = [
         detect_venv_or_virtualenv_interpreter,
@@ -30,7 +32,7 @@ def detect_active_interpreter(log_resolved: bool = False) -> str:
             break
         resolved_path = str(path)
         if log_resolved:
-            print(f"Resolved Python: [{resolved_path}]")
+            pass
         return resolved_path
 
     print("Unable to detect virtual environment.", file=sys.stderr)  # noqa: T201
