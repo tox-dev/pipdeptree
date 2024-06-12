@@ -63,4 +63,4 @@ def test_detect_active_interpreter_log_resolved(tmp_path: Path, mocker: MockFixt
     captured = capsys.readouterr()
 
     assert actual_path.startswith(str(tmp_path))
-    assert f"Resolved Python: [{str(tmp_path)}" in captured.out
+    assert f"Resolved Python: [{tmp_path!s}" in captured.out
