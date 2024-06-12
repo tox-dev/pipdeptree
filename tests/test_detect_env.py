@@ -52,3 +52,15 @@ def test_detect_active_interpreter_non_existent_path(
 
     with pytest.raises(SystemExit):
         detect_active_interpreter()
+
+
+def test_detect_active_interpreter_log_resolved(tmp_path: Path, mocker: MockFixture, capsys) -> None:
+    mocker.patch("pipdeptree._detect_env.os.environ", {"VIRTUAL_ENV": str(tmp_path)})
+    mocker.patch("pipdeptree._detect_env.Path.exists", return_value=True)
+
+    actual_path = detect_active_interpreter(log_resolved=True)
+
+    captured = capsys.readouterr()
+
+    assert actual_path.startswith(str(tmp_path))
+    assert f"Resolved Python: [{str(tmp_path)}" in captured.out
