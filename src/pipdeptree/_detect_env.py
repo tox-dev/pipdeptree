@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable
 
 
-def detect_active_interpreter(log_resolved: bool = False) -> str:
+def detect_active_interpreter(*, log_resolved: bool = False) -> str:
     """
     Attempt to detect a venv, virtualenv, poetry, or conda environment by looking for certain markers.
 
@@ -32,7 +32,7 @@ def detect_active_interpreter(log_resolved: bool = False) -> str:
             break
         resolved_path = str(path)
         if log_resolved:
-            pass
+            print(f"Resolved Python: [{resolved_path}]")  # noqa: T201
         return resolved_path
 
     print("Unable to detect virtual environment.", file=sys.stderr)  # noqa: T201
