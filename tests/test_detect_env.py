@@ -60,7 +60,7 @@ def test_detect_active_interpreter_log_resolved(
     mocker.patch("pipdeptree._detect_env.os.environ", {"VIRTUAL_ENV": str(tmp_path)})
     mocker.patch("pipdeptree._detect_env.Path.exists", return_value=True)
 
-    actual_path = detect_active_interpreter(log_resolved=True)
+    actual_path = detect_active_interpreter()
 
     captured = capsys.readouterr()
 
