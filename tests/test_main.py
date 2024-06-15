@@ -35,4 +35,4 @@ def test_main_log_resolved(tmp_path: Path, mocker: MockFixture, capsys: pytest.C
 
     combined_output = captured.out + captured.err
 
-    assert f"Resolved Python: [{tmp_path!s}" in combined_output
+    assert f"(resolved python: {tmp_path!s}" in combined_output
