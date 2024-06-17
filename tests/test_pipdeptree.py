@@ -20,14 +20,11 @@ def test_console(script_runner: ScriptRunner) -> None:
     assert result.success
 
 
-def test_main_log_resolved(tmp_path: Path, mocker: MockFixture, script_runner: ScriptRunner) -> None:
-    valid_sys_path = str([str(tmp_path)])
-
-    mocker.patch("pipdeptree._detect_env.detect_active_interpreter", return_value=str(tmp_path))
-    mocker.patch("pipdeptree._detect_env.os.environ", {"VIRTUAL_ENV": str(tmp_path)})
-    mocker.patch("pipdeptree._detect_env.Path.exists", return_value=True)
-
+def test_main_log_resolved(tmp_path: Path, mocker: MockFixture, capsys: pytest.CaptureFixture[str]) -> None:
+    mocker.patch("sys.argv", ["", "--python", "auto"])
+    mocker.patch("pipdeptree.__main__.detect_active_interpreter", return_value=str(tmp_path))
     mock_subprocess_run = mocker.patch("subprocess.run")
+    valid_sys_path = str([str(tmp_path)])
     mock_subprocess_run.return_value = CompletedProcess(
         args=["python", "-c", "import sys; print(sys.path)"],
         returncode=0,
@@ -35,6 +32,7 @@ def test_main_log_resolved(tmp_path: Path, mocker: MockFixture, script_runner: S
         stderr="",
     )
 
-    result = script_runner.run(["pipdeptree", "--python", "auto"])
-    assert result.stderr
-    assert result.stderr.startswith(f"(resolved python: {tmp_path!s}")
+    main()
+    
+    captured = capsys.readouterr()
+    assert captured.err.startswith(f"(resolved python: {tmp_path!s}")
