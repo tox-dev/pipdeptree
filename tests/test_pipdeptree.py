@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import sys
 from subprocess import CompletedProcess, check_call  # noqa: S404
-from pipdeptree.__main__ import main
 from typing import TYPE_CHECKING
+
+from pipdeptree.__main__ import main
 
 if TYPE_CHECKING:
     from pathlib import Path
