@@ -33,6 +33,6 @@ def test_main_log_resolved(tmp_path: Path, mocker: MockFixture, capsys: pytest.C
     )
 
     main()
-    
+
     captured = capsys.readouterr()
     assert captured.err.startswith(f"(resolved python: {tmp_path!s}")
