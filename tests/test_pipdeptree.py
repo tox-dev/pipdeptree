@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from pipdeptree.__main__ import main
 
 if TYPE_CHECKING:
+    import pytest
     from pathlib import Path
 
     from pytest_console_scripts import ScriptRunner
