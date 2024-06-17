@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 from pipdeptree.__main__ import main
 
 if TYPE_CHECKING:
-    import pytest
     from pathlib import Path
 
+    import pytest
     from pytest_console_scripts import ScriptRunner
     from pytest_mock import MockFixture
 
