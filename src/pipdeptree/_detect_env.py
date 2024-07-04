@@ -73,7 +73,7 @@ def detect_poetry_env_interpreter() -> Path | None:
     # See https://python-poetry.org/docs/managing-environments/#displaying-the-environment-information.
     try:
         result = subprocess.run(
-            ("poetry", "env", "info", "--executable"),  # noqa: S603
+            ("poetry", "env", "info", "--executable"),
             check=True,
             text=True,
             stdout=subprocess.PIPE,
