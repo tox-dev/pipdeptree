@@ -36,7 +36,7 @@ def mock_pkgs() -> Callable[[MockGraph], Iterator[Mock]]:
     return func
 
 
-@pytest.fixture()
+@pytest.fixture
 def example_dag(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> PackageDAG:
     packages: MockGraph = {
         ("a", "3.4.0"): [("b", [(">=", "2.0.0")]), ("c", [(">=", "5.7.1")])],
@@ -50,7 +50,7 @@ def example_dag(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> PackageDAG:
     return PackageDAG.from_pkgs(list(mock_pkgs(packages)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def randomized_example_dag(example_dag: PackageDAG) -> PackageDAG:
     """Returns a copy of the package tree fixture with dependencies in randomized order."""
     # Extract the dependency graph from the package tree and randomize it.
@@ -69,7 +69,7 @@ def randomized_example_dag(example_dag: PackageDAG) -> PackageDAG:
     return randomized_dag
 
 
-@pytest.fixture()
+@pytest.fixture
 def fake_dist(tmp_path: Path) -> Path:
     """Creates a fake site package (that you get using Path.parent) and a fake dist-info called bar-2.4.5.dist-info."""
     fake_site_pkgs = tmp_path / "site-packages"
@@ -82,7 +82,7 @@ def fake_dist(tmp_path: Path) -> Path:
     return fake_dist_path
 
 
-@pytest.fixture()
+@pytest.fixture
 def fake_dist_with_invalid_metadata(tmp_path: Path) -> Path:
     "Similar to `fake_dist()`, but creates an invalid METADATA file."
     fake_site_pkgs = tmp_path / "site-packages"
