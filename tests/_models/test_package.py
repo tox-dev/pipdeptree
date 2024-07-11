@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock
 
 import pytest
+from packaging.specifiers import SpecifierSet
 
 from pipdeptree._models import DistPackage, ReqPackage
 from pipdeptree._models.package import Package
@@ -169,7 +170,7 @@ def test_dist_package_key_pep503_normalized() -> None:
 
 
 def test_req_package_key_pep503_normalized() -> None:
-    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
+    bar_req = MagicMock(specifier=[">=4.0"])
     bar_req.name = "bar.bar-bar-bar"
     rp = ReqPackage(bar_req)
     assert rp.key == "bar-bar-bar-bar"
@@ -177,7 +178,7 @@ def test_req_package_key_pep503_normalized() -> None:
 
 def test_req_package_render_as_root() -> None:
     bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
-    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
+    bar_req = MagicMock(specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
@@ -189,7 +190,7 @@ def test_req_package_render_as_root_with_frozen() -> None:
     bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
     bar.read_text = Mock(return_value=json_text)
     d = DistPackage(bar)
-    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
+    bar_req = MagicMock(specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=d)
     is_frozen = True
@@ -199,16 +200,26 @@ def test_req_package_render_as_root_with_frozen() -> None:
 
 def test_req_package_render_as_branch() -> None:
     bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
-    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
+    bar_req = MagicMock(specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     is_frozen = False
     assert rp.render_as_branch(frozen=is_frozen) == "bar [required: >=4.0, installed: 4.1.0]"
 
 
+def test_req_package_is_conflicting_handle_dev_versions() -> None:
+    # ensure that we can handle development versions when detecting conflicts
+    # see https://github.com/tox-dev/pipdeptree/issues/393
+    bar = Mock(metadata={"Name": "bar"}, version="1.2.3.dev0")
+    bar_req = MagicMock(specifier=SpecifierSet(">1.2.0"))
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar)
+    assert not rp.is_conflicting()
+
+
 def test_req_package_as_dict() -> None:
     bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
-    bar_req = MagicMock(version="4.1.0", specifier=[">=4.0"])
+    bar_req = MagicMock(specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     result = rp.as_dict()
@@ -218,7 +229,7 @@ def test_req_package_as_dict() -> None:
 
 def test_req_package_as_dict_with_no_version_spec() -> None:
     bar = Mock(key="bar", version="4.1.0")
-    bar_req = MagicMock(version="4.1.0", specifier=[])
+    bar_req = MagicMock(specifier=[])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     result = rp.as_dict()

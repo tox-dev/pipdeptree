@@ -232,7 +232,7 @@ class ReqPackage(Package):
         if self.is_missing:
             return True
 
-        return self.installed_version not in self._obj.specifier
+        return not self._obj.specifier.contains(self.installed_version, prereleases=True)
 
     @property
     def is_missing(self) -> bool:
