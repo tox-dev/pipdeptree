@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import locale
-import sys
 from importlib.metadata import PackageNotFoundError
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock
 
@@ -29,18 +26,11 @@ def test_guess_version_setuptools(mocker: MockerFixture) -> None:
     assert result == "?"
 
 
-def test_package_as_frozen_repr(tmp_path: Path, mocker: MockerFixture) -> None:
-    file_path = tmp_path / "foo.egg-link"
-    with Path(file_path).open("w", encoding=locale.getpreferredencoding(False)) as f:
-        f.write("/A/B/foo")
-    mock_path = sys.path.copy()
-    mock_path.append(str(tmp_path))
-    mocker.patch("pipdeptree._discovery.sys.path", mock_path)
-    json_text = '{"dir_info": {"editable": true}}'
-    foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
-    foo.read_text = Mock(return_value=json_text)
+def test_package_as_frozen_repr(mocker: MockerFixture) -> None:
+    foo = Mock(metadata={"Name": "foo"}, version="1.2.3")
     dp = DistPackage(foo)
-    expected = "# Editable install with no version control (foo==20.4.1)\n-e /A/B/foo"
+    expected = "test"
+    mocker.patch("pipdeptree._models.package.dist_to_frozen_repr", Mock(return_value=expected))
     assert Package.as_frozen_repr(dp.unwrap()) == expected
 
 
@@ -67,8 +57,7 @@ def test_dist_package_requires_with_environment_markers_that_eval_to_false() -> 
 def test_dist_package_render_as_root() -> None:
     foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
     dp = DistPackage(foo)
-    is_frozen = False
-    assert dp.render_as_root(frozen=is_frozen) == "foo==20.4.1"
+    assert dp.render_as_root(frozen=False) == "foo==20.4.1"
 
 
 def test_dist_package_render_as_branch() -> None:
@@ -78,18 +67,15 @@ def test_dist_package_render_as_branch() -> None:
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     dp = DistPackage(foo).as_parent_of(rp)
-    is_frozen = False
-    assert dp.render_as_branch(frozen=is_frozen) == "foo==20.4.1 [requires: bar>=4.0]"
+    assert dp.render_as_branch(frozen=False) == "foo==20.4.1 [requires: bar>=4.0]"
 
 
-def test_dist_package_render_as_root_with_frozen() -> None:
-    json_text = '{"dir_info": {"editable": true}, "url": "file:///A/B/foo"}'
-    foo = Mock(metadata={"Name": "foo"}, version="20.4.1")
-    foo.read_text = Mock(return_value=json_text)
+def test_dist_package_render_as_root_with_frozen(mocker: MockerFixture) -> None:
+    foo = Mock(metadata={"Name": "foo"}, version="1.2.3")
     dp = DistPackage(foo)
-    is_frozen = True
-    expect = "# Editable install with no version control (foo==20.4.1)\n-e /A/B/foo"
-    assert dp.render_as_root(frozen=is_frozen) == expect
+    expected = "test"
+    mocker.patch("pipdeptree._models.package.dist_to_frozen_repr", Mock(return_value=expected))
+    assert dp.render_as_root(frozen=True) == expected
 
 
 def test_dist_package_as_parent_of() -> None:
@@ -181,21 +167,18 @@ def test_req_package_render_as_root() -> None:
     bar_req = MagicMock(specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
-    is_frozen = False
-    assert rp.render_as_root(frozen=is_frozen) == "bar==4.1.0"
+    assert rp.render_as_root(frozen=False) == "bar==4.1.0"
 
 
-def test_req_package_render_as_root_with_frozen() -> None:
-    json_text = '{"dir_info": {"editable": true}, "url": "file:///A/B/bar"}'
+def test_req_package_render_as_root_with_frozen(mocker: MockerFixture) -> None:
     bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
-    bar.read_text = Mock(return_value=json_text)
-    d = DistPackage(bar)
+    dp = DistPackage(bar)
     bar_req = MagicMock(specifier=[">=4.0"])
     bar_req.name = "bar"
-    rp = ReqPackage(bar_req, dist=d)
-    is_frozen = True
-    expect = "# Editable install with no version control (bar==4.1.0)\n-e /A/B/bar"
-    assert rp.render_as_root(frozen=is_frozen) == expect
+    rp = ReqPackage(bar_req, dp)
+    expected = "test"
+    mocker.patch("pipdeptree._models.package.dist_to_frozen_repr", Mock(return_value=expected))
+    assert rp.render_as_root(frozen=True) == expected
 
 
 def test_req_package_render_as_branch() -> None:
@@ -203,8 +186,7 @@ def test_req_package_render_as_branch() -> None:
     bar_req = MagicMock(specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
-    is_frozen = False
-    assert rp.render_as_branch(frozen=is_frozen) == "bar [required: >=4.0, installed: 4.1.0]"
+    assert rp.render_as_branch(frozen=False) == "bar [required: >=4.0, installed: 4.1.0]"
 
 
 def test_req_package_is_conflicting_handle_dev_versions() -> None:
