@@ -20,7 +20,6 @@ body:
     validations:
       required: true
 
-
   - type: textarea
     attributes:
       label: Describe the problem
