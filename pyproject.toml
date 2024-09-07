@@ -35,6 +35,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 dynamic = [
   "version",
@@ -114,6 +115,9 @@ builtin = "clear,usage,en-GB_to_en-US"
 count = true
 quiet-level = 3
 ignore-words-list = "master"
+
+[tool.pyproject-fmt]
+max_supported_python = "3.13"
 
 [tool.coverage]
 html.show_contexts = true
