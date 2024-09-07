@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING, Iterator
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
+from pipdeptree._freeze import dist_to_frozen_repr
+
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
-
-from pipdeptree._adapter import PipBaseDistributionAdapter
 
 
 class InvalidRequirementError(ValueError):
@@ -75,12 +75,7 @@ class Package(ABC):
 
     @staticmethod
     def as_frozen_repr(dist: Distribution) -> str:
-        from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415, PLC2701 # pragma: no cover
-
-        adapter = PipBaseDistributionAdapter(dist)
-        fr = FrozenRequirement.from_dist(adapter)  # type: ignore[arg-type]
-
-        return str(fr).strip()
+        return dist_to_frozen_repr(dist)
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}("{self.key}")>'

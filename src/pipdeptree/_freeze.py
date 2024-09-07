@@ -16,6 +16,16 @@ if TYPE_CHECKING:
     from importlib.metadata import Distribution
 
 
+def dist_to_frozen_repr(dist: Distribution) -> str:
+    """Return the frozen requirement repr of a `importlib.metadata.Distribution` object."""
+    from pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415, PLC2701
+
+    adapter = PipBaseDistributionAdapter(dist)
+    fr = FrozenRequirement.from_dist(adapter)  # type: ignore[arg-type]
+
+    return str(fr).strip()
+
+
 class PipBaseDistributionAdapter:
     """
     An adapter class for pip's `pip._internal.metadata.BaseDistribution` abstract class.
@@ -74,3 +84,6 @@ class PipBaseDistributionAdapter:
             with Path(egg_link_path).open("r", encoding=locale.getpreferredencoding(False)) as f:  # noqa: FBT003
                 result = f.readline().rstrip()
         return result
+
+
+__all__ = ["dist_to_frozen_repr"]
