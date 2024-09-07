@@ -2,7 +2,7 @@ name: check
 on:
   workflow_dispatch:
   push:
-    branches: "main"
+    branches: ["main"]
   pull_request:
   schedule:
     - cron: "0 8 * * *"
@@ -19,27 +19,23 @@ jobs:
       fail-fast: false
       matrix:
         py:
+          - "pypy3.10"
+          - "pypy3.9"
+          - "3.13"
           - "3.12"
           - "3.11"
           - "3.10"
           - "3.9"
           - "3.8"
-          - "pypy3.10"
-          - "pypy3.9"
     steps:
       - name: Install OS dependencies
-        run: |
-          for i in 1 2 3; do
-            echo "try $i" && sudo apt-get update -y && sudo apt-get install graphviz -y && exit 0;
-          done
-          exit 1
-        shell: bash
+        run: sudo apt-get install graphviz -y
       - name: setup python for tox
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: install tox
-        run: python -m pip install tox
+        run: python -m pip install tox-uv
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -47,23 +43,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
+          allow-prereleases: true
       - name: Pick environment to run
-        run: |
-          import codecs; import os; import sys; import platform
-          impl = platform.python_implementation()
-          if impl == "PyPy":
-            env = "TOXENV=pypy3"
-          else:
-            env = "TOXENV=py3"
-          env += "{}\n".format(sys.version_info.minor)
-          print("Picked:\n{}for {}".format(env, sys.version))
-          with codecs.open(os.environ["GITHUB_ENV"], "a", "utf-8") as file_handler:
-               file_handler.write(env)
-        shell: python
+        run: echo "TOXENV=`echo ${{ matrix.py }} | sed 's/pypy3\./pypy3/g'`" >> $GITHUB_ENV
       - name: setup test suite
-        run: tox -vv --notest
+        run: tox run -vv --notest --skip-missing-interpreters false
       - name: run test suite
-        run: tox --skip-pkg-install
+        run: tox run --skip-pkg-install
 
   check:
     name: tox env ${{ matrix.tox_env }}
@@ -82,8 +68,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: install tox
-        run: python -m pip install tox
-      - name: run check for ${{ matrix.tox_env }}
-        run: python -m tox -e ${{ matrix.tox_env }}
-        env:
-          UPGRADE_ADVISORY: "yes"
+        run: python -m pip install tox-uv
+      - name: Setup test suite
+        run: tox -vv --notest --skip-missing-interpreters false -e ${{ matrix.tox_env }}
+      - name: Run test suite
+        run: tox --skip-pkg-install -e ${{ matrix.tox_env }}
