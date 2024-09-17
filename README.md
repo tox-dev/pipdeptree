@@ -4,7 +4,7 @@
 [![Supported Python
 versions](https://img.shields.io/pypi/pyversions/pipdeptree.svg)](https://pypi.org/project/pipdeptree/)
 [![Downloads](https://static.pepy.tech/badge/pipdeptree/month)](https://pepy.tech/project/pipdeptree)
-[![check](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yml/badge.svg)](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yml)
+[![check](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yaml/badge.svg)](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yaml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/tox-dev/pipdeptree/main.svg)](https://results.pre-commit.ci/latest/github/tox-dev/pipdeptree/main)
 
 `pipdeptree` is a command line utility for displaying the installed python packages in form of a dependency tree. It
