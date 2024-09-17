@@ -1,0 +1,56 @@
+name: check
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    tags-ignore: ["**"]
+  pull_request:
+  schedule:
+    - cron: "0 8 * * *"
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - "pypy-3.10"
+          - "pypy-3.9"
+          - "3.13"
+          - "3.12"
+          - "3.11"
+          - "3.10"
+          - "3.9"
+          - "3.8"
+          - type
+          - dev
+          - pkg_meta
+    steps:
+      - name: Install OS dependencies
+        run: sudo apt-get install graphviz -y
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install tox
+        run: uv tool install --python-preference only-managed --python 3.13 tox --with tox-uv
+      - name: Install Python
+        if: (startsWith(matrix.env, '3.') || startsWith(matrix.env, 'pypy-')) && matrix.env != '3.13'
+        run: uv python install --python-preference only-managed ${{ matrix.env }}
+      - name: Setup test suite
+        run: tox run -vv --notest --skip-missing-interpreters false -e ${{ matrix.env }}
+      - name: Run test suite
+        run: tox run --skip-pkg-install -e ${{ matrix.env }}
+        env:
+          PYTEST_ADDOPTS: "-vv --durations=20"
+          DIFF_AGAINST: HEAD
