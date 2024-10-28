@@ -77,7 +77,7 @@ def fake_dist(tmp_path: Path) -> Path:
     fake_dist_path.mkdir(parents=True)
     fake_metadata = Path(fake_dist_path) / "METADATA"
     with fake_metadata.open("w", encoding=locale.getpreferredencoding(False)) as f:
-        f.write("Metadata-Version: 2.3\n" "Name: bar\n" "Version: 2.4.5\n")
+        f.write("Metadata-Version: 2.3\nName: bar\nVersion: 2.4.5\n")
 
     return fake_dist_path
 
