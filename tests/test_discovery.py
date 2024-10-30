@@ -24,7 +24,7 @@ def test_local_only(tmp_path: Path, mocker: MockerFixture, capfd: pytest.Capture
     fake_dist.mkdir()
     fake_metadata = Path(fake_dist) / "METADATA"
     with fake_metadata.open("w") as f:
-        f.write("Metadata-Version: 2.3\n" "Name: foo\n" "Version: 1.2.5\n")
+        f.write("Metadata-Version: 2.3\nName: foo\nVersion: 1.2.5\n")
 
     cmd = [str(result.creator.exe.parent / "python3"), "--local-only"]
     mocker.patch("pipdeptree._discovery.sys.prefix", venv_path)

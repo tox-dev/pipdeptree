@@ -120,7 +120,7 @@ def render_duplicated_dist_metadata_text(
             print(  # noqa: T201
                 (
                     f"  {dist.metadata['Name']:<32} {dist.version:<16} (using {first_seen.version},"
-                    f" \"{first_seen.locate_file('')}\")"
+                    f' "{first_seen.locate_file("")}")'
                 ),
                 file=sys.stderr,
             )

@@ -50,7 +50,7 @@ class Package(ABC):
         if len(license_strs) == 0:
             return self.UNKNOWN_LICENSE_STR
 
-        return f'({", ".join(license_strs)})'
+        return f"({', '.join(license_strs)})"
 
     @abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:

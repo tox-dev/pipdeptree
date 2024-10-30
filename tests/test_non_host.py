@@ -147,7 +147,7 @@ def test_custom_interpreter_ensure_pythonpath_envar_is_honored(
     fake_dist.mkdir(parents=True)
     fake_metadata = fake_dist / "METADATA"
     with fake_metadata.open("w") as f:
-        f.write("Metadata-Version: 2.3\n" "Name: foo\n" "Version: 1.2.3\n")
+        f.write("Metadata-Version: 2.3\nName: foo\nVersion: 1.2.3\n")
     cmd = ["", f"--python={result.creator.exe}", "--all", "--depth", "0"]
     mocker.patch("pipdeptree._discovery.sys.argv", cmd)
     monkeypatch.setenv("PYTHONPATH", str(another_path))
