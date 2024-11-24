@@ -112,6 +112,24 @@ def test_parser_get_options_license_and_freeze_together_not_supported(capsys: py
     assert "cannot use --license with --freeze" in err
 
 
+@pytest.mark.parametrize(
+    "args",
+    [
+        pytest.param(["--path", "/random/path", "--local-only"], id="path-with-local"),
+        pytest.param(["--path", "/random/path", "--user-only"], id="path-with-user"),
+    ],
+)
+def test_parser_get_options_path_with_either_local_or_user_not_supported(
+    args: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(args)
+
+    out, err = capsys.readouterr()
+    assert not out
+    assert "cannot use --path with --user-only or --local-only" in err
+
+
 @pytest.mark.parametrize(("bad_type"), [None, str])
 def test_enum_action_type_argument(bad_type: Any) -> None:
     with pytest.raises(TypeError, match="type must be a subclass of Enum"):

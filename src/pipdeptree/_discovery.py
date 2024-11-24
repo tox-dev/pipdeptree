@@ -15,19 +15,21 @@ from pipdeptree._warning import get_warning_printer
 
 def get_installed_distributions(
     interpreter: str = str(sys.executable),
+    supplied_paths: list[str] | None = None,
     local_only: bool = False,  # noqa: FBT001, FBT002
     user_only: bool = False,  # noqa: FBT001, FBT002
 ) -> list[Distribution]:
-    # We assign sys.path here as it used by both importlib.metadata.PathDistribution and pip by default.
-    paths = sys.path
+    # This will be the default since it's used by both importlib.metadata.PathDistribution and pip by default.
+    computed_paths = supplied_paths or sys.path
 
     # See https://docs.python.org/3/library/venv.html#how-venvs-work for more details.
     in_venv = sys.prefix != sys.base_prefix
 
     py_path = Path(interpreter).absolute()
     using_custom_interpreter = py_path != Path(sys.executable).absolute()
+    should_query_interpreter = using_custom_interpreter and not supplied_paths
 
-    if using_custom_interpreter:
+    if should_query_interpreter:
         # We query the interpreter directly to get its `sys.path`. If both --python and --local-only are given, only
         # snatch metadata associated to the interpreter's environment.
         if local_only:
@@ -37,14 +39,14 @@ def get_installed_distributions(
 
         args = [str(py_path), "-c", cmd]
         result = subprocess.run(args, stdout=subprocess.PIPE, check=False, text=True)  # noqa: S603
-        paths = ast.literal_eval(result.stdout)
+        computed_paths = ast.literal_eval(result.stdout)
     elif local_only and in_venv:
-        paths = [p for p in paths if p.startswith(sys.prefix)]
+        computed_paths = [p for p in computed_paths if p.startswith(sys.prefix)]
 
     if user_only:
-        paths = [p for p in paths if p.startswith(site.getusersitepackages())]
+        computed_paths = [p for p in computed_paths if p.startswith(site.getusersitepackages())]
 
-    return filter_valid_distributions(distributions(path=paths))
+    return filter_valid_distributions(distributions(path=computed_paths))
 
 
 def filter_valid_distributions(iterable_dists: Iterable[Distribution]) -> list[Distribution]:

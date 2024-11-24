@@ -31,7 +31,10 @@ def main(args: Sequence[str] | None = None) -> None | int:
         print(f"(resolved python: {resolved_path})", file=sys.stderr)  # noqa: T201
 
     pkgs = get_installed_distributions(
-        interpreter=options.python, local_only=options.local_only, user_only=options.user_only
+        interpreter=options.python,
+        supplied_paths=options.path or None,
+        local_only=options.local_only,
+        user_only=options.user_only,
     )
     tree = PackageDAG.from_pkgs(pkgs)
 
