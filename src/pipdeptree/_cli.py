@@ -63,7 +63,7 @@ def build_parser() -> ArgumentParser:
     )
     select.add_argument(
         "--path",
-        help="comma separated list of paths used to restrict where packages should be looked for",
+        help="Passes a path used to restrict where packages should be looked for (can be used multiple times)",
         action="append",
     )
     select.add_argument(

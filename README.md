@@ -240,6 +240,7 @@ select:
   choose what to render
 
   --python PYTHON     Python interpreter to inspect (default: /usr/local/bin/python)
+  --path PATH         Passes a path used to restrict where packages should be looked for (can be used multiple times) (default: None)
   -p P, --packages P  comma separated list of packages to show - wildcards are supported, like 'somepackage.*' (default: None)
   -e P, --exclude P   comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'. (cannot combine with -p or -a) (default: None)
   -a, --all           list all deps at top level (default: False)
