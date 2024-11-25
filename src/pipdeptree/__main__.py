@@ -14,7 +14,7 @@ from pipdeptree._validate import validate
 from pipdeptree._warning import WarningPrinter, WarningType, get_warning_printer
 
 
-def main(args: Sequence[str] | None = None) -> None | int:
+def main(args: Sequence[str] | None = None) -> int | None:
     """CLI - The main function called as entry point."""
     options = get_options(args)
 
