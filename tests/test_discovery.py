@@ -162,3 +162,25 @@ def test_invalid_metadata(
         f"{fake_site_dir}\n"
         "------------------------------------------------------------------------\n"
     )
+
+
+def test_paths(fake_dist: Path) -> None:
+    fake_site_dir = str(fake_dist.parent)
+    mocked_path = [fake_site_dir]
+
+    dists = get_installed_distributions(supplied_paths=mocked_path)
+    assert len(dists) == 1
+    assert dists[0].name == "bar"
+
+
+def test_paths_when_in_virtual_env(tmp_path: Path, fake_dist: Path) -> None:
+    # tests to ensure that we use only the user-supplied path, not paths in the virtual env
+    fake_site_dir = str(fake_dist.parent)
+    mocked_path = [fake_site_dir]
+
+    venv_path = str(tmp_path / "venv")
+    s = virtualenv.cli_run([venv_path, "--activators", ""])
+
+    dists = get_installed_distributions(interpreter=str(s.creator.exe), supplied_paths=mocked_path)
+    assert len(dists) == 1
+    assert dists[0].name == "bar"
