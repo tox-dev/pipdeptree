@@ -166,7 +166,7 @@ def get_options(args: Sequence[str] | None) -> Options:
     if parsed_args.path and (parsed_args.local_only or parsed_args.user_only):
         return parser.error("cannot use --path with --user-only or --local-only")
 
-    return cast(Options, parsed_args)
+    return cast("Options", parsed_args)
 
 
 class EnumAction(Action):
