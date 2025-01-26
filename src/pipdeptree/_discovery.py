@@ -6,11 +6,14 @@ import subprocess  # noqa: S404
 import sys
 from importlib.metadata import Distribution, distributions
 from pathlib import Path
-from typing import Iterable, Tuple
+from typing import TYPE_CHECKING
 
 from packaging.utils import canonicalize_name
 
 from pipdeptree._warning import get_warning_printer
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 def get_installed_distributions(
@@ -103,7 +106,7 @@ def render_invalid_metadata_text(site_dirs_with_invalid_metadata: set[str]) -> N
         print(site_dir, file=sys.stderr)  # noqa: T201
 
 
-FirstSeenWithDistsPair = Tuple[Distribution, Distribution]
+FirstSeenWithDistsPair = tuple[Distribution, Distribution]
 
 
 def render_duplicated_dist_metadata_text(

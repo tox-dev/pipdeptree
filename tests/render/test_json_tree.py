@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Iterator
+from typing import TYPE_CHECKING, Callable
 
 import pytest
 
@@ -8,6 +8,7 @@ from pipdeptree._models.dag import PackageDAG
 from pipdeptree._render.json_tree import render_json_tree
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from unittest.mock import Mock
 
     from tests.our_types import MockGraph

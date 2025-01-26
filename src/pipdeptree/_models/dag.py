@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import sys
 from collections import defaultdict, deque
+from collections.abc import Iterator, Mapping
 from fnmatch import fnmatch
 from itertools import chain
-from typing import TYPE_CHECKING, Iterator, List, Mapping
+from typing import TYPE_CHECKING
 
 from packaging.utils import canonicalize_name
 
@@ -25,7 +26,7 @@ def render_invalid_reqs_text(dist_name_to_invalid_reqs_dict: dict[str, list[str]
             print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # noqa: T201
 
 
-class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
+class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
     """
     Representation of Package dependencies as directed acyclic graph using a dict as the underlying datastructure.
 

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from textwrap import dedent, indent
-from typing import TYPE_CHECKING, Callable, Iterator
+from typing import TYPE_CHECKING, Callable
 
 from pipdeptree._models import PackageDAG
 from pipdeptree._render.mermaid import render_mermaid
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from unittest.mock import Mock
 
     from tests.our_types import MockGraph
