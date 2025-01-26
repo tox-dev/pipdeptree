@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
 from inspect import ismodule
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
 
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
@@ -12,6 +12,7 @@ from packaging.utils import canonicalize_name
 from pipdeptree._freeze import dist_to_frozen_repr
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from importlib.metadata import Distribution
 
 

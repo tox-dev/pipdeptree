@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
-
-MockGraph = Dict[Tuple[str, str], List[Tuple[str, List[Tuple[str, str]]]]]
+MockGraph = dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] # pragma: no cover
 
 __all__ = [
     "MockGraph",

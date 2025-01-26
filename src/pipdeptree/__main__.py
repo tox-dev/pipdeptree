@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Sequence
+from typing import TYPE_CHECKING
 
 from pipdeptree._cli import get_options
 from pipdeptree._detect_env import detect_active_interpreter
@@ -12,6 +12,9 @@ from pipdeptree._models import PackageDAG
 from pipdeptree._render import render
 from pipdeptree._validate import validate
 from pipdeptree._warning import WarningPrinter, WarningType, get_warning_printer
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def main(args: Sequence[str] | None = None) -> int | None:

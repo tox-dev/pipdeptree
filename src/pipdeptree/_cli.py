@@ -3,11 +3,14 @@ from __future__ import annotations
 import enum
 import sys
 from argparse import Action, ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
-from typing import Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from pipdeptree._warning import WarningType
 
 from .version import __version__
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class Options(Namespace):
