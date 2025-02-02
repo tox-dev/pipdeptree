@@ -3,4 +3,3 @@
 dist/
 .tox/
 /src/pipdeptree/version.py
-tests/virtualenvs/equimapper/
