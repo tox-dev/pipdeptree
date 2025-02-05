@@ -2,7 +2,7 @@
 build-backend = "hatchling.build"
 requires = [
   "hatch-vcs>=0.4",
-  "hatchling>=1.25",
+  "hatchling>=1.27",
 ]
 
 [project]
@@ -16,7 +16,10 @@ keywords = [
   "log",
   "user",
 ]
-license.file = "LICENSE"
+license = "MIT"
+license-files = [
+  "LICENSE",
+]
 maintainers = [
   { name = "Bernát Gábor", email = "gaborjbernat@gmail.com" },
   { name = "Vineet Naik", email = "naikvin@gmail.com" },
@@ -26,7 +29,6 @@ classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
