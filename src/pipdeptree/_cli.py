@@ -82,7 +82,6 @@ def build_parser() -> ArgumentParser:
         "(cannot combine with -p or -a)",
         metavar="P",
     )
-    select.add_argument("-a", "--all", action="store_true", help="list all deps at top level")
 
     scope = select.add_mutually_exclusive_group()
     scope.add_argument(
@@ -106,11 +105,14 @@ def build_parser() -> ArgumentParser:
         metavar="E",
     )
     render.add_argument(
+        "-a", "--all", action="store_true", help="list all deps at top level (text and freeze render only)"
+    )
+    render.add_argument(
         "-d",
         "--depth",
         type=lambda x: int(x) if x.isdigit() and (int(x) >= 0) else parser.error("Depth must be a number that is >= 0"),
         default=float("inf"),
-        help="limit the depth of the tree (text render only)",
+        help="limit the depth of the tree (text and freeze render only)",
         metavar="D",
     )
     render.add_argument(
