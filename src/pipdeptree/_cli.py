@@ -99,7 +99,7 @@ def build_parser() -> ArgumentParser:
     render.add_argument("-f", "--freeze", action="store_true", help="print names so as to write freeze files")
     render.add_argument(
         "--encoding",
-        dest="encoding_type",
+        dest="encoding",
         default=sys.stdout.encoding,
         help="the encoding to use when writing to the output",
         metavar="E",

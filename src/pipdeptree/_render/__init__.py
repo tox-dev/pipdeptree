@@ -21,13 +21,12 @@ def render(options: Options, tree: PackageDAG) -> None:
     elif options.mermaid:
         print(render_mermaid(tree))  # noqa: T201
     elif options.output_format:
-        assert options.output_format is not None
         render_graphviz(tree, output_format=options.output_format, reverse=options.reverse)
     else:
         render_text(
             tree,
             max_depth=options.depth,
-            encoding=options.encoding_type,
+            encoding=options.encoding,
             list_all=options.all,
             frozen=options.freeze,
             include_license=options.license,
