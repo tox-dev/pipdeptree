@@ -22,7 +22,9 @@ def expected_venv_pkgs() -> frozenset[str]:
     if implementation == "CPython":  # pragma: cpython cover
         expected = {"pip", "setuptools", "wheel"}
     elif implementation == "PyPy":  # pragma: pypy cover
-        expected = {"cffi", "greenlet", "pip", "readline", "hpy", "setuptools", "wheel"}
+        expected = {"cffi", "greenlet", "pip", "hpy", "readline", "setuptools", "wheel"}
+        if sys.version_info >= (3, 10):  # pragma: >=3.10 cover
+            expected -= {"readline"}
     else:  # pragma: no cover
         raise ValueError(implementation)
     if sys.version_info >= (3, 12):  # pragma: >=3.12 cover
