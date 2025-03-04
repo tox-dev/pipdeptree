@@ -225,7 +225,7 @@ In earlier versions, `--json`, `--json-tree` and `--graph-output` options overri
 
 ```bash
 % pipdeptree --help
-usage: pipdeptree [-h] [-v] [-w [{silence,suppress,fail}]] [--python PYTHON] [-p P] [-e P] [-a] [-l | -u] [-f] [--encoding E] [-d D] [-r] [--license] [-j | --json-tree | --mermaid | --graph-output FMT]
+usage: pipdeptree [-h] [-v] [-w [{silence,suppress,fail}]] [--python PYTHON] [--path PATH] [-p P] [-e P] [-l | -u] [-f] [--encoding E] [-a] [-d D] [-r] [--license] [-j | --json-tree | --mermaid | --graph-output FMT]
 
 Dependency tree of the installed python packages
 
@@ -239,11 +239,10 @@ options:
 select:
   choose what to render
 
-  --python PYTHON     Python interpreter to inspect (default: /usr/local/bin/python)
+  --python PYTHON     Python interpreter to inspect. With "auto", it attempts to detect your virtual environment and fails if it can't. (default: /usr/local/bin/python)
   --path PATH         Passes a path used to restrict where packages should be looked for (can be used multiple times) (default: None)
   -p P, --packages P  comma separated list of packages to show - wildcards are supported, like 'somepackage.*' (default: None)
   -e P, --exclude P   comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'. (cannot combine with -p or -a) (default: None)
-  -a, --all           list all deps at top level (default: False)
   -l, --local-only    if in a virtualenv that has global access do not show globally installed packages (default: False)
   -u, --user-only     only show installations in the user site dir (default: False)
 
@@ -252,7 +251,8 @@ render:
 
   -f, --freeze        print names so as to write freeze files (default: False)
   --encoding E        the encoding to use when writing to the output (default: utf-8)
-  -d D, --depth D     limit the depth of the tree (text render only) (default: inf)
+  -a, --all           list all deps at top level (text and freeze render only) (default: False)
+  -d D, --depth D     limit the depth of the tree (text and freeze render only) (default: inf)
   -r, --reverse       render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of packages that need them under them (default: False)
   --license           list the license(s) of a package (text render only) (default: False)
   -j, --json          raw JSON - this will yield output that may be used by external tools (default: False)
