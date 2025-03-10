@@ -248,7 +248,7 @@ def test_render_text(
 ) -> None:
     tree = example_dag.reverse() if reverse else example_dag
     encoding = "utf-8" if unicode else "ascii"
-    render_text(tree, max_depth=float("inf"), encoding=encoding, list_all=list_all, frozen=False)
+    render_text(tree, max_depth=float("inf"), encoding=encoding, list_all=list_all)
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
 
@@ -437,7 +437,7 @@ def test_render_text_encoding(
     expected_output: list[str],
     example_dag: PackageDAG,
 ) -> None:
-    render_text(example_dag, max_depth=level, encoding=encoding, list_all=True, frozen=False)
+    render_text(example_dag, max_depth=level, encoding=encoding, list_all=True)
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
 
@@ -458,7 +458,7 @@ def test_render_text_list_all_and_packages_options_used(
     # NOTE: Mimicking the --packages option being used here.
     package_dag = package_dag.filter_nodes(["examplePy"], None)
 
-    render_text(package_dag, max_depth=float("inf"), encoding="utf-8", list_all=True, frozen=False)
+    render_text(package_dag, max_depth=float("inf"), encoding="utf-8", list_all=True)
     captured = capsys.readouterr()
     expected_output = [
         "examplePy==1.2.3",

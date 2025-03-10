@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .freeze import render_freeze
 from .graphviz import render_graphviz
 from .json import render_json
 from .json_tree import render_json_tree
@@ -22,13 +23,14 @@ def render(options: Options, tree: PackageDAG) -> None:
         print(render_mermaid(tree))  # noqa: T201
     elif options.output_format:
         render_graphviz(tree, output_format=options.output_format, reverse=options.reverse)
+    elif options.freeze:
+        render_freeze(tree, max_depth=options.depth, list_all=options.all)
     else:
         render_text(
             tree,
             max_depth=options.depth,
             encoding=options.encoding,
             list_all=options.all,
-            frozen=options.freeze,
             include_license=options.license,
         )
 
