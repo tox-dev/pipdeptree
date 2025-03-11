@@ -26,7 +26,7 @@ def test_json_tree_given_req_package_with_version_spec(
     version_spec_tuple: tuple[str, str],
     expected_version_spec: str,
 ) -> None:
-    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+    graph: MockGraph = {
         ("a", "1.2.3"): [("b", [version_spec_tuple])],
         ("b", "2.2.0"): [],
     }

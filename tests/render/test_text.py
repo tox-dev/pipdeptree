@@ -446,7 +446,7 @@ def test_render_text_list_all_and_packages_options_used(
     capsys: pytest.CaptureFixture[str],
     mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
 ) -> None:
-    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+    graph: MockGraph = {
         ("examplePy", "1.2.3"): [("hellopy", [(">=", "2.0.0")]), ("worldpy", [(">=", "0.0.2")])],
         ("HelloPy", "2.0.0"): [],
         ("worldpy", "0.0.2"): [],
@@ -501,7 +501,7 @@ def test_render_text_with_license_info(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+    graph: MockGraph = {
         ("a", "3.4.0"): [("c", [("==", "1.0.0")])],
         ("b", "2.3.1"): [],
         ("c", "1.0.0"): [],
@@ -550,7 +550,7 @@ def test_render_text_with_license_info_and_reversed_tree(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+    graph: MockGraph = {
         ("a", "3.4.0"): [("b", [("==", "2.3.1")]), ("c", [("==", "1.0.0")])],
         ("b", "2.3.1"): [("c", [("==", "1.0.0")])],
         ("c", "1.0.0"): [],

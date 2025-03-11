@@ -112,7 +112,7 @@ def test_package_dag_from_pkgs(mock_pkgs: Callable[[MockGraph], Iterator[Mock]])
     # when pip's _vendor.packaging.requirements.Requirement's requires() gives a lowercased package name but the actual
     # package name in PyPI is mixed case, expect the mixed case version
 
-    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+    graph: MockGraph = {
         ("examplePy", "1.2.3"): [("hellopy", [(">=", "2.0.0")])],
         ("HelloPy", "2.2.0"): [],
     }
@@ -126,7 +126,7 @@ def test_package_dag_from_pkgs(mock_pkgs: Callable[[MockGraph], Iterator[Mock]])
 def test_package_dag_from_pkgs_uses_pep503normalize(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
     # ensure that requirement gets matched with a dists even when it's key needs pep503 normalization to match
 
-    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+    graph: MockGraph = {
         ("parent-package", "1.2.3"): [("flufl.lock", [(">=", "2.0.0")])],
         ("flufl-lock", "2.2.0"): [],
     }
@@ -140,7 +140,7 @@ def test_package_dag_from_pkgs_uses_pep503normalize(mock_pkgs: Callable[[MockGra
 def test_package_from_pkgs_given_invalid_requirements(
     mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capfd: pytest.CaptureFixture[str]
 ) -> None:
-    graph: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]] = {
+    graph: MockGraph = {
         ("a-package", "1.2.3"): [("BAD**requirement", [(">=", "2.0.0")])],
     }
     package_dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
