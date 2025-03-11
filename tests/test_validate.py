@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 )
 def test_cyclic_deps(
     capsys: pytest.CaptureFixture[str],
-    mpkgs: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]],
+    mpkgs: MockGraph,
     expected_keys: list[list[str]],
     expected_output: list[str],
     mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
@@ -121,7 +121,7 @@ def test_cyclic_deps(
 )
 def test_conflicting_deps(
     capsys: pytest.CaptureFixture[str],
-    mpkgs: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]],
+    mpkgs: MockGraph,
     expected_keys: dict[str, list[str]],
     expected_output: list[str],
     mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
@@ -165,7 +165,7 @@ def test_conflicting_deps(
 def test_validate(
     capsys: pytest.CaptureFixture[str],
     mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
-    mpkgs: dict[tuple[str, str], list[tuple[str, list[tuple[str, str]]]]],
+    mpkgs: MockGraph,
     expected_output: list[str],
 ) -> None:
     tree = PackageDAG.from_pkgs(list(mock_pkgs(mpkgs)))
