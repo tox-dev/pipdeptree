@@ -40,12 +40,14 @@ class Package(ABC):
             return self.UNKNOWN_LICENSE_STR
 
         license_strs: list[str] = []
-        classifiers = dist_metadata.get_all("Classifier", [])
+        if license_str := dist_metadata.get("License-Expression"):
+            license_strs.append(license_str)
 
+        classifiers = dist_metadata.get_all("Classifier", [])
         for classifier in classifiers:
             line = str(classifier)
             if line.startswith("License"):
-                license_str = line.split(":: ")[-1]
+                license_str = line.rsplit(":: ", 1)[-1]
                 license_strs.append(license_str)
 
         if len(license_strs) == 0:
