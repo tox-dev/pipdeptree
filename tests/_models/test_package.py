@@ -148,10 +148,10 @@ def test_dist_package_as_dict() -> None:
             Mock(
                 get=lambda *args, **kwargs: "MIT",  # noqa: ARG005
                 get_all=lambda *args, **kwargs: [  # noqa: ARG005
-                    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+                    "License :: OSI Approved :: MIT License",
                 ],
             ),
-            "(MIT, GNU General Public License v2 (GPLv2))",
+            "(MIT)",
             id="license-expression-with-license-classifier",
         ),
     ],

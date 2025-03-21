@@ -39,10 +39,10 @@ class Package(ABC):
         except PackageNotFoundError:
             return self.UNKNOWN_LICENSE_STR
 
-        license_strs: list[str] = []
         if license_str := dist_metadata.get("License-Expression"):
-            license_strs.append(license_str)
+            return f"({license_str})"
 
+        license_strs: list[str] = []
         classifiers = dist_metadata.get_all("Classifier", [])
         for classifier in classifiers:
             line = str(classifier)
