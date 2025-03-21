@@ -107,12 +107,16 @@ def test_dist_package_as_dict() -> None:
     ("mocked_metadata", "expected_output"),
     [
         pytest.param(
-            Mock(get_all=lambda *args, **kwargs: []),  # noqa: ARG005
+            Mock(
+                get=lambda *args, **kwargs: None,  # noqa: ARG005
+                get_all=lambda *args, **kwargs: []  # noqa: ARG005
+            ),
             Package.UNKNOWN_LICENSE_STR,
             id="no-license",
         ),
         pytest.param(
             Mock(
+                get=lambda *args, **kwargs: None,  # noqa: ARG005
                 get_all=lambda *args, **kwargs: [  # noqa: ARG005
                     "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
                     "Operating System :: OS Independent",
@@ -123,6 +127,7 @@ def test_dist_package_as_dict() -> None:
         ),
         pytest.param(
             Mock(
+                get=lambda *args, **kwargs: None,  # noqa: ARG005
                 get_all=lambda *args, **kwargs: [  # noqa: ARG005
                     "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
                     "License :: OSI Approved :: Apache Software License",
@@ -130,6 +135,24 @@ def test_dist_package_as_dict() -> None:
             ),
             "(GNU General Public License v2 (GPLv2), Apache Software License)",
             id="more-than-one-license",
+        ),
+        pytest.param(
+            Mock(
+                get=lambda *args, **kwargs: "MIT",  # noqa: ARG005
+                get_all=lambda *args, **kwargs: []  # noqa: ARG005
+            ),
+            "(MIT)",
+            id="license-expression",
+        ),
+        pytest.param(
+            Mock(
+                get=lambda *args, **kwargs: "MIT",  # noqa: ARG005
+                get_all=lambda *args, **kwargs: [  # noqa: ARG005
+                    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+                ]
+            ),
+            "(MIT, GNU General Public License v2 (GPLv2))",
+            id="license-expression-with-license-classifier",
         ),
     ],
 )
