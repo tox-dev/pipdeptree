@@ -107,49 +107,49 @@ def test_dist_package_as_dict() -> None:
     ("mocked_metadata", "expected_output"),
     [
         pytest.param(
-            Mock(
-                get=lambda *args, **kwargs: None,  # noqa: ARG005
-                get_all=lambda *args, **kwargs: [],  # noqa: ARG005
-            ),
+            Mock(get=Mock(return_value=None), get_all=Mock(return_value=[])),
             Package.UNKNOWN_LICENSE_STR,
             id="no-license",
         ),
         pytest.param(
             Mock(
-                get=lambda *args, **kwargs: None,  # noqa: ARG005
-                get_all=lambda *args, **kwargs: [  # noqa: ARG005
-                    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
-                    "Operating System :: OS Independent",
-                ],
+                get=Mock(return_value=None),
+                get_all=Mock(
+                    return_value=[
+                        "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+                        "Operating System :: OS Independent",
+                    ]
+                ),
             ),
             "(GNU General Public License v2 (GPLv2))",
             id="one-license-with-one-non-license",
         ),
         pytest.param(
             Mock(
-                get=lambda *args, **kwargs: None,  # noqa: ARG005
-                get_all=lambda *args, **kwargs: [  # noqa: ARG005
-                    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
-                    "License :: OSI Approved :: Apache Software License",
-                ],
+                get=Mock(return_value=None),
+                get_all=Mock(
+                    return_value=[
+                        "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+                        "License :: OSI Approved :: Apache Software License",
+                    ]
+                ),
             ),
             "(GNU General Public License v2 (GPLv2), Apache Software License)",
             id="more-than-one-license",
         ),
         pytest.param(
-            Mock(
-                get=lambda *args, **kwargs: "MIT",  # noqa: ARG005
-                get_all=lambda *args, **kwargs: [],  # noqa: ARG005
-            ),
+            Mock(get=Mock(return_value="MIT"), get_all=Mock(return_value=[])),
             "(MIT)",
             id="license-expression",
         ),
         pytest.param(
             Mock(
-                get=lambda *args, **kwargs: "MIT",  # noqa: ARG005
-                get_all=lambda *args, **kwargs: [  # noqa: ARG005
-                    "License :: OSI Approved :: MIT License",
-                ],
+                get=Mock(return_value="MIT"),
+                get_all=Mock(
+                    return_value=[
+                        "License :: OSI Approved :: MIT License",
+                    ]
+                ),
             ),
             "(MIT)",
             id="license-expression-with-license-classifier",
@@ -157,7 +157,7 @@ def test_dist_package_as_dict() -> None:
     ],
 )
 def test_dist_package_licenses(mocked_metadata: Mock, expected_output: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("pipdeptree._models.package.metadata", lambda _: mocked_metadata)
+    monkeypatch.setattr("pipdeptree._models.package.metadata", Mock(return_value=mocked_metadata))
     dist = DistPackage(Mock(metadata={"Name": "a"}))
     licenses_str = dist.licenses()
 
