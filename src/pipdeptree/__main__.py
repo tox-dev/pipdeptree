@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from pipdeptree._cli import get_options
 from pipdeptree._detect_env import detect_active_interpreter
-from pipdeptree._discovery import get_installed_distributions
+from pipdeptree._discovery import InterpreterQueryError, get_installed_distributions
 from pipdeptree._models import PackageDAG
 from pipdeptree._render import render
 from pipdeptree._validate import validate
@@ -33,12 +33,17 @@ def main(args: Sequence[str] | None = None) -> int | None:
         options.python = resolved_path
         print(f"(resolved python: {resolved_path})", file=sys.stderr)  # noqa: T201
 
-    pkgs = get_installed_distributions(
-        interpreter=options.python,
-        supplied_paths=options.path or None,
-        local_only=options.local_only,
-        user_only=options.user_only,
-    )
+    try:
+        pkgs = get_installed_distributions(
+            interpreter=options.python,
+            supplied_paths=options.path or None,
+            local_only=options.local_only,
+            user_only=options.user_only,
+        )
+    except InterpreterQueryError as e:
+        print(f"Failed to query custom interpreter: {e}", file=sys.stderr)  # noqa: T201
+        return 1
+
     tree = PackageDAG.from_pkgs(pkgs)
 
     validate(tree)

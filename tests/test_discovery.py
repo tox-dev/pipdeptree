@@ -120,6 +120,16 @@ def test_user_only_when_in_virtual_env_and_system_site_pkgs_enabled(
     assert found == expected
 
 
+def test_interpreter_query_failure(mocker: MockerFixture, capfd: pytest.CaptureFixture[str]) -> None:
+    cmd = ["", "--python", "i-dont-exist"]
+    mocker.patch("pipdeptree._discovery.sys.argv", cmd)
+
+    main()
+
+    _, err = capfd.readouterr()
+    assert err.startswith("Failed to query custom interpreter")
+
+
 def test_duplicate_metadata(mocker: MockerFixture, capfd: pytest.CaptureFixture[str]) -> None:
     mocker.patch(
         "pipdeptree._discovery.distributions",

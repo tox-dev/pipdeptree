@@ -16,33 +16,30 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 
+class InterpreterQueryError(Exception):
+    """A problem occurred while trying to query a custom interpreter."""
+
+
 def get_installed_distributions(
-    interpreter: str = str(sys.executable),
+    interpreter: str = sys.executable or "",
     supplied_paths: list[str] | None = None,
     local_only: bool = False,  # noqa: FBT001, FBT002
     user_only: bool = False,  # noqa: FBT001, FBT002
 ) -> list[Distribution]:
-    # This will be the default since it's used by both importlib.metadata.PathDistribution and pip by default.
+    """
+    Return the distributions installed in the interpreter's environment.
+
+    :raises InterpreterQueryError: If a failure occurred while querying the interpreter.
+    """
+    # sys.path is used by importlib.metadata.PathDistribution and pip by default.
     computed_paths = supplied_paths or sys.path
 
     # See https://docs.python.org/3/library/venv.html#how-venvs-work for more details.
     in_venv = sys.prefix != sys.base_prefix
 
-    py_path = Path(interpreter).absolute()
-    using_custom_interpreter = py_path != Path(sys.executable).absolute()
-    should_query_interpreter = using_custom_interpreter and not supplied_paths
-
+    should_query_interpreter = not supplied_paths and (Path(interpreter).absolute() != Path(sys.executable).absolute())
     if should_query_interpreter:
-        # We query the interpreter directly to get its `sys.path`. If both --python and --local-only are given, only
-        # snatch metadata associated to the interpreter's environment.
-        if local_only:
-            cmd = "import sys; print([p for p in sys.path if p.startswith(sys.prefix)])"
-        else:
-            cmd = "import sys; print(sys.path)"
-
-        args = [str(py_path), "-c", cmd]
-        result = subprocess.run(args, stdout=subprocess.PIPE, check=False, text=True)  # noqa: S603
-        computed_paths = ast.literal_eval(result.stdout)
+        computed_paths = query_interpreter_for_paths(interpreter, local_only=local_only)
     elif local_only and in_venv:
         computed_paths = [p for p in computed_paths if p.startswith(sys.prefix)]
 
@@ -50,6 +47,27 @@ def get_installed_distributions(
         computed_paths = [p for p in computed_paths if p.startswith(site.getusersitepackages())]
 
     return filter_valid_distributions(distributions(path=computed_paths))
+
+
+def query_interpreter_for_paths(interpreter: str, *, local_only: bool = False) -> list[str]:
+    """
+    Query an interpreter for paths containing distribution metadata.
+
+    :raises InterpreterQueryError: If a failure occurred while querying the interpreter.
+    """
+    # We query the interpreter directly to get its `sys.path`. If both --python and --local-only are given, only
+    # snatch metadata associated to the interpreter's environment.
+    if local_only:
+        cmd = "import sys; print([p for p in sys.path if p.startswith(sys.prefix)])"
+    else:
+        cmd = "import sys; print(sys.path)"
+
+    args = [interpreter, "-c", cmd]
+    try:
+        result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True, text=True)  # noqa: S603
+        return ast.literal_eval(result.stdout)  # type: ignore[no-any-return]
+    except Exception as e:
+        raise InterpreterQueryError(str(e)) from e
 
 
 def filter_valid_distributions(iterable_dists: Iterable[Distribution]) -> list[Distribution]:
