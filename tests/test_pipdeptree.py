@@ -28,7 +28,7 @@ def test_console_script() -> None:
     entry_points = dist.entry_points
     assert len(entry_points) == 1
 
-    if (sys.version_info >= (3, 11)): # pragma: >=3.11
+    if sys.version_info >= (3, 11):  # pragma: >=3.11
         entry_point = entry_points["pipdeptree"]
     else:
         entry_point = entry_points[0]
