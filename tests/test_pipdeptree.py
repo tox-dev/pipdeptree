@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import sys
+from importlib import metadata
 from subprocess import CompletedProcess, check_call  # noqa: S404
 from typing import TYPE_CHECKING
+
+import pytest
 
 from pipdeptree.__main__ import main
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import pytest
-    from pytest_console_scripts import ScriptRunner
     from pytest_mock import MockFixture
 
 
@@ -18,9 +19,27 @@ def test_main() -> None:
     check_call([sys.executable, "-m", "pipdeptree", "--help"])
 
 
-def test_console(script_runner: ScriptRunner) -> None:
-    result = script_runner.run(["pipdeptree", "--help"])
-    assert result.success
+def test_console_script() -> None:
+    try:
+        dist = metadata.distribution("pipdeptree")
+    except Exception as e:  # noqa: BLE001 # pragma: no cover
+        pytest.fail(f"Unexpected error when retrieving pipdeptree metadata: {e}")
+
+    entry_points = dist.entry_points
+    assert len(entry_points) == 1
+
+    if sys.version_info >= (3, 11):  # pragma: >=3.11
+        entry_point = entry_points["pipdeptree"]
+    else:
+        entry_point = entry_points[0]
+
+    try:
+        pipdeptree = entry_point.load()
+    except Exception as e:  # noqa: BLE001 # pragma: no cover
+        pytest.fail(f"Unexpected error: {e}")
+
+    with pytest.raises(SystemExit, match="0"):
+        pipdeptree(["", "--help"])
 
 
 def test_main_log_resolved(tmp_path: Path, mocker: MockFixture, capsys: pytest.CaptureFixture[str]) -> None:
