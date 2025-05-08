@@ -35,9 +35,9 @@ def test_local_only(tmp_path: Path, mocker: MockerFixture, capfd: pytest.Capture
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
-    expected = {"foo", "pip", "setuptools", "wheel"}
+    expected = {"foo", "pip", "setuptools"}
     if sys.version_info >= (3, 12):
-        expected -= {"setuptools", "wheel"}  # pragma: no cover
+        expected -= {"setuptools"}  # pragma: no cover
 
     assert found == expected
 

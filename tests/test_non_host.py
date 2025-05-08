@@ -20,15 +20,15 @@ if TYPE_CHECKING:
 def expected_venv_pkgs() -> frozenset[str]:
     implementation = python_implementation()
     if implementation == "CPython":  # pragma: cpython cover
-        expected = {"pip", "setuptools", "wheel"}
+        expected = {"pip", "setuptools"}
     elif implementation == "PyPy":  # pragma: pypy cover
-        expected = {"cffi", "greenlet", "pip", "hpy", "readline", "setuptools", "wheel"}
+        expected = {"cffi", "greenlet", "pip", "hpy", "readline", "setuptools"}
         if sys.version_info >= (3, 10):  # pragma: >=3.10 cover
             expected -= {"readline"}
     else:  # pragma: no cover
         raise ValueError(implementation)
     if sys.version_info >= (3, 12):  # pragma: >=3.12 cover
-        expected -= {"setuptools", "wheel"}
+        expected -= {"setuptools"}
 
     return frozenset(expected)
 
@@ -73,9 +73,9 @@ def test_custom_interpreter_with_local_only(
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
-    expected = {"pip", "setuptools", "wheel"}
+    expected = {"pip", "setuptools"}
     if sys.version_info >= (3, 12):  # pragma: >=3.12 cover
-        expected -= {"setuptools", "wheel"}
+        expected -= {"setuptools"}
     assert expected == found, out
 
 
