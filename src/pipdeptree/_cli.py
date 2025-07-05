@@ -24,6 +24,7 @@ class Options(Namespace):
     reverse: bool
     packages: str
     exclude: str
+    exclude_dependencies: bool
     json: bool
     json_tree: bool
     mermaid: bool
@@ -81,6 +82,11 @@ def build_parser() -> ArgumentParser:
         help="comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'. "
         "(cannot combine with -p or -a)",
         metavar="P",
+    )
+    select.add_argument(
+        "--exclude-dependencies",
+        help="Used along with --exclude to also exclude dependencies of packages",
+        action="store_true",
     )
 
     scope = select.add_mutually_exclusive_group()
@@ -166,6 +172,8 @@ def get_options(args: Sequence[str] | None) -> Options:
 
     if parsed_args.exclude and (parsed_args.all or parsed_args.packages):
         return parser.error("cannot use --exclude with --packages or --all")
+    if parsed_args.exclude_dependencies and not parsed_args.exclude:
+        return parser.error("must use --exclude-dependencies with --exclude")
     if parsed_args.license and parsed_args.freeze:
         return parser.error("cannot use --license with --freeze")
     if parsed_args.path and (parsed_args.local_only or parsed_args.user_only):

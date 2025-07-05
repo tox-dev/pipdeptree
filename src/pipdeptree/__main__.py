@@ -57,7 +57,7 @@ def main(args: Sequence[str] | None = None) -> int | None:
 
     if show_only is not None or exclude is not None:
         try:
-            tree = tree.filter_nodes(show_only, exclude)
+            tree = tree.filter_nodes(show_only, exclude, exclude_deps=options.exclude_dependencies)
         except ValueError as e:
             if warning_printer.should_warn():
                 warning_printer.print_single_line(str(e))
