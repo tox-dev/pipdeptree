@@ -181,7 +181,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
                 if should_append:
                     stack.append(node)
 
-        # Perform DFS on the explicity included nodes so that we can also include their dependencies, if applicable
+        # Perform DFS on the explicitly included nodes so that we can also include their dependencies, if applicable
         m: dict[DistPackage, list[ReqPackage]] = {}
         seen = set()
         while stack:
@@ -253,7 +253,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
                 # If this branch is never reached, this means there is a dependant that is outside the exclusion set
                 # that needs child
                 #
-                # We also don't want to add child nodes that are in the resolved exclude set, as they are explicity
+                # We also don't want to add child nodes that are in the resolved exclude set, as they are explicitly
                 # excluded and have either already been processed or are in the queue awaiting processing
                 if (
                     dependents_count[child_key] == 0
