@@ -130,6 +130,15 @@ def test_parser_get_options_path_with_either_local_or_user_not_supported(
     assert "cannot use --path with --user-only or --local-only" in err
 
 
+def test_parser_get_options_exclude_dependencies_without_exclude(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["--exclude-dependencies"])
+
+    out, err = capsys.readouterr()
+    assert not out
+    assert "must use --exclude-dependencies with --exclude" in err
+
+
 @pytest.mark.parametrize(("bad_type"), [None, str])
 def test_enum_action_type_argument(bad_type: Any) -> None:
     with pytest.raises(TypeError, match="type must be a subclass of Enum"):
