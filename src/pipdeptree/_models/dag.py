@@ -163,6 +163,8 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
 
         # Filter nodes that are explicitly included/excluded
         stack: deque[DistPackage] = deque()
+        m: dict[DistPackage, list[ReqPackage]] = {}
+        seen = set()
         matched_includes: set[str] = set()
         for node in self._obj:
             if should_exclude_node(node.key, exclude):
@@ -181,23 +183,21 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
                 if should_append:
                     stack.append(node)
 
-        # Perform DFS on the explicitly included nodes so that we can also include their dependencies, if applicable
-        m: dict[DistPackage, list[ReqPackage]] = {}
-        seen = set()
-        while stack:
-            n = stack.pop()
-            cldn = [c for c in self._obj[n] if not should_exclude_node(c.key, exclude)]
-            m[n] = cldn
-            seen.add(n.key)
-            for c in cldn:
-                if c.key not in seen:
-                    cld_node = self.get_node_as_parent(c.key)
-                    if cld_node:
-                        stack.append(cld_node)
-                    else:
-                        # It means there's no root node corresponding to the child node i.e.
-                        # a dependency is missing
-                        continue
+            # Perform DFS on the explicitly included nodes so that we can also include their dependencies, if applicable
+            while stack:
+                n = stack.pop()
+                cldn = [c for c in self._obj[n] if not should_exclude_node(c.key, exclude)]
+                m[n] = cldn
+                seen.add(n.key)
+                for c in cldn:
+                    if c.key not in seen:
+                        cld_node = self.get_node_as_parent(c.key)
+                        if cld_node:
+                            stack.append(cld_node)
+                        else:
+                            # It means there's no root node corresponding to the child node i.e.
+                            # a dependency is missing
+                            continue
 
         non_existent_includes = [
             i for i in include_with_casing_preserved if canonicalize_name(i) not in matched_includes
