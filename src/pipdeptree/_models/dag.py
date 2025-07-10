@@ -126,7 +126,12 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         node = self.get_node_as_parent(node_key)
         return self._obj[node] if node else []
 
-    def filter_nodes(self, include: list[str] | None, exclude: set[str] | None) -> PackageDAG:  # noqa: C901, PLR0912
+    def filter_nodes(  # noqa: C901, PLR0912
+        self,
+        include: list[str] | None,
+        exclude: set[str] | None,
+        exclude_deps: bool = False,  # noqa: FBT001, FBT002
+    ) -> PackageDAG:
         """
         Filter nodes in a graph by given parameters.
 
@@ -153,14 +158,16 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         if include and exclude:
             assert not (set(include) & exclude)
 
-        # Traverse the graph in a depth first manner and filter the
-        # nodes according to `show_only` and `exclude` sets
+        if exclude_deps:
+            exclude = self._build_exclusion_set_with_dependencies(exclude)
+
+        # Filter nodes that are explicitly included/excluded
         stack: deque[DistPackage] = deque()
         m: dict[DistPackage, list[ReqPackage]] = {}
         seen = set()
         matched_includes: set[str] = set()
         for node in self._obj:
-            if any(fnmatch(node.key, e) for e in exclude):
+            if should_exclude_node(node.key, exclude):
                 continue
             if include is None:
                 stack.append(node)
@@ -176,9 +183,10 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
                 if should_append:
                     stack.append(node)
 
+            # Perform DFS on the explicitly included nodes so that we can also include their dependencies, if applicable
             while stack:
                 n = stack.pop()
-                cldn = [c for c in self._obj[n] if not any(fnmatch(c.key, e) for e in exclude)]
+                cldn = [c for c in self._obj[n] if not should_exclude_node(c.key, exclude)]
                 m[n] = cldn
                 seen.add(n.key)
                 for c in cldn:
@@ -198,6 +206,63 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
             raise ValueError("No packages matched using the following patterns: " + ", ".join(non_existent_includes))
 
         return self.__class__(m)
+
+    def _build_exclusion_set_with_dependencies(self, old_exclude: set[str]) -> set[str]:
+        """
+        Build a new exclusion set using the fnmatch patterns in `old_exclude` to also grab dependencies.
+
+        Note that it will actually resolve the patterns in old_exclude to actual nodes and use that result instead of
+        keeping the patterns.
+        """
+        # First, resolve old_exclude to actual nodes in the graph as old_exclude may instead contain patterns that are
+        # used by fnmatch (or the exclusion may not even exist in the graph)
+        resolved_exclude: set[str] = set()
+
+        resolved_exclude.update(node.key for node in self._obj if should_exclude_node(node.key, old_exclude))
+
+        # Find all possible candidate nodes for exclusion using DFS
+        candidates: set[str] = set()
+        stack = list(resolved_exclude)
+        while stack:
+            candidate = stack.pop()
+            if candidate not in candidates:
+                candidates.add(candidate)
+                stack.extend(dep.key for dep in self.get_children(candidate))
+
+        # Build a reverse graph to know the dependents of a candidate node
+        reverse_graph = self.reverse()
+
+        # Precompute number of dependents for each candidate
+        dependents_count: defaultdict[str, int] = defaultdict(int)
+        for node in candidates:
+            dependents_count[node] += len(reverse_graph.get_children(node))
+
+        new_exclude = set()
+
+        # Determine what nodes should actually be excluded
+        # Use the resolved exclude set as a starting point as these nodes are explicitly excluded
+        queue = deque(resolved_exclude)
+        while queue:
+            node = queue.popleft()
+            new_exclude.add(node)
+            for child in self.get_children(node):
+                child_key = child.key
+                dependents_count[child_key] -= 1
+
+                # If all dependents of child are excluded, it itself is now eligible for exclusion
+                # If this branch is never reached, this means there is a dependant that is outside the exclusion set
+                # that needs child
+                #
+                # We also don't want to add child nodes that are in the resolved exclude set, as they are explicitly
+                # excluded and have either already been processed or are in the queue awaiting processing
+                if (
+                    dependents_count[child_key] == 0
+                    and child_key not in new_exclude
+                    and child_key not in resolved_exclude
+                ):
+                    queue.append(child_key)
+
+        return new_exclude
 
     def reverse(self) -> ReversedPackageDAG:
         """
@@ -245,6 +310,10 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
 
     def __len__(self) -> int:
         return len(self._obj)
+
+
+def should_exclude_node(key: str, exclude: set[str]) -> bool:
+    return any(fnmatch(key, e) for e in exclude)
 
 
 class ReversedPackageDAG(PackageDAG):
