@@ -58,3 +58,13 @@ def test_main_log_resolved(tmp_path: Path, mocker: MockFixture, capsys: pytest.C
 
     captured = capsys.readouterr()
     assert captured.err.startswith(f"(resolved python: {tmp_path!s}")
+
+
+def test_main_include_and_exclude_overlap(mocker: MockFixture, capsys: pytest.CaptureFixture[str]) -> None:
+    cmd = ["", "--packages", "a,b,c", "--exclude", "a"]
+    mocker.patch("pipdeptree.__main__.sys.argv", cmd)
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Cannot have --packages and --exclude contain the same entries" in captured.err
