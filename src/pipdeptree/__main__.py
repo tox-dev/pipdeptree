@@ -9,6 +9,7 @@ from pipdeptree._cli import get_options
 from pipdeptree._detect_env import detect_active_interpreter
 from pipdeptree._discovery import InterpreterQueryError, get_installed_distributions
 from pipdeptree._models import PackageDAG
+from pipdeptree._models.dag import IncludeExcludeOverlapError, IncludePatternNotFoundError
 from pipdeptree._render import render
 from pipdeptree._validate import validate
 from pipdeptree._warning import WarningPrinter, WarningType, get_warning_printer
@@ -52,13 +53,16 @@ def main(args: Sequence[str] | None = None) -> int | None:
     if options.reverse:
         tree = tree.reverse()
 
-    show_only = options.packages.split(",") if options.packages else None
+    include = options.packages.split(",") if options.packages else None
     exclude = set(options.exclude.split(",")) if options.exclude else None
 
-    if show_only is not None or exclude is not None:
+    if include is not None or exclude is not None:
         try:
-            tree = tree.filter_nodes(show_only, exclude, exclude_deps=options.exclude_dependencies)
-        except ValueError as e:
+            tree = tree.filter_nodes(include, exclude, exclude_deps=options.exclude_dependencies)
+        except IncludeExcludeOverlapError:
+            print("Cannot have --packages and --exclude contain the same entries", file=sys.stderr)  # noqa: T201
+            return 1
+        except IncludePatternNotFoundError as e:
             if warning_printer.should_warn():
                 warning_printer.print_single_line(str(e))
             return _determine_return_code(warning_printer)

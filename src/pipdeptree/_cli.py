@@ -170,8 +170,6 @@ def get_options(args: Sequence[str] | None) -> Options:
     parser = build_parser()
     parsed_args = parser.parse_args(args)
 
-    if parsed_args.exclude and (parsed_args.all or parsed_args.packages):
-        return parser.error("cannot use --exclude with --packages or --all")
     if parsed_args.exclude_dependencies and not parsed_args.exclude:
         return parser.error("must use --exclude-dependencies with --exclude")
     if parsed_args.license and parsed_args.freeze:

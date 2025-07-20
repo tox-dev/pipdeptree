@@ -18,6 +18,14 @@ from pipdeptree._warning import get_warning_printer
 from .package import DistPackage, InvalidRequirementError, ReqPackage
 
 
+class IncludeExcludeOverlapError(Exception):
+    """Include and exclude sets passed as input violate mutual exclusivity requirement."""
+
+
+class IncludePatternNotFoundError(Exception):
+    """Include patterns weren't found when filtering a `PackageDAG`."""
+
+
 def render_invalid_reqs_text(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:
     for dist_name, invalid_reqs in dist_name_to_invalid_reqs_dict.items():
         print(dist_name, file=sys.stderr)  # noqa: T201
@@ -139,7 +147,8 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
 
         :param include: list of node keys to include (or None)
         :param exclude: set of node keys to exclude (or None)
-        :raises ValueError: If include has node keys that do not exist in the graph
+        :raises IncludeExcludeOverlapError: if include and exclude contains the same elements
+        :raises IncludePatternNotFoundError: if include has patterns that do not match anything in the graph
         :returns: filtered version of the graph
 
         """
@@ -153,10 +162,10 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
             include = [canonicalize_name(i) for i in include]
         exclude = {canonicalize_name(s) for s in exclude} if exclude else set()
 
-        # Check for mutual exclusion of show_only and exclude sets
+        # Check for mutual exclusion of include and exclude sets
         # after normalizing the values to lowercase
-        if include and exclude:
-            assert not (set(include) & exclude)
+        if include and exclude and (set(include) & exclude):
+            raise IncludeExcludeOverlapError
 
         if exclude_deps:
             exclude = self._build_exclusion_set_with_dependencies(exclude)
@@ -203,7 +212,9 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
             i for i in include_with_casing_preserved if canonicalize_name(i) not in matched_includes
         ]
         if non_existent_includes:
-            raise ValueError("No packages matched using the following patterns: " + ", ".join(non_existent_includes))
+            raise IncludePatternNotFoundError(
+                "No packages matched using the following patterns: " + ", ".join(non_existent_includes)
+            )
 
         return self.__class__(m)
 

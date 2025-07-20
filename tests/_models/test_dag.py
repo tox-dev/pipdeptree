@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import pytest
 
 from pipdeptree._models import DistPackage, PackageDAG, ReqPackage, ReversedPackageDAG
+from pipdeptree._models.dag import IncludeExcludeOverlapError, IncludePatternNotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -63,13 +64,18 @@ def test_package_dag_filter_fnmatch_exclude_a(t_fnmatch: PackageDAG) -> None:
     assert graph == {"b-a": ["b-b"], "b-b": []}
 
 
-def test_package_dag_filter_include_exclude_both_used(t_fnmatch: PackageDAG) -> None:
-    with pytest.raises(AssertionError):
+def test_package_dag_filter_include_exclude_normal(t_fnmatch: PackageDAG) -> None:
+    graph = dag_to_dict(t_fnmatch.filter_nodes(["a-*"], {"a-a"}))
+    assert graph == {"a-b": ["a-c"]}
+
+
+def test_package_dag_filter_include_exclude_overlap(t_fnmatch: PackageDAG) -> None:
+    with pytest.raises(IncludeExcludeOverlapError):
         t_fnmatch.filter_nodes(["a-a", "a-b"], {"a-b"})
 
 
-def test_package_dag_filter_nonexistent_packages(t_fnmatch: PackageDAG) -> None:
-    with pytest.raises(ValueError, match="No packages matched using the following patterns: x, y, z"):
+def test_package_dag_filter_include_nonexistent_packages(t_fnmatch: PackageDAG) -> None:
+    with pytest.raises(IncludePatternNotFoundError, match="No packages matched using the following patterns: x, y, z"):
         t_fnmatch.filter_nodes(["x", "y", "z"], None)
 
 
