@@ -10,10 +10,14 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from unittest.mock import Mock
 
+    import pytest
+
     from tests.our_types import MockGraph
 
 
-def test_render_mermaid(example_dag: PackageDAG, randomized_example_dag: PackageDAG) -> None:
+def test_render_mermaid(
+    example_dag: PackageDAG, randomized_example_dag: PackageDAG, capsys: pytest.CaptureFixture[str]
+) -> None:
     """Check both the sorted and randomized package tree produces the same sorted Mermaid output.
 
     Rendering a reverse dependency tree should produce the same set of nodes. Edges should have the same version spec
@@ -70,22 +74,33 @@ def test_render_mermaid(example_dag: PackageDAG, randomized_example_dag: Package
     ).rstrip()
 
     for package_tree in (example_dag, randomized_example_dag):
-        output = render_mermaid(package_tree)
-        assert output.rstrip() == nodes + dependency_edges
-        reversed_output = render_mermaid(package_tree.reverse())
-        assert reversed_output.rstrip() == nodes + reverse_dependency_edges
+        render_mermaid(package_tree)
+        output = capsys.readouterr()
+        assert output.out.rstrip() == nodes + dependency_edges
+
+        render_mermaid(package_tree.reverse())
+        output = capsys.readouterr()
+        assert output.out.rstrip() == nodes + reverse_dependency_edges
 
 
-def test_mermaid_reserved_ids(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_mermaid_reserved_ids(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str]
+) -> None:
     graph = {("click", "3.4.0"): [("click-extra", [(">=", "2.0.0")])]}
     package_tree = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    output = render_mermaid(package_tree)
-    assert output == dedent(
-        """\
+
+    render_mermaid(package_tree)
+
+    output = capsys.readouterr()
+    assert (
+        output.out.rstrip()
+        == dedent(
+            """\
         flowchart TD
             classDef missing stroke-dasharray: 5
             click-extra["click-extra\\n(missing)"]:::missing
             click_0["click\\n3.4.0"]
             click_0 -.-> click-extra
         """,
+        ).rstrip()
     )

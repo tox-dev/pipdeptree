@@ -16,11 +16,11 @@ if TYPE_CHECKING:
 
 def render(options: Options, tree: PackageDAG) -> None:
     if options.json:
-        print(render_json(tree))  # noqa: T201
+        render_json(tree)
     elif options.json_tree:
-        print(render_json_tree(tree))  # noqa: T201
+        render_json_tree(tree)
     elif options.mermaid:
-        print(render_mermaid(tree))  # noqa: T201
+        render_mermaid(tree)
     elif options.output_format:
         render_graphviz(tree, output_format=options.output_format, reverse=options.reverse)
     elif options.freeze:

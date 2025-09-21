@@ -25,11 +25,15 @@ def test_json_tree_given_req_package_with_version_spec(
     mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
     version_spec_tuple: tuple[str, str],
     expected_version_spec: str,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     graph: MockGraph = {
         ("a", "1.2.3"): [("b", [version_spec_tuple])],
         ("b", "2.2.0"): [],
     }
     package_dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    json_tree_str = render_json_tree(package_dag)
-    assert json_tree_str.find(expected_version_spec) != -1
+
+    render_json_tree(package_dag)
+
+    captured = capsys.readouterr()
+    assert captured.out.find(expected_version_spec) != -1

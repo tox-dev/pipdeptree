@@ -78,8 +78,6 @@ lint.select = [
 ]
 lint.ignore = [
   "A005",   # Don't care about shadowing builtin modules
-  "ANN101", # No type annotation for self
-  "ANN102", # Missing type annotation for `cls` in classmethod
   "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in
   "COM812", # Conflict with formatter
   "CPY",    # No copyright statements
