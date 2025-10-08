@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import sys
-from enum import StrEnum, auto
+from enum import Enum
 from typing import Callable
 
 
-class WarningType(StrEnum):
-    FAIL = auto()
-    SILENCE = auto()
-    SUPPRESS = auto()
+class WarningType(Enum):
+    FAIL = "fail"
+    SILENCE = "silence"
+    SUPPRESS = "suppress"
 
     @classmethod
     def from_str(cls, string: str) -> WarningType:
