@@ -1,11 +1,26 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import pytest
 
 from pipdeptree._warning import WarningPrinter, WarningType
 
-if TYPE_CHECKING:
-    import pytest
+
+@pytest.mark.parametrize(
+    ("warning", "expected_type"),
+    [
+        ("silence", WarningType.SILENCE),
+        ("suppress", WarningType.SUPPRESS),
+        ("fail", WarningType.FAIL),
+    ],
+)
+def test_warning_type_from_str_normal(warning: str, expected_type: WarningType) -> None:
+    warning_type = WarningType.from_str(warning)
+    assert expected_type == warning_type
+
+
+def test_warning_type_from_str_invalid_warning() -> None:
+    with pytest.raises(ValueError, match="Unknown WarningType string value provided"):
+        WarningType.from_str("non-existent-warning-type")
 
 
 def test_warning_printer_print_single_line(capsys: pytest.CaptureFixture[str]) -> None:

@@ -4,7 +4,22 @@ import sys
 from enum import Enum
 from typing import Callable
 
-WarningType = Enum("WarningType", ["SILENCE", "SUPPRESS", "FAIL"])
+
+class WarningType(Enum):
+    FAIL = "fail"
+    SILENCE = "silence"
+    SUPPRESS = "suppress"
+
+    @classmethod
+    def from_str(cls, string: str) -> WarningType:
+        if string == "silence":
+            return WarningType.SILENCE
+        if string == "suppress":
+            return WarningType.SUPPRESS
+        if string == "fail":
+            return WarningType.FAIL
+        msg = "Unknown WarningType string value provided"
+        raise ValueError(msg)
 
 
 class WarningPrinter:

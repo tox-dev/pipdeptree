@@ -1,12 +1,8 @@
 from __future__ import annotations
 
-import argparse
-from typing import Any
-
 import pytest
 
-from pipdeptree._cli import EnumAction, build_parser, get_options
-from pipdeptree._warning import WarningType
+from pipdeptree._cli import build_parser, get_options
 
 
 def test_parser_default() -> None:
@@ -117,33 +113,22 @@ def test_parser_get_options_exclude_dependencies_without_exclude(capsys: pytest.
     assert "must use --exclude-dependencies with --exclude" in err
 
 
-@pytest.mark.parametrize(("bad_type"), [None, str])
-def test_enum_action_type_argument(bad_type: Any) -> None:
-    with pytest.raises(TypeError, match="type must be a subclass of Enum"):
-        EnumAction(["--test"], "test", type=bad_type)
+@pytest.mark.parametrize(
+    "warning",
+    [
+        "silence",
+        "suppress",
+        "fail",
+    ],
+)
+def test_parse_warn_option_normal(warning: str) -> None:
+    options = get_options(["-w", warning])
+    assert options.warn == warning
+
+    options = get_options(["--warn", warning])
+    assert options.warn == warning
 
 
-def test_enum_action_default_argument_not_str() -> None:
-    with pytest.raises(TypeError, match="default must be defined with a string value"):
-        EnumAction(["--test"], "test", type=WarningType)
-
-
-def test_enum_action_default_argument_not_a_valid_choice() -> None:
-    with pytest.raises(ValueError, match="default value should be among the enum choices"):
-        EnumAction(["--test"], "test", type=WarningType, default="bad-warning-type")
-
-
-def test_enum_action_call_with_value() -> None:
-    action = EnumAction(["--test"], "test", type=WarningType, default="silence")
-    namespace = argparse.Namespace()
-    action(argparse.ArgumentParser(), namespace, "suppress")
-    assert getattr(namespace, "test", None) == WarningType.SUPPRESS
-
-
-def test_enum_action_call_without_value() -> None:
-    # ensures that we end up using the default value in case no value is specified (currently we pass nargs='?' when
-    # creating the --warn option, which is why this test exists)
-    action = EnumAction(["--test"], "test", type=WarningType, default="silence")
-    namespace = argparse.Namespace()
-    action(argparse.ArgumentParser(), namespace, None)
-    assert getattr(namespace, "test", None) == WarningType.SILENCE
+def test_parse_warn_option_invalid() -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["--warn", "non-existent-warning-type"])
