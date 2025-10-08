@@ -25,9 +25,9 @@ def main(args: Sequence[str] | None = None) -> int | None:
     # Warnings are only enabled when using text output.
     is_text_output = not any([options.json, options.json_tree, options.output_format])
     if not is_text_output:
-        options.warn = WarningType.SILENCE
+        options.warn = "silence"
     warning_printer = get_warning_printer()
-    warning_printer.warning_type = options.warn
+    warning_printer.warning_type = WarningType.from_str(options.warn)
 
     if options.python == "auto":
         resolved_path = detect_active_interpreter()
