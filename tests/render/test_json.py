@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from textwrap import dedent
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from pipdeptree._models.dag import PackageDAG
 from pipdeptree._render.json import render_json
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
     from unittest.mock import Mock
 
     import pytest

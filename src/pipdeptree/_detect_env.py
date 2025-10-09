@@ -5,7 +5,10 @@ import platform
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def detect_active_interpreter() -> str:

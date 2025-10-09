@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -9,7 +9,7 @@ from pipdeptree._models import DistPackage, PackageDAG, ReqPackage, ReversedPack
 from pipdeptree._models.dag import IncludeExcludeOverlapError, IncludePatternNotFoundError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
     from unittest.mock import Mock
 
     from tests.our_types import MockGraph
