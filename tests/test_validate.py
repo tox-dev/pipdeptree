@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -8,7 +8,7 @@ from pipdeptree._models import PackageDAG
 from pipdeptree._validate import conflicting_deps, cyclic_deps, render_conflicts_text, render_cycles_text, validate
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
     from unittest.mock import Mock
 
     from tests.our_types import MockGraph

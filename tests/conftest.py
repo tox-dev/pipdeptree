@@ -3,7 +3,7 @@ from __future__ import annotations
 import locale
 from pathlib import Path
 from random import shuffle
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
@@ -11,7 +11,7 @@ import pytest
 from pipdeptree._models import PackageDAG
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from tests.our_types import MockGraph
 

@@ -13,28 +13,28 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
-        additional_dependencies: ["tomli>=2.0.1"]
+        additional_dependencies: ["tomli>=2.3"]
   - repo: https://github.com/tox-dev/tox-toml-fmt
-    rev: "v1.0.0"
+    rev: "v1.2.0"
     hooks:
       - id: tox-toml-fmt
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "v2.7.0"
+    rev: "v2.10.0"
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.13.3"
+    rev: "v0.14.0"
     hooks:
       - id: ruff-format
-      - id: ruff
+      - id: ruff-check
         args: ["--fix", "--unsafe-fixes", "--exit-non-zero-on-fix"]
   - repo: https://github.com/rbubley/mirrors-prettier
     rev: "v3.6.2"
     hooks:
       - id: prettier
         additional_dependencies:
-          - prettier@3.3.3
-          - "@prettier/plugin-xml@3.4.1"
+          - prettier@3.6.2
+          - "@prettier/plugin-xml@3.4.2"
   - repo: meta
     hooks:
       - id: check-hooks-apply
