@@ -15,16 +15,17 @@ if TYPE_CHECKING:
 
 
 def render(options: Options, tree: PackageDAG) -> None:
-    if options.json:
+    output_format = options.output_format
+    if output_format == "json":
         render_json(tree)
-    elif options.json_tree:
+    elif output_format == "json-tree":
         render_json_tree(tree)
-    elif options.mermaid:
+    elif output_format == "mermaid":
         render_mermaid(tree)
-    elif options.output_format:
-        render_graphviz(tree, output_format=options.output_format, reverse=options.reverse)
-    elif options.freeze:
+    elif output_format == "freeze":
         render_freeze(tree, max_depth=options.depth, list_all=options.all)
+    elif output_format.startswith("graphviz-"):
+        render_graphviz(tree, output_format=output_format[len("graphviz-") :], reverse=options.reverse)
     else:
         render_text(
             tree,

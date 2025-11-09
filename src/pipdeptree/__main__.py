@@ -23,7 +23,7 @@ def main(args: Sequence[str] | None = None) -> int | None:
     options = get_options(args)
 
     # Warnings are only enabled when using text output.
-    is_text_output = not any([options.json, options.json_tree, options.output_format])
+    is_text_output = not any([options.json, options.json_tree, options.graphviz_format])
     if not is_text_output:
         options.warn = "silence"
     warning_printer = get_warning_printer()
@@ -67,7 +67,11 @@ def main(args: Sequence[str] | None = None) -> int | None:
                 warning_printer.print_single_line(str(e))
             return _determine_return_code(warning_printer)
 
-    render(options, tree)
+    try:
+        render(options, tree)
+    except ValueError as e:
+        print(e, file=sys.stderr)  # noqa: T201
+        return 1
 
     return _determine_return_code(warning_printer)
 

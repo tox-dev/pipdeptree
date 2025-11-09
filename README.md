@@ -221,16 +221,17 @@ In earlier versions, `--json`, `--json-tree` and `--graph-output` options overri
 
 ## Usage
 
-```bash
+```text
 % pipdeptree --help
-usage: pipdeptree [-h] [-v] [-w [{silence,suppress,fail}]] [--python PYTHON] [--path PATH] [-p P] [-e P] [-l | -u] [-f] [--encoding E] [-a] [-d D] [-r] [--license] [-j | --json-tree | --mermaid | --graph-output FMT]
+usage: pipdeptree [-h] [-v] [-w {silence,suppress,fail}] [--python PYTHON] [--path PATH] [-p P] [-e P] [--exclude-dependencies] [-l | -u] [-f] [--encoding E] [-a] [-d D] [-r] [--license]
+                  [-j | --json-tree | --mermaid | --graph-output FMT | -o FMT]
 
 Dependency tree of the installed python packages
 
 options:
   -h, --help          show this help message and exit
   -v, --version       show program's version number and exit
-  -w [{silence,suppress,fail}], --warn [{silence,suppress,fail}]
+  -w {silence,suppress,fail}, --warn {silence,suppress,fail}
                       warning control: suppress will show warnings but return 0 whether or not they are present; silence will not show warnings at all and always return 0; fail will show warnings and return 1 if any are present (default:
                       suppress)
 
@@ -238,25 +239,29 @@ select:
   choose what to render
 
   --python PYTHON     Python interpreter to inspect. With "auto", it attempts to detect your virtual environment and fails if it can't. (default: /usr/local/bin/python)
-  --path PATH         Passes a path used to restrict where packages should be looked for (can be used multiple times) (default: None)
+  --path PATH         passes a path used to restrict where packages should be looked for (can be used multiple times) (default: None)
   -p P, --packages P  comma separated list of packages to show - wildcards are supported, like 'somepackage.*' (default: None)
   -e P, --exclude P   comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'. (cannot combine with -p or -a) (default: None)
+  --exclude-dependencies
+                      used along with --exclude to also exclude dependencies of packages (default: False)
   -l, --local-only    if in a virtualenv that has global access do not show globally installed packages (default: False)
   -u, --user-only     only show installations in the user site dir (default: False)
 
 render:
-  choose how to render the dependency tree (by default will use text mode)
+  choose how to render the dependency tree
 
-  -f, --freeze        print names so as to write freeze files (default: False)
+  -f, --freeze        (Deprecated, use -o) print names so as to write freeze files (default: False)
   --encoding E        the encoding to use when writing to the output (default: utf-8)
   -a, --all           list all deps at top level (text and freeze render only) (default: False)
   -d D, --depth D     limit the depth of the tree (text and freeze render only) (default: inf)
   -r, --reverse       render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of packages that need them under them (default: False)
   --license           list the license(s) of a package (text render only) (default: False)
-  -j, --json          raw JSON - this will yield output that may be used by external tools (default: False)
-  --json-tree         nested JSON - mimics the text format layout (default: False)
-  --mermaid           https://mermaid.js.org flow diagram (default: False)
-  --graph-output FMT  Graphviz rendering with the value being the graphviz output e.g.: dot, jpeg, pdf, png, svg (default: None)
+  -j, --json          (Deprecated, use -o) raw JSON - this will yield output that may be used by external tools (default: False)
+  --json-tree         (Deprecated, use -o) nested JSON - mimics the text format layout (default: False)
+  --mermaid           (Deprecated, use -o) https://mermaid.js.org flow diagram (default: False)
+  --graph-output FMT  (Deprecated, use -o) Graphviz rendering with the value being the graphviz output e.g.: dot, jpeg, pdf, png, svg (default: None)
+  -o FMT, --output FMT
+                      specify how to render the tree; supported formats: freeze, json, json-tree, mermaid, text, or graphviz-* (e.g. graphviz-png, graphviz-dot) (default: text)
 ```
 
 ## Known issues
