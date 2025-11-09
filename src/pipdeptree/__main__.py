@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
-from pipdeptree._cli import get_options
+from pipdeptree._cli import Options, get_options
 from pipdeptree._detect_env import detect_active_interpreter
 from pipdeptree._discovery import InterpreterQueryError, get_installed_distributions
 from pipdeptree._models import PackageDAG
@@ -23,8 +23,7 @@ def main(args: Sequence[str] | None = None) -> int | None:
     options = get_options(args)
 
     # Warnings are only enabled when using text output.
-    is_text_output = not any([options.json, options.json_tree, options.graphviz_format])
-    if not is_text_output:
+    if not _is_text_output(options):
         options.warn = "silence"
     warning_printer = get_warning_printer()
     warning_printer.warning_type = WarningType.from_str(options.warn)
@@ -74,6 +73,12 @@ def main(args: Sequence[str] | None = None) -> int | None:
         return 1
 
     return _determine_return_code(warning_printer)
+
+
+def _is_text_output(options: Options) -> bool:
+    if any([options.json, options.json_tree, options.graphviz_format]):
+        return False
+    return options.output_format not in {"json", "json-tree"} and not options.output_format.startswith("graphviz-")
 
 
 def _determine_return_code(warning_printer: WarningPrinter) -> int:
