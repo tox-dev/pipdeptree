@@ -39,7 +39,7 @@ class Package(ABC):
         except PackageNotFoundError:
             return self.UNKNOWN_LICENSE_STR
 
-        if license_str := dist_metadata.get("License-Expression"):
+        if license_str := dist_metadata[("License-Expression")]:
             return f"({license_str})"
 
         license_strs: list[str] = []

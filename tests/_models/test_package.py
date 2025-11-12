@@ -107,13 +107,13 @@ def test_dist_package_as_dict() -> None:
     ("mocked_metadata", "expected_output"),
     [
         pytest.param(
-            Mock(get=Mock(return_value=None), get_all=Mock(return_value=[])),
+            Mock(__getitem__=Mock(return_value=None), get_all=Mock(return_value=[])),
             Package.UNKNOWN_LICENSE_STR,
             id="no-license",
         ),
         pytest.param(
             Mock(
-                get=Mock(return_value=None),
+                __getitem__=Mock(return_value=None),
                 get_all=Mock(
                     return_value=[
                         "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
@@ -126,7 +126,7 @@ def test_dist_package_as_dict() -> None:
         ),
         pytest.param(
             Mock(
-                get=Mock(return_value=None),
+                __getitem__=Mock(return_value=None),
                 get_all=Mock(
                     return_value=[
                         "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
@@ -138,13 +138,13 @@ def test_dist_package_as_dict() -> None:
             id="more-than-one-license",
         ),
         pytest.param(
-            Mock(get=Mock(return_value="MIT"), get_all=Mock(return_value=[])),
+            Mock(__getitem__=Mock(return_value="MIT"), get_all=Mock(return_value=[])),
             "(MIT)",
             id="license-expression",
         ),
         pytest.param(
             Mock(
-                get=Mock(return_value="MIT"),
+                __getitem__=Mock(return_value="MIT"),
                 get_all=Mock(
                     return_value=[
                         "License :: OSI Approved :: MIT License",

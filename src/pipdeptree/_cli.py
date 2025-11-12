@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, ArgumentTypeError, Namespace
 from typing import TYPE_CHECKING, cast
 
 from .version import __version__
@@ -25,10 +25,15 @@ class Options(Namespace):
     json: bool
     json_tree: bool
     mermaid: bool
-    output_format: str | None
+    graphviz_format: str | None
+    output_format: str
     depth: float
     encoding: str
     license: bool
+
+
+# NOTE: graphviz-* has been intentionally left out. Users of this var should handle it separately.
+ALLOWED_RENDER_FORMATS = ["freeze", "json", "json-tree", "mermaid", "text"]
 
 
 class _Formatter(ArgumentDefaultsHelpFormatter):
@@ -63,7 +68,7 @@ def build_parser() -> ArgumentParser:
     )
     select.add_argument(
         "--path",
-        help="Passes a path used to restrict where packages should be looked for (can be used multiple times)",
+        help="passes a path used to restrict where packages should be looked for (can be used multiple times)",
         action="append",
     )
     select.add_argument(
@@ -81,7 +86,7 @@ def build_parser() -> ArgumentParser:
     )
     select.add_argument(
         "--exclude-dependencies",
-        help="Used along with --exclude to also exclude dependencies of packages",
+        help="used along with --exclude to also exclude dependencies of packages",
         action="store_true",
     )
 
@@ -96,9 +101,11 @@ def build_parser() -> ArgumentParser:
 
     render = parser.add_argument_group(
         title="render",
-        description="choose how to render the dependency tree (by default will use text mode)",
+        description="choose how to render the dependency tree",
     )
-    render.add_argument("-f", "--freeze", action="store_true", help="print names so as to write freeze files")
+    render.add_argument(
+        "-f", "--freeze", action="store_true", help="(Deprecated, use -o) print names so as to write freeze files"
+    )
     render.add_argument(
         "--encoding",
         dest="encoding",
@@ -139,25 +146,36 @@ def build_parser() -> ArgumentParser:
         "--json",
         action="store_true",
         default=False,
-        help="raw JSON - this will yield output that may be used by external tools",
+        help="(Deprecated, use -o) raw JSON - this will yield output that may be used by external tools",
     )
     render_type.add_argument(
         "--json-tree",
         action="store_true",
         default=False,
-        help="nested JSON - mimics the text format layout",
+        help="(Deprecated, use -o) nested JSON - mimics the text format layout",
     )
     render_type.add_argument(
         "--mermaid",
         action="store_true",
         default=False,
-        help="https://mermaid.js.org flow diagram",
+        help="(Deprecated, use -o) https://mermaid.js.org flow diagram",
     )
     render_type.add_argument(
         "--graph-output",
         metavar="FMT",
+        dest="graphviz_format",
+        help="(Deprecated, use -o) Graphviz rendering with the value being the graphviz output e.g.:\
+              dot, jpeg, pdf, png, svg",
+    )
+    render_type.add_argument(
+        "-o",
+        "--output",
+        metavar="FMT",
         dest="output_format",
-        help="Graphviz rendering with the value being the graphviz output e.g.: dot, jpeg, pdf, png, svg",
+        type=_validate_output_format,
+        default="text",
+        help=f"specify how to render the tree; supported formats: {', '.join(ALLOWED_RENDER_FORMATS)}, or graphviz-*\
+            (e.g. graphviz-png, graphviz-dot)",
     )
     return parser
 
@@ -165,15 +183,42 @@ def build_parser() -> ArgumentParser:
 def get_options(args: Sequence[str] | None) -> Options:
     parser = build_parser()
     parsed_args = parser.parse_args(args)
+    options = cast("Options", parsed_args)
 
-    if parsed_args.exclude_dependencies and not parsed_args.exclude:
+    options.output_format = _handle_legacy_render_options(options)
+
+    if options.exclude_dependencies and not options.exclude:
         return parser.error("must use --exclude-dependencies with --exclude")
-    if parsed_args.license and parsed_args.freeze:
+    if options.license and options.freeze:
         return parser.error("cannot use --license with --freeze")
-    if parsed_args.path and (parsed_args.local_only or parsed_args.user_only):
+    if options.path and (options.local_only or options.user_only):
         return parser.error("cannot use --path with --user-only or --local-only")
 
-    return cast("Options", parsed_args)
+    return options
+
+
+def _handle_legacy_render_options(options: Options) -> str:
+    if options.freeze:
+        return "freeze"
+    if options.json:
+        return "json"
+    if options.json_tree:
+        return "json-tree"
+    if options.mermaid:
+        return "mermaid"
+    if options.graphviz_format:
+        return f"graphviz-{options.graphviz_format}"
+
+    return options.output_format
+
+
+def _validate_output_format(value: str) -> str:
+    if value in ALLOWED_RENDER_FORMATS:
+        return value
+    if value.startswith("graphviz-"):
+        return value
+    msg = f'"{value}" is not a known output format. Must be one of {", ".join(ALLOWED_RENDER_FORMATS)}, or graphviz-*'
+    raise ArgumentTypeError(msg)
 
 
 __all__ = [

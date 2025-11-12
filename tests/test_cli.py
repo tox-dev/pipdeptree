@@ -5,55 +5,91 @@ import pytest
 from pipdeptree._cli import build_parser, get_options
 
 
-def test_parser_default() -> None:
-    parser = build_parser()
-    args = parser.parse_args([])
-    assert not args.json
-    assert args.output_format is None
+def test_get_options_default() -> None:
+    get_options([])
 
 
-def test_parser_j() -> None:
-    parser = build_parser()
-    args = parser.parse_args(["-j"])
-    assert args.json
-    assert args.output_format is None
+@pytest.mark.parametrize("flag", ["-j", "--json"])
+def test_get_options_json(flag: str) -> None:
+    options = get_options([flag])
+    assert options.json
+    assert options.output_format == "json"
 
 
-def test_parser_json() -> None:
-    parser = build_parser()
-    args = parser.parse_args(["--json"])
-    assert args.json
-    assert args.output_format is None
+def test_get_options_json_tree() -> None:
+    options = get_options(["--json-tree"])
+    assert options.json_tree
+    assert not options.json
+    assert options.output_format == "json-tree"
 
 
-def test_parser_json_tree() -> None:
-    parser = build_parser()
-    args = parser.parse_args(["--json-tree"])
-    assert args.json_tree
-    assert not args.json
-    assert args.output_format is None
+def test_get_options_mermaid() -> None:
+    options = get_options(["--mermaid"])
+    assert options.mermaid
+    assert options.output_format == "mermaid"
 
 
-def test_parser_mermaid() -> None:
-    parser = build_parser()
-    args = parser.parse_args(["--mermaid"])
-    assert args.mermaid
-    assert not args.json
-    assert args.output_format is None
+def test_get_options_pdf() -> None:
+    options = get_options(["--graph-output", "pdf"])
+    assert options.graphviz_format == "pdf"
+    assert options.output_format == "graphviz-pdf"
 
 
-def test_parser_pdf() -> None:
-    parser = build_parser()
-    args = parser.parse_args(["--graph-output", "pdf"])
-    assert args.output_format == "pdf"
-    assert not args.json
+def test_get_options_svg() -> None:
+    options = get_options(["--graph-output", "svg"])
+    assert options.graphviz_format == "svg"
+    assert options.output_format == "graphviz-svg"
 
 
-def test_parser_svg() -> None:
-    parser = build_parser()
-    args = parser.parse_args(["--graph-output", "svg"])
-    assert args.output_format == "svg"
-    assert not args.json
+@pytest.mark.parametrize(("fmt"), ["freeze", "json", "json-tree", "mermaid", "graphviz-png"])
+def test_get_options_output_format(fmt: str) -> None:
+    options = get_options(["-o", fmt])
+    assert options.output_format == fmt
+
+
+def test_get_options_output_format_that_does_not_exist(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["-o", "i-dont-exist"])
+
+    out, err = capsys.readouterr()
+    assert not out
+    assert 'i-dont-exist" is not a known output format.' in err
+
+
+def test_get_options_license_and_freeze_together_not_supported(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["--license", "--freeze"])
+
+    out, err = capsys.readouterr()
+    assert not out
+    assert "cannot use --license with --freeze" in err
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        pytest.param(["--path", "/random/path", "--local-only"], id="path-with-local"),
+        pytest.param(["--path", "/random/path", "--user-only"], id="path-with-user"),
+    ],
+)
+def test_get_options_path_with_either_local_or_user_not_supported(
+    args: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(args)
+
+    out, err = capsys.readouterr()
+    assert not out
+    assert "cannot use --path with --user-only or --local-only" in err
+
+
+def test_get_options_exclude_dependencies_without_exclude(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["--exclude-dependencies"])
+
+    out, err = capsys.readouterr()
+    assert not out
+    assert "must use --exclude-dependencies with --exclude" in err
 
 
 @pytest.mark.parametrize(
@@ -75,42 +111,6 @@ def test_parser_depth(should_be_error: bool, depth_arg: list[str], expected_valu
     else:
         args = parser.parse_args(depth_arg)
         assert args.depth == expected_value
-
-
-def test_parser_get_options_license_and_freeze_together_not_supported(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit, match="2"):
-        get_options(["--license", "--freeze"])
-
-    out, err = capsys.readouterr()
-    assert not out
-    assert "cannot use --license with --freeze" in err
-
-
-@pytest.mark.parametrize(
-    "args",
-    [
-        pytest.param(["--path", "/random/path", "--local-only"], id="path-with-local"),
-        pytest.param(["--path", "/random/path", "--user-only"], id="path-with-user"),
-    ],
-)
-def test_parser_get_options_path_with_either_local_or_user_not_supported(
-    args: list[str], capsys: pytest.CaptureFixture[str]
-) -> None:
-    with pytest.raises(SystemExit, match="2"):
-        get_options(args)
-
-    out, err = capsys.readouterr()
-    assert not out
-    assert "cannot use --path with --user-only or --local-only" in err
-
-
-def test_parser_get_options_exclude_dependencies_without_exclude(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit, match="2"):
-        get_options(["--exclude-dependencies"])
-
-    out, err = capsys.readouterr()
-    assert not out
-    assert "must use --exclude-dependencies with --exclude" in err
 
 
 @pytest.mark.parametrize(
