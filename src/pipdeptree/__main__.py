@@ -66,11 +66,7 @@ def main(args: Sequence[str] | None = None) -> int | None:
                 warning_printer.print_single_line(str(e))
             return _determine_return_code(warning_printer)
 
-    try:
-        render(options, tree)
-    except ValueError as e:
-        print(e, file=sys.stderr)  # noqa: T201
-        return 1
+    render(options, tree)
 
     return _determine_return_code(warning_printer)
 
