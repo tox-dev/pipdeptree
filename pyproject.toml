@@ -88,6 +88,7 @@ lint.ignore = [
   "DOC501", # TODO: Remove this once ruff supports Sphinx-style doc-strings; see https://github.com/astral-sh/ruff/issues/12434
   "INP001", # no implicit namespace
   "ISC001", # Conflict with formatter
+  "RUF067", # `__init__` module should only contain docstrings and re-exports
   "S101",   # asserts allowed
   "S104",   # Possible binding to all interface
 ]
