@@ -20,7 +20,7 @@ def _get_all_dep_keys(tree: PackageDAG) -> set[str]:
     return dep_keys
 
 
-def dump_graphviz(  # noqa: C901
+def dump_graphviz(  # noqa: C901, PLR0912, PLR0915
     tree: PackageDAG,
     output_format: str = "dot",
     is_reverse: bool = False,  # noqa: FBT001, FBT002
@@ -56,7 +56,7 @@ def dump_graphviz(  # noqa: C901
 
     graph = Digraph(format=output_format)
 
-    if is_reverse:
+    if is_reverse:  # noqa: PLR1702
         if max_depth < math.inf:
             # BFS from leaf nodes (those that are not parents of any other node)
             parent_keys = _get_all_dep_keys(tree)
