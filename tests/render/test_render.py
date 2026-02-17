@@ -37,7 +37,7 @@ def test_mermaid_routing(option: list[str], mocker: MockerFixture) -> None:
 def test_grahpviz_routing(option: list[str], mocker: MockerFixture) -> None:
     render = mocker.patch("pipdeptree._render.render_graphviz")
     main(option)
-    render.assert_called_once_with(ANY, output_format="dot", reverse=False)
+    render.assert_called_once_with(ANY, output_format="dot", reverse=False, max_depth=inf)
 
 
 @pytest.mark.parametrize("option", [[], ["--output", "text"]])

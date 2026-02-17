@@ -68,3 +68,27 @@ def test_render_svg(capsys: pytest.CaptureFixture[str], example_dag: PackageDAG)
     assert out.startswith("<?xml")
     assert "<svg" in out
     assert out.strip().endswith("</svg>")
+
+
+def test_render_dot_with_depth(example_dag: PackageDAG) -> None:
+    output = dump_graphviz(example_dag, output_format="dot", max_depth=1)
+    assert isinstance(output, str)
+    # Roots are a and g (depth 0), their direct deps are at depth 1
+    # Deeper deps (d) should not appear
+    assert "a ->" in output
+    assert "g ->" in output
+    assert 'd [label="d' not in output  # d is only reachable at depth 2+
+    # Direct deps of roots should appear
+    assert 'b [label="b' in output
+    assert 'c [label="c' in output
+    assert 'e [label="e' in output
+    assert 'f [label="f' in output
+
+
+def test_render_dot_with_depth_zero(example_dag: PackageDAG) -> None:
+    output = dump_graphviz(example_dag, output_format="dot", max_depth=0)
+    assert isinstance(output, str)
+    # Depth 0 means only root nodes, no edges
+    assert "a [label=" in output
+    assert "g [label=" in output
+    assert "->" not in output
