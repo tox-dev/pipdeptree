@@ -5,7 +5,7 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from pip._internal.models.direct_url import (
+from pip._internal.models.direct_url import (  # noqa: PLC2701
     DirectUrl,
     DirectUrlValidationError,
 )
