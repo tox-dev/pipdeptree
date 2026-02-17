@@ -119,18 +119,18 @@ ignore-words-list = "master"
 max_supported_python = "3.14"
 
 [tool.coverage]
-html.show_contexts = true
-html.skip_covered = false
+run.parallel = true
+run.plugins = [
+  "covdefaults",
+]
 paths.source = [
   "src",
   ".tox/*/lib/python*/site-packages",
   "*/src",
 ]
-run.parallel = true
-run.plugins = [
-  "covdefaults",
-]
 report.fail_under = 88
+html.show_contexts = true
+html.skip_covered = false
 subtract_omit = "*/__main__.py"
 
 [tool.mypy]
