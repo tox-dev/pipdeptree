@@ -9,7 +9,7 @@ from unittest.mock import Mock
 import virtualenv
 
 from pipdeptree.__main__ import main
-from pipdeptree._discovery import get_installed_distributions
+from pipdeptree._discovery import get_installed_distributions, has_valid_metadata
 
 if TYPE_CHECKING:
     import pytest
@@ -172,6 +172,13 @@ def test_invalid_metadata(
         f"{fake_site_dir}\n"
         "------------------------------------------------------------------------\n"
     )
+
+
+def test_has_valid_metadata_none() -> None:
+    """Regression test for #530: dist.metadata returns None on Python 3.15."""
+    dist = Mock()
+    dist.metadata = None
+    assert has_valid_metadata(dist) is False
 
 
 def test_paths(fake_dist: Path) -> None:
