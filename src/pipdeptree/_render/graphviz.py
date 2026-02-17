@@ -71,9 +71,11 @@ def dump_graphviz(  # noqa: C901, PLR0912, PLR0915
                 if depth < max_depth:
                     for pkg in tree:
                         if pkg.key == key:
-                            for parent in tree[pkg]:
-                                if parent.key not in visited:
-                                    queue.append((parent.key, depth + 1))
+                            parents = tree[pkg]
+                            if parents is not None:
+                                for parent in parents:
+                                    if parent.key not in visited:
+                                        queue.append((parent.key, depth + 1))
                             break
             for dep_rev, parents in tree.items():
                 if dep_rev.key not in visited:
