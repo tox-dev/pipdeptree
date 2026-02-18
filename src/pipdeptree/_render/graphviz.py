@@ -22,7 +22,7 @@ def _get_all_dep_keys(tree: PackageDAG) -> set[str]:
     return dep_keys
 
 
-def _build_reverse_graph(tree: PackageDAG, graph: Digraph, max_depth: float) -> None:
+def _build_reverse_graph(tree: PackageDAG, graph: Digraph, max_depth: float) -> None:  # noqa: C901, PLR0912
     """Build graphviz nodes and edges for a reversed dependency tree."""
     if max_depth < math.inf:
         parent_keys = _get_all_dep_keys(tree)
@@ -61,9 +61,9 @@ def _build_reverse_graph(tree: PackageDAG, graph: Digraph, max_depth: float) -> 
                 graph.edge(dep_rev.key, parent.key, label=edge_label)
 
 
-def _build_forward_graph(tree: PackageDAG, graph: Digraph, max_depth: float) -> None:
+def _build_forward_graph(tree: PackageDAG, graph: Digraph, max_depth: float) -> None:  # noqa: C901, PLR0912
     """Build graphviz nodes and edges for a forward dependency tree."""
-    if max_depth < math.inf:
+    if max_depth < math.inf:  # noqa: PLR1702
         dep_keys = _get_all_dep_keys(tree)
         root_keys = {pkg.key for pkg in tree if pkg.key not in dep_keys}
         visited: dict[str, int] = {}
