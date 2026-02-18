@@ -35,11 +35,7 @@ def _build_reverse_graph(tree: PackageDAG, graph: Digraph, max_depth: float) -> 
                 continue
             visited[key] = depth
             if depth < max_depth:
-                pkg = tree.get_node_as_parent(key)
-                if not pkg:
-                    continue
-                parents = tree[pkg] or []
-                for parent in parents:
+                for parent in tree.get_children(key):
                     if parent.key not in visited:
                         queue.append((parent.key, depth + 1))
         for dep_rev, parents in tree.items():
