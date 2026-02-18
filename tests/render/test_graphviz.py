@@ -85,6 +85,40 @@ def test_render_dot_with_depth(example_dag: PackageDAG) -> None:
     assert 'f [label="f' in output
 
 
+def test_render_dot_reverse_with_depth(example_dag: PackageDAG) -> None:
+    reversed_dag = example_dag.reverse()
+    output = dump_graphviz(reversed_dag, output_format="dot", is_reverse=True, max_depth=1)
+    assert isinstance(output, str)
+    # In reverse, root is e (only leaf in forward tree that's not a parent in reverse)
+    # At depth 0: e, at depth 1: c, d, g (e's parents)
+    assert 'e [label="e' in output
+    assert 'c [label="c' in output
+    assert 'd [label="d' in output
+    assert 'g [label="g' in output
+    # Deeper nodes should not appear
+    assert 'a [label="a' not in output
+    assert 'b [label="b' not in output
+    assert 'f [label="f' not in output
+    # Edges from e to its parents should exist
+    assert "e -> c" in output
+    assert "e -> d" in output
+    assert "e -> g" in output
+
+
+def test_render_dot_reverse_infinite_depth(example_dag: PackageDAG) -> None:
+    reversed_dag = example_dag.reverse()
+    output = dump_graphviz(reversed_dag, output_format="dot", is_reverse=True)
+    assert isinstance(output, str)
+    # All nodes should appear with no depth limit
+    for node in ("a", "b", "c", "d", "e", "f", "g"):
+        assert f'{node} [label="' in output
+    # Edges should include reverse relationships
+    assert "e -> c" in output
+    assert "e -> d" in output
+    assert "b -> a" in output
+    assert "f -> g" in output
+
+
 def test_render_dot_with_depth_zero(example_dag: PackageDAG) -> None:
     output = dump_graphviz(example_dag, output_format="dot", max_depth=0)
     assert isinstance(output, str)
