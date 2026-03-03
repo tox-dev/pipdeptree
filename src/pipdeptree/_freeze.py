@@ -3,7 +3,7 @@ from __future__ import annotations
 import locale
 from json import JSONDecodeError
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from pip._internal.models.direct_url import (  # noqa: PLC2701
     DirectUrl,
@@ -44,7 +44,7 @@ class PipBaseDistributionAdapter:
         self._version = Version(dist.version)
 
     @property
-    def raw_name(self) -> str | Any:
+    def raw_name(self) -> str:
         return self._raw_name
 
     @property

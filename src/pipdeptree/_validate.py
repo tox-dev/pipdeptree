@@ -101,7 +101,7 @@ def cyclic_deps(tree: PackageDAG) -> list[list[Package]]:
 
 def render_cycles_text(cycles: list[list[Package]]) -> None:
     # List in alphabetical order the dependency that caused the cycle (i.e. the second-to-last Package element)
-    cycles = sorted(cycles, key=lambda c: c[len(c) - 2].key)
+    cycles = sorted(cycles, key=lambda c: c[-2].key)
     for cycle in cycles:
         print("*", end=" ", file=sys.stderr)  # noqa: T201
 

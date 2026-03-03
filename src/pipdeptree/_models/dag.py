@@ -26,14 +26,6 @@ class IncludePatternNotFoundError(Exception):
     """Include patterns weren't found when filtering a `PackageDAG`."""
 
 
-def render_invalid_reqs_text(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:
-    for dist_name, invalid_reqs in dist_name_to_invalid_reqs_dict.items():
-        print(dist_name, file=sys.stderr)  # noqa: T201
-
-        for invalid_req in invalid_reqs:
-            print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # noqa: T201
-
-
 class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
     """
     Representation of Package dependencies as directed acyclic graph using a dict as the underlying datastructure.
@@ -105,7 +97,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
 
         """
         self._obj: dict[DistPackage, list[ReqPackage]] = m
-        self._index: dict[str, DistPackage] = {p.key: p for p in list(self._obj)}
+        self._index: dict[str, DistPackage] = {p.key: p for p in self._obj}
 
     def get_node_as_parent(self, node_key: str) -> DistPackage | None:
         """
@@ -290,18 +282,16 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         :returns: DAG in the reversed form
 
         """
-        m: defaultdict[ReqPackage, list[DistPackage]] = defaultdict(list)
+        reversed_dag: dict[ReqPackage, list[DistPackage]] = {}
+        key_index: dict[str, ReqPackage] = {}
         child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
-        for k, vs in self._obj.items():
-            for v in vs:
-                # if v is already added to the dict, then ensure that
-                # we are using the same object. This check is required
-                # as we're using array mutation
-                node: ReqPackage = next((p for p in m if p.key == v.key), v)
-                m[node].append(k.as_parent_of(v))
-            if k.key not in child_keys:
-                m[k.as_requirement()] = []
-        return ReversedPackageDAG(dict(m))  # type: ignore[arg-type]
+        for parent, deps in self._obj.items():
+            for dep in deps:
+                node = key_index.setdefault(dep.key, dep)
+                reversed_dag.setdefault(node, []).append(parent.as_parent_of(dep))
+            if parent.key not in child_keys:
+                reversed_dag[parent.as_requirement()] = []
+        return ReversedPackageDAG(dict(reversed_dag))  # type: ignore[arg-type]
 
     def sort(self) -> PackageDAG:
         """
@@ -313,18 +303,14 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         return self.__class__({k: sorted(v) for k, v in sorted(self._obj.items())})
 
     # Methods required by the abstract base class Mapping
-    def __getitem__(self, arg: DistPackage) -> list[ReqPackage] | None:  # type: ignore[override]
-        return self._obj.get(arg)
+    def __getitem__(self, arg: DistPackage) -> list[ReqPackage]:
+        return self._obj[arg]
 
     def __iter__(self) -> Iterator[DistPackage]:
         return self._obj.__iter__()
 
     def __len__(self) -> int:
         return len(self._obj)
-
-
-def should_exclude_node(key: str, exclude: set[str]) -> bool:
-    return any(fnmatch(key, e) for e in exclude)
 
 
 class ReversedPackageDAG(PackageDAG):
@@ -345,18 +331,31 @@ class ReversedPackageDAG(PackageDAG):
         :returns: reverse of the reversed DAG
 
         """
-        m: defaultdict[DistPackage, list[ReqPackage]] = defaultdict(list)
+        forward_dag: dict[DistPackage, list[ReqPackage]] = {}
+        key_index: dict[str, DistPackage] = {}
         child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
-        for k, vs in self._obj.items():
-            for v in vs:
-                assert isinstance(v, DistPackage)
-                node = next((p for p in m if p.key == v.key), v.as_parent_of(None))
-                m[node].append(k)
-            if k.key not in child_keys:
-                assert isinstance(k, ReqPackage)
-                assert k.dist is not None
-                m[k.dist] = []
-        return PackageDAG(dict(m))
+        for req_node, parents in self._obj.items():
+            for parent in parents:
+                assert isinstance(parent, DistPackage)
+                node = key_index.setdefault(parent.key, parent.as_parent_of(None))
+                forward_dag.setdefault(node, []).append(req_node)  # type: ignore[invalid-argument-type]  # runtime: ReqPackage
+            if req_node.key not in child_keys:
+                assert isinstance(req_node, ReqPackage)
+                assert req_node.dist is not None
+                forward_dag.setdefault(key_index.setdefault(req_node.dist.key, req_node.dist), [])
+        return PackageDAG(dict(forward_dag))
+
+
+def render_invalid_reqs_text(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:
+    for dist_name, invalid_reqs in dist_name_to_invalid_reqs_dict.items():
+        print(dist_name, file=sys.stderr)  # noqa: T201
+
+        for invalid_req in invalid_reqs:
+            print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # noqa: T201
+
+
+def should_exclude_node(key: str, exclude: set[str]) -> bool:
+    return any(fnmatch(key, e) for e in exclude)
 
 
 __all__ = [
