@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
     import pytest
 
+    from tests.conftest import MockDistMaker
     from tests.our_types import MockGraph
 
 
@@ -53,3 +54,14 @@ def test_render_json(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: p
 
     output = capsys.readouterr()
     assert output.out == expected_output
+
+
+def test_render_json_with_extras(capsys: pytest.CaptureFixture[str], make_mock_dist: MockDistMaker) -> None:
+    pkgs = [
+        make_mock_dist("foo", "1.0.0", requires=["bar ; extra == 'dev'"], provides_extras=["dev"]),
+        make_mock_dist("bar", "2.0.0"),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    render_json(dag)
+    output = capsys.readouterr().out
+    assert '"extra": "dev"' in output

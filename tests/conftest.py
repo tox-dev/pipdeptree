@@ -3,8 +3,8 @@ from __future__ import annotations
 import locale
 from pathlib import Path
 from random import shuffle
-from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from typing import TYPE_CHECKING, Protocol
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
@@ -69,6 +69,33 @@ def randomized_example_dag(example_dag: PackageDAG) -> PackageDAG:
     randomized_dag = PackageDAG(randomized_graph)
     assert len(example_dag) == len(randomized_dag)
     return randomized_dag
+
+
+class MockDistMaker(Protocol):
+    def __call__(
+        self,
+        name: str,
+        version: str,
+        requires: list[str] | None = None,
+        provides_extras: list[str] | None = None,
+    ) -> Mock: ...
+
+
+def _make_mock_dist(
+    name: str,
+    version: str,
+    requires: list[str] | None = None,
+    provides_extras: list[str] | None = None,
+) -> Mock:
+    metadata = MagicMock()
+    metadata.__getitem__ = lambda _, key: {"Name": name}.get(key)
+    metadata.get_all = lambda key: provides_extras if key == "Provides-Extra" else None
+    return Mock(metadata=metadata, version=version, requires=requires)
+
+
+@pytest.fixture(scope="session")
+def make_mock_dist() -> MockDistMaker:
+    return _make_mock_dist
 
 
 @pytest.fixture

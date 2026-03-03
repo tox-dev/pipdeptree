@@ -132,3 +132,14 @@ def test_parse_warn_option_normal(warning: str) -> None:
 def test_parse_warn_option_invalid() -> None:
     with pytest.raises(SystemExit, match="2"):
         get_options(["--warn", "non-existent-warning-type"])
+
+
+@pytest.mark.parametrize("flag", ["-x", "--extras"])
+def test_get_options_extras(flag: str) -> None:
+    options = get_options([flag])
+    assert options.extras is True
+
+
+def test_get_options_extras_default() -> None:
+    options = get_options([])
+    assert options.extras is False

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
     from unittest.mock import Mock
 
+    from tests.conftest import MockDistMaker
     from tests.our_types import MockGraph
 
 
@@ -234,3 +235,80 @@ def test_package_from_pkgs_given_invalid_requirements(
         "Warning!!! Invalid requirement strings found for the following distributions:\na-package\n  "
         'Skipping "BAD**requirement>=2.0.0"\n------------------------------------------------------------------------\n'
     )
+
+
+def _build_extras_dag(make_mock_dist: MockDistMaker, *, include_extras: bool = True) -> PackageDAG:
+    pkgs = [
+        make_mock_dist("jira", "2.0.0", requires=["oauthlib[signedtoken]>=1.0.0", "requests>=2.10.0"]),
+        make_mock_dist(
+            "oauthlib",
+            "3.0.0",
+            requires=["cryptography ; extra == 'signedtoken'", "pyjwt>=1.0.0 ; extra == 'signedtoken'"],
+            provides_extras=["signedtoken", "rsa"],
+        ),
+        make_mock_dist("requests", "2.22.0"),
+        make_mock_dist("cryptography", "2.7"),
+        make_mock_dist("pyjwt", "1.7.1"),
+    ]
+    return PackageDAG.from_pkgs(pkgs, include_extras=include_extras)
+
+
+def test_dag_extras_includes_extra_deps(make_mock_dist: MockDistMaker) -> None:
+    dag = _build_extras_dag(make_mock_dist, include_extras=True)
+    dep_keys = {dep.key for dep in dag.get_children("oauthlib")}
+    assert "cryptography" in dep_keys
+    assert "pyjwt" in dep_keys
+
+
+def test_dag_extras_annotates_extra_name(make_mock_dist: MockDistMaker) -> None:
+    dag = _build_extras_dag(make_mock_dist, include_extras=True)
+    extra_deps = [dep for dep in dag.get_children("oauthlib") if dep.extra is not None]
+    assert len(extra_deps) == 2
+    assert all(dep.extra == "signedtoken" for dep in extra_deps)
+
+
+def test_dag_without_extras_excludes_extra_deps(make_mock_dist: MockDistMaker) -> None:
+    dag = _build_extras_dag(make_mock_dist, include_extras=False)
+    dep_keys = {dep.key for dep in dag.get_children("oauthlib")}
+    assert "cryptography" not in dep_keys
+    assert "pyjwt" not in dep_keys
+
+
+def test_dag_extras_skips_missing_deps(make_mock_dist: MockDistMaker) -> None:
+    pkgs = [make_mock_dist("foo", "1.0.0", requires=["bar ; extra == 'dev'"], provides_extras=["dev"])]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    assert len(dag.get_children("foo")) == 0
+
+
+def test_dag_extras_root_packages_include_all_extras(make_mock_dist: MockDistMaker) -> None:
+    pkgs = [
+        make_mock_dist(
+            "myapp", "1.0.0", requires=["requests>=2.0", "pytest ; extra == 'test'"], provides_extras=["test"]
+        ),
+        make_mock_dist("requests", "2.22.0"),
+        make_mock_dist("pytest", "7.0.0"),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dep_keys = {dep.key for dep in dag.get_children("myapp")}
+    assert "pytest" in dep_keys
+    assert "requests" in dep_keys
+
+
+def test_dag_extras_transitive(make_mock_dist: MockDistMaker) -> None:
+    pkgs = [
+        make_mock_dist("a-pkg", "1.0.0", requires=["b-pkg[x]"]),
+        make_mock_dist("b-pkg", "1.0.0", requires=["c-pkg[y] ; extra == 'x'"], provides_extras=["x"]),
+        make_mock_dist("c-pkg", "1.0.0", requires=["d-pkg ; extra == 'y'"], provides_extras=["y"]),
+        make_mock_dist("d-pkg", "1.0.0"),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dep_keys = {dep.key for dep in dag.get_children("c-pkg")}
+    assert "d-pkg" in dep_keys
+
+
+def test_dag_extras_skips_unresolved_extras_package(make_mock_dist: MockDistMaker) -> None:
+    pkgs = [make_mock_dist("parent", "1.0.0", requires=["nonexistent[feat]"])]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    deps = dag.get_children("parent")
+    assert len(deps) == 1
+    assert deps[0].dist is None
