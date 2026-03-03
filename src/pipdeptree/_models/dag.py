@@ -26,14 +26,6 @@ class IncludePatternNotFoundError(Exception):
     """Include patterns weren't found when filtering a `PackageDAG`."""
 
 
-def render_invalid_reqs_text(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:
-    for dist_name, invalid_reqs in dist_name_to_invalid_reqs_dict.items():
-        print(dist_name, file=sys.stderr)  # noqa: T201
-
-        for invalid_req in invalid_reqs:
-            print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # noqa: T201
-
-
 class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
     """
     Representation of Package dependencies as directed acyclic graph using a dict as the underlying datastructure.
@@ -295,15 +287,10 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
         for parent, deps in self._obj.items():
             for dep in deps:
-                if (node := key_index.get(dep.key)) is None:
-                    node = dep
-                    key_index[dep.key] = dep
-                    reversed_dag[dep] = []
-                reversed_dag[node].append(parent.as_parent_of(dep))
+                node = key_index.setdefault(dep.key, dep)
+                reversed_dag.setdefault(node, []).append(parent.as_parent_of(dep))
             if parent.key not in child_keys:
-                req = parent.as_requirement()
-                key_index[req.key] = req
-                reversed_dag[req] = []
+                reversed_dag[parent.as_requirement()] = []
         return ReversedPackageDAG(dict(reversed_dag))  # type: ignore[arg-type]
 
     def sort(self) -> PackageDAG:
@@ -324,10 +311,6 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
 
     def __len__(self) -> int:
         return len(self._obj)
-
-
-def should_exclude_node(key: str, exclude: set[str]) -> bool:
-    return any(fnmatch(key, e) for e in exclude)
 
 
 class ReversedPackageDAG(PackageDAG):
@@ -354,18 +337,25 @@ class ReversedPackageDAG(PackageDAG):
         for req_node, parents in self._obj.items():
             for parent in parents:
                 assert isinstance(parent, DistPackage)
-                if (node := key_index.get(parent.key)) is None:
-                    node = parent.as_parent_of(None)
-                    key_index[parent.key] = node
-                    forward_dag[node] = []
-                forward_dag[node].append(req_node)  # type: ignore[invalid-argument-type]  # runtime: ReqPackage
+                node = key_index.setdefault(parent.key, parent.as_parent_of(None))
+                forward_dag.setdefault(node, []).append(req_node)  # type: ignore[invalid-argument-type]  # runtime: ReqPackage
             if req_node.key not in child_keys:
                 assert isinstance(req_node, ReqPackage)
                 assert req_node.dist is not None
-                if req_node.dist.key not in key_index:
-                    key_index[req_node.dist.key] = req_node.dist
-                    forward_dag[req_node.dist] = []
+                forward_dag.setdefault(key_index.setdefault(req_node.dist.key, req_node.dist), [])
         return PackageDAG(dict(forward_dag))
+
+
+def render_invalid_reqs_text(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:
+    for dist_name, invalid_reqs in dist_name_to_invalid_reqs_dict.items():
+        print(dist_name, file=sys.stderr)  # noqa: T201
+
+        for invalid_req in invalid_reqs:
+            print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # noqa: T201
+
+
+def should_exclude_node(key: str, exclude: set[str]) -> bool:
+    return any(fnmatch(key, e) for e in exclude)
 
 
 __all__ = [

@@ -201,11 +201,8 @@ class ReqPackage(Package):
 
     @property
     def version_spec(self) -> str | None:
-        result = None
         specs = sorted(map(str, self._obj.specifier), reverse=True)  # type: ignore[invalid-argument-type]  # `reverse` makes '>' prior to '<'
-        if specs:
-            result = ",".join(specs)
-        return result
+        return ",".join(specs) if specs else None
 
     @property
     def edge_label(self) -> str:

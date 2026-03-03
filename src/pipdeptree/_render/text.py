@@ -31,7 +31,7 @@ def render_text(
     if encoding in {"utf-8", "utf-16", "utf-32"}:
         _render_text_with_unicode(tree, nodes, max_depth, include_license)
     else:
-        _render_text_without_unicode(tree, nodes, max_depth, include_license)
+        _render_text_simple(tree, nodes, max_depth, include_license)
 
 
 def get_top_level_nodes(tree: PackageDAG, *, list_all: bool) -> list[DistPackage]:
@@ -115,15 +115,6 @@ def _render_text_with_unicode(
 
     lines = chain.from_iterable([aux(p) for p in nodes])
     print("\n".join(lines))  # noqa: T201
-
-
-def _render_text_without_unicode(
-    tree: PackageDAG,
-    nodes: list[DistPackage],
-    max_depth: float,
-    include_license: bool,  # noqa: FBT001
-) -> None:
-    _render_text_simple(tree, nodes, max_depth, include_license)
 
 
 def _render_text_simple(  # noqa: PLR0913
