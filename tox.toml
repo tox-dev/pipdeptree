@@ -24,7 +24,7 @@ commands = [
     "-m",
     "pytest",
     "{tty:--color=yes}",
-    { replace = "posargs", extend = true, default = [
+    { replace = "posargs", default = [
       "--cov",
       "{env_site_packages_dir}{/}pipdeptree",
       "--cov",
@@ -41,7 +41,7 @@ commands = [
       "--junitxml",
       "{work_dir}{/}junit.{env_name}.xml",
       "tests",
-    ] },
+    ], extend = true },
   ],
   [
     "diff-cover",
@@ -71,8 +71,8 @@ commands = [
 
 [env.type]
 description = "run type check on code base"
-deps = [ "mypy==1.11.2" ]
-commands = [ [ "mypy", "src" ], [ "mypy", "tests" ] ]
+deps = [ "ty>=0.0.18" ]
+commands = [ [ "ty", "check", "--python-platform", "all", "--output-format", "concise", "--error-on-warning", "." ] ]
 
 [env.dev]
 description = "generate a DEV environment"

@@ -72,7 +72,7 @@ def main(args: Sequence[str] | None = None) -> int | None:
 
 
 def _is_text_output(options: Options) -> bool:
-    if any([options.json, options.json_tree, options.graphviz_format, options.mermaid]):
+    if any((options.json, options.json_tree, options.graphviz_format, options.mermaid)):
         return False
     return options.output_format in {"freeze", "text"}
 

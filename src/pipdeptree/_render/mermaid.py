@@ -78,25 +78,21 @@ def render_mermaid(tree: PackageDAG) -> None:  # noqa: C901
             nodes.add(f'{package_key}["{package_label}"]')
             for reverse_dependency in reverse_dependencies:
                 assert isinstance(reverse_dependency, DistPackage)
-                edge_label = (
-                    reverse_dependency.req.version_spec if reverse_dependency.req is not None else None
-                ) or "any"
                 reverse_dependency_key = mermaid_id(reverse_dependency.key)
-                edges.add(f'{package_key} -- "{edge_label}" --> {reverse_dependency_key}')
+                edges.add(f'{package_key} -- "{reverse_dependency.edge_label}" --> {reverse_dependency_key}')
     else:
         for package, dependencies in tree.items():
             package_label = f"{package.project_name}\\n{package.version}"
             package_key = mermaid_id(package.key)
             nodes.add(f'{package_key}["{package_label}"]')
             for dependency in dependencies:
-                edge_label = dependency.version_spec or "any"
                 dependency_key = mermaid_id(dependency.key)
                 if dependency.is_missing:
                     dependency_label = f"{dependency.project_name}\\n(missing)"
                     nodes.add(f'{dependency_key}["{dependency_label}"]:::missing')
                     edges.add(f"{package_key} -.-> {dependency_key}")
                 else:
-                    edges.add(f'{package_key} -- "{edge_label}" --> {dependency_key}')
+                    edges.add(f'{package_key} -- "{dependency.edge_label}" --> {dependency_key}')
 
     # Produce the Mermaid Markdown.
     lines = [
