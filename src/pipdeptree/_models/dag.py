@@ -352,27 +352,16 @@ class ReversedPackageDAG(PackageDAG):
         return PackageDAG(dict(forward_dag))
 
 
-def _resolve_extras(m: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage]) -> None:  # noqa: C901
+def _resolve_extras(m: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage]) -> None:
     """Add extra/optional dependencies to the DAG in-place."""
-    # Collect extras explicitly requested by requirements (e.g. oauthlib[signedtoken])
-    extras_needed: dict[str, set[str]] = {}
-    dep_keys = {dep.key for deps in m.values() for dep in deps}
-    for pkg, deps in m.items():
-        # For root packages, include all provided extras where deps are installed
-        if pkg.key not in dep_keys:
-            for extra in pkg.provides_extras:
-                extras_needed.setdefault(pkg.key, set()).add(extra)
-        for dep in deps:
-            if dep._obj.extras:  # noqa: SLF001
-                extras_needed.setdefault(dep.key, set()).update(dep._obj.extras)  # noqa: SLF001
-
-    # Transitively resolve extras until stable
+    extras_needed = _collect_explicit_extras(m)
+    for pkg_key, extras in _collect_satisfied_extras(m, idx).items():
+        extras_needed.setdefault(pkg_key, set()).update(extras)
     processed: dict[str, set[str]] = {}
     while extras_needed:
         next_round: dict[str, set[str]] = {}
         for pkg_key, extras in extras_needed.items():
-            already = processed.get(pkg_key, set())
-            new_extras = extras - already
+            new_extras = extras - processed.get(pkg_key, set())
             if not new_extras:
                 continue
             processed.setdefault(pkg_key, set()).update(new_extras)
@@ -388,6 +377,29 @@ def _resolve_extras(m: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistP
                 if req.extras:
                     next_round.setdefault(dist.key, set()).update(req.extras)
         extras_needed = next_round
+
+
+def _collect_explicit_extras(m: dict[DistPackage, list[ReqPackage]]) -> dict[str, set[str]]:
+    """Collect extras explicitly requested via requirement specifiers (e.g. ``oauthlib[signedtoken]``)."""
+    extras_needed: dict[str, set[str]] = {}
+    for deps in m.values():
+        for dep in deps:
+            if dep._obj.extras:  # noqa: SLF001
+                extras_needed.setdefault(dep.key, set()).update(dep._obj.extras)  # noqa: SLF001
+    return extras_needed
+
+
+def _collect_satisfied_extras(
+    m: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage]
+) -> dict[str, set[str]]:
+    """Collect extras whose dependencies are all installed in the environment."""
+    extras_needed: dict[str, set[str]] = {}
+    for dist_pkg in m:
+        for extra_name in dist_pkg.provides_extras:
+            reqs = list(dist_pkg.requires_for_extras(frozenset({extra_name})))
+            if reqs and all(canonicalize_name(req.name) in idx for req, _ in reqs):
+                extras_needed.setdefault(dist_pkg.key, set()).add(extra_name)
+    return extras_needed
 
 
 def render_invalid_reqs_text(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:

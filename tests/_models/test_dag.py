@@ -275,12 +275,15 @@ def test_dag_without_extras_excludes_extra_deps(make_mock_dist: MockDistMaker) -
 
 
 def test_dag_extras_skips_missing_deps(make_mock_dist: MockDistMaker) -> None:
-    pkgs = [make_mock_dist("foo", "1.0.0", requires=["bar ; extra == 'dev'"], provides_extras=["dev"])]
+    pkgs = [
+        make_mock_dist("parent", "1.0.0", requires=["child[feat]"]),
+        make_mock_dist("child", "1.0.0", requires=["ghost ; extra == 'feat'"], provides_extras=["feat"]),
+    ]
     dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
-    assert len(dag.get_children("foo")) == 0
+    assert len(dag.get_children("child")) == 0
 
 
-def test_dag_extras_root_packages_include_all_extras(make_mock_dist: MockDistMaker) -> None:
+def test_dag_extras_includes_satisfied_extras(make_mock_dist: MockDistMaker) -> None:
     pkgs = [
         make_mock_dist(
             "myapp", "1.0.0", requires=["requests>=2.0", "pytest ; extra == 'test'"], provides_extras=["test"]
@@ -294,6 +297,25 @@ def test_dag_extras_root_packages_include_all_extras(make_mock_dist: MockDistMak
     assert "requests" in dep_keys
 
 
+def test_dag_extras_skips_unsatisfied_extras(make_mock_dist: MockDistMaker) -> None:
+    pkgs = [
+        make_mock_dist("myapp", "1.0.0", requires=["missing-dep ; extra == 'feat'"], provides_extras=["feat"]),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    assert len(dag.get_children("myapp")) == 0
+
+
+def test_dag_extras_satisfied_on_transitive_package(make_mock_dist: MockDistMaker) -> None:
+    pkgs = [
+        make_mock_dist("top", "1.0.0", requires=["middle"]),
+        make_mock_dist("middle", "1.0.0", requires=["bottom ; extra == 'feat'"], provides_extras=["feat"]),
+        make_mock_dist("bottom", "1.0.0"),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dep_keys = {dep.key for dep in dag.get_children("middle")}
+    assert "bottom" in dep_keys
+
+
 def test_dag_extras_transitive(make_mock_dist: MockDistMaker) -> None:
     pkgs = [
         make_mock_dist("a-pkg", "1.0.0", requires=["b-pkg[x]"]),
@@ -304,6 +326,17 @@ def test_dag_extras_transitive(make_mock_dist: MockDistMaker) -> None:
     dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
     dep_keys = {dep.key for dep in dag.get_children("c-pkg")}
     assert "d-pkg" in dep_keys
+
+
+def test_dag_extras_cyclic_terminates(make_mock_dist: MockDistMaker) -> None:
+    pkgs = [
+        make_mock_dist("a-pkg", "1.0.0", requires=["b-pkg[x]"]),
+        make_mock_dist("b-pkg", "1.0.0", requires=["c-pkg[y] ; extra == 'x'"], provides_extras=["x"]),
+        make_mock_dist("c-pkg", "1.0.0", requires=["b-pkg[x] ; extra == 'y'"], provides_extras=["y"]),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dep_keys = {dep.key for dep in dag.get_children("b-pkg")}
+    assert "c-pkg" in dep_keys
 
 
 def test_dag_extras_skips_unresolved_extras_package(make_mock_dist: MockDistMaker) -> None:
