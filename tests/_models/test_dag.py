@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from pipdeptree._models import DistPackage, PackageDAG, ReqPackage, ReversedPackageDAG
-from pipdeptree._models.dag import IncludeExcludeOverlapError, IncludePatternNotFoundError
+from pipdeptree._models.dag import IncludeExcludeOverlapError, IncludePatternNotFoundError, _extra_is_satisfied
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -316,6 +316,15 @@ def test_dag_extras_satisfied_on_transitive_package(make_mock_dist: MockDistMake
     assert "bottom" in dep_keys
 
 
+def test_dag_extras_satisfied_checks_sub_extras(make_mock_dist: MockDistMaker) -> None:
+    pkgs = [
+        make_mock_dist("outer", "1.0.0", requires=["inner[feat] ; extra == 'feat'"], provides_extras=["feat"]),
+        make_mock_dist("inner", "1.0.0", requires=["leaf ; extra == 'feat'"], provides_extras=["feat"]),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    assert len(dag.get_children("outer")) == 0
+
+
 def test_dag_extras_transitive(make_mock_dist: MockDistMaker) -> None:
     pkgs = [
         make_mock_dist("a-pkg", "1.0.0", requires=["b-pkg[x]"]),
@@ -345,3 +354,10 @@ def test_dag_extras_skips_unresolved_extras_package(make_mock_dist: MockDistMake
     deps = dag.get_children("parent")
     assert len(deps) == 1
     assert deps[0].dist is None
+
+
+def test_extra_is_satisfied_pkg_in_index_but_not_in_dag(make_mock_dist: MockDistMaker) -> None:
+    dist = DistPackage(make_mock_dist("pkg", "1.0.0", provides_extras=["feat"], requires=["dep ; extra == 'feat'"]))
+    idx: dict[str, DistPackage] = {"pkg": dist}
+    empty_dag: dict[DistPackage, list[ReqPackage]] = {}
+    assert not _extra_is_satisfied("pkg", "feat", empty_dag, idx, set())

@@ -12,6 +12,7 @@ from pipdeptree._models import PackageDAG
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
+    from importlib.metadata import Distribution
 
     from tests.our_types import MockGraph
 
@@ -78,7 +79,7 @@ class MockDistMaker(Protocol):
         version: str,
         requires: list[str] | None = None,
         provides_extras: list[str] | None = None,
-    ) -> Mock: ...
+    ) -> Distribution: ...
 
 
 def _make_mock_dist(
@@ -86,7 +87,7 @@ def _make_mock_dist(
     version: str,
     requires: list[str] | None = None,
     provides_extras: list[str] | None = None,
-) -> Mock:
+) -> Distribution:
     metadata = MagicMock()
     metadata.__getitem__ = lambda _, key: {"Name": name}.get(key)
     metadata.get_all = lambda key: provides_extras if key == "Provides-Extra" else None
