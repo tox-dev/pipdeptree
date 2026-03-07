@@ -27,6 +27,7 @@ class Options(Namespace):
     mermaid: bool
     graphviz_format: str | None
     output_format: str
+    extras: bool
     depth: float
     encoding: str
     license: bool
@@ -88,6 +89,13 @@ def build_parser() -> ArgumentParser:
         "--exclude-dependencies",
         help="used along with --exclude to also exclude dependencies of packages",
         action="store_true",
+    )
+    select.add_argument(
+        "-x",
+        "--extras",
+        action="store_true",
+        default=False,
+        help="include optional (extras) dependencies in the tree",
     )
 
     scope = select.add_mutually_exclusive_group()

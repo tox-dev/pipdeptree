@@ -50,33 +50,36 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
     """
 
     @classmethod
-    def from_pkgs(cls, pkgs: list[Distribution]) -> PackageDAG:
+    def from_pkgs(
+        cls,
+        pkgs: list[Distribution],
+        *,
+        include_extras: bool = False,
+    ) -> PackageDAG:
         warning_printer = get_warning_printer()
         dist_pkgs = [DistPackage(p) for p in pkgs]
         idx = {p.key: p for p in dist_pkgs}
-        m: dict[DistPackage, list[ReqPackage]] = {}
+        pkg_deps: dict[DistPackage, list[ReqPackage]] = {}
         dist_name_to_invalid_reqs_dict: dict[str, list[str]] = {}
-        for p in dist_pkgs:
-            reqs = []
-            requires_iterator = p.requires()
+        for pkg in dist_pkgs:
+            reqs: list[ReqPackage] = []
+            requires_iterator = pkg.requires()
             while True:
                 try:
                     req = next(requires_iterator)
                 except InvalidRequirementError as err:
-                    # We can't work with invalid requirement strings. Let's warn the user about them.
                     if warning_printer.should_warn():
-                        dist_name_to_invalid_reqs_dict.setdefault(p.project_name, []).append(str(err))
+                        dist_name_to_invalid_reqs_dict.setdefault(pkg.project_name, []).append(str(err))
                     continue
                 except StopIteration:
                     break
-                d = idx.get(canonicalize_name(req.name))
+                dist = idx.get(canonicalize_name(req.name))
                 # Distribution.requires only returns the name of requirements in the metadata file, which may not be the
                 # same as the name in PyPI. We should try to retain the original package names for requirements.
                 # See https://github.com/tox-dev/pipdeptree/issues/242
-                req.name = d.project_name if d is not None else req.name
-                pkg = ReqPackage(req, d)
-                reqs.append(pkg)
-            m[p] = reqs
+                req.name = dist.project_name if dist is not None else req.name
+                reqs.append(ReqPackage(req, dist))
+            pkg_deps[pkg] = reqs
 
         should_print_warning = warning_printer.should_warn() and dist_name_to_invalid_reqs_dict
         if should_print_warning:
@@ -85,7 +88,10 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
                 lambda: render_invalid_reqs_text(dist_name_to_invalid_reqs_dict),
             )
 
-        return cls(m)
+        if include_extras:
+            _resolve_extras(pkg_deps, idx)
+
+        return cls(pkg_deps)
 
     def __init__(self, m: dict[DistPackage, list[ReqPackage]]) -> None:
         """
@@ -168,7 +174,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         seen = set()
         matched_includes: set[str] = set()
         for node in self._obj:
-            if should_exclude_node(node.key, exclude):
+            if any(fnmatch(node.key, e) for e in exclude):
                 continue
             if include is None:
                 stack.append(node)
@@ -187,7 +193,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
             # Perform DFS on the explicitly included nodes so that we can also include their dependencies, if applicable
             while stack:
                 n = stack.pop()
-                cldn = [c for c in self._obj[n] if not should_exclude_node(c.key, exclude)]
+                cldn = [c for c in self._obj[n] if not any(fnmatch(c.key, e) for e in exclude)]
                 m[n] = cldn
                 seen.add(n.key)
                 for c in cldn:
@@ -221,7 +227,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         # used by fnmatch (or the exclusion may not even exist in the graph)
         resolved_exclude: set[str] = set()
 
-        resolved_exclude.update(node.key for node in self._obj if should_exclude_node(node.key, old_exclude))
+        resolved_exclude.update(node.key for node in self._obj if any(fnmatch(node.key, e) for e in old_exclude))
 
         # Find all possible candidate nodes for exclusion using DFS
         candidates: set[str] = set()
@@ -313,6 +319,14 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         return len(self._obj)
 
 
+def render_invalid_reqs_text(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:
+    for dist_name, invalid_reqs in dist_name_to_invalid_reqs_dict.items():
+        print(dist_name, file=sys.stderr)  # noqa: T201
+
+        for invalid_req in invalid_reqs:
+            print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # noqa: T201
+
+
 class ReversedPackageDAG(PackageDAG):
     """
     Representation of Package dependencies in the reverse order.
@@ -346,16 +360,75 @@ class ReversedPackageDAG(PackageDAG):
         return PackageDAG(dict(forward_dag))
 
 
-def render_invalid_reqs_text(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:
-    for dist_name, invalid_reqs in dist_name_to_invalid_reqs_dict.items():
-        print(dist_name, file=sys.stderr)  # noqa: T201
+def _resolve_extras(pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage]) -> None:
+    """Add extra/optional dependencies to the DAG in-place."""
+    extras_needed = _collect_explicit_extras(pkg_deps)
+    for pkg_key, extras in _collect_satisfied_extras(pkg_deps, idx).items():
+        extras_needed.setdefault(pkg_key, set()).update(extras)
+    processed: dict[str, set[str]] = {}
+    while extras_needed:
+        next_round: dict[str, set[str]] = {}
+        for pkg_key, extras in extras_needed.items():
+            new_extras = extras - processed.get(pkg_key, set())
+            if not new_extras:
+                continue
+            processed.setdefault(pkg_key, set()).update(new_extras)
+            dist_pkg = idx.get(pkg_key)
+            if dist_pkg is None or dist_pkg not in pkg_deps:
+                continue
+            for req, extra_name in dist_pkg.requires_for_extras(frozenset(new_extras)):
+                dist = idx.get(canonicalize_name(req.name))
+                if dist is None:
+                    continue
+                req.name = dist.project_name
+                pkg_deps[dist_pkg].append(ReqPackage(req, dist, extra=extra_name))
+                if req.extras:
+                    next_round.setdefault(dist.key, set()).update(req.extras)
+        extras_needed = next_round
 
-        for invalid_req in invalid_reqs:
-            print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # noqa: T201
+
+def _collect_explicit_extras(pkg_deps: dict[DistPackage, list[ReqPackage]]) -> dict[str, set[str]]:
+    """Collect extras explicitly requested via requirement specifiers (e.g. ``oauthlib[signedtoken]``)."""
+    extras_needed: dict[str, set[str]] = {}
+    for deps in pkg_deps.values():
+        for dep in deps:
+            if dep._obj.extras:  # noqa: SLF001
+                extras_needed.setdefault(dep.key, set()).update(dep._obj.extras)  # noqa: SLF001
+    return extras_needed
 
 
-def should_exclude_node(key: str, exclude: set[str]) -> bool:
-    return any(fnmatch(key, e) for e in exclude)
+def _collect_satisfied_extras(
+    pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage]
+) -> dict[str, set[str]]:
+    """Collect extras whose dependencies are all installed in the environment."""
+    extras_needed: dict[str, set[str]] = {}
+    for dist_pkg in pkg_deps:
+        for extra_name in dist_pkg.provides_extras:
+            if _extra_is_satisfied(dist_pkg.key, extra_name, pkg_deps, idx, set()):
+                extras_needed.setdefault(dist_pkg.key, set()).add(extra_name)
+    return extras_needed
+
+
+def _extra_is_satisfied(
+    pkg_key: str,
+    extra_name: str,
+    pkg_deps: dict[DistPackage, list[ReqPackage]],
+    idx: dict[str, DistPackage],
+    visited: set[tuple[str, str]],
+) -> bool:
+    if (pkg_key, extra_name) in visited:
+        return True
+    visited.add((pkg_key, extra_name))
+    if (dist_pkg := idx.get(pkg_key)) is None or dist_pkg not in pkg_deps:
+        return False
+    if not (reqs := list(dist_pkg.requires_for_extras(frozenset({extra_name})))):
+        return False
+    for req, _ in reqs:
+        if (dep_key := canonicalize_name(req.name)) not in idx:
+            return False
+        if not all(_extra_is_satisfied(dep_key, sub_extra, pkg_deps, idx, visited) for sub_extra in req.extras):
+            return False
+    return True
 
 
 __all__ = [

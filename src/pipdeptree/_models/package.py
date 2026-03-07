@@ -121,6 +121,24 @@ class DistPackage(Package):
                 yield req
 
     @property
+    def provides_extras(self) -> frozenset[str]:
+        return frozenset(self._obj.metadata.get_all("Provides-Extra") or ())
+
+    def requires_for_extras(self, extras: frozenset[str]) -> Iterator[tuple[Requirement, str]]:
+        """Yield (requirement, extra_name) for requirements gated behind the given extras."""
+        for raw_req in self._obj.requires or []:
+            try:
+                req = Requirement(raw_req)
+            except InvalidRequirement:
+                continue
+            if not req.marker or req.marker.evaluate():
+                continue
+            for extra in extras:
+                if req.marker.evaluate({"extra": extra}):
+                    yield req, extra
+                    break
+
+    @property
     def version(self) -> str:
         return self._obj.version
 
@@ -138,7 +156,8 @@ class DistPackage(Package):
             parent_str = self.req.project_name
             if parent_ver_spec:
                 parent_str += parent_ver_spec
-            return f"{self.project_name}=={self.version} [requires: {parent_str}]"
+            extra_str = f", extra: {self.req.extra}" if self.req.extra else ""
+            return f"{self.project_name}=={self.version} [requires: {parent_str}{extra_str}]"
         return self.render_as_root(frozen=frozen)
 
     def as_requirement(self) -> ReqPackage:
@@ -164,7 +183,10 @@ class DistPackage(Package):
 
     @property
     def edge_label(self) -> str:
-        return (self.req.version_spec if self.req is not None else None) or "any"
+        version = (self.req.version_spec if self.req is not None else None) or "any"
+        if self.req is not None and self.req.extra:
+            return f"[{self.req.extra}] {version}"
+        return version
 
     def as_dict(self) -> dict[str, str]:
         return {"key": self.key, "package_name": self.project_name, "installed_version": self.version}
@@ -181,10 +203,11 @@ class ReqPackage(Package):
 
     UNKNOWN_VERSION = "?"
 
-    def __init__(self, obj: Requirement, dist: DistPackage | None = None) -> None:
+    def __init__(self, obj: Requirement, dist: DistPackage | None = None, extra: str | None = None) -> None:
         super().__init__(obj.name)
         self._obj = obj
         self.dist = dist
+        self.extra = extra
 
     def render_as_root(self, *, frozen: bool) -> str:
         if not frozen:
@@ -196,7 +219,8 @@ class ReqPackage(Package):
     def render_as_branch(self, *, frozen: bool) -> str:
         if not frozen:
             req_ver = self.version_spec or "Any"
-            return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}]"
+            extra_str = f", extra: {self.extra}" if self.extra else ""
+            return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}{extra_str}]"
         return self.render_as_root(frozen=frozen)
 
     @property
@@ -206,7 +230,10 @@ class ReqPackage(Package):
 
     @property
     def edge_label(self) -> str:
-        return self.version_spec or "any"
+        version = self.version_spec or "any"
+        if self.extra:
+            return f"[{self.extra}] {version}"
+        return version
 
     @property
     def installed_version(self) -> str:
@@ -242,12 +269,15 @@ class ReqPackage(Package):
         return self.installed_version == self.UNKNOWN_VERSION
 
     def as_dict(self) -> dict[str, str]:
-        return {
+        result = {
             "key": self.key,
             "package_name": self.project_name,
             "installed_version": self.installed_version,
             "required_version": self.version_spec if self.version_spec is not None else "Any",
         }
+        if self.extra:
+            result["extra"] = self.extra
+        return result
 
 
 __all__ = [

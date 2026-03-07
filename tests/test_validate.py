@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
     from unittest.mock import Mock
 
+    from tests.conftest import MockDistMaker
     from tests.our_types import MockGraph
 
 
@@ -173,3 +174,16 @@ def test_validate(
     out, err = capsys.readouterr()
     assert len(out) == 0
     assert "\n".join(expected_output).strip() == err.strip()
+
+
+def test_render_cycles_text_annotates_extras(capsys: pytest.CaptureFixture[str], make_mock_dist: MockDistMaker) -> None:
+    pkgs = [
+        make_mock_dist("a", "1.0.0", requires=["b[x]>=1.0"]),
+        make_mock_dist("b", "1.0.0", requires=["a>=1.0 ; extra == 'x'"], provides_extras=["x"]),
+    ]
+    tree = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    cycles = cyclic_deps(tree)
+    assert len(cycles) > 0
+    render_cycles_text(cycles)
+    output = capsys.readouterr().err
+    assert "[extra: x]" in output

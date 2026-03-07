@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
     from unittest.mock import Mock
 
+    from tests.conftest import MockDistMaker
     from tests.our_types import MockGraph
 
 
@@ -562,3 +563,23 @@ def test_render_text_with_license_info_and_reversed_tree(
     render_text(dag, max_depth=float("inf"), encoding=encoding, include_license=True)
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
+
+
+@pytest.mark.parametrize("encoding", [pytest.param("utf-8", id="unicode"), pytest.param("ascii", id="simple")])
+def test_render_text_with_extras(
+    encoding: str, capsys: pytest.CaptureFixture[str], make_mock_dist: MockDistMaker
+) -> None:
+    pkgs = [
+        make_mock_dist("jira", "2.0.0", requires=["oauthlib[signedtoken]>=1.0.0"]),
+        make_mock_dist(
+            "oauthlib",
+            "3.0.0",
+            requires=["cryptography ; extra == 'signedtoken'"],
+            provides_extras=["signedtoken"],
+        ),
+        make_mock_dist("cryptography", "2.7"),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    render_text(dag, max_depth=float("inf"), encoding=encoding)
+    output = capsys.readouterr().out
+    assert "extra: signedtoken" in output

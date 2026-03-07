@@ -13,6 +13,8 @@ from pipdeptree._models.package import Package
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
+    from tests.conftest import MockDistMaker
+
 
 def sort_map_values(m: dict[str, Any]) -> dict[str, Any]:
     return {k: sorted(v) for k, v in m.items()}
@@ -240,3 +242,133 @@ def test_req_package_as_dict_with_no_version_spec() -> None:
     result = rp.as_dict()
     expected = {"key": "bar", "package_name": "bar", "installed_version": "4.1.0", "required_version": "Any"}
     assert expected == result
+
+
+def test_provides_extras_returns_extras(make_mock_dist: MockDistMaker) -> None:
+    dist = make_mock_dist("foo", "1.0.0", provides_extras=["dev", "test"])
+    dp = DistPackage(dist)
+    assert dp.provides_extras == frozenset({"dev", "test"})
+
+
+def test_provides_extras_empty_when_none(make_mock_dist: MockDistMaker) -> None:
+    dist = make_mock_dist("foo", "1.0.0")
+    dp = DistPackage(dist)
+    assert dp.provides_extras == frozenset()
+
+
+def test_requires_for_extras_yields_matching(make_mock_dist: MockDistMaker) -> None:
+    dist = make_mock_dist(
+        "oauthlib",
+        "3.0.0",
+        requires=["cryptography ; extra == 'signedtoken'", "pyjwt>=1.0.0 ; extra == 'signedtoken'"],
+        provides_extras=["signedtoken", "rsa"],
+    )
+    dp = DistPackage(dist)
+    results = list(dp.requires_for_extras(frozenset({"signedtoken"})))
+    assert len(results) == 2
+    assert results[0][0].name == "cryptography"
+    assert results[0][1] == "signedtoken"
+    assert results[1][0].name == "pyjwt"
+    assert results[1][1] == "signedtoken"
+
+
+def test_requires_for_extras_skips_non_matching(make_mock_dist: MockDistMaker) -> None:
+    dist = make_mock_dist(
+        "oauthlib",
+        "3.0.0",
+        requires=["cryptography ; extra == 'rsa'"],
+        provides_extras=["signedtoken", "rsa"],
+    )
+    dp = DistPackage(dist)
+    results = list(dp.requires_for_extras(frozenset({"signedtoken"})))
+    assert len(results) == 0
+
+
+def test_requires_for_extras_skips_regular_deps(make_mock_dist: MockDistMaker) -> None:
+    dist = make_mock_dist(
+        "foo",
+        "1.0.0",
+        requires=["bar>=1.0", "baz ; extra == 'dev'"],
+        provides_extras=["dev"],
+    )
+    dp = DistPackage(dist)
+    results = list(dp.requires_for_extras(frozenset({"dev"})))
+    assert len(results) == 1
+    assert results[0][0].name == "baz"
+
+
+def test_requires_for_extras_handles_combined_markers(make_mock_dist: MockDistMaker) -> None:
+    dist = make_mock_dist(
+        "foo",
+        "1.0.0",
+        requires=["baz ; python_version >= \"3.0\" and extra == 'dev'"],
+        provides_extras=["dev"],
+    )
+    dp = DistPackage(dist)
+    results = list(dp.requires_for_extras(frozenset({"dev"})))
+    assert len(results) == 1
+    assert results[0][0].name == "baz"
+    assert results[0][1] == "dev"
+
+
+def test_requires_for_extras_skips_invalid_requirements(make_mock_dist: MockDistMaker) -> None:
+    dist = make_mock_dist(
+        "foo",
+        "1.0.0",
+        requires=["INVALID**req ; extra == 'dev'", "bar ; extra == 'dev'"],
+        provides_extras=["dev"],
+    )
+    dp = DistPackage(dist)
+    results = list(dp.requires_for_extras(frozenset({"dev"})))
+    assert len(results) == 1
+    assert results[0][0].name == "bar"
+
+
+def test_req_package_render_as_branch_with_extra() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar, extra="dev")
+    assert rp.render_as_branch(frozen=False) == "bar [required: >=4.0, installed: 4.1.0, extra: dev]"
+
+
+def test_req_package_edge_label_with_extra() -> None:
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, extra="signedtoken")
+    assert rp.edge_label == "[signedtoken] >=4.0"
+
+
+def test_req_package_as_dict_with_extra() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar, extra="dev")
+    result = rp.as_dict()
+    assert result["extra"] == "dev"
+
+
+def test_req_package_as_dict_without_extra() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar)
+    assert "extra" not in rp.as_dict()
+
+
+def test_dist_package_render_as_branch_with_extra() -> None:
+    foo = Mock(metadata={"Name": "foo"}, version="1.0.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=Mock(metadata={"Name": "bar"}, version="4.0.0"), extra="dev")
+    dp = DistPackage(foo).as_parent_of(rp)
+    assert dp.render_as_branch(frozen=False) == "foo==1.0.0 [requires: bar>=4.0, extra: dev]"
+
+
+def test_dist_package_edge_label_with_extra() -> None:
+    foo = Mock(metadata={"Name": "foo"}, version="1.0.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, extra="signedtoken")
+    dp = DistPackage(foo).as_parent_of(rp)
+    assert dp.edge_label == "[signedtoken] >=4.0"
