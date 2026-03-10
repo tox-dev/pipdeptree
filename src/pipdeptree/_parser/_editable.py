@@ -6,7 +6,7 @@ import site
 import string
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import unquote, urlsplit
+from urllib.parse import urlsplit
 from urllib.request import url2pathname
 
 from ._direct_url import get_direct_url
@@ -50,20 +50,20 @@ def url_to_path(url: str) -> str:
     if not netloc or netloc == "localhost":
         netloc = ""
     elif os.name == "nt":
-        netloc = "\\\\" + netloc
+        netloc = "\\\\" + netloc  # pragma: win32 cover
     else:
         msg = f"non-local file URIs are not supported on this platform: {url!r}"
         raise ValueError(msg)
-    path = url2pathname(netloc + unquote(path))
+    path = url2pathname(netloc + path)
     if (
         os.name == "nt"  # noqa: PLR0916
         and not netloc
-        and len(path) >= 3  # noqa: PLR2004
+        and len(path) >= 3
         and path[0] == "/"
         and path[1] in string.ascii_letters
         and path[2:4] in {":", ":/"}
     ):
-        path = path[1:]
+        path = path[1:]  # pragma: win32 cover
     return path
 
 

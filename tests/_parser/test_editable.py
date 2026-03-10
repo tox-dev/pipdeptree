@@ -37,6 +37,12 @@ def test_url_to_path_unc() -> None:  # pragma: win32 cover
     assert result == r"\\server\share\path"  # pragma: win32 cover
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows drive letter correction is Windows-only")
+def test_url_to_path_windows_drive() -> None:  # pragma: win32 cover
+    result = url_to_path("file:///C:/Users/test/project")  # pragma: win32 cover
+    assert result == r"C:\Users\test\project"  # pragma: win32 cover
+
+
 @pytest.mark.skipif(os.name == "nt", reason="Non-local URLs rejected on non-Windows")
 def test_url_to_path_non_local_rejected() -> None:
     with pytest.raises(ValueError, match="non-local file URIs are not supported"):

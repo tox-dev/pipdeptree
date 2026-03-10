@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -121,7 +120,7 @@ def _parse_archive_info(archive_data: dict) -> ArchiveInfo:
         if not isinstance(hash_value, str):
             msg = "archive_info.hash must be a string"
             raise DirectUrlValidationError(msg)
-        if not re.match(r"^[a-z0-9_]+=[a-zA-Z0-9+/=_-]+$", hash_value):
+        if "=" not in hash_value or len(hash_value.split("=", 1)) != 2:
             msg = f"invalid archive_info.hash format: {hash_value!r}"
             raise DirectUrlValidationError(msg)
     return ArchiveInfo(hash=hash_value)

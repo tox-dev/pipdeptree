@@ -26,12 +26,30 @@ def _get_git_requirement(location: str, package_name: str) -> str | None:
     Get git requirement string for editable install.
 
     Uses git rev-parse --show-toplevel to find repository root from any subdirectory,
-    then extracts origin URL and HEAD commit. Normalizes SCP-style and local URLs.
+    then extracts remote URL and HEAD commit. Checks all remotes, preferring origin.
+    Normalizes SCP-style and local URLs to match pip's behavior.
 
     :param location: Filesystem path to source directory (can be subdirectory of repo)
     :param package_name: Package name for egg fragment
     :returns: Git requirement string, or None if not git repo or extraction fails
     """
+    if not (repo_root := _get_repo_root(location)):
+        return None
+    if not (remote_url := _get_remote_url(repo_root)):
+        return None
+    if not (commit_id := _get_commit_id(repo_root)):
+        return None
+    return _build_vcs_requirement(
+        remote_url=remote_url,
+        commit_id=commit_id,
+        package_name=package_name,
+        location=location,
+        repo_root=repo_root,
+    )
+
+
+def _get_repo_root(location: str) -> str | None:
+    """Find git repository root from any subdirectory."""
     try:
         repo_root = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],  # noqa: S607
@@ -41,21 +59,40 @@ def _get_git_requirement(location: str, package_name: str) -> str | None:
             check=True,
             timeout=5,
         ).stdout.strip()
-        if not repo_root:
-            return None
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
         return None
+    else:
+        return repo_root or None
+
+
+def _get_remote_url(repo_root: str) -> str | None:
+    """Get git remote URL, preferring origin."""
     try:
-        remote_url = subprocess.run(
-            ["git", "config", "--get", "remote.origin.url"],  # noqa: S607
+        remotes_output = subprocess.run(
+            ["git", "config", "--get-regexp", r"remote\..*\.url"],  # noqa: S607
             cwd=repo_root,
             capture_output=True,
             text=True,
-            check=True,
+            check=False,
             timeout=5,
         ).stdout.strip()
-        if not remote_url:
+        if not remotes_output:
             return None
+        remotes = remotes_output.splitlines()
+        found_remote = remotes[0]
+        for remote in remotes:
+            if remote.startswith("remote.origin.url "):
+                found_remote = remote
+                break
+        parts = found_remote.split(" ", 1)
+        return parts[1].strip() if len(parts) >= 2 and parts[1].strip() else None
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+
+
+def _get_commit_id(repo_root: str) -> str | None:
+    """Get current git commit ID."""
+    try:
         commit_id = subprocess.run(
             ["git", "rev-parse", "HEAD"],  # noqa: S607
             cwd=repo_root,
@@ -64,43 +101,57 @@ def _get_git_requirement(location: str, package_name: str) -> str | None:
             check=True,
             timeout=5,
         ).stdout.strip()
-        if not commit_id:
-            return None
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
         return None
     else:
-        normalized_url = _normalize_git_url(remote_url)
-        safe_package_name = _normalize_egg_name(package_name)
-        subdirectory = _get_subdirectory(location, repo_root)
-        result = f"git+{normalized_url}@{commit_id}#egg={safe_package_name}"
-        if subdirectory:
-            result += f"&subdirectory={subdirectory}"
-        return result
+        return commit_id or None
+
+
+def _build_vcs_requirement(
+    remote_url: str,
+    commit_id: str,
+    package_name: str,
+    location: str,
+    repo_root: str,
+) -> str:
+    """Build VCS requirement string from components."""
+    normalized_url = _normalize_git_url(remote_url)
+    safe_package_name = _normalize_egg_name(package_name)
+    if not normalized_url.lower().startswith("git:"):
+        normalized_url = f"git+{normalized_url}"
+    result = f"{normalized_url}@{commit_id}#egg={safe_package_name}"
+    if subdirectory := _get_subdirectory(location, repo_root):
+        result += f"&subdirectory={subdirectory}"
+    return result
 
 
 def _normalize_git_url(url: str) -> str:
     """
-    Normalize git URL to standard format.
+    Normalize git URL to standard format matching pip's behavior.
 
-    Converts SCP-style URLs (git@github.com:user/repo.git) to standard URLs,
-    and handles git:// URLs without adding git+ prefix.
+    Converts SCP-style URLs (git@github.com:user/repo.git) to ssh:// URLs,
+    preserving the user. Keeps git://, http://, https://, ssh:// URLs as-is.
+    Converts local paths to file:// URLs using proper URI encoding.
 
-    :param url: Raw git URL from remote.origin.url
+    Based on pip's _git_remote_to_pip_url implementation.
+
+    :param url: Raw git URL from remote config
     :returns: Normalized URL suitable for pip requirement
     """
-    if url.startswith("git://"):
-        return url[6:]
-    scp_pattern = re.compile(r"^(?:[\w.-]+@)?([^:]+):(.+)$")
-    if match := scp_pattern.match(url):
-        host, path = match.groups()
-        if not path.startswith("/"):
-            return f"ssh://{host}/{path}"
-    if url.startswith("file://"):
-        return url
-    if url.startswith(("http://", "https://", "ssh://")):
+    if re.match(r"\w+://", url):
         return url
     if Path(url).exists():
-        return f"file://{Path(url).resolve()}"
+        return Path(url).as_uri()
+    if match := re.match(
+        r"""^
+        (\w+@)?      # Optional user, e.g. 'git@'
+        ([^/:]+):    # Server, e.g. 'github.com'
+        (\w[^:]*)    # Server-side path starting with alphanumeric (not Windows paths like C:)
+        $""",
+        url,
+        re.VERBOSE,
+    ):
+        return match.expand(r"ssh://\1\2/\3")
     return url
 
 

@@ -57,6 +57,7 @@ optional-dependencies.test = [
   "pytest>=8.4.2",
   "pytest-cov>=7",
   "pytest-mock>=3.15.1",
+  "pytest-subprocess>=1.5",
   "virtualenv<21,>=20.34",
 ]
 urls.Changelog = "https://github.com/tox-dev/pipdeptree/releases"
@@ -79,21 +80,22 @@ lint.select = [
   "ALL",
 ]
 lint.ignore = [
-  "A005",   # Don't care about shadowing builtin modules
-  "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in
-  "COM812", # Conflict with formatter
-  "CPY",    # No copyright statements
-  "D104",   # Missing docstring in public package
-  "D203",   # `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible
-  "D212",   # `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible
-  "DOC201", # TODO: Read the comment for DOC501
-  "DOC402", # TODO: Read the comment for DOC501
-  "DOC501", # TODO: Remove this once ruff supports Sphinx-style doc-strings; see https://github.com/astral-sh/ruff/issues/12434
-  "INP001", # no implicit namespace
-  "ISC001", # Conflict with formatter
-  "RUF067", # `__init__` module should only contain docstrings and re-exports
-  "S101",   # asserts allowed
-  "S104",   # Possible binding to all interface
+  "A005",    # Don't care about shadowing builtin modules
+  "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed in
+  "COM812",  # Conflict with formatter
+  "CPY",     # No copyright statements
+  "D104",    # Missing docstring in public package
+  "D203",    # `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible
+  "D212",    # `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible
+  "DOC201",  # TODO: Read the comment for DOC501
+  "DOC402",  # TODO: Read the comment for DOC501
+  "DOC501",  # TODO: Remove this once ruff supports Sphinx-style doc-strings; see https://github.com/astral-sh/ruff/issues/12434
+  "INP001",  # no implicit namespace
+  "ISC001",  # Conflict with formatter
+  "PLR2004", # Magic value used in comparison
+  "RUF067",  # `__init__` module should only contain docstrings and re-exports
+  "S101",    # asserts allowed
+  "S104",    # Possible binding to all interface
 ]
 lint.per-file-ignores."tests/**/*.py" = [
   "D",       # don"t care about documentation in tests

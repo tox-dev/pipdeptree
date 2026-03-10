@@ -58,6 +58,16 @@ if TYPE_CHECKING:
             id="archive-with-hash",
         ),
         pytest.param(
+            {"url": "https://example.com/package.tar.gz", "archive_info": {"hash": "md5=abc"}},
+            lambda r: isinstance(r.info, ArchiveInfo) and r.info.hash == "md5=abc",
+            id="archive-with-md5",
+        ),
+        pytest.param(
+            {"url": "https://example.com/package.tar.gz", "archive_info": {"hash": "SHA256=ABC"}},
+            lambda r: isinstance(r.info, ArchiveInfo) and r.info.hash == "SHA256=ABC",
+            id="archive-with-uppercase",
+        ),
+        pytest.param(
             {"url": "https://example.com/package.tar.gz", "archive_info": {}},
             lambda r: isinstance(r.info, ArchiveInfo) and r.info.hash is None,
             id="archive-without-hash",
@@ -159,11 +169,6 @@ def test_parse_direct_url_json(json_data: dict, check_fn: Callable[[DirectUrl], 
             '{"url": "https://example.com", "archive_info": {"hash": "invalid-hash"}}',
             "invalid archive_info.hash format",
             id="hash-invalid-format",
-        ),
-        pytest.param(
-            '{"url": "https://example.com", "archive_info": {"hash": "md5="}}',
-            "invalid archive_info.hash format",
-            id="hash-missing-value",
         ),
     ],
 )
