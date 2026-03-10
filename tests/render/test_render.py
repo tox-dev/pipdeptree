@@ -52,3 +52,10 @@ def test_freeze_routing(option: list[str], mocker: MockerFixture) -> None:
     render = mocker.patch("pipdeptree._render.render_freeze")
     main(option)
     render.assert_called_once_with(ANY, max_depth=inf, list_all=False)
+
+
+@pytest.mark.parametrize("option", [["--output", "rich"]])
+def test_rich_routing(option: list[str], mocker: MockerFixture) -> None:
+    render = mocker.patch("pipdeptree._render.render_rich_text")
+    main(option)
+    render.assert_called_once_with(ANY, max_depth=inf, list_all=False, include_license=False)

@@ -49,6 +49,9 @@ dependencies = [
 optional-dependencies.graphviz = [
   "graphviz>=0.21",
 ]
+optional-dependencies.rich = [
+  "rich>=14.3.3",
+]
 optional-dependencies.test = [
   "covdefaults>=2.3",
   "diff-cover>=9.7.1",
