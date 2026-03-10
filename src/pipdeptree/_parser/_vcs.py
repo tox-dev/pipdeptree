@@ -100,7 +100,7 @@ def _get_git_requirement(location: str, package_name: str, repo_root: str) -> Vc
             return VcsResult(None, vcs_name="git", error=VcsError.NO_REMOTE)
     except FileNotFoundError:
         return VcsResult(None, vcs_name="git", error=VcsError.COMMAND_NOT_FOUND)
-    normalized = _normalize_git_url(remote_url)
+    normalized = _normalize_git_url(remote_url, repo_root)
     if normalized is None:
         return VcsResult(None, vcs_name="git", error=VcsError.INVALID_REMOTE)
     return _build_vcs_result(
@@ -156,7 +156,7 @@ def _get_git_commit_id(repo_root: str) -> str | None:
         return commit_id or None
 
 
-def _normalize_git_url(url: str) -> str | None:
+def _normalize_git_url(url: str, repo_root: str) -> str | None:
     """
     Normalize git URL to standard format matching pip's behavior.
 
@@ -164,8 +164,9 @@ def _normalize_git_url(url: str) -> str | None:
     """
     if re.match(r"\w+://", url):
         return url
-    if _is_local_path(url) and Path(url).exists():
-        return Path(url).as_uri()
+    path = Path(url) if _is_local_path(url) else Path(repo_root) / url
+    if path.exists():
+        return path.resolve().as_uri()
     if match := re.match(
         r"""^
         (\w+@)?      # Optional user, e.g. 'git@'

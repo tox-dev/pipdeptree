@@ -97,6 +97,18 @@ def test_get_vcs_requirement_local_path_remote(tmp_path: Path, fp: FakeProcess) 
     assert result.requirement == f"git+{local_repo.as_uri()}@abc123#egg=mypackage"
 
 
+def test_get_vcs_requirement_relative_path_remote(tmp_path: Path, fp: FakeProcess) -> None:
+    repo_dir = tmp_path / "project"
+    repo_dir.mkdir()
+    upstream = tmp_path / "upstream.git"
+    upstream.mkdir()
+    fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{repo_dir}\n")
+    fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], stdout="remote.origin.url ../upstream.git\n")
+    fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
+    result = get_vcs_requirement(str(repo_dir), "mypackage")
+    assert result.requirement == f"git+{upstream.resolve().as_uri()}@abc123#egg=mypackage"
+
+
 def test_get_vcs_requirement_prefers_origin(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
     fp.register(
