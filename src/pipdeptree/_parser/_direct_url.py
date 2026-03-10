@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -123,7 +124,16 @@ def _parse_archive_info(archive_data: dict) -> ArchiveInfo:
         if "=" not in hash_value or len(hash_value.split("=", 1)) != 2:
             msg = f"invalid archive_info.hash format: {hash_value!r}"
             raise DirectUrlValidationError(msg)
-    return ArchiveInfo(hash=hash_value)
+    hashes: dict[str, str] = {}
+    if raw_hashes := archive_data.get("hashes"):
+        if not isinstance(raw_hashes, dict):
+            msg = "archive_info.hashes must be a dict"
+            raise DirectUrlValidationError(msg)
+        hashes = {str(k): str(v) for k, v in raw_hashes.items()}
+    if not hashes and hash_value:
+        algo, digest = hash_value.split("=", 1)
+        hashes = {algo: digest}
+    return ArchiveInfo(hash=hash_value, hashes=hashes)
 
 
 def _parse_dir_info(dir_data: dict) -> DirInfo:
@@ -155,6 +165,11 @@ class DirectUrl:
         """Check if this is an editable installation."""
         return isinstance(self.info, DirInfo) and self.info.editable
 
+    @property
+    def redacted_url(self) -> str:
+        """Strip user:pass@ credentials from URL, preserving git@ and ${VAR} patterns."""
+        return _redact_url(self.url)
+
 
 @dataclass
 class VcsInfo:
@@ -178,6 +193,7 @@ class ArchiveInfo:
     """
 
     hash: str | None = None
+    hashes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -189,6 +205,20 @@ class DirInfo:
     """
 
     editable: bool = False
+
+
+_CREDENTIAL_RE = re.compile(r"([a-z+]+://)([^@]+)@", re.IGNORECASE)
+
+
+def _redact_url(url: str) -> str:
+    """Strip user:password@ from URL, preserving user-only (e.g. git@) and env vars (e.g. ${TOKEN}@)."""
+    match = _CREDENTIAL_RE.match(url)
+    if not match:
+        return url
+    userinfo = match.group(2)
+    if ":" not in userinfo or userinfo.startswith("${"):
+        return url
+    return f"{match.group(1)}{url[match.end() :]}"
 
 
 __all__ = [

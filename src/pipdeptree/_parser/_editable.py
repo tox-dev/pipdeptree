@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import locale
 import os
+import re
 import site
 import string
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
@@ -71,16 +73,34 @@ def find_egg_link(package_name: str) -> Path | None:
     """
     Find .egg-link file for legacy editable installations.
 
+    Matches pip's egg_link_path_from_sys_path: searches sys.path entries first,
+    then falls back to site-packages and user site-packages.
+
     :param package_name: Name of package to search for
     :returns: Path to .egg-link file if found, None otherwise
     """
+    candidates = _egg_link_names(package_name)
+    for search_dir in sys.path:
+        for name in candidates:
+            if (egg_link := Path(search_dir) / name).is_file():
+                return egg_link
     site_dirs = site.getsitepackages() if hasattr(site, "getsitepackages") else []
     if user_site := site.getusersitepackages():
         site_dirs.append(user_site)
     for site_dir in site_dirs:
-        if (egg_link := Path(site_dir) / f"{package_name}.egg-link").exists():
-            return egg_link
+        for name in candidates:
+            if (egg_link := Path(site_dir) / name).is_file():
+                return egg_link
     return None
+
+
+def _egg_link_names(package_name: str) -> list[str]:
+    """Generate candidate egg-link filenames: safe-name normalized and raw."""
+    safe_name = re.sub(r"[^A-Za-z0-9.]+", "-", package_name)
+    candidates = [f"{safe_name}.egg-link"]
+    if safe_name != package_name:
+        candidates.append(f"{package_name}.egg-link")
+    return candidates
 
 
 def read_egg_link_location(egg_link_path: Path) -> str:

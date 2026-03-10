@@ -69,7 +69,7 @@ if TYPE_CHECKING:
         ),
         pytest.param(
             {"url": "https://example.com/package.tar.gz", "archive_info": {}},
-            lambda r: isinstance(r.info, ArchiveInfo) and r.info.hash is None,
+            lambda r: isinstance(r.info, ArchiveInfo) and r.info.hash is None and r.info.hashes == {},
             id="archive-without-hash",
         ),
         pytest.param(
@@ -170,6 +170,11 @@ def test_parse_direct_url_json(json_data: dict, check_fn: Callable[[DirectUrl], 
             "invalid archive_info.hash format",
             id="hash-invalid-format",
         ),
+        pytest.param(
+            '{"url": "https://example.com", "archive_info": {"hashes": "not-a-dict"}}',
+            "archive_info.hashes must be a dict",
+            id="hashes-not-dict",
+        ),
     ],
 )
 def test_parse_direct_url_json_errors(json_str: str, error_match: str) -> None:
@@ -222,3 +227,57 @@ def test_get_direct_url_returns_none(setup_fn: Callable[[], Mock]) -> None:
     dist = setup_fn()
     result = get_direct_url(dist)
     assert result is None
+
+
+def test_archive_info_hashes_from_json() -> None:
+    result = parse_direct_url_json(
+        json.dumps({
+            "url": "https://example.com/pkg.tar.gz",
+            "archive_info": {"hashes": {"sha256": "abc123", "md5": "def456"}},
+        })
+    )
+    assert isinstance(result.info, ArchiveInfo)
+    assert result.info.hashes == {"sha256": "abc123", "md5": "def456"}
+    assert result.info.hash is None
+
+
+def test_archive_info_hashes_back_populated_from_hash() -> None:
+    result = parse_direct_url_json(
+        json.dumps({
+            "url": "https://example.com/pkg.tar.gz",
+            "archive_info": {"hash": "sha256=abc123"},
+        })
+    )
+    assert isinstance(result.info, ArchiveInfo)
+    assert result.info.hashes == {"sha256": "abc123"}
+
+
+def test_archive_info_hashes_takes_precedence() -> None:
+    result = parse_direct_url_json(
+        json.dumps({
+            "url": "https://example.com/pkg.tar.gz",
+            "archive_info": {"hash": "sha256=old", "hashes": {"sha256": "new"}},
+        })
+    )
+    assert isinstance(result.info, ArchiveInfo)
+    assert result.info.hashes == {"sha256": "new"}
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        pytest.param("https://example.com/repo.git", "https://example.com/repo.git", id="no-credentials"),
+        pytest.param("https://user:pass@example.com/repo.git", "https://example.com/repo.git", id="user-pass"),
+        pytest.param("https://git@example.com/repo.git", "https://git@example.com/repo.git", id="user-only"),
+        pytest.param(
+            "https://${TOKEN}@example.com/repo.git",
+            "https://${TOKEN}@example.com/repo.git",
+            id="env-var",
+        ),
+        pytest.param("file:///local/path", "file:///local/path", id="file-url"),
+        pytest.param("git@github.com:user/repo.git", "git@github.com:user/repo.git", id="scp-style"),
+    ],
+)
+def test_direct_url_redacted_url(url: str, expected: str) -> None:
+    du = DirectUrl(url=url, info=DirInfo())
+    assert du.redacted_url == expected

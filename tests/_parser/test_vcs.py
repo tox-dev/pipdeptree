@@ -5,11 +5,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pipdeptree._parser._vcs import get_vcs_requirement
+from pipdeptree._parser._vcs import VcsError, VcsResult, get_vcs_requirement
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from pytest_mock import MockerFixture
     from pytest_subprocess import FakeProcess
 
 
@@ -31,7 +32,9 @@ def test_get_vcs_requirement_url_normalization(
     fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], stdout=f"remote.origin.url {remote_url}\n")
     fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result == f"{expected_url}@abc123#egg=mypackage"
+    assert result.requirement == f"{expected_url}@abc123#egg=mypackage"
+    assert result.vcs_name == "git"
+    assert result.error == VcsError.NONE
 
 
 @pytest.mark.parametrize(
@@ -53,13 +56,14 @@ def test_get_vcs_requirement_egg_name_normalization(
     )
     fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
     result = get_vcs_requirement(str(tmp_path), package_name)
-    assert result == f"git+https://github.com/user/repo.git@abc123#egg={expected_egg}"
+    assert result.requirement == f"git+https://github.com/user/repo.git@abc123#egg={expected_egg}"
 
 
 def test_get_vcs_requirement_with_subdirectory(tmp_path: Path, fp: FakeProcess) -> None:
     repo_root = tmp_path
     subdir = tmp_path / "src" / "pkg"
     subdir.mkdir(parents=True)
+    (subdir / "pyproject.toml").touch()
     fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{repo_root}\n")
     fp.register(
         ["git", "config", "--get-regexp", r"remote\..*\.url"],
@@ -67,7 +71,20 @@ def test_get_vcs_requirement_with_subdirectory(tmp_path: Path, fp: FakeProcess) 
     )
     fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
     result = get_vcs_requirement(str(subdir), "mypackage")
-    assert result == "git+https://github.com/user/repo.git@abc123#egg=mypackage&subdirectory=src/pkg"
+    assert result.requirement == "git+https://github.com/user/repo.git@abc123#egg=mypackage&subdirectory=src/pkg"
+
+
+def test_get_vcs_requirement_no_subdirectory_when_at_root(tmp_path: Path, fp: FakeProcess) -> None:
+    (tmp_path / "pyproject.toml").touch()
+    fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
+    fp.register(
+        ["git", "config", "--get-regexp", r"remote\..*\.url"],
+        stdout="remote.origin.url https://github.com/user/repo.git\n",
+    )
+    fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
+    result = get_vcs_requirement(str(tmp_path), "mypackage")
+    assert result.requirement == "git+https://github.com/user/repo.git@abc123#egg=mypackage"
+    assert "&subdirectory=" not in (result.requirement or "")
 
 
 def test_get_vcs_requirement_local_path_remote(tmp_path: Path, fp: FakeProcess) -> None:
@@ -77,7 +94,7 @@ def test_get_vcs_requirement_local_path_remote(tmp_path: Path, fp: FakeProcess) 
     fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], stdout=f"remote.origin.url {local_repo}\n")
     fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result == f"git+{local_repo.as_uri()}@abc123#egg=mypackage"
+    assert result.requirement == f"git+{local_repo.as_uri()}@abc123#egg=mypackage"
 
 
 def test_get_vcs_requirement_prefers_origin(tmp_path: Path, fp: FakeProcess) -> None:
@@ -88,7 +105,7 @@ def test_get_vcs_requirement_prefers_origin(tmp_path: Path, fp: FakeProcess) -> 
     )
     fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result == "git+https://origin.com/repo.git@abc123#egg=mypackage"
+    assert result.requirement == "git+https://origin.com/repo.git@abc123#egg=mypackage"
 
 
 def test_get_vcs_requirement_falls_back_to_first_remote(tmp_path: Path, fp: FakeProcess) -> None:
@@ -99,33 +116,38 @@ def test_get_vcs_requirement_falls_back_to_first_remote(tmp_path: Path, fp: Fake
     )
     fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result == "git+https://upstream.com/repo.git@abc123#egg=mypackage"
+    assert result.requirement == "git+https://upstream.com/repo.git@abc123#egg=mypackage"
 
 
-def test_get_vcs_requirement_no_git_repo(tmp_path: Path, fp: FakeProcess) -> None:
+def test_get_vcs_requirement_no_vcs(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], returncode=1)
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
+    assert result.error == VcsError.NO_VCS
 
 
 def test_get_vcs_requirement_empty_repo_root(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], stdout="")
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
+    assert result.error == VcsError.NO_VCS
 
 
 def test_get_vcs_requirement_no_remote(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
     fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], stdout="")
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
+    assert result.error == VcsError.NO_REMOTE
+    assert result.vcs_name == "git"
 
 
 def test_get_vcs_requirement_empty_remote_url(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
     fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], stdout="remote.origin.url \n")
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
+    assert result.error == VcsError.NO_REMOTE
 
 
 def test_get_vcs_requirement_no_commit(tmp_path: Path, fp: FakeProcess) -> None:
@@ -136,14 +158,15 @@ def test_get_vcs_requirement_no_commit(tmp_path: Path, fp: FakeProcess) -> None:
     )
     fp.register(["git", "rev-parse", "HEAD"], stdout="")
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
+    assert result.error == VcsError.NO_REMOTE
 
 
 def test_get_vcs_requirement_remote_command_fails(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
     fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], returncode=1)
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
 
 
 def test_get_vcs_requirement_commit_command_fails(tmp_path: Path, fp: FakeProcess) -> None:
@@ -154,55 +177,97 @@ def test_get_vcs_requirement_commit_command_fails(tmp_path: Path, fp: FakeProces
     )
     fp.register(["git", "rev-parse", "HEAD"], returncode=1)
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
 
 
 def test_get_vcs_requirement_git_timeout(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], callback=_raise_timeout)
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
 
 
 def test_get_vcs_requirement_git_not_found(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], callback=_raise_file_not_found)
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
 
 
-def test_get_vcs_requirement_malformed_url(tmp_path: Path, fp: FakeProcess) -> None:
+def test_get_vcs_requirement_invalid_remote(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
     fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], stdout="remote.origin.url :invalid:url:format\n")
     fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result == "git+:invalid:url:format@abc123#egg=mypackage"
-
-
-def test_get_vcs_requirement_subdirectory_path_error(
-    tmp_path: Path, fp: FakeProcess, mocker: pytest.MockerFixture
-) -> None:
-    fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
-    fp.register(
-        ["git", "config", "--get-regexp", r"remote\..*\.url"],
-        stdout="remote.origin.url https://github.com/user/repo.git\n",
-    )
-    fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
-    mocker.patch("pathlib.Path.resolve", side_effect=OSError)
-    result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result == "git+https://github.com/user/repo.git@abc123#egg=mypackage"
+    assert result.requirement is None
+    assert result.error == VcsError.INVALID_REMOTE
+    assert result.vcs_name == "git"
 
 
 def test_get_vcs_requirement_remote_timeout(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
     fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], callback=_raise_timeout)
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
 
 
 def test_get_vcs_requirement_remote_not_found(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
     fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], callback=_raise_file_not_found)
     result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result is None
+    assert result.requirement is None
+
+
+def test_get_vcs_requirement_innermost_repo_wins(tmp_path: Path, fp: FakeProcess) -> None:
+    outer = tmp_path / "outer"
+    inner = outer / "inner"
+    inner.mkdir(parents=True)
+    (outer / ".hg").mkdir()
+    fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{inner}\n")
+    fp.register(
+        ["git", "config", "--get-regexp", r"remote\..*\.url"],
+        stdout="remote.origin.url https://github.com/inner/repo.git\n",
+    )
+    fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
+    result = get_vcs_requirement(str(inner), "mypackage")
+    assert result.vcs_name == "git"
+    assert result.requirement is not None
+    assert "inner/repo" in result.requirement
+
+
+def test_vcs_result_dataclass() -> None:
+    r = VcsResult(requirement=None, vcs_name="git", error=VcsError.NO_REMOTE)
+    assert r.requirement is None
+    assert r.vcs_name == "git"
+    assert r.error == VcsError.NO_REMOTE
+
+
+def test_find_project_root_no_installable_dir(tmp_path: Path, fp: FakeProcess) -> None:
+    subdir = tmp_path / "deep" / "nested"
+    subdir.mkdir(parents=True)
+    fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
+    fp.register(
+        ["git", "config", "--get-regexp", r"remote\..*\.url"],
+        stdout="remote.origin.url https://github.com/user/repo.git\n",
+    )
+    fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
+    result = get_vcs_requirement(str(subdir), "mypackage")
+    assert result.requirement is not None
+    assert "&subdirectory=" not in result.requirement
+
+
+def test_find_project_root_samefile_error(tmp_path: Path, fp: FakeProcess, mocker: MockerFixture) -> None:
+    subdir = tmp_path / "sub"
+    subdir.mkdir()
+    (subdir / "pyproject.toml").touch()
+    fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
+    fp.register(
+        ["git", "config", "--get-regexp", r"remote\..*\.url"],
+        stdout="remote.origin.url https://github.com/user/repo.git\n",
+    )
+    fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
+    mocker.patch("pathlib.Path.samefile", side_effect=OSError("broken"))
+    result = get_vcs_requirement(str(subdir), "mypackage")
+    assert result.requirement is not None
+    assert "&subdirectory=" not in result.requirement
 
 
 def _raise_timeout(_process: object) -> None:

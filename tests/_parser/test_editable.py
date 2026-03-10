@@ -7,10 +7,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from pipdeptree._parser._editable import get_editable_location
+from pipdeptree._parser._editable import find_egg_link, get_editable_location, url_to_path
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from pytest_mock import MockerFixture
 
 
 @pytest.mark.parametrize(
@@ -50,39 +52,42 @@ def test_get_editable_location_windows_drive() -> None:  # pragma: win32 cover
     assert result == r"C:\Users\test\project"  # pragma: win32 cover
 
 
-def test_get_editable_location_from_egg_link_site_packages(mocker: pytest.MockerFixture, tmp_path: Path) -> None:
+def test_get_editable_location_from_egg_link_site_packages(mocker: MockerFixture, tmp_path: Path) -> None:
     site_dir = tmp_path / "site-packages"
     site_dir.mkdir()
     egg_link = site_dir / "mypackage.egg-link"
     egg_link.write_text("/path/to/source\n")
     dist = Mock(metadata={"Name": "mypackage"})
     dist.read_text.return_value = None
+    mocker.patch("pipdeptree._parser._editable.sys.path", [])
     mocker.patch("pipdeptree._parser._editable.site.getsitepackages", return_value=[str(site_dir)])
     mocker.patch("pipdeptree._parser._editable.site.getusersitepackages", return_value=None)
     result = get_editable_location(dist)
     assert result == "/path/to/source"
 
 
-def test_get_editable_location_from_egg_link_user_site(mocker: pytest.MockerFixture, tmp_path: Path) -> None:
+def test_get_editable_location_from_egg_link_user_site(mocker: MockerFixture, tmp_path: Path) -> None:
     user_site = tmp_path / "user-site"
     user_site.mkdir()
     egg_link = user_site / "mypackage.egg-link"
     egg_link.write_text("/path/to/source\n")
     dist = Mock(metadata={"Name": "mypackage"})
     dist.read_text.return_value = None
+    mocker.patch("pipdeptree._parser._editable.sys.path", [])
     mocker.patch("pipdeptree._parser._editable.site.getsitepackages", return_value=[])
     mocker.patch("pipdeptree._parser._editable.site.getusersitepackages", return_value=str(user_site))
     result = get_editable_location(dist)
     assert result == "/path/to/source"
 
 
-def test_get_editable_location_egg_link_multiline(mocker: pytest.MockerFixture, tmp_path: Path) -> None:
+def test_get_editable_location_egg_link_multiline(mocker: MockerFixture, tmp_path: Path) -> None:
     site_dir = tmp_path / "site-packages"
     site_dir.mkdir()
     egg_link = site_dir / "pkg.egg-link"
     egg_link.write_text("/path/to/source\nextra line\n")
     dist = Mock(metadata={"Name": "pkg"})
     dist.read_text.return_value = None
+    mocker.patch("pipdeptree._parser._editable.sys.path", [])
     mocker.patch("pipdeptree._parser._editable.site.getsitepackages", return_value=[str(site_dir)])
     mocker.patch("pipdeptree._parser._editable.site.getusersitepackages", return_value=None)
     result = get_editable_location(dist)
@@ -106,12 +111,76 @@ def test_get_editable_location_dir_info_not_editable() -> None:
     assert result is None
 
 
-def test_get_editable_location_egg_link_not_found(mocker: pytest.MockerFixture, tmp_path: Path) -> None:
+def test_get_editable_location_egg_link_not_found(mocker: MockerFixture, tmp_path: Path) -> None:
     site_dir = tmp_path / "site-packages"
     user_site = tmp_path / "user-site"
     dist = Mock(metadata={"Name": "nonexistent"})
     dist.read_text.return_value = None
+    mocker.patch("pipdeptree._parser._editable.sys.path", [])
     mocker.patch("pipdeptree._parser._editable.site.getsitepackages", return_value=[str(site_dir)])
     mocker.patch("pipdeptree._parser._editable.site.getusersitepackages", return_value=str(user_site))
     result = get_editable_location(dist)
     assert result is None
+
+
+def test_url_to_path_non_file_scheme() -> None:
+    with pytest.raises(ValueError, match="You can only turn file: urls into filenames"):
+        url_to_path("https://example.com/path")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="non-local file URI error is Unix-only")
+def test_url_to_path_non_local_netloc() -> None:
+    with pytest.raises(ValueError, match="non-local file URIs are not supported"):
+        url_to_path("file://remotehost/share/path")
+
+
+def test_find_egg_link_sys_path_search(mocker: MockerFixture, tmp_path: Path) -> None:
+    search_dir = tmp_path / "lib"
+    search_dir.mkdir()
+    egg_link = search_dir / "mypackage.egg-link"
+    egg_link.write_text("/path/to/source\n")
+    mocker.patch("pipdeptree._parser._editable.sys.path", [str(search_dir)])
+    mocker.patch("pipdeptree._parser._editable.site.getsitepackages", return_value=[])
+    mocker.patch("pipdeptree._parser._editable.site.getusersitepackages", return_value=None)
+    result = find_egg_link("mypackage")
+    assert result == egg_link
+
+
+def test_find_egg_link_safe_name_normalization(mocker: MockerFixture, tmp_path: Path) -> None:
+    search_dir = tmp_path / "lib"
+    search_dir.mkdir()
+    egg_link = search_dir / "my-package.egg-link"
+    egg_link.write_text("/path/to/source\n")
+    mocker.patch("pipdeptree._parser._editable.sys.path", [str(search_dir)])
+    mocker.patch("pipdeptree._parser._editable.site.getsitepackages", return_value=[])
+    mocker.patch("pipdeptree._parser._editable.site.getusersitepackages", return_value=None)
+    result = find_egg_link("my_package")
+    assert result == egg_link
+
+
+def test_find_egg_link_raw_name_fallback(mocker: MockerFixture, tmp_path: Path) -> None:
+    search_dir = tmp_path / "lib"
+    search_dir.mkdir()
+    egg_link = search_dir / "my_package.egg-link"
+    egg_link.write_text("/path/to/source\n")
+    mocker.patch("pipdeptree._parser._editable.sys.path", [str(search_dir)])
+    mocker.patch("pipdeptree._parser._editable.site.getsitepackages", return_value=[])
+    mocker.patch("pipdeptree._parser._editable.site.getusersitepackages", return_value=None)
+    result = find_egg_link("my_package")
+    assert result == egg_link
+
+
+def test_find_egg_link_sys_path_before_site(mocker: MockerFixture, tmp_path: Path) -> None:
+    sys_dir = tmp_path / "sys_lib"
+    sys_dir.mkdir()
+    site_dir = tmp_path / "site_lib"
+    site_dir.mkdir()
+    sys_egg = sys_dir / "pkg.egg-link"
+    sys_egg.write_text("/sys/source\n")
+    site_egg = site_dir / "pkg.egg-link"
+    site_egg.write_text("/site/source\n")
+    mocker.patch("pipdeptree._parser._editable.sys.path", [str(sys_dir)])
+    mocker.patch("pipdeptree._parser._editable.site.getsitepackages", return_value=[str(site_dir)])
+    mocker.patch("pipdeptree._parser._editable.site.getusersitepackages", return_value=None)
+    result = find_egg_link("pkg")
+    assert result == sys_egg
