@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import locale
+import os
 import site
+import string
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlsplit
 from urllib.request import url2pathname
 
 from ._direct_url import get_direct_url
@@ -34,18 +36,35 @@ def url_to_path(url: str) -> str:
     """
     Convert file:// URL to filesystem path.
 
+    Handles localhost URLs, UNC paths on Windows, and Windows drive letter corrections.
+    Matches pip's url_to_path implementation for compatibility.
+
     :param url: URL to convert (must have file:// scheme)
     :returns: Filesystem path
-    :raises ValueError: If URL doesn't use file:// scheme
+    :raises ValueError: If URL doesn't use file:// scheme or is non-local on non-Windows platforms
     """
-    parsed = urlparse(url)
-    if parsed.scheme != "file":
-        msg = f"Expected file:// URL, got {parsed.scheme}://"
+    if not url.startswith("file:"):
+        msg = f"You can only turn file: urls into filenames (not {url!r})"
         raise ValueError(msg)
-    path = unquote(parsed.path)
-    if parsed.netloc:  # pragma: win32 cover
-        return url2pathname(f"//{parsed.netloc}{path}")  # pragma: win32 cover
-    return url2pathname(path)
+    _, netloc, path, _, _ = urlsplit(url)
+    if not netloc or netloc == "localhost":
+        netloc = ""
+    elif os.name == "nt":
+        netloc = "\\\\" + netloc
+    else:
+        msg = f"non-local file URIs are not supported on this platform: {url!r}"
+        raise ValueError(msg)
+    path = url2pathname(netloc + unquote(path))
+    if (
+        os.name == "nt"  # noqa: PLR0916
+        and not netloc
+        and len(path) >= 3  # noqa: PLR2004
+        and path[0] == "/"
+        and path[1] in string.ascii_letters
+        and path[2:4] in {":", ":/"}
+    ):
+        path = path[1:]
+    return path
 
 
 def find_egg_link(package_name: str) -> Path | None:

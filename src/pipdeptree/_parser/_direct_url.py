@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -29,6 +30,18 @@ def parse_direct_url_json(json_str: str) -> DirectUrl:
     :returns: Parsed DirectUrl object
     :raises DirectUrlValidationError: If JSON is malformed or missing required fields
     """
+    data = _load_and_validate_json(json_str)
+    _validate_required_fields(data)
+    info = _parse_info_block(data)
+    return DirectUrl(
+        url=data["url"],
+        info=info,
+        subdirectory=data.get("subdirectory"),
+    )
+
+
+def _load_and_validate_json(json_str: str) -> dict:
+    """Load and validate JSON structure."""
     try:
         data = json.loads(json_str)
     except json.JSONDecodeError as e:
@@ -37,28 +50,43 @@ def parse_direct_url_json(json_str: str) -> DirectUrl:
     if not isinstance(data, dict):
         msg = "direct_url.json must be a JSON object"
         raise DirectUrlValidationError(msg)
+    return data
+
+
+def _validate_required_fields(data: dict) -> None:
+    """Validate required fields and their types."""
     if "url" not in data:
         msg = "Missing required 'url' field"
         raise DirectUrlValidationError(msg)
-    infos = [
-        _parse_vcs_info(data["vcs_info"]) if "vcs_info" in data and isinstance(data["vcs_info"], dict) else None,
-        _parse_archive_info(data["archive_info"])
-        if "archive_info" in data and isinstance(data["archive_info"], dict)
-        else None,
-        _parse_dir_info(data["dir_info"]) if "dir_info" in data and isinstance(data["dir_info"], dict) else None,
-    ]
-    non_none_infos = [info for info in infos if info is not None]
-    if not non_none_infos:
+    if not isinstance(data["url"], str):
+        msg = "url must be a string"
+        raise DirectUrlValidationError(msg)
+    subdirectory = data.get("subdirectory")
+    if subdirectory is not None and not isinstance(subdirectory, str):
+        msg = "subdirectory must be a string"
+        raise DirectUrlValidationError(msg)
+
+
+def _parse_info_block(data: dict) -> VcsInfo | ArchiveInfo | DirInfo:
+    """Parse and validate info block (vcs_info, archive_info, or dir_info)."""
+    infos = []
+    for key, parser in [
+        ("vcs_info", _parse_vcs_info),
+        ("archive_info", _parse_archive_info),
+        ("dir_info", _parse_dir_info),
+    ]:
+        if key in data:
+            if not isinstance(data[key], dict):
+                msg = f"{key} must be a dict"
+                raise DirectUrlValidationError(msg)
+            infos.append(parser(data[key]))
+    if not infos:
         msg = "Missing one of vcs_info, archive_info, or dir_info"
         raise DirectUrlValidationError(msg)
-    if len(non_none_infos) > 1:
+    if len(infos) > 1:
         msg = "More than one of vcs_info, archive_info, or dir_info specified"
         raise DirectUrlValidationError(msg)
-    return DirectUrl(
-        url=data["url"],
-        info=non_none_infos[0],
-        subdirectory=data.get("subdirectory"),
-    )
+    return infos[0]
 
 
 def _parse_vcs_info(vcs_data: dict) -> VcsInfo:
@@ -66,19 +94,37 @@ def _parse_vcs_info(vcs_data: dict) -> VcsInfo:
     if "vcs" not in vcs_data:
         msg = "Missing required vcs_info.vcs field"
         raise DirectUrlValidationError(msg)
+    if not isinstance(vcs_data["vcs"], str):
+        msg = "vcs_info.vcs must be a string"
+        raise DirectUrlValidationError(msg)
     if "commit_id" not in vcs_data:
         msg = "Missing required vcs_info.commit_id field"
+        raise DirectUrlValidationError(msg)
+    if not isinstance(vcs_data["commit_id"], str):
+        msg = "vcs_info.commit_id must be a string"
+        raise DirectUrlValidationError(msg)
+    requested_revision = vcs_data.get("requested_revision")
+    if requested_revision is not None and not isinstance(requested_revision, str):
+        msg = "vcs_info.requested_revision must be a string"
         raise DirectUrlValidationError(msg)
     return VcsInfo(
         vcs=vcs_data["vcs"],
         commit_id=vcs_data["commit_id"],
-        requested_revision=vcs_data.get("requested_revision"),
+        requested_revision=requested_revision,
     )
 
 
 def _parse_archive_info(archive_data: dict) -> ArchiveInfo:
     """Parse archive_info dictionary into ArchiveInfo object."""
-    return ArchiveInfo(hash=archive_data.get("hash"))
+    hash_value = archive_data.get("hash")
+    if hash_value is not None:
+        if not isinstance(hash_value, str):
+            msg = "archive_info.hash must be a string"
+            raise DirectUrlValidationError(msg)
+        if not re.match(r"^[a-z0-9_]+=[a-zA-Z0-9+/=_-]+$", hash_value):
+            msg = f"invalid archive_info.hash format: {hash_value!r}"
+            raise DirectUrlValidationError(msg)
+    return ArchiveInfo(hash=hash_value)
 
 
 def _parse_dir_info(dir_data: dict) -> DirInfo:
@@ -90,7 +136,7 @@ def _parse_dir_info(dir_data: dict) -> DirInfo:
     return DirInfo(editable=editable)
 
 
-class DirectUrlValidationError(Exception):
+class DirectUrlValidationError(ValueError):
     """Raised when direct_url.json has invalid structure or missing required fields."""
 
 

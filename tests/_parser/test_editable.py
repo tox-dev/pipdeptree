@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     [
         pytest.param("file:///home/user/project", "/home/user/project", id="unix-path"),
         pytest.param("file:///home/user/my%20project", "/home/user/my project", id="path-with-spaces"),
+        pytest.param("file://localhost/home/user/project", "/home/user/project", id="localhost"),
     ],
 )
 def test_url_to_path(url: str, expected: str) -> None:
@@ -36,8 +37,14 @@ def test_url_to_path_unc() -> None:  # pragma: win32 cover
     assert result == r"\\server\share\path"  # pragma: win32 cover
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Non-local URLs rejected on non-Windows")
+def test_url_to_path_non_local_rejected() -> None:
+    with pytest.raises(ValueError, match="non-local file URIs are not supported"):
+        url_to_path("file://remote-host/path")
+
+
 def test_url_to_path_invalid_scheme() -> None:
-    with pytest.raises(ValueError, match="Expected file:// URL"):
+    with pytest.raises(ValueError, match="You can only turn file: urls into filenames"):
         url_to_path("https://example.com/path")
 
 

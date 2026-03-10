@@ -110,6 +110,61 @@ def test_parse_direct_url_json(json_data: dict, check_fn: Callable[[DirectUrl], 
             "dir_info.editable must be a boolean",
             id="dir-info-editable-not-bool",
         ),
+        pytest.param(
+            '{"url": 123, "dir_info": {}}',
+            "url must be a string",
+            id="url-not-string",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "subdirectory": 123, "dir_info": {}}',
+            "subdirectory must be a string",
+            id="subdirectory-not-string",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "vcs_info": "not-a-dict"}',
+            "vcs_info must be a dict",
+            id="vcs-info-not-dict",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "archive_info": "not-a-dict"}',
+            "archive_info must be a dict",
+            id="archive-info-not-dict",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "dir_info": "not-a-dict"}',
+            "dir_info must be a dict",
+            id="dir-info-not-dict",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "vcs_info": {"vcs": 123, "commit_id": "abc"}}',
+            "vcs_info.vcs must be a string",
+            id="vcs-not-string",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "vcs_info": {"vcs": "git", "commit_id": 123}}',
+            "vcs_info.commit_id must be a string",
+            id="commit-id-not-string",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "vcs_info": {"vcs": "git", "commit_id": "abc", "requested_revision": 123}}',
+            "vcs_info.requested_revision must be a string",
+            id="requested-revision-not-string",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "archive_info": {"hash": 123}}',
+            "archive_info.hash must be a string",
+            id="hash-not-string",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "archive_info": {"hash": "invalid-hash"}}',
+            "invalid archive_info.hash format",
+            id="hash-invalid-format",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "archive_info": {"hash": "md5="}}',
+            "invalid archive_info.hash format",
+            id="hash-missing-value",
+        ),
     ],
 )
 def test_parse_direct_url_json_errors(json_str: str, error_match: str) -> None:
