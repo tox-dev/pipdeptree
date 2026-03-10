@@ -34,7 +34,7 @@ class Options(Namespace):
 
 
 # NOTE: graphviz-* has been intentionally left out. Users of this var should handle it separately.
-ALLOWED_RENDER_FORMATS = ["freeze", "json", "json-tree", "mermaid", "text"]
+ALLOWED_RENDER_FORMATS = ["freeze", "json", "json-tree", "mermaid", "rich", "text"]
 
 
 class _Formatter(ArgumentDefaultsHelpFormatter):
@@ -122,14 +122,14 @@ def build_parser() -> ArgumentParser:
         metavar="E",
     )
     render.add_argument(
-        "-a", "--all", action="store_true", help="list all deps at top level (text and freeze render only)"
+        "-a", "--all", action="store_true", help="list all deps at top level (text, rich, and freeze render only)"
     )
     render.add_argument(
         "-d",
         "--depth",
         type=lambda x: int(x) if x.isdigit() and (int(x) >= 0) else parser.error("Depth must be a number that is >= 0"),
         default=float("inf"),
-        help="limit the depth of the tree (text, freeze, and graphviz render only)",
+        help="limit the depth of the tree (text, rich, freeze, and graphviz render only)",
         metavar="D",
     )
     render.add_argument(
@@ -145,7 +145,7 @@ def build_parser() -> ArgumentParser:
     render.add_argument(
         "--license",
         action="store_true",
-        help="list the license(s) of a package (text render only)",
+        help="list the license(s) of a package (text and rich render only)",
     )
 
     render_type = render.add_mutually_exclusive_group()

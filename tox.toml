@@ -15,7 +15,7 @@ skip_missing_interpreters = true
 description = "run the unit tests with pytest under {base_python}"
 package = "wheel"
 wheel_build_env = ".pkg"
-extras = [ "graphviz", "test" ]
+extras = [ "graphviz", "rich", "test" ]
 pass_env = [ "DIFF_AGAINST", "PYTEST_*" ]
 set_env.COVERAGE_FILE = "{work_dir}/.coverage.{env_name}"
 commands = [
@@ -77,4 +77,5 @@ commands = [ [ "ty", "check", "--python-platform", "all", "--output-format", "co
 [env.dev]
 description = "generate a DEV environment"
 package = "editable"
+extras = [ "graphviz", "rich", "test" ]
 commands = [ [ "uv", "pip", "tree" ], [ "python", "-c", "import sys; print(sys.executable)" ] ]
