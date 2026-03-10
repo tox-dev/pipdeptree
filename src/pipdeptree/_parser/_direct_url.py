@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
@@ -40,38 +40,54 @@ def parse_direct_url_json(json_str: str) -> DirectUrl:
     if "url" not in data:
         msg = "Missing required 'url' field"
         raise DirectUrlValidationError(msg)
+    infos = [
+        _parse_vcs_info(data["vcs_info"]) if "vcs_info" in data and isinstance(data["vcs_info"], dict) else None,
+        _parse_archive_info(data["archive_info"])
+        if "archive_info" in data and isinstance(data["archive_info"], dict)
+        else None,
+        _parse_dir_info(data["dir_info"]) if "dir_info" in data and isinstance(data["dir_info"], dict) else None,
+    ]
+    non_none_infos = [info for info in infos if info is not None]
+    if not non_none_infos:
+        msg = "Missing one of vcs_info, archive_info, or dir_info"
+        raise DirectUrlValidationError(msg)
+    if len(non_none_infos) > 1:
+        msg = "More than one of vcs_info, archive_info, or dir_info specified"
+        raise DirectUrlValidationError(msg)
     return DirectUrl(
         url=data["url"],
-        vcs_info=_parse_vcs_info(data["vcs_info"])
-        if "vcs_info" in data and isinstance(data["vcs_info"], dict)
-        else None,
-        archive_info=(
-            ArchiveInfo(hash_value=data["archive_info"].get("hash"))
-            if "archive_info" in data and isinstance(data["archive_info"], dict)
-            else None
-        ),
-        dir_info=(
-            DirInfo(editable=data["dir_info"].get("editable", False))
-            if "dir_info" in data and isinstance(data["dir_info"], dict)
-            else None
-        ),
+        info=non_none_infos[0],
         subdirectory=data.get("subdirectory"),
     )
 
 
 def _parse_vcs_info(vcs_data: dict) -> VcsInfo:
     """Parse vcs_info dictionary into VcsInfo object."""
+    if "vcs" not in vcs_data:
+        msg = "Missing required vcs_info.vcs field"
+        raise DirectUrlValidationError(msg)
+    if "commit_id" not in vcs_data:
+        msg = "Missing required vcs_info.commit_id field"
+        raise DirectUrlValidationError(msg)
     return VcsInfo(
-        vcs=vcs_data.get("vcs", ""),
-        commit_id=vcs_data.get("commit_id", ""),
+        vcs=vcs_data["vcs"],
+        commit_id=vcs_data["commit_id"],
         requested_revision=vcs_data.get("requested_revision"),
-        resolved_revision=vcs_data.get("resolved_revision"),
-        resolved_revision_type=(
-            vcs_data.get("resolved_revision_type")
-            if vcs_data.get("resolved_revision_type") in {"branch", "tag"}
-            else None
-        ),
     )
+
+
+def _parse_archive_info(archive_data: dict) -> ArchiveInfo:
+    """Parse archive_info dictionary into ArchiveInfo object."""
+    return ArchiveInfo(hash=archive_data.get("hash"))
+
+
+def _parse_dir_info(dir_data: dict) -> DirInfo:
+    """Parse dir_info dictionary into DirInfo object."""
+    editable = dir_data.get("editable", False)
+    if not isinstance(editable, bool):
+        msg = "dir_info.editable must be a boolean"
+        raise DirectUrlValidationError(msg)
+    return DirInfo(editable=editable)
 
 
 class DirectUrlValidationError(Exception):
@@ -87,25 +103,12 @@ class DirectUrl:
     """
 
     url: str
-    dir_info: DirInfo | None = None
-    vcs_info: VcsInfo | None = None
-    archive_info: ArchiveInfo | None = None
+    info: VcsInfo | ArchiveInfo | DirInfo
     subdirectory: str | None = None
-
-    @property
-    def info_type(self) -> Literal["vcs", "archive", "dir"] | None:
-        """Return the type of direct URL (vcs, archive, or dir)."""
-        if self.vcs_info:
-            return "vcs"
-        if self.archive_info:
-            return "archive"
-        if self.dir_info:
-            return "dir"
-        return None
 
     def is_editable(self) -> bool:
         """Check if this is an editable installation."""
-        return bool(self.dir_info and self.dir_info.editable)
+        return isinstance(self.info, DirInfo) and self.info.editable
 
 
 @dataclass
@@ -119,8 +122,6 @@ class VcsInfo:
     vcs: str
     commit_id: str
     requested_revision: str | None = None
-    resolved_revision: str | None = None
-    resolved_revision_type: Literal["branch", "tag"] | None = None
 
 
 @dataclass
@@ -131,7 +132,7 @@ class ArchiveInfo:
     See PEP 610: https://peps.python.org/pep-0610/
     """
 
-    hash_value: str | None = None
+    hash: str | None = None
 
 
 @dataclass

@@ -30,10 +30,10 @@ if TYPE_CHECKING:
             },
             lambda r: (
                 r.url == "https://github.com/user/repo.git"
-                and r.vcs_info is not None
-                and r.vcs_info.vcs == "git"
-                and r.vcs_info.commit_id == "abc123"
-                and r.vcs_info.requested_revision is None
+                and isinstance(r.info, VcsInfo)
+                and r.info.vcs == "git"
+                and r.info.commit_id == "abc123"
+                and r.info.requested_revision is None
             ),
             id="vcs-minimal",
         ),
@@ -44,53 +44,32 @@ if TYPE_CHECKING:
                     "vcs": "git",
                     "commit_id": "abc123",
                     "requested_revision": "main",
-                    "resolved_revision": "v1.0.0",
-                    "resolved_revision_type": "tag",
                 },
                 "subdirectory": "src/pkg",
             },
             lambda r: (
-                r.subdirectory == "src/pkg"
-                and r.vcs_info is not None
-                and r.vcs_info.requested_revision == "main"
-                and r.vcs_info.resolved_revision_type == "tag"
+                r.subdirectory == "src/pkg" and isinstance(r.info, VcsInfo) and r.info.requested_revision == "main"
             ),
             id="vcs-full",
         ),
         pytest.param(
-            {
-                "url": "https://github.com/user/repo.git",
-                "vcs_info": {"vcs": "git", "commit_id": "abc123", "resolved_revision_type": "branch"},
-            },
-            lambda r: r.vcs_info is not None and r.vcs_info.resolved_revision_type == "branch",
-            id="vcs-branch-type",
-        ),
-        pytest.param(
-            {
-                "url": "https://github.com/user/repo.git",
-                "vcs_info": {"vcs": "git", "commit_id": "abc123", "resolved_revision_type": "invalid"},
-            },
-            lambda r: r.vcs_info is not None and r.vcs_info.resolved_revision_type is None,
-            id="vcs-invalid-revision-type",
-        ),
-        pytest.param(
             {"url": "https://example.com/package.tar.gz", "archive_info": {"hash": "sha256=abc123"}},
-            lambda r: r.archive_info is not None and r.archive_info.hash_value == "sha256=abc123",
+            lambda r: isinstance(r.info, ArchiveInfo) and r.info.hash == "sha256=abc123",
             id="archive-with-hash",
         ),
         pytest.param(
             {"url": "https://example.com/package.tar.gz", "archive_info": {}},
-            lambda r: r.archive_info is not None and r.archive_info.hash_value is None,
+            lambda r: isinstance(r.info, ArchiveInfo) and r.info.hash is None,
             id="archive-without-hash",
         ),
         pytest.param(
             {"url": "file:///path/to/project", "dir_info": {"editable": True}},
-            lambda r: r.dir_info is not None and r.dir_info.editable is True,
+            lambda r: isinstance(r.info, DirInfo) and r.info.editable is True,
             id="dir-editable",
         ),
         pytest.param(
             {"url": "file:///path/to/project", "dir_info": {}},
-            lambda r: r.dir_info is not None and r.dir_info.editable is False,
+            lambda r: isinstance(r.info, DirInfo) and r.info.editable is False,
             id="dir-not-editable",
         ),
     ],
@@ -106,6 +85,31 @@ def test_parse_direct_url_json(json_data: dict, check_fn: Callable[[DirectUrl], 
         pytest.param("not json", "Invalid JSON", id="invalid-json"),
         pytest.param("[]", "must be a JSON object", id="not-dict"),
         pytest.param('{"vcs_info": {}}', "Missing required 'url' field", id="missing-url"),
+        pytest.param(
+            '{"url": "https://example.com"}',
+            "Missing one of vcs_info, archive_info, or dir_info",
+            id="missing-info",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "vcs_info": {"vcs": "git", "commit_id": "abc"}, "dir_info": {}}',
+            "More than one of vcs_info, archive_info, or dir_info",
+            id="multiple-infos",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "vcs_info": {}}',
+            "Missing required vcs_info.vcs field",
+            id="vcs-missing-vcs",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "vcs_info": {"vcs": "git"}}',
+            "Missing required vcs_info.commit_id field",
+            id="vcs-missing-commit-id",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "dir_info": {"editable": "true"}}',
+            "dir_info.editable must be a boolean",
+            id="dir-info-editable-not-bool",
+        ),
     ],
 )
 def test_parse_direct_url_json_errors(json_str: str, error_match: str) -> None:
@@ -116,32 +120,15 @@ def test_parse_direct_url_json_errors(json_str: str, error_match: str) -> None:
 @pytest.mark.parametrize(
     ("direct_url", "expected"),
     [
+        pytest.param(DirectUrl(url="file:///path/to/project", info=DirInfo(editable=True)), True, id="editable-true"),
         pytest.param(
-            DirectUrl(url="https://github.com/user/repo.git", vcs_info=VcsInfo(vcs="git", commit_id="abc")),
-            "vcs",
-            id="vcs",
+            DirectUrl(url="file:///path/to/project", info=DirInfo(editable=False)), False, id="editable-false"
         ),
         pytest.param(
-            DirectUrl(url="https://example.com/pkg.tar.gz", archive_info=ArchiveInfo()), "archive", id="archive"
+            DirectUrl(url="https://github.com/user/repo.git", info=VcsInfo(vcs="git", commit_id="abc")),
+            False,
+            id="vcs-not-editable",
         ),
-        pytest.param(DirectUrl(url="file:///path/to/project", dir_info=DirInfo()), "dir", id="dir"),
-        pytest.param(DirectUrl(url="https://example.com"), None, id="none"),
-    ],
-)
-def test_direct_url_info_type(direct_url: DirectUrl, expected: str | None) -> None:
-    assert direct_url.info_type == expected
-
-
-@pytest.mark.parametrize(
-    ("direct_url", "expected"),
-    [
-        pytest.param(
-            DirectUrl(url="file:///path/to/project", dir_info=DirInfo(editable=True)), True, id="editable-true"
-        ),
-        pytest.param(
-            DirectUrl(url="file:///path/to/project", dir_info=DirInfo(editable=False)), False, id="editable-false"
-        ),
-        pytest.param(DirectUrl(url="https://github.com/user/repo.git"), False, id="no-dir-info"),
     ],
 )
 def test_direct_url_is_editable(direct_url: DirectUrl, expected: bool) -> None:

@@ -18,45 +18,45 @@ if TYPE_CHECKING:
     ("direct_url", "expected"),
     [
         pytest.param(
-            DirectUrl(url="https://github.com/user/repo.git", vcs_info=VcsInfo(vcs="git", commit_id="abc123")),
+            DirectUrl(url="https://github.com/user/repo.git", info=VcsInfo(vcs="git", commit_id="abc123")),
             "mypackage @ git+https://github.com/user/repo.git@abc123",
             id="vcs",
         ),
         pytest.param(
             DirectUrl(
                 url="https://github.com/user/repo.git",
-                vcs_info=VcsInfo(vcs="git", commit_id="abc123"),
+                info=VcsInfo(vcs="git", commit_id="abc123"),
                 subdirectory="src/pkg",
             ),
             "mypackage @ git+https://github.com/user/repo.git@abc123#subdirectory=src/pkg",
             id="vcs-with-subdirectory",
         ),
         pytest.param(
-            DirectUrl(url="https://example.com/package.tar.gz", archive_info=ArchiveInfo(hash_value="sha256=abc123")),
+            DirectUrl(url="https://example.com/package.tar.gz", info=ArchiveInfo(hash="sha256=abc123")),
             "mypackage @ https://example.com/package.tar.gz#sha256=abc123",
             id="archive-with-hash",
         ),
         pytest.param(
-            DirectUrl(url="https://example.com/package.tar.gz", archive_info=ArchiveInfo()),
+            DirectUrl(url="https://example.com/package.tar.gz", info=ArchiveInfo()),
             "mypackage @ https://example.com/package.tar.gz",
             id="archive-without-hash",
         ),
         pytest.param(
             DirectUrl(
                 url="https://example.com/package.tar.gz",
-                archive_info=ArchiveInfo(hash_value="sha256=abc123"),
+                info=ArchiveInfo(hash="sha256=abc123"),
                 subdirectory="src/pkg",
             ),
             "mypackage @ https://example.com/package.tar.gz#sha256=abc123&subdirectory=src/pkg",
             id="archive-with-hash-and-subdirectory",
         ),
         pytest.param(
-            DirectUrl(url="file:///home/user/project", dir_info=DirInfo()),
+            DirectUrl(url="file:///home/user/project", info=DirInfo()),
             "mypackage @ file:///home/user/project",
             id="dir",
         ),
         pytest.param(
-            DirectUrl(url="file:///home/user/project", dir_info=DirInfo(), subdirectory="src/pkg"),
+            DirectUrl(url="file:///home/user/project", info=DirInfo(), subdirectory="src/pkg"),
             "mypackage @ file:///home/user/project#subdirectory=src/pkg",
             id="dir-with-subdirectory",
         ),
@@ -107,7 +107,41 @@ def test_distribution_to_specifier_egg_link_fallback(monkeypatch: pytest.MonkeyP
     egg_link.write_text("/path/to/source\n")
     monkeypatch.setattr("pipdeptree._parser._editable.site.getsitepackages", lambda: [str(site_dir)])
     monkeypatch.setattr("pipdeptree._parser._editable.site.getusersitepackages", lambda: None)
+    monkeypatch.setattr("pipdeptree._parser._format.get_vcs_requirement", lambda _loc, _name: None)
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
     distribution.read_text.return_value = None
     result = distribution_to_specifier(distribution)
     assert result == "-e /path/to/source"
+
+
+def test_distribution_to_specifier_editable_with_vcs(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pipdeptree._parser._format.get_vcs_requirement",
+        lambda _loc, _name: "git+https://github.com/user/repo@abc123#egg=mypackage",
+    )
+    distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
+    distribution.read_text.return_value = json.dumps({"url": "file:///path/to/source", "dir_info": {"editable": True}})
+    result = distribution_to_specifier(distribution)
+    assert result == "-e git+https://github.com/user/repo@abc123#egg=mypackage"
+
+
+def test_distribution_to_specifier_invalid_version() -> None:
+    distribution = Mock(metadata={"Name": "mypackage"}, version="not-a-valid-version")
+    distribution.read_text.return_value = None
+    result = distribution_to_specifier(distribution)
+    assert result == "mypackage===not-a-valid-version"
+
+
+def test_distribution_to_specifier_no_egg_link_when_direct_url_exists(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    site_dir = tmp_path / "site-packages"
+    site_dir.mkdir()
+    egg_link = site_dir / "mypackage.egg-link"
+    egg_link.write_text("/path/to/source\n")
+    monkeypatch.setattr("pipdeptree._parser._editable.site.getsitepackages", lambda: [str(site_dir)])
+    monkeypatch.setattr("pipdeptree._parser._editable.site.getusersitepackages", lambda: None)
+    distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
+    distribution.read_text.return_value = json.dumps({"url": "file:///path/to/non-editable", "dir_info": {}})
+    result = distribution_to_specifier(distribution)
+    assert result == "mypackage @ file:///path/to/non-editable"
