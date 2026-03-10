@@ -168,15 +168,17 @@ def _normalize_git_url(url: str, repo_root: str) -> str | None:
     if path.exists():
         return path.resolve().as_uri()
     if match := re.match(
-        r"""^
-        (\w+@)?      # Optional user, e.g. 'git@'
-        ([^/:]+):    # Server, e.g. 'github.com'
-        (\w[^:]*)    # Server-side path starting with alphanumeric (not Windows paths like C:)
-        $""",
+        r"""
+        ^
+        (?P<user>\w+@)?    # Optional user, e.g. 'git@'
+        (?P<host>[^/:]+):  # Server, e.g. 'github.com'
+        (?P<path>\w[^:]*)  # Server-side path starting with alphanumeric (not Windows C:)
+        $
+        """,
         url,
         re.VERBOSE,
     ):
-        return match.expand(r"ssh://\1\2/\3")
+        return f"ssh://{match.group('user') or ''}{match.group('host')}/{match.group('path')}"
     return None
 
 

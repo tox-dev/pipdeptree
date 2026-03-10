@@ -207,7 +207,23 @@ class DirInfo:
     editable: bool = False
 
 
-_CREDENTIAL_RE = re.compile(r"([a-z+]+://)([^@]+)@", re.IGNORECASE)
+_CREDENTIAL_RE = re.compile(
+    r"""
+    (?P<scheme>[a-z+]+://)  # URL scheme, e.g. 'https://'
+    (?P<userinfo>[^@]+)     # userinfo before @
+    @                       # literal @
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+_ENV_VAR_RE = re.compile(
+    r"""
+    ^
+    \$\{[A-Za-z0-9_-]+\}             # ${VAR}
+    (?: : \$\{[A-Za-z0-9_-]+\} )?    # optional :${VAR} for ${USER}:${PASS}
+    $
+    """,
+    re.VERBOSE,
+)
 
 
 def _redact_url(url: str, info: VcsInfo | ArchiveInfo | DirInfo) -> str:
@@ -215,12 +231,12 @@ def _redact_url(url: str, info: VcsInfo | ArchiveInfo | DirInfo) -> str:
     match = _CREDENTIAL_RE.match(url)
     if not match:
         return url
-    userinfo = match.group(2)
+    userinfo = match.group("userinfo")
     if isinstance(info, VcsInfo) and info.vcs == "git" and userinfo == "git":
         return url
-    if userinfo.startswith("${"):
+    if _ENV_VAR_RE.match(userinfo):
         return url
-    return f"{match.group(1)}{url[match.end() :]}"
+    return f"{match.group('scheme')}{url[match.end() :]}"
 
 
 __all__ = [

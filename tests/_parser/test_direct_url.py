@@ -274,6 +274,16 @@ def test_archive_info_hashes_takes_precedence() -> None:
             "https://${TOKEN}@example.com/repo.git",
             id="env-var",
         ),
+        pytest.param(
+            "https://${USER}:${PASS}@example.com/repo.git",
+            "https://${USER}:${PASS}@example.com/repo.git",
+            id="env-var-user-pass",
+        ),
+        pytest.param(
+            "https://${TOKEN}:pass@example.com/repo.git",
+            "https://example.com/repo.git",
+            id="env-var-mixed-leak",
+        ),
         pytest.param("file:///local/path", "file:///local/path", id="file-url"),
         pytest.param("git@github.com:user/repo.git", "git@github.com:user/repo.git", id="scp-style"),
     ],
