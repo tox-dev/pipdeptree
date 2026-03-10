@@ -268,8 +268,7 @@ def test_archive_info_hashes_takes_precedence() -> None:
     [
         pytest.param("https://example.com/repo.git", "https://example.com/repo.git", id="no-credentials"),
         pytest.param("https://user:pass@example.com/repo.git", "https://example.com/repo.git", id="user-pass"),
-        pytest.param("https://git@example.com/repo.git", "https://****@example.com/repo.git", id="user-only"),
-        pytest.param("https://token@host/path", "https://****@host/path", id="token-only"),
+        pytest.param("https://token@host/path", "https://host/path", id="token-only"),
         pytest.param(
             "https://${TOKEN}@example.com/repo.git",
             "https://${TOKEN}@example.com/repo.git",
@@ -282,3 +281,18 @@ def test_archive_info_hashes_takes_precedence() -> None:
 def test_direct_url_redacted_url(url: str, expected: str) -> None:
     du = DirectUrl(url=url, info=DirInfo())
     assert du.redacted_url == expected
+
+
+def test_direct_url_redacted_url_preserves_git_for_git_vcs() -> None:
+    du = DirectUrl(url="https://git@example.com/repo.git", info=VcsInfo(vcs="git", commit_id="abc"))
+    assert du.redacted_url == "https://git@example.com/repo.git"
+
+
+def test_direct_url_redacted_url_strips_git_for_non_git_vcs() -> None:
+    du = DirectUrl(url="https://git@example.com/repo.git", info=VcsInfo(vcs="hg", commit_id="abc"))
+    assert du.redacted_url == "https://example.com/repo.git"
+
+
+def test_direct_url_redacted_url_strips_git_for_dir_info() -> None:
+    du = DirectUrl(url="https://git@example.com/repo.git", info=DirInfo())
+    assert du.redacted_url == "https://example.com/repo.git"

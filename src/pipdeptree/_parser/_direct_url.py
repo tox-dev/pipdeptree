@@ -167,8 +167,8 @@ class DirectUrl:
 
     @property
     def redacted_url(self) -> str:
-        """Strip user:pass@ credentials from URL, preserving git@ and ${VAR} patterns."""
-        return _redact_url(self.url)
+        """URL with credentials removed, preserving git@ for git VCS and ${VAR} patterns."""
+        return _redact_url(self.url, self.info)
 
 
 @dataclass
@@ -210,17 +210,17 @@ class DirInfo:
 _CREDENTIAL_RE = re.compile(r"([a-z+]+://)([^@]+)@", re.IGNORECASE)
 
 
-def _redact_url(url: str) -> str:
-    """Strip credentials from URL, preserving env vars (e.g. ${TOKEN}@)."""
+def _redact_url(url: str, info: VcsInfo | ArchiveInfo | DirInfo) -> str:
+    """Strip credentials from URL, preserving git@ for git VCS and ${VAR} patterns."""
     match = _CREDENTIAL_RE.match(url)
     if not match:
         return url
     userinfo = match.group(2)
+    if isinstance(info, VcsInfo) and info.vcs == "git" and userinfo == "git":
+        return url
     if userinfo.startswith("${"):
         return url
-    if ":" in userinfo:
-        return f"{match.group(1)}{url[match.end() :]}"
-    return f"{match.group(1)}****@{url[match.end() :]}"
+    return f"{match.group(1)}{url[match.end() :]}"
 
 
 __all__ = [
