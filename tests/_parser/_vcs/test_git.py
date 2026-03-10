@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from subprocess import TimeoutExpired  # noqa: S404
 from typing import TYPE_CHECKING
 
 import pytest
 
-from pipdeptree._parser._vcs import VcsError, VcsResult, get_vcs_requirement
+from pipdeptree._parser._vcs import VcsError, get_vcs_requirement
+
+from .conftest import _raise_file_not_found, _raise_timeout
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from pytest_mock import MockerFixture
     from pytest_subprocess import FakeProcess
 
 
@@ -131,20 +131,6 @@ def test_get_vcs_requirement_falls_back_to_first_remote(tmp_path: Path, fp: Fake
     assert result.requirement == "git+https://upstream.com/repo.git@abc123#egg=mypackage"
 
 
-def test_get_vcs_requirement_no_vcs(tmp_path: Path, fp: FakeProcess) -> None:
-    fp.register(["git", "rev-parse", "--show-toplevel"], returncode=1)
-    result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result.requirement is None
-    assert result.error == VcsError.NO_VCS
-
-
-def test_get_vcs_requirement_empty_repo_root(tmp_path: Path, fp: FakeProcess) -> None:
-    fp.register(["git", "rev-parse", "--show-toplevel"], stdout="")
-    result = get_vcs_requirement(str(tmp_path), "mypackage")
-    assert result.requirement is None
-    assert result.error == VcsError.NO_VCS
-
-
 def test_get_vcs_requirement_no_remote(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
     fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], stdout="")
@@ -226,66 +212,3 @@ def test_get_vcs_requirement_remote_not_found(tmp_path: Path, fp: FakeProcess) -
     fp.register(["git", "config", "--get-regexp", r"remote\..*\.url"], callback=_raise_file_not_found)
     result = get_vcs_requirement(str(tmp_path), "mypackage")
     assert result.requirement is None
-
-
-def test_get_vcs_requirement_innermost_repo_wins(tmp_path: Path, fp: FakeProcess) -> None:
-    outer = tmp_path / "outer"
-    inner = outer / "inner"
-    inner.mkdir(parents=True)
-    (outer / ".hg").mkdir()
-    fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{inner}\n")
-    fp.register(
-        ["git", "config", "--get-regexp", r"remote\..*\.url"],
-        stdout="remote.origin.url https://github.com/inner/repo.git\n",
-    )
-    fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
-    result = get_vcs_requirement(str(inner), "mypackage")
-    assert result.vcs_name == "git"
-    assert result.requirement is not None
-    assert "inner/repo" in result.requirement
-
-
-def test_vcs_result_dataclass() -> None:
-    r = VcsResult(requirement=None, vcs_name="git", error=VcsError.NO_REMOTE)
-    assert r.requirement is None
-    assert r.vcs_name == "git"
-    assert r.error == VcsError.NO_REMOTE
-
-
-def test_find_project_root_no_installable_dir(tmp_path: Path, fp: FakeProcess) -> None:
-    subdir = tmp_path / "deep" / "nested"
-    subdir.mkdir(parents=True)
-    fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
-    fp.register(
-        ["git", "config", "--get-regexp", r"remote\..*\.url"],
-        stdout="remote.origin.url https://github.com/user/repo.git\n",
-    )
-    fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
-    result = get_vcs_requirement(str(subdir), "mypackage")
-    assert result.requirement is not None
-    assert "&subdirectory=" not in result.requirement
-
-
-def test_find_project_root_samefile_error(tmp_path: Path, fp: FakeProcess, mocker: MockerFixture) -> None:
-    subdir = tmp_path / "sub"
-    subdir.mkdir()
-    (subdir / "pyproject.toml").touch()
-    fp.register(["git", "rev-parse", "--show-toplevel"], stdout=f"{tmp_path}\n")
-    fp.register(
-        ["git", "config", "--get-regexp", r"remote\..*\.url"],
-        stdout="remote.origin.url https://github.com/user/repo.git\n",
-    )
-    fp.register(["git", "rev-parse", "HEAD"], stdout="abc123\n")
-    mocker.patch("pathlib.Path.samefile", side_effect=OSError("broken"))
-    result = get_vcs_requirement(str(subdir), "mypackage")
-    assert result.requirement is not None
-    assert "&subdirectory=" not in result.requirement
-
-
-def _raise_timeout(_process: object) -> None:
-    msg = "git"
-    raise TimeoutExpired(msg, 5)
-
-
-def _raise_file_not_found(_process: object) -> None:
-    raise FileNotFoundError

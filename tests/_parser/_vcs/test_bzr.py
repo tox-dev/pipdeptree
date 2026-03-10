@@ -6,6 +6,8 @@ import pytest
 
 from pipdeptree._parser._vcs import VcsError, get_vcs_requirement
 
+from .conftest import _raise_file_not_found
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -104,7 +106,3 @@ def test_bzr_with_subdirectory(tmp_path: Path, fp: FakeProcess) -> None:
     result = get_vcs_requirement(str(subdir), "mypackage")
     assert result.requirement == "bzr+https://bzr.example.com/repo@7#egg=mypackage"
     assert "&subdirectory=" not in (result.requirement or "")
-
-
-def _raise_file_not_found(_process: object) -> None:
-    raise FileNotFoundError

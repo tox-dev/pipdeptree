@@ -6,6 +6,8 @@ import pytest
 
 from pipdeptree._parser._vcs import VcsError, get_vcs_requirement
 
+from .conftest import _raise_file_not_found
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -89,7 +91,3 @@ def test_hg_with_subdirectory(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["hg", "parents", "--template={node}"], stdout="abc123\n")
     result = get_vcs_requirement(str(subdir), "mypackage")
     assert result.requirement == "hg+https://hg.example.com/repo@abc123#egg=mypackage&subdirectory=src/pkg"
-
-
-def _raise_file_not_found(_process: object) -> None:
-    raise FileNotFoundError
