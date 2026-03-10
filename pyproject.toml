@@ -44,7 +44,6 @@ dynamic = [
 ]
 dependencies = [
   "packaging>=26",
-  "pip>=25.2",
 ]
 optional-dependencies.graphviz = [
   "graphviz>=0.21",

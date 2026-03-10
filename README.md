@@ -1,8 +1,7 @@
 # pipdeptree
 
 [![PyPI](https://img.shields.io/pypi/v/pipdeptree)](https://pypi.org/project/pipdeptree/)
-[![Supported Python
-versions](https://img.shields.io/pypi/pyversions/pipdeptree.svg)](https://pypi.org/project/pipdeptree/)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/pipdeptree.svg)](https://pypi.org/project/pipdeptree/)
 [![Downloads](https://static.pepy.tech/badge/pipdeptree/month)](https://pepy.tech/project/pipdeptree)
 [![check](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yaml/badge.svg)](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yaml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/tox-dev/pipdeptree/main.svg)](https://results.pre-commit.ci/latest/github/tox-dev/pipdeptree/main)
@@ -10,9 +9,9 @@ versions](https://img.shields.io/pypi/pyversions/pipdeptree.svg)](https://pypi.o
 `pipdeptree` is a command line utility for displaying the installed python packages in form of a dependency tree. It
 works for packages installed globally on a machine as well as in a virtualenv. Since `pip freeze` shows all dependencies
 as a flat list, finding out which are the top level packages and which packages do they depend on requires some effort.
-It\'s also tedious to resolve conflicting dependencies that could have been installed because older version of `pip`
-didn\'t have true dependency resolution[^1]. `pipdeptree` can help here by identifying conflicting dependencies
-installed in the environment.
+It's also tedious to resolve conflicting dependencies that could have been installed because older version of `pip`
+didn't have true dependency resolution[^1]. `pipdeptree` can help here by identifying conflicting dependencies installed
+in the environment.
 
 To some extent, `pipdeptree` is inspired by the `lein deps :tree` command of [Leiningen](http://leiningen.org/).
 
@@ -31,7 +30,8 @@ that this capability has been recently added in version `2.0.0`.
 
 Alternatively, you may also install pipdeptree inside the virtualenv and then run it from there.
 
-As of version `2.21.0`, you may also pass `--python auto`, where it will attempt to detect your virtual environment and grab the interpreter from there. It will fail if it is unable to detect one.
+As of version `2.21.0`, you may also pass `--python auto`, where it will attempt to detect your virtual environment and
+grab the interpreter from there. It will fail if it is unable to detect one.
 
 ## Usage and examples
 
@@ -72,8 +72,8 @@ wheel==0.34.2
 
 `New in ver. 0.5.0`
 
-Yes, there\'s a `--reverse` (or simply `-r`) flag for this. To find out which packages depend on a particular
-package(s), it can be combined with `--packages` option as follows:
+Yes, there's a `--reverse` (or simply `-r`) flag for this. To find out which packages depend on a particular package(s),
+it can be combined with `--packages` option as follows:
 
 ```bash
 $ pipdeptree --reverse --packages itsdangerous,MarkupSafe
@@ -88,9 +88,9 @@ MarkupSafe==0.22
     - Flask==0.10.1 [requires: Jinja2>=2.4]
 ```
 
-## What\'s with the warning about conflicting dependencies?
+## What's with the warning about conflicting dependencies?
 
-As seen in the above output, `pipdeptree` by default warns about possible conflicting dependencies. Any package that\'s
+As seen in the above output, `pipdeptree` by default warns about possible conflicting dependencies. Any package that's
 specified as a dependency of multiple packages with different versions is considered as a conflicting dependency.
 Conflicting dependencies are possible if older version of pip\<=20.2
 ([without the new resolver](https://github.com/pypa/pip/issues/988)[^2]) was ever used to install dependencies at some
@@ -125,7 +125,7 @@ be excluded from the output.
 
 ## Using pipdeptree to write requirements.txt file
 
-If you wish to track only top level packages in your `requirements.txt` file, it\'s possible by grep-ing[^3]. only the
+If you wish to track only top level packages in your `requirements.txt` file, it's possible by grep-ing[^3]. only the
 top-level lines from the output,
 
 ```bash
@@ -138,7 +138,7 @@ setuptools==47.1.1
 wheel==0.34.2
 ```
 
-There is a problem here though - The output doesn\'t mention anything about `Lookupy` being installed as an _editable_
+There is a problem here though - The output doesn't mention anything about `Lookupy` being installed as an _editable_
 package (refer to the output of `pip freeze` above) and information about its source is lost. To fix this, `pipdeptree`
 must be run with a `-f` or `--freeze` flag.
 
@@ -172,10 +172,10 @@ setuptools==47.1.1
 wheel==0.34.2
 ```
 
-On confirming that there are no conflicting dependencies, you can even treat this as a \"lock file\" where all packages,
+On confirming that there are no conflicting dependencies, you can even treat this as a "lock file" where all packages,
 including the transient dependencies will be pinned to their currently installed versions. Note that the
-`locked-requirements.txt` file could end up with duplicate entries. Although `pip install` wouldn\'t complain about
-that, you can avoid duplicate lines (at the cost of losing indentation) as follows,
+`locked-requirements.txt` file could end up with duplicate entries. Although `pip install` wouldn't complain about that,
+you can avoid duplicate lines (at the cost of losing indentation) as follows,
 
 ```bash
 $ pipdeptree -f | sed 's/ //g' | sort -u > locked-requirements.txt
@@ -185,7 +185,7 @@ $ pipdeptree -f | sed 's/ //g' | sort -u > locked-requirements.txt
 
 `New in ver. 0.5.0`
 
-It\'s also possible to have `pipdeptree` output json representation of the dependency tree so that it may be used as
+It's also possible to have `pipdeptree` output json representation of the dependency tree so that it may be used as
 input to other external tools.
 
 ```bash
@@ -264,19 +264,24 @@ render:
                       specify how to render the tree; supported formats: freeze, json, json-tree, mermaid, text, or graphviz-* (e.g. graphviz-png, graphviz-dot) (default: text)
 ```
 
-## Known issues
+## Implementation notes
 
-1.  `pipdeptree` relies on the internal API of `pip`. I fully understand that it\'s a bad idea but it mostly works! On
-    rare occasions, it breaks when a new version of `pip` is out with backward incompatible changes in internal API. So
-    beware if you are using this tool in environments in which `pip` version is unpinned, specially automation or CD/CI
-    pipelines.
+`pipdeptree` uses Python's standard library (`importlib.metadata`) to discover installed packages and their metadata.
+For generating freeze-format output (e.g., `-f` flag), it implements:
+
+- **PEP 440** - Version specifiers and direct reference syntax (`package @ url`)
+- **PEP 503** - Package name normalization for consistent key generation
+- **PEP 610** - `direct_url.json` metadata parsing for VCS, archive, and editable installs
+
+This approach makes `pipdeptree` lightweight and stable across different Python and pip versions without depending on
+pip's internal APIs.
 
 ## Limitations & Alternatives
 
-`pipdeptree` merely looks at the installed packages in the current environment using pip, constructs the tree, then
-outputs it in the specified format. If you want to generate the dependency tree without installing the packages, then
-you need a dependency resolver. You might want to check alternatives such as
-[pipgrip](https://github.com/ddelange/pipgrip) or [poetry](https://github.com/python-poetry/poetry).
+`pipdeptree` reads metadata from already-installed packages in the current environment, constructs the dependency tree,
+and outputs it in the specified format. If you want to generate a dependency tree without installing packages first, you
+need a dependency resolver. You might want to check alternatives such as [pipgrip](https://github.com/ddelange/pipgrip)
+or [poetry](https://github.com/python-poetry/poetry).
 
 ## License
 
@@ -286,12 +291,12 @@ MIT (See [LICENSE](./LICENSE))
 
 [^1]:
     pip version 20.3 has been released in Nov 2020 with the dependency resolver
-    \<<https://blog.python.org/2020/11/pip-20-3-release-new-resolver.html>\>\_
+    <https://blog.python.org/2020/11/pip-20-3-release-new-resolver.html>
 
 [^2]:
     pip version 20.3 has been released in Nov 2020 with the dependency resolver
-    \<<https://blog.python.org/2020/11/pip-20-3-release-new-resolver.html>\>\_
+    <https://blog.python.org/2020/11/pip-20-3-release-new-resolver.html>
 
 [^3]:
-    If you are on windows (powershell) you can run `pipdeptree --warn silence | Select-String -Pattern '^\w+'` instead
-    of grep
+    If you are on windows (powershell) you can run `pipdeptree --warn silence | Select-String -Pattern '^\w+'`
+    instead of grep

@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from math import inf
 from typing import TYPE_CHECKING
-from unittest.mock import PropertyMock
 
 import pytest
 
-from pipdeptree._freeze import PipBaseDistributionAdapter
 from pipdeptree._render.freeze import render_freeze
 
 if TYPE_CHECKING:
@@ -16,12 +14,13 @@ if TYPE_CHECKING:
 @pytest.fixture
 def patch_pip_adapter(monkeypatch: pytest.MonkeyPatch) -> None:
     """
-    Patches `PipBaseDistributionAdapter` such that `editable` returns `False` and `direct_url` returns `None`.
+    Patch parser functions to return None, forcing standard name==version format.
 
-    This will have the pip API always return a frozen req in the "name==version" format.
+    This ensures distributions are always formatted as "name==version" regardless
+    of whether they are editable or direct URL installs.
     """
-    monkeypatch.setattr(PipBaseDistributionAdapter, "editable", PropertyMock(return_value=False))
-    monkeypatch.setattr(PipBaseDistributionAdapter, "direct_url", PropertyMock(return_value=None))
+    monkeypatch.setattr("pipdeptree._parser._format.find_egg_link", lambda _: None)
+    monkeypatch.setattr("pipdeptree._parser._format.get_direct_url", lambda _: None)
 
 
 @pytest.mark.parametrize(
