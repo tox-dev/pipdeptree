@@ -127,6 +127,14 @@ def test_svn_entries_read_error(tmp_path: Path, fp: FakeProcess, mocker: MockerF
     assert result.error == VcsError.NO_REMOTE
 
 
+def test_svn_command_not_found(svn_repo: Path, fp: FakeProcess) -> None:
+    fp.register(["git", "rev-parse", "--show-toplevel"], returncode=1)
+    fp.register(["svn", "info", "--xml"], callback=_raise_file_not_found)
+    result = get_vcs_requirement(str(svn_repo), "mypackage")
+    assert result.requirement is None
+    assert result.error == VcsError.COMMAND_NOT_FOUND
+
+
 def test_svn_with_subdirectory(tmp_path: Path, fp: FakeProcess) -> None:
     (tmp_path / ".svn").mkdir()
     subdir = tmp_path / "src" / "pkg"
@@ -135,4 +143,9 @@ def test_svn_with_subdirectory(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["git", "rev-parse", "--show-toplevel"], returncode=1)
     fp.register(["svn", "info", "--xml"], stdout=_SVN_INFO_XML)
     result = get_vcs_requirement(str(subdir), "mypackage")
-    assert result.requirement == "svn+https://svn.example.com/repo/trunk@42#egg=mypackage&subdirectory=src/pkg"
+    assert result.requirement == "svn+https://svn.example.com/repo/trunk@42#egg=mypackage"
+    assert "&subdirectory=" not in (result.requirement or "")
+
+
+def _raise_file_not_found(_process: object) -> None:
+    raise FileNotFoundError

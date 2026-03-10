@@ -67,7 +67,16 @@ def test_hg_command_not_found(hg_repo: Path, fp: FakeProcess) -> None:
     fp.register(["hg", "showconfig", "paths.default"], callback=_raise_file_not_found)
     result = get_vcs_requirement(str(hg_repo), "mypackage")
     assert result.requirement is None
-    assert result.error == VcsError.NO_REMOTE
+    assert result.error == VcsError.COMMAND_NOT_FOUND
+
+
+def test_hg_local_path_remote(hg_repo: Path, fp: FakeProcess) -> None:
+    fp.register(["git", "rev-parse", "--show-toplevel"], returncode=1)
+    fp.register(["hg", "showconfig", "paths.default"], stdout=f"{hg_repo}/upstream\n")
+    fp.register(["hg", "parents", "--template={node}"], stdout="abc123\n")
+    result = get_vcs_requirement(str(hg_repo), "mypackage")
+    expected_url = (hg_repo / "upstream").as_uri()
+    assert result.requirement == f"hg+{expected_url}@abc123#egg=mypackage"
 
 
 def test_hg_with_subdirectory(tmp_path: Path, fp: FakeProcess) -> None:

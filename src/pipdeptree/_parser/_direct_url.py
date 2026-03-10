@@ -211,14 +211,16 @@ _CREDENTIAL_RE = re.compile(r"([a-z+]+://)([^@]+)@", re.IGNORECASE)
 
 
 def _redact_url(url: str) -> str:
-    """Strip user:password@ from URL, preserving user-only (e.g. git@) and env vars (e.g. ${TOKEN}@)."""
+    """Strip credentials from URL, preserving env vars (e.g. ${TOKEN}@)."""
     match = _CREDENTIAL_RE.match(url)
     if not match:
         return url
     userinfo = match.group(2)
-    if ":" not in userinfo or userinfo.startswith("${"):
+    if userinfo.startswith("${"):
         return url
-    return f"{match.group(1)}{url[match.end() :]}"
+    if ":" in userinfo:
+        return f"{match.group(1)}{url[match.end() :]}"
+    return f"{match.group(1)}****@{url[match.end() :]}"
 
 
 __all__ = [

@@ -92,11 +92,14 @@ def _find_marker_root(location: str, marker: str) -> str | None:
 
 
 def _get_git_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
-    remote_url = _get_git_remote_url(repo_root)
-    if remote_url is None:
-        return VcsResult(None, vcs_name="git", error=VcsError.NO_REMOTE)
-    if not (commit_id := _get_git_commit_id(repo_root)):
-        return VcsResult(None, vcs_name="git", error=VcsError.NO_REMOTE)
+    try:
+        remote_url = _get_git_remote_url(repo_root)
+        if remote_url is None:
+            return VcsResult(None, vcs_name="git", error=VcsError.NO_REMOTE)
+        if not (commit_id := _get_git_commit_id(repo_root)):
+            return VcsResult(None, vcs_name="git", error=VcsError.NO_REMOTE)
+    except FileNotFoundError:
+        return VcsResult(None, vcs_name="git", error=VcsError.COMMAND_NOT_FOUND)
     normalized = _normalize_git_url(remote_url)
     if normalized is None:
         return VcsResult(None, vcs_name="git", error=VcsError.INVALID_REMOTE)
@@ -107,7 +110,7 @@ def _get_git_requirement(location: str, package_name: str, repo_root: str) -> Vc
         package_name=package_name,
         location=location,
         repo_root=repo_root,
-        always_prefix=False,
+        always_prefix=True,
     )
 
 
@@ -132,7 +135,7 @@ def _get_git_remote_url(repo_root: str) -> str | None:
                 break
         parts = found_remote.split(" ", 1)
         return parts[1].strip() if len(parts) >= 2 and parts[1].strip() else None
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
 
 
@@ -147,7 +150,7 @@ def _get_git_commit_id(repo_root: str) -> str | None:
             check=True,
             timeout=5,
         ).stdout.strip()
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     else:
         return commit_id or None
@@ -195,6 +198,7 @@ def _build_vcs_result(  # noqa: PLR0913, PLR0917
     repo_root: str,
     *,
     always_prefix: bool,
+    include_subdirectory: bool = True,
 ) -> VcsResult:
     """Build VcsResult with requirement string from components."""
     safe_package_name = _normalize_egg_name(package_name)
@@ -203,7 +207,7 @@ def _build_vcs_result(  # noqa: PLR0913, PLR0917
     else:
         url = remote_url
     result = f"{url}@{commit_id}#egg={safe_package_name}"
-    if subdirectory := _find_project_root(location, repo_root):
+    if include_subdirectory and (subdirectory := _find_project_root(location, repo_root)):
         result += f"&subdirectory={subdirectory}"
     return VcsResult(result, vcs_name=vcs_name)
 
@@ -243,11 +247,16 @@ def _is_installable_dir(path: str | Path) -> bool:
 
 
 def _get_hg_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
-    remote_url = _get_hg_remote_url(repo_root)
-    if remote_url is None:
-        return VcsResult(None, vcs_name="hg", error=VcsError.NO_REMOTE)
-    if not (commit_id := _get_hg_commit_id(repo_root)):
-        return VcsResult(None, vcs_name="hg", error=VcsError.NO_REMOTE)
+    try:
+        remote_url = _get_hg_remote_url(repo_root)
+        if remote_url is None:
+            return VcsResult(None, vcs_name="hg", error=VcsError.NO_REMOTE)
+        if _is_local_path(remote_url):
+            remote_url = Path(remote_url).as_uri()
+        if not (commit_id := _get_hg_commit_id(repo_root)):
+            return VcsResult(None, vcs_name="hg", error=VcsError.NO_REMOTE)
+    except FileNotFoundError:
+        return VcsResult(None, vcs_name="hg", error=VcsError.COMMAND_NOT_FOUND)
     return _build_vcs_result(
         vcs_name="hg",
         remote_url=remote_url,
@@ -271,8 +280,6 @@ def _get_hg_remote_url(repo_root: str) -> str | None:
         ).stdout.strip()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
-    except FileNotFoundError:
-        return None
     else:
         return url or None
 
@@ -287,7 +294,7 @@ def _get_hg_commit_id(repo_root: str) -> str | None:
             check=True,
             timeout=5,
         ).stdout.strip()
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     else:
         return commit_id or None
@@ -297,7 +304,10 @@ def _get_hg_commit_id(repo_root: str) -> str | None:
 
 
 def _get_svn_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
-    svn_info = _get_svn_info(location)
+    try:
+        svn_info = _get_svn_info(location)
+    except FileNotFoundError:
+        return VcsResult(None, vcs_name="svn", error=VcsError.COMMAND_NOT_FOUND)
     if svn_info is None:
         entries = _get_svn_entries_fallback(location)
         if entries is None:
@@ -313,6 +323,7 @@ def _get_svn_requirement(location: str, package_name: str, repo_root: str) -> Vc
         location=location,
         repo_root=repo_root,
         always_prefix=True,
+        include_subdirectory=False,
     )
 
 
@@ -327,7 +338,7 @@ def _get_svn_info(location: str) -> tuple[str, str] | None:
             check=True,
             timeout=5,
         ).stdout
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     try:
         root = ET.fromstring(xml_output)  # noqa: S314
@@ -368,11 +379,16 @@ def _get_svn_entries_fallback(location: str) -> tuple[str, str] | None:
 
 
 def _get_bzr_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
-    remote_url = _get_bzr_remote_url(repo_root)
-    if remote_url is None:
-        return VcsResult(None, vcs_name="bzr", error=VcsError.NO_REMOTE)
-    if not (revision := _get_bzr_revision(repo_root)):
-        return VcsResult(None, vcs_name="bzr", error=VcsError.NO_REMOTE)
+    try:
+        remote_url = _get_bzr_remote_url(repo_root)
+        if remote_url is None:
+            return VcsResult(None, vcs_name="bzr", error=VcsError.NO_REMOTE)
+        if _is_local_path(remote_url):
+            remote_url = Path(remote_url).as_uri()
+        if not (revision := _get_bzr_revision(repo_root)):
+            return VcsResult(None, vcs_name="bzr", error=VcsError.NO_REMOTE)
+    except FileNotFoundError:
+        return VcsResult(None, vcs_name="bzr", error=VcsError.COMMAND_NOT_FOUND)
     return _build_vcs_result(
         vcs_name="bzr",
         remote_url=remote_url,
@@ -381,6 +397,7 @@ def _get_bzr_requirement(location: str, package_name: str, repo_root: str) -> Vc
         location=location,
         repo_root=repo_root,
         always_prefix=False,
+        include_subdirectory=False,
     )
 
 
@@ -395,7 +412,7 @@ def _get_bzr_remote_url(repo_root: str) -> str | None:
             check=True,
             timeout=5,
         ).stdout
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     for line in output.splitlines():
         stripped = line.strip()
@@ -415,7 +432,7 @@ def _get_bzr_revision(repo_root: str) -> str | None:
             check=True,
             timeout=5,
         ).stdout.strip()
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     lines = output.splitlines()
     return lines[-1].strip() if lines else None

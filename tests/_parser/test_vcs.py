@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     [
         pytest.param("https://github.com/user/repo.git", "git+https://github.com/user/repo.git", id="https"),
         pytest.param("http://example.com/repo.git", "git+http://example.com/repo.git", id="http"),
-        pytest.param("git://github.com/user/repo.git", "git://github.com/user/repo.git", id="git-protocol"),
+        pytest.param("git://github.com/user/repo.git", "git+git://github.com/user/repo.git", id="git-protocol"),
         pytest.param("ssh://git@github.com/user/repo.git", "git+ssh://git@github.com/user/repo.git", id="ssh"),
         pytest.param("git@github.com:user/repo.git", "git+ssh://git@github.com/user/repo.git", id="scp-style"),
         pytest.param("github.com:user/repo.git", "git+ssh://github.com/user/repo.git", id="scp-no-user"),

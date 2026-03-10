@@ -81,6 +81,16 @@ def test_bzr_command_not_found(bzr_repo: Path, fp: FakeProcess) -> None:
     fp.register(["bzr", "info"], callback=_raise_file_not_found)
     result = get_vcs_requirement(str(bzr_repo), "mypackage")
     assert result.requirement is None
+    assert result.error == VcsError.COMMAND_NOT_FOUND
+
+
+def test_bzr_local_path_remote(bzr_repo: Path, fp: FakeProcess) -> None:
+    fp.register(["git", "rev-parse", "--show-toplevel"], returncode=1)
+    fp.register(["bzr", "info"], stdout=f"  checkout of branch: {bzr_repo}/upstream\n")
+    fp.register(["bzr", "revno"], stdout="5\n")
+    result = get_vcs_requirement(str(bzr_repo), "mypackage")
+    expected_url = (bzr_repo / "upstream").as_uri()
+    assert result.requirement == f"bzr+{expected_url}@5#egg=mypackage"
 
 
 def test_bzr_with_subdirectory(tmp_path: Path, fp: FakeProcess) -> None:
@@ -92,7 +102,8 @@ def test_bzr_with_subdirectory(tmp_path: Path, fp: FakeProcess) -> None:
     fp.register(["bzr", "info"], stdout="  checkout of branch: https://bzr.example.com/repo\n")
     fp.register(["bzr", "revno"], stdout="7\n")
     result = get_vcs_requirement(str(subdir), "mypackage")
-    assert result.requirement == "bzr+https://bzr.example.com/repo@7#egg=mypackage&subdirectory=sub/pkg"
+    assert result.requirement == "bzr+https://bzr.example.com/repo@7#egg=mypackage"
+    assert "&subdirectory=" not in (result.requirement or "")
 
 
 def _raise_file_not_found(_process: object) -> None:

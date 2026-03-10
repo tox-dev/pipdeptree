@@ -268,7 +268,8 @@ def test_archive_info_hashes_takes_precedence() -> None:
     [
         pytest.param("https://example.com/repo.git", "https://example.com/repo.git", id="no-credentials"),
         pytest.param("https://user:pass@example.com/repo.git", "https://example.com/repo.git", id="user-pass"),
-        pytest.param("https://git@example.com/repo.git", "https://git@example.com/repo.git", id="user-only"),
+        pytest.param("https://git@example.com/repo.git", "https://****@example.com/repo.git", id="user-only"),
+        pytest.param("https://token@host/path", "https://****@host/path", id="token-only"),
         pytest.param(
             "https://${TOKEN}@example.com/repo.git",
             "https://${TOKEN}@example.com/repo.git",
