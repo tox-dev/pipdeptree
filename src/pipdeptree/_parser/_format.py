@@ -94,7 +94,9 @@ def format_requirement(direct_url: DirectUrl, package_name: str) -> str:
     url = direct_url.redacted_url
     requirement = f"{package_name} @ "
     if isinstance(direct_url.info, VcsInfo):
-        requirement += f"{direct_url.info.vcs}+{url}@{direct_url.info.commit_id}"
+        requirement += f"{direct_url.info.vcs}+{url}"
+        if direct_url.info.commit_id:
+            requirement += f"@{direct_url.info.commit_id}"
     elif isinstance(direct_url.info, ArchiveInfo):
         requirement += url
         if direct_url.info.hash:

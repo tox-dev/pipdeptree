@@ -25,6 +25,11 @@ if TYPE_CHECKING:
             id="direct-url-vcs",
         ),
         pytest.param(
+            json.dumps({"url": "https://github.com/user/repo.git", "vcs_info": {"vcs": "git"}}),
+            "mypackage @ git+https://github.com/user/repo.git",
+            id="direct-url-vcs-no-commit-id",
+        ),
+        pytest.param(
             json.dumps({
                 "url": "https://github.com/user/repo.git",
                 "vcs_info": {"vcs": "git", "commit_id": "abc123"},

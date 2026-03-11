@@ -84,6 +84,14 @@ if TYPE_CHECKING:
         ),
         pytest.param(
             {
+                "url": "https://github.com/user/repo.git",
+                "vcs_info": {"vcs": "git"},
+            },
+            lambda r: isinstance(r.info, VcsInfo) and r.info.vcs == "git" and r.info.commit_id is None,
+            id="uv-vcs-no-commit-id",
+        ),
+        pytest.param(
+            {
                 "url": "https://github.com/pallets/flask.git",
                 "vcs_info": {"vcs": "git", "commit_id": "8d9519df093864ff", "git_lfs": True},
             },
@@ -140,11 +148,6 @@ def test_parse_direct_url_json(json_data: dict, check_fn: Callable[[DirectUrl], 
             '{"url": "https://example.com", "vcs_info": {}}',
             "Missing required vcs_info.vcs field",
             id="vcs-missing-vcs",
-        ),
-        pytest.param(
-            '{"url": "https://example.com", "vcs_info": {"vcs": "git"}}',
-            "Missing required vcs_info.commit_id field",
-            id="vcs-missing-commit-id",
         ),
         pytest.param(
             '{"url": "https://example.com", "dir_info": {"editable": "true"}}',

@@ -97,10 +97,8 @@ def _parse_vcs_info(vcs_data: dict) -> VcsInfo:
     if not isinstance(vcs_data["vcs"], str):
         msg = "vcs_info.vcs must be a string"
         raise DirectUrlValidationError(msg)
-    if "commit_id" not in vcs_data:
-        msg = "Missing required vcs_info.commit_id field"
-        raise DirectUrlValidationError(msg)
-    if not isinstance(vcs_data["commit_id"], str):
+    commit_id = vcs_data.get("commit_id")
+    if commit_id is not None and not isinstance(commit_id, str):
         msg = "vcs_info.commit_id must be a string"
         raise DirectUrlValidationError(msg)
     requested_revision = vcs_data.get("requested_revision")
@@ -109,7 +107,7 @@ def _parse_vcs_info(vcs_data: dict) -> VcsInfo:
         raise DirectUrlValidationError(msg)
     return VcsInfo(
         vcs=vcs_data["vcs"],
-        commit_id=vcs_data["commit_id"],
+        commit_id=commit_id,
         requested_revision=requested_revision,
     )
 
@@ -180,7 +178,7 @@ class VcsInfo:
     """
 
     vcs: str
-    commit_id: str
+    commit_id: str | None = None
     requested_revision: str | None = None
 
 
