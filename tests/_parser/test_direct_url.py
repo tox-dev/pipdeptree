@@ -82,6 +82,37 @@ if TYPE_CHECKING:
             lambda r: isinstance(r.info, DirInfo) and r.info.editable is False,
             id="dir-not-editable",
         ),
+        pytest.param(
+            {
+                "url": "https://github.com/pallets/flask.git",
+                "vcs_info": {"vcs": "git", "commit_id": "8d9519df093864ff", "git_lfs": True},
+            },
+            lambda r: isinstance(r.info, VcsInfo) and r.info.vcs == "git" and r.info.commit_id == "8d9519df093864ff",
+            id="uv-vcs-with-git-lfs",
+        ),
+        pytest.param(
+            {
+                "url": "https://github.com/user/repo.git",
+                "vcs_info": {"vcs": "git", "commit_id": "abc123", "requested_revision": "main"},
+                "subdirectory": ".",
+            },
+            lambda r: isinstance(r.info, VcsInfo) and r.info.requested_revision == "main" and r.subdirectory == ".",
+            id="uv-vcs-with-dot-subdirectory",
+        ),
+        pytest.param(
+            {
+                "url": "https://files.pythonhosted.org/packages/abc/pkg-1.0-py3-none-any.whl",
+                "archive_info": {
+                    "hashes": {"sha256": "75909db2664838d015e3d9139004ee16711748a52c8f336b52882266540215d8"}
+                },
+            },
+            lambda r: (
+                isinstance(r.info, ArchiveInfo)
+                and r.info.hash is None
+                and r.info.hashes == {"sha256": "75909db2664838d015e3d9139004ee16711748a52c8f336b52882266540215d8"}
+            ),
+            id="uv-archive-hashes-only",
+        ),
     ],
 )
 def test_parse_direct_url_json(json_data: dict, check_fn: Callable[[DirectUrl], bool]) -> None:
