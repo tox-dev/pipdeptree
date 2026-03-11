@@ -3,21 +3,21 @@ from __future__ import annotations
 import subprocess  # noqa: S404
 from pathlib import Path
 
-from ._shared import VcsError, VcsResult, _build_vcs_result, _is_local_path
+from ._shared import VcsError, VcsResult, build_vcs_result, is_local_path
 
 
-def _get_bzr_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
+def get_bzr_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
     try:
         remote_url = _get_bzr_remote_url(repo_root)
         if remote_url is None:
             return VcsResult(None, vcs_name="bzr", error=VcsError.NO_REMOTE)
-        if _is_local_path(remote_url):
+        if is_local_path(remote_url):
             remote_url = Path(remote_url).as_uri()
         if not (revision := _get_bzr_revision(repo_root)):
             return VcsResult(None, vcs_name="bzr", error=VcsError.NO_REMOTE)
     except FileNotFoundError:
         return VcsResult(None, vcs_name="bzr", error=VcsError.COMMAND_NOT_FOUND)
-    return _build_vcs_result(
+    return build_vcs_result(
         vcs_name="bzr",
         remote_url=remote_url,
         commit_id=revision,
@@ -64,3 +64,8 @@ def _get_bzr_revision(repo_root: str) -> str | None:
         return None
     lines = output.splitlines()
     return lines[-1].strip() if lines else None
+
+
+__all__ = [
+    "get_bzr_requirement",
+]

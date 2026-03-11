@@ -3,21 +3,21 @@ from __future__ import annotations
 import subprocess  # noqa: S404
 from pathlib import Path
 
-from ._shared import VcsError, VcsResult, _build_vcs_result, _is_local_path
+from ._shared import VcsError, VcsResult, build_vcs_result, is_local_path
 
 
-def _get_hg_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
+def get_hg_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
     try:
         remote_url = _get_hg_remote_url(repo_root)
         if remote_url is None:
             return VcsResult(None, vcs_name="hg", error=VcsError.NO_REMOTE)
-        if _is_local_path(remote_url):
+        if is_local_path(remote_url):
             remote_url = Path(remote_url).as_uri()
         if not (commit_id := _get_hg_commit_id(repo_root)):
             return VcsResult(None, vcs_name="hg", error=VcsError.NO_REMOTE)
     except FileNotFoundError:
         return VcsResult(None, vcs_name="hg", error=VcsError.COMMAND_NOT_FOUND)
-    return _build_vcs_result(
+    return build_vcs_result(
         vcs_name="hg",
         remote_url=remote_url,
         commit_id=commit_id,
@@ -58,3 +58,8 @@ def _get_hg_commit_id(repo_root: str) -> str | None:
         return None
     else:
         return commit_id or None
+
+
+__all__ = [
+    "get_hg_requirement",
+]

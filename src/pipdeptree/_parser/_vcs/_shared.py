@@ -21,7 +21,7 @@ class VcsResult:
     error: VcsError = VcsError.NONE
 
 
-def _build_vcs_result(  # noqa: PLR0913, PLR0917
+def build_vcs_result(  # noqa: PLR0913, PLR0917
     vcs_name: str,
     remote_url: str,
     commit_id: str,
@@ -71,12 +71,20 @@ def _find_project_root(location: str, repo_root: str) -> str | None:
 
 
 def _is_installable_dir(path: str | Path) -> bool:
-    p = Path(path)
-    return p.is_dir() and ((p / "pyproject.toml").is_file() or (p / "setup.py").is_file())
+    resolved = Path(path)
+    return resolved.is_dir() and ((resolved / "pyproject.toml").is_file() or (resolved / "setup.py").is_file())
 
 
-def _is_local_path(path: str) -> bool:
+def is_local_path(path: str) -> bool:
     """Check if path is a local filesystem path (starts with os.sep or has drive letter)."""
     if path.startswith(os.sep):
         return True
     return len(path) >= 2 and path[1] == ":" and path[0].isalpha()
+
+
+__all__ = [
+    "VcsError",
+    "VcsResult",
+    "build_vcs_result",
+    "is_local_path",
+]

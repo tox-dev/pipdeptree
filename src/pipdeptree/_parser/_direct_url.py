@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
@@ -207,7 +207,7 @@ class DirInfo:
     editable: bool = False
 
 
-_CREDENTIAL_RE = re.compile(
+_CREDENTIAL_RE: Final[re.Pattern[str]] = re.compile(
     r"""
     (?P<scheme>[a-z+]+://)  # URL scheme, e.g. 'https://'
     (?P<userinfo>[^@]+)     # userinfo before @
@@ -215,7 +215,7 @@ _CREDENTIAL_RE = re.compile(
     """,
     re.IGNORECASE | re.VERBOSE,
 )
-_ENV_VAR_RE = re.compile(
+_ENV_VAR_RE: Final[re.Pattern[str]] = re.compile(
     r"""
     ^
     \$\{[A-Za-z0-9_-]+\}             # ${VAR}

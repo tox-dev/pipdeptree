@@ -4,10 +4,10 @@ import subprocess  # noqa: S404
 import xml.etree.ElementTree as ET  # noqa: S405
 from pathlib import Path
 
-from ._shared import VcsError, VcsResult, _build_vcs_result
+from ._shared import VcsError, VcsResult, build_vcs_result
 
 
-def _get_svn_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
+def get_svn_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
     try:
         svn_info = _get_svn_info(location)
     except FileNotFoundError:
@@ -19,7 +19,7 @@ def _get_svn_requirement(location: str, package_name: str, repo_root: str) -> Vc
         remote_url, revision = entries
     else:
         remote_url, revision = svn_info
-    return _build_vcs_result(
+    return build_vcs_result(
         vcs_name="svn",
         remote_url=remote_url,
         commit_id=revision,
@@ -77,3 +77,8 @@ def _get_svn_entries_fallback(location: str) -> tuple[str, str] | None:
     if not url:
         return None
     return url, revision
+
+
+__all__ = [
+    "get_svn_requirement",
+]
