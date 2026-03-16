@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 from urllib.request import url2pathname
 
-from ._direct_url import get_direct_url
+from .direct_url import get_direct_url
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution

@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING
 
 from packaging.version import InvalidVersion, Version
 
-from ._direct_url import ArchiveInfo, VcsInfo, get_direct_url
-from ._editable import find_egg_link, read_egg_link_location, url_to_path
-from ._vcs import VcsError, VcsResult, get_vcs_requirement
+from .direct_url import ArchiveInfo, VcsInfo, get_direct_url
+from .editable import find_egg_link, read_egg_link_location, url_to_path
+from .vcs import VcsError, VcsResult, get_vcs_requirement
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
 
-    from ._direct_url import DirectUrl
+    from .direct_url import DirectUrl
 
 
 def distribution_to_specifier(distribution: Distribution) -> str:

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pipdeptree._parser._vcs import VcsError, get_vcs_requirement
+from pipdeptree._parser.vcs import VcsError, get_vcs_requirement
 
 from .conftest import raise_file_not_found, raise_timeout
 

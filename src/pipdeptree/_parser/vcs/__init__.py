@@ -3,11 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ._bzr import get_bzr_requirement
-from ._git import get_git_repo_root, get_git_requirement
-from ._hg import get_hg_requirement
-from ._shared import VcsError, VcsResult
-from ._svn import get_svn_requirement
+from .bzr import get_bzr_requirement
+from .git import get_git_repo_root, get_git_requirement
+from .hg import get_hg_requirement
+from .shared import VcsError, VcsResult
+from .svn import get_svn_requirement
 
 if TYPE_CHECKING:
     from collections.abc import Callable

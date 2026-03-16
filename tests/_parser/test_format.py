@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import pytest
 
 from pipdeptree._parser import distribution_to_specifier
-from pipdeptree._parser._vcs import VcsError, VcsResult
+from pipdeptree._parser.vcs import VcsError, VcsResult
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -78,7 +78,7 @@ def test_distribution_to_specifier(read_text_value: str | None, expected: str) -
 
 def test_distribution_to_specifier_editable_no_vcs(mocker: MockerFixture) -> None:
     mocker.patch(
-        "pipdeptree._parser._format.get_vcs_requirement",
+        "pipdeptree._parser.format.get_vcs_requirement",
         return_value=VcsResult(None, error=VcsError.NO_VCS),
     )
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
@@ -89,7 +89,7 @@ def test_distribution_to_specifier_editable_no_vcs(mocker: MockerFixture) -> Non
 
 def test_distribution_to_specifier_editable_no_remote(mocker: MockerFixture) -> None:
     mocker.patch(
-        "pipdeptree._parser._format.get_vcs_requirement",
+        "pipdeptree._parser.format.get_vcs_requirement",
         return_value=VcsResult(None, vcs_name="git", error=VcsError.NO_REMOTE),
     )
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
@@ -100,7 +100,7 @@ def test_distribution_to_specifier_editable_no_remote(mocker: MockerFixture) -> 
 
 def test_distribution_to_specifier_editable_invalid_remote(mocker: MockerFixture) -> None:
     mocker.patch(
-        "pipdeptree._parser._format.get_vcs_requirement",
+        "pipdeptree._parser.format.get_vcs_requirement",
         return_value=VcsResult(None, vcs_name="git", error=VcsError.INVALID_REMOTE),
     )
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
@@ -112,7 +112,7 @@ def test_distribution_to_specifier_editable_invalid_remote(mocker: MockerFixture
 
 def test_distribution_to_specifier_editable_command_not_found(mocker: MockerFixture) -> None:
     mocker.patch(
-        "pipdeptree._parser._format.get_vcs_requirement",
+        "pipdeptree._parser.format.get_vcs_requirement",
         return_value=VcsResult(None, error=VcsError.COMMAND_NOT_FOUND),
     )
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
@@ -126,11 +126,11 @@ def test_distribution_to_specifier_egg_link_fallback(mocker: MockerFixture, tmp_
     site_dir.mkdir()
     egg_link = site_dir / "mypackage.egg-link"
     egg_link.write_text("/path/to/source\n")
-    mocker.patch("pipdeptree._parser._editable.sys.path", [])
-    mocker.patch("pipdeptree._parser._editable.site.getsitepackages", return_value=[str(site_dir)])
-    mocker.patch("pipdeptree._parser._editable.site.getusersitepackages", return_value=None)
+    mocker.patch("pipdeptree._parser.editable.sys.path", [])
+    mocker.patch("pipdeptree._parser.editable.site.getsitepackages", return_value=[str(site_dir)])
+    mocker.patch("pipdeptree._parser.editable.site.getusersitepackages", return_value=None)
     mocker.patch(
-        "pipdeptree._parser._format.get_vcs_requirement",
+        "pipdeptree._parser.format.get_vcs_requirement",
         return_value=VcsResult(None, error=VcsError.NO_VCS),
     )
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
@@ -142,7 +142,7 @@ def test_distribution_to_specifier_egg_link_fallback(mocker: MockerFixture, tmp_
 
 def test_distribution_to_specifier_editable_with_vcs(mocker: MockerFixture) -> None:
     mocker.patch(
-        "pipdeptree._parser._format.get_vcs_requirement",
+        "pipdeptree._parser.format.get_vcs_requirement",
         return_value=VcsResult("git+https://github.com/user/repo@abc123#egg=mypackage", vcs_name="git"),
     )
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
@@ -163,9 +163,9 @@ def test_distribution_to_specifier_no_egg_link_when_direct_url_exists(mocker: Mo
     site_dir.mkdir()
     egg_link = site_dir / "mypackage.egg-link"
     egg_link.write_text("/path/to/source\n")
-    mocker.patch("pipdeptree._parser._editable.sys.path", [])
-    mocker.patch("pipdeptree._parser._editable.site.getsitepackages", return_value=[str(site_dir)])
-    mocker.patch("pipdeptree._parser._editable.site.getusersitepackages", return_value=None)
+    mocker.patch("pipdeptree._parser.editable.sys.path", [])
+    mocker.patch("pipdeptree._parser.editable.site.getsitepackages", return_value=[str(site_dir)])
+    mocker.patch("pipdeptree._parser.editable.site.getusersitepackages", return_value=None)
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
     distribution.read_text.return_value = json.dumps({"url": "file:///path/to/non-editable", "dir_info": {}})
     result = distribution_to_specifier(distribution)

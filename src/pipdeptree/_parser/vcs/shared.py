@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import urllib.parse
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
@@ -38,7 +39,8 @@ def build_vcs_result(  # noqa: PLR0913, PLR0917
         url = f"{vcs_name}+{remote_url}"
     else:
         url = remote_url
-    result = f"{url}@{commit_id}#egg={safe_package_name}"
+    quoted_commit_id = urllib.parse.quote(commit_id, "/")
+    result = f"{url}@{quoted_commit_id}#egg={safe_package_name}"
     if include_subdirectory and (subdirectory := _find_project_root(location, repo_root)):
         result += f"&subdirectory={subdirectory}"
     return VcsResult(result, vcs_name=vcs_name)

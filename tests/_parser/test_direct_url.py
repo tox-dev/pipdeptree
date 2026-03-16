@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from pipdeptree._parser._direct_url import (
+from pipdeptree._parser.direct_url import (
     ArchiveInfo,
     DirectUrl,
     DirectUrlValidationError,

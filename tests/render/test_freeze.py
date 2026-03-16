@@ -19,8 +19,8 @@ def patch_pip_adapter(monkeypatch: pytest.MonkeyPatch) -> None:
     This ensures distributions are always formatted as "name==version" regardless
     of whether they are editable or direct URL installs.
     """
-    monkeypatch.setattr("pipdeptree._parser._format.find_egg_link", lambda _: None)
-    monkeypatch.setattr("pipdeptree._parser._format.get_direct_url", lambda _: None)
+    monkeypatch.setattr("pipdeptree._parser.format.find_egg_link", lambda _: None)
+    monkeypatch.setattr("pipdeptree._parser.format.get_direct_url", lambda _: None)
 
 
 @pytest.mark.parametrize(

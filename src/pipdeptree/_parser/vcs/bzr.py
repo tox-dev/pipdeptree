@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess  # noqa: S404
 from pathlib import Path
 
-from ._shared import VcsError, VcsResult, build_vcs_result, is_local_path
+from .shared import VcsError, VcsResult, build_vcs_result, is_local_path
 
 
 def get_bzr_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:

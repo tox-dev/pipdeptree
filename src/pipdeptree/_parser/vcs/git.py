@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import os
 import re
 import subprocess  # noqa: S404
 from pathlib import Path
 from typing import Final
 
-from ._shared import VcsError, VcsResult, build_vcs_result, is_local_path
+from .shared import VcsError, VcsResult, build_vcs_result, is_local_path
 
+_SANITIZED_GIT_VARS: Final[frozenset[str]] = frozenset({"GIT_DIR", "GIT_WORK_TREE"})
 _SCHEME_RE: Final[re.Pattern[str]] = re.compile(r"\w+://")
 _SCP_RE: Final[re.Pattern[str]] = re.compile(
     r"""
@@ -30,6 +32,7 @@ def get_git_repo_root(location: str) -> str | None:
             text=True,
             check=True,
             timeout=5,
+            env=_git_env(),
         ).stdout.strip()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
@@ -72,6 +75,7 @@ def _get_git_remote_url(repo_root: str) -> str | None:
             text=True,
             check=False,
             timeout=5,
+            env=_git_env(),
         ).stdout.strip()
         if not remotes_output:
             return None
@@ -97,6 +101,7 @@ def _get_git_commit_id(repo_root: str) -> str | None:
             text=True,
             check=True,
             timeout=5,
+            env=_git_env(),
         ).stdout.strip()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
@@ -118,6 +123,10 @@ def _normalize_git_url(url: str, repo_root: str) -> str | None:
     if match := _SCP_RE.match(url):
         return f"ssh://{match.group('user') or ''}{match.group('host')}/{match.group('path')}"
     return None
+
+
+def _git_env() -> dict[str, str]:
+    return {k: v for k, v in os.environ.items() if k not in _SANITIZED_GIT_VARS}
 
 
 __all__ = [

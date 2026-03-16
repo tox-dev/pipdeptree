@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pipdeptree._parser._vcs import VcsError, VcsResult, get_vcs_requirement
+from pipdeptree._parser.vcs import VcsError, VcsResult, get_vcs_requirement
 
 if TYPE_CHECKING:
     from pathlib import Path

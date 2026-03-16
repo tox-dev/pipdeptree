@@ -4,7 +4,7 @@ import subprocess  # noqa: S404
 import xml.etree.ElementTree as ET  # noqa: S405
 from pathlib import Path
 
-from ._shared import VcsError, VcsResult, build_vcs_result
+from .shared import VcsError, VcsResult, build_vcs_result
 
 
 def get_svn_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
