@@ -118,7 +118,7 @@ def filter_valid_distributions(iterable_dists: Iterable[Distribution]) -> list[D
 def has_valid_metadata(dist: Distribution) -> bool:
     try:
         return "Name" in dist.metadata
-    except Exception:
+    except (TypeError, FileNotFoundError):
         return False
 
 
