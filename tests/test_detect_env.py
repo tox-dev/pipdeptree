@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from subprocess import CompletedProcess  # noqa: S404
 from typing import TYPE_CHECKING
+import platform
 
 import pytest
 
@@ -59,7 +60,7 @@ def test_detect_active_interpreter_continue_when_other_detections_fail(tmp_path:
     # points to a non-existent path
     fake_python_path = tmp_path / "bin"
     fake_python_path.mkdir()
-    fake_python_path /= "python"
+    fake_python_path /= "python" if platform.python_implementation() == "CPython" else "pypy"
     fake_python_path.write_text("This is a fake Python file")
     fake_path = str(Path(*("i", "dont", "exist")))
     mocker.patch(
