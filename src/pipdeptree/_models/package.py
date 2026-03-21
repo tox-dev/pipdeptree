@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
-from pipdeptree._freeze import dist_to_frozen_repr
+from pipdeptree._parser import distribution_to_specifier
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -77,8 +77,8 @@ class Package(ABC):
         return render(frozen=frozen)
 
     @staticmethod
-    def as_frozen_repr(dist: Distribution) -> str:
-        return dist_to_frozen_repr(dist)
+    def as_frozen_repr(distribution: Distribution) -> str:
+        return distribution_to_specifier(distribution)
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}("{self.key}")>'

@@ -32,7 +32,7 @@ def test_package_as_frozen_repr(mocker: MockerFixture) -> None:
     foo = Mock(metadata={"Name": "foo"}, version="1.2.3")
     dp = DistPackage(foo)
     expected = "test"
-    mocker.patch("pipdeptree._models.package.dist_to_frozen_repr", Mock(return_value=expected))
+    mocker.patch("pipdeptree._models.package.distribution_to_specifier", Mock(return_value=expected))
     assert Package.as_frozen_repr(dp.unwrap()) == expected
 
 
@@ -76,7 +76,7 @@ def test_dist_package_render_as_root_with_frozen(mocker: MockerFixture) -> None:
     foo = Mock(metadata={"Name": "foo"}, version="1.2.3")
     dp = DistPackage(foo)
     expected = "test"
-    mocker.patch("pipdeptree._models.package.dist_to_frozen_repr", Mock(return_value=expected))
+    mocker.patch("pipdeptree._models.package.distribution_to_specifier", Mock(return_value=expected))
     assert dp.render_as_root(frozen=True) == expected
 
 
@@ -202,7 +202,7 @@ def test_req_package_render_as_root_with_frozen(mocker: MockerFixture) -> None:
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dp)
     expected = "test"
-    mocker.patch("pipdeptree._models.package.dist_to_frozen_repr", Mock(return_value=expected))
+    mocker.patch("pipdeptree._models.package.distribution_to_specifier", Mock(return_value=expected))
     assert rp.render_as_root(frozen=True) == expected
 
 
