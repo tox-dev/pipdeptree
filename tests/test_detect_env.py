@@ -56,7 +56,7 @@ def test_detect_active_interpreter_non_existent_path(
 
 
 def test_detect_active_interpreter_continue_when_other_detections_fail(tmp_path: Path, mocker: MockFixture) -> None:
-    # ensures that we fallback to another virtual env detection in case a detction (in this scenario virtualenv)
+    # ensures that we fallback to another virtual env detection in case a detection (in this scenario virtualenv)
     # points to a non-existent path
     fake_python_path = tmp_path / "bin"
     fake_python_path.mkdir()
