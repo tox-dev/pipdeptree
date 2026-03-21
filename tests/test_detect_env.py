@@ -54,8 +54,7 @@ def test_detect_active_interpreter_non_existent_path(
         detect_active_interpreter()
 
 
-def test_detect_active_interpreter_continue_when_other_detections_fail(
-        tmp_path: Path, mocker: MockFixture) -> None:
+def test_detect_active_interpreter_continue_when_other_detections_fail(tmp_path: Path, mocker: MockFixture) -> None:
     # ensures that we fallback to another virtual env detection in case a detction (in this scenario virtualenv)
     # points to a non-existent path
     fake_python_path = tmp_path / "bin"
@@ -63,8 +62,10 @@ def test_detect_active_interpreter_continue_when_other_detections_fail(
     fake_python_path /= "python"
     fake_python_path.write_text("This is a fake Python file")
     fake_path = str(Path(*("i", "dont", "exist")))
-    mocker.patch("pipdeptree._detect_env.os.environ.get", side_effect=lambda key: fake_path
-                 if key == "VIRTUAL_ENV" else str(tmp_path))
+    mocker.patch(
+        "pipdeptree._detect_env.os.environ.get",
+        side_effect=lambda key: fake_path if key == "VIRTUAL_ENV" else str(tmp_path),
+    )
 
     detected_path = detect_active_interpreter()
 
