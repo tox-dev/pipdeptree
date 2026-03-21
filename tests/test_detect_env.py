@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import platform
 from pathlib import Path
 from subprocess import CompletedProcess  # noqa: S404
 from typing import TYPE_CHECKING
-import platform
 
 import pytest
 
