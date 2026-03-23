@@ -31,13 +31,13 @@ def test_render_mermaid(
         """\
         flowchart TD
             classDef missing stroke-dasharray: 5
-            a["a\\n3.4.0"]
-            b["b\\n2.3.1"]
-            c["c\\n5.10.0"]
-            d["d\\n2.35"]
-            e["e\\n0.12.1"]
-            f["f\\n3.1"]
-            g["g\\n6.8.3rc1"]
+            a["a<br/>3.4.0"]
+            b["b<br/>2.3.1"]
+            c["c<br/>5.10.0"]
+            d["d<br/>2.35"]
+            e["e<br/>0.12.1"]
+            f["f<br/>3.1"]
+            g["g<br/>6.8.3rc1"]
         """,
     )
     dependency_edges = indent(
@@ -98,8 +98,8 @@ def test_mermaid_reserved_ids(
             """\
         flowchart TD
             classDef missing stroke-dasharray: 5
-            click-extra["click-extra\\n(missing)"]:::missing
-            click_0["click\\n3.4.0"]
+            click-extra["click-extra<br/>(missing)"]:::missing
+            click_0["click<br/>3.4.0"]
             click_0 -.-> click-extra
         """,
         ).rstrip()

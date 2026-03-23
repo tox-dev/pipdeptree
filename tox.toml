@@ -5,6 +5,7 @@ env_list = [
   "3.12",
   "3.11",
   "3.10",
+  "docs",
   "fix",
   "pkg_meta",
   "type",
@@ -50,6 +51,32 @@ commands = [
     "{work_dir}{/}coverage.{env_name}.xml",
     "--fail-under",
     "100",
+  ],
+]
+
+[env.docs]
+description = "build documentation"
+dependency_groups = [ "docs" ]
+set_env.PYTHONUTF8 = "1"
+commands = [
+  [
+    "sphinx-build",
+    "-d",
+    "{env_tmp_dir}{/}doctree",
+    "docs",
+    "{env:READTHEDOCS_OUTPUT:{work_dir}{/}docs_out}/html",
+    "--color",
+    "-b",
+    "html",
+    "-W",
+  ],
+  [
+    "python",
+    "-c",
+    """\
+  import pathlib; print(\"documentation available under file://\" + str(pathlib.Path(r\"{work_dir}\") / \"docs_out\" / \
+  \"html\" / \"index.html\"))\
+  """,
   ],
 ]
 
