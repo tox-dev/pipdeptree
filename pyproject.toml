@@ -122,6 +122,10 @@ ignore-words-list = "master"
 [tool.pyproject-fmt]
 max_supported_python = "3.14"
 
+[tool.ty]
+environment.python-version = "3.14"
+src.exclude = []
+
 [tool.coverage]
 run.parallel = true
 run.plugins = [
@@ -136,7 +140,3 @@ report.fail_under = 88
 html.show_contexts = true
 html.skip_covered = false
 subtract_omit = "*/__main__.py"
-
-[tool.ty]
-environment.python-version = "3.14"
-src.exclude = []
