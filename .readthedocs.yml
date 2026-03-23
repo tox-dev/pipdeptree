@@ -1,0 +1,8 @@
+version: 2
+build:
+  os: ubuntu-lts-latest
+  tools: {}
+  commands:
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - ~/.local/bin/uv tool install tox --with tox-uv -p 3.14 --managed-python
+    - ~/.local/bin/tox run -e docs --

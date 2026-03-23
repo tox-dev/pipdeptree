@@ -29,6 +29,7 @@ jobs:
           - "3.11"
           - "3.10"
           - type
+          - docs
           - dev
           - pkg_meta
     steps:
