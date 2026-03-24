@@ -35,6 +35,10 @@ repos:
         additional_dependencies:
           - prettier@3.6.2
           - "@prettier/plugin-xml@3.4.2"
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.23.1
+    hooks:
+      - id: zizmor
   - repo: meta
     hooks:
       - id: check-hooks-apply
