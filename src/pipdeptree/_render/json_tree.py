@@ -38,7 +38,7 @@ def render_json_tree(tree: PackageDAG) -> None:
         if cur_chain is None:
             cur_chain = [node.project_name]
 
-        d: dict[str, str | list[Any] | None] = node.as_dict()  # type: ignore[assignment]
+        d: dict[str, str | list[Any] | None] = node.as_dict()  # ty: ignore[invalid-assignment]
         if parent:
             d["required_version"] = node.version_spec if isinstance(node, ReqPackage) and node.version_spec else "Any"
         else:
