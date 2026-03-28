@@ -297,7 +297,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
                 reversed_dag.setdefault(node, []).append(parent.as_parent_of(dep))
             if parent.key not in child_keys:
                 reversed_dag[parent.as_requirement()] = []
-        return ReversedPackageDAG(dict(reversed_dag))  # type: ignore[arg-type]
+        return ReversedPackageDAG(dict(reversed_dag))  # ty: ignore[invalid-argument-type]
 
     def sort(self) -> PackageDAG:
         """
@@ -338,7 +338,7 @@ class ReversedPackageDAG(PackageDAG):
 
     """
 
-    def reverse(self) -> PackageDAG:  # type: ignore[override]
+    def reverse(self) -> PackageDAG:  # ty: ignore[invalid-method-override]
         """
         Reverse the already reversed DAG to get the PackageDAG again.
 
@@ -352,7 +352,7 @@ class ReversedPackageDAG(PackageDAG):
             for parent in parents:
                 assert isinstance(parent, DistPackage)
                 node = key_index.setdefault(parent.key, parent.as_parent_of(None))
-                forward_dag.setdefault(node, []).append(req_node)  # type: ignore[invalid-argument-type]  # runtime: ReqPackage
+                forward_dag.setdefault(node, []).append(req_node)  # ty: ignore[invalid-argument-type]  # runtime: ReqPackage
             if req_node.key not in child_keys:
                 assert isinstance(req_node, ReqPackage)
                 assert req_node.dist is not None

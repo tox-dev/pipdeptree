@@ -225,7 +225,7 @@ class ReqPackage(Package):
 
     @property
     def version_spec(self) -> str | None:
-        specs = sorted(map(str, self._obj.specifier), reverse=True)  # type: ignore[invalid-argument-type]  # `reverse` makes '>' prior to '<'
+        specs = sorted(map(str, self._obj.specifier), reverse=True)  # ty: ignore[invalid-argument-type]  # `reverse` makes '>' prior to '<'
         return ",".join(specs) if specs else None
 
     @property
