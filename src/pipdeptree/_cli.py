@@ -43,7 +43,9 @@ class _Formatter(ArgumentDefaultsHelpFormatter):
 
 
 def build_parser() -> ArgumentParser:
-    parser = ArgumentParser(description="Dependency tree of the installed python packages", formatter_class=_Formatter)
+    parser = ArgumentParser(
+        prog="pipdeptree", description="Dependency tree of the installed python packages", formatter_class=_Formatter
+    )
     parser.add_argument("-v", "--version", action="version", version=f"{__version__}")
     parser.add_argument(
         "-w",
