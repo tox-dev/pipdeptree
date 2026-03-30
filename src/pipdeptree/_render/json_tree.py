@@ -4,13 +4,19 @@ import json
 from itertools import chain
 from typing import TYPE_CHECKING, Any
 
+from pipdeptree._computed import get_computed_values
 from pipdeptree._models import ReqPackage
 
 if TYPE_CHECKING:
+    from pipdeptree._cli import RenderContext
     from pipdeptree._models import DistPackage, PackageDAG
 
 
-def render_json_tree(tree: PackageDAG) -> None:
+def render_json_tree(
+    tree: PackageDAG,
+    *,
+    context: RenderContext | None = None,
+) -> None:
     """
     Convert the tree into a nested json representation.
 
@@ -23,6 +29,7 @@ def render_json_tree(tree: PackageDAG) -> None:
       - dependencies: list of dependencies
 
     :param tree: dependency tree
+    :param context: metadata and computed fields to include
     :returns: json representation of the tree
 
     """
@@ -43,6 +50,11 @@ def render_json_tree(tree: PackageDAG) -> None:
             d["required_version"] = node.version_spec if isinstance(node, ReqPackage) and node.version_spec else "Any"
         else:
             d["required_version"] = d["installed_version"]
+
+        if context and context.metadata:
+            d["metadata"] = node.get_metadata_dict(list(context.metadata))  # ty: ignore[invalid-assignment]
+        if context and context.computed:
+            d["computed"] = get_computed_values(node.key, context.computed, tree, context.full_tree)  # ty: ignore[invalid-assignment]
 
         d["dependencies"] = [
             aux(c, parent=node, cur_chain=[*cur_chain, c.project_name])

@@ -55,6 +55,23 @@ class Package(ABC):
 
         return f"({', '.join(license_strs)})"
 
+    def get_metadata(self, field: str) -> str:
+        if field == "license":
+            return self.licenses().strip("()")
+        try:
+            dist_metadata = metadata(self.key)
+        except PackageNotFoundError:
+            return "Unknown"
+        if value := dist_metadata[field]:
+            return str(value)
+        return "Unknown"
+
+    def get_metadata_values(self, fields: list[str]) -> list[str]:
+        return [self.get_metadata(f) for f in fields]
+
+    def get_metadata_dict(self, fields: list[str]) -> dict[str, str]:
+        return {field: self.get_metadata(field) for field in fields}
+
     @abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:
         raise NotImplementedError

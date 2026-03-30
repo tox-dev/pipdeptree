@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from pipdeptree._cli import RenderContext
 from pipdeptree._models import PackageDAG
 from pipdeptree._models.package import Package
 from pipdeptree._render.text import render_text
@@ -478,19 +479,19 @@ def test_render_text_list_all_and_packages_options_used(
         (
             "utf-8",
             [
-                "a==3.4.0 (TEST)",
-                "└── c [required: ==1.0.0, installed: 1.0.0]",
-                "b==2.3.1 (TEST)",
-                "c==1.0.0 (TEST)",
+                "a==3.4.0 [TEST]",
+                "└── c [required: ==1.0.0, installed: 1.0.0] [TEST]",
+                "b==2.3.1 [TEST]",
+                "c==1.0.0 [TEST]",
             ],
         ),
         (
             "ascii",
             [
-                "a==3.4.0 (TEST)",
-                "  - c [required: ==1.0.0, installed: 1.0.0]",
-                "b==2.3.1 (TEST)",
-                "c==1.0.0 (TEST)",
+                "a==3.4.0 [TEST]",
+                "  - c [required: ==1.0.0, installed: 1.0.0] [TEST]",
+                "b==2.3.1 [TEST]",
+                "c==1.0.0 [TEST]",
             ],
         ),
     ],
@@ -510,7 +511,7 @@ def test_render_text_with_license_info(
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     monkeypatch.setattr(Package, "licenses", lambda _: "(TEST)")
 
-    render_text(dag, max_depth=float("inf"), encoding=encoding, include_license=True)
+    render_text(dag, max_depth=float("inf"), encoding=encoding, context=RenderContext(metadata=["license"]))
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
 
@@ -521,25 +522,25 @@ def test_render_text_with_license_info(
         (
             "utf-8",
             [
-                "a==3.4.0 (TEST)",
-                "b==2.3.1 (TEST)",
-                "└── a==3.4.0 [requires: b==2.3.1]",
-                "c==1.0.0 (TEST)",
-                "├── a==3.4.0 [requires: c==1.0.0]",
-                "└── b==2.3.1 [requires: c==1.0.0]",
-                "    └── a==3.4.0 [requires: b==2.3.1]",
+                "a==3.4.0 [TEST]",
+                "b==2.3.1 [TEST]",
+                "└── a==3.4.0 [requires: b==2.3.1] [TEST]",
+                "c==1.0.0 [TEST]",
+                "├── a==3.4.0 [requires: c==1.0.0] [TEST]",
+                "└── b==2.3.1 [requires: c==1.0.0] [TEST]",
+                "    └── a==3.4.0 [requires: b==2.3.1] [TEST]",
             ],
         ),
         (
             "ascii",
             [
-                "a==3.4.0 (TEST)",
-                "b==2.3.1 (TEST)",
-                "  - a==3.4.0 [requires: b==2.3.1]",
-                "c==1.0.0 (TEST)",
-                "  - a==3.4.0 [requires: c==1.0.0]",
-                "  - b==2.3.1 [requires: c==1.0.0]",
-                "    - a==3.4.0 [requires: b==2.3.1]",
+                "a==3.4.0 [TEST]",
+                "b==2.3.1 [TEST]",
+                "  - a==3.4.0 [requires: b==2.3.1] [TEST]",
+                "c==1.0.0 [TEST]",
+                "  - a==3.4.0 [requires: c==1.0.0] [TEST]",
+                "  - b==2.3.1 [requires: c==1.0.0] [TEST]",
+                "    - a==3.4.0 [requires: b==2.3.1] [TEST]",
             ],
         ),
     ],
@@ -560,7 +561,7 @@ def test_render_text_with_license_info_and_reversed_tree(
     dag = dag.reverse()
     monkeypatch.setattr(Package, "licenses", lambda _: "(TEST)")
 
-    render_text(dag, max_depth=float("inf"), encoding=encoding, include_license=True)
+    render_text(dag, max_depth=float("inf"), encoding=encoding, context=RenderContext(metadata=["license"]))
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
 

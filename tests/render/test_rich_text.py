@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from pipdeptree._cli import RenderContext
 from pipdeptree._models import PackageDAG
 from pipdeptree._models.package import Package
 from pipdeptree._render.rich_text import render_rich_text
@@ -73,10 +74,10 @@ def test_render_rich_text_with_license_info(
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     monkeypatch.setattr(Package, "licenses", lambda _: "(TEST)")
 
-    render_rich_text(dag, max_depth=float("inf"), include_license=True)
+    render_rich_text(dag, max_depth=float("inf"), context=RenderContext(metadata=["license"]))
     output = capsys.readouterr().out
     assert "a==3.4.0" in output
-    assert "(TEST)" in output
+    assert "[TEST]" in output
 
 
 def test_render_rich_text_with_extras(capsys: pytest.CaptureFixture[str], make_mock_dist: MockDistMaker) -> None:

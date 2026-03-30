@@ -81,6 +81,47 @@ Flat JSON array with package and dependency objects:
         }
     ]
 
+With ``--metadata`` or ``--computed``, package dicts include extra fields:
+
+.. code-block:: console
+
+    $ pipdeptree --packages rich -o json --metadata license --computed size,unique-deps-count,unique-deps-names
+
+.. code-block:: json
+
+    {
+        "package": {
+            "key": "rich",
+            "package_name": "rich",
+            "installed_version": "14.3.3",
+            "metadata": {
+                "license": "MIT License"
+            },
+            "computed": {
+                "size": "1.2 MB",
+                "unique_deps_count": 2,
+                "unique_deps_names": [
+                    "markdown-it-py",
+                    "mdurl"
+                ]
+            }
+        },
+        "dependencies": [
+            {
+                "key": "markdown-it-py",
+                "package_name": "markdown-it-py",
+                "installed_version": "4.0.0",
+                "required_version": ">=2.2.0"
+            },
+            {
+                "key": "pygments",
+                "package_name": "Pygments",
+                "installed_version": "2.19.2",
+                "required_version": ">=2.13.0,<3.0.0"
+            }
+        ]
+    }
+
 json-tree
 ---------
 

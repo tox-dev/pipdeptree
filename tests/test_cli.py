@@ -56,13 +56,39 @@ def test_get_options_output_format_that_does_not_exist(capsys: pytest.CaptureFix
     assert 'i-dont-exist" is not a known output format.' in err
 
 
-def test_get_options_license_and_freeze_together_not_supported(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit, match="2"):
-        get_options(["--license", "--freeze"])
+def test_get_options_license_deprecated() -> None:
+    with pytest.warns(DeprecationWarning, match="--license is deprecated"):
+        options = get_options(["--license"])
+    assert options.metadata == ["license"]
+    assert options.context.metadata == ["license"]
 
+
+def test_get_options_license_and_metadata_license_conflict(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["--license", "--metadata", "license"])
     out, err = capsys.readouterr()
     assert not out
-    assert "cannot use --license with --freeze" in err
+    assert "cannot use --license with --metadata license" in err
+
+
+def test_get_options_metadata() -> None:
+    options = get_options(["--metadata", "license,summary"])
+    assert options.metadata == ["license", "summary"]
+    assert options.context.metadata == ["license", "summary"]
+
+
+def test_get_options_computed() -> None:
+    options = get_options(["--computed", "size,unique-deps-count"])
+    assert options.computed == ["size", "unique-deps-count"]
+    assert options.context.computed == ["size", "unique-deps-count"]
+
+
+def test_get_options_invalid_computed(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["--computed", "invalid-field"])
+    out, err = capsys.readouterr()
+    assert not out
+    assert "invalid --computed values: invalid-field" in err
 
 
 @pytest.mark.parametrize(

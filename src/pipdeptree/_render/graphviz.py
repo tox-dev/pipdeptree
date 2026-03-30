@@ -13,11 +13,19 @@ from pipdeptree._models import DistPackage, ReqPackage
 if TYPE_CHECKING:
     from graphviz import Digraph
 
+    from pipdeptree._cli import RenderContext
     from pipdeptree._models import PackageDAG
 
 
-def render_graphviz(tree: PackageDAG, *, output_format: str, reverse: bool, max_depth: float = math.inf) -> None:
-    output = dump_graphviz(tree, output_format=output_format, is_reverse=reverse, max_depth=max_depth)
+def render_graphviz(
+    tree: PackageDAG,
+    *,
+    output_format: str,
+    reverse: bool,
+    max_depth: float = math.inf,
+    context: RenderContext | None = None,
+) -> None:
+    output = dump_graphviz(tree, output_format=output_format, is_reverse=reverse, max_depth=max_depth, context=context)
     if isinstance(output, bytes):
         print_graphviz(output, output_format=output_format)
     else:
@@ -29,6 +37,7 @@ def dump_graphviz(
     output_format: str = "dot",
     is_reverse: bool = False,  # noqa: FBT001, FBT002
     max_depth: float = math.inf,
+    context: RenderContext | None = None,
 ) -> str | bytes:
     """
     Output dependency graph as one of the supported GraphViz output formats.
@@ -37,6 +46,7 @@ def dump_graphviz(
     :param string output_format: output format
     :param bool is_reverse: reverse or not
     :param float max_depth: maximum depth of the dependency tree to include
+    :param context: metadata and computed fields to include in node labels
     :returns: representation of tree in the specified output format
     :rtype: str or binary representation depending on the output format
     """
@@ -61,9 +71,9 @@ def dump_graphviz(
     graph = Digraph(format=output_format)
 
     if is_reverse:
-        _build_reverse_graph(tree, graph, max_depth)
+        _build_reverse_graph(tree, graph, max_depth, context)
     else:
-        _build_forward_graph(tree, graph, max_depth)
+        _build_forward_graph(tree, graph, max_depth, context)
 
     # Allow output of dot format, even if GraphViz isn't installed.
     if output_format == "dot":
@@ -110,7 +120,12 @@ def print_graphviz(dump_output: str | bytes, *, output_format: str = "dot") -> N
             bytestream.write(dump_output)
 
 
-def _build_reverse_graph(tree: PackageDAG, graph: Digraph, max_depth: float) -> None:
+def _build_reverse_graph(
+    tree: PackageDAG,
+    graph: Digraph,
+    max_depth: float,
+    context: RenderContext | None,
+) -> None:
     """Build graphviz nodes and edges for a reversed dependency tree."""
     visited = _compute_reachable_depths(tree, _get_root_keys(tree), max_depth)
 
@@ -118,7 +133,10 @@ def _build_reverse_graph(tree: PackageDAG, graph: Digraph, max_depth: float) -> 
         if visited is not None and dep_rev.key not in visited:
             continue
         assert isinstance(dep_rev, ReqPackage)
-        graph.node(dep_rev.key, label=f"{dep_rev.project_name}\\n{dep_rev.installed_version}")
+        label = f"{dep_rev.project_name}\\n{dep_rev.installed_version}"
+        if extra := build_node_extra_label(dep_rev.key, context, tree, "\\n"):
+            label += f"\\n{extra}"
+        graph.node(dep_rev.key, label=label)
         if visited is None or visited[dep_rev.key] < max_depth:
             for parent in parents:
                 assert isinstance(parent, DistPackage)
@@ -127,14 +145,22 @@ def _build_reverse_graph(tree: PackageDAG, graph: Digraph, max_depth: float) -> 
                 graph.edge(dep_rev.key, parent.key, label=parent.edge_label)
 
 
-def _build_forward_graph(tree: PackageDAG, graph: Digraph, max_depth: float) -> None:
+def _build_forward_graph(
+    tree: PackageDAG,
+    graph: Digraph,
+    max_depth: float,
+    context: RenderContext | None,
+) -> None:
     """Build graphviz nodes and edges for a forward dependency tree."""
     visited = _compute_reachable_depths(tree, _get_root_keys(tree), max_depth)
 
     for pkg, deps in tree.items():
         if visited is not None and pkg.key not in visited:
             continue
-        graph.node(pkg.key, label=f"{pkg.project_name}\\n{pkg.version}")
+        label = f"{pkg.project_name}\\n{pkg.version}"
+        if extra := build_node_extra_label(pkg.key, context, tree, "\\n"):
+            label += f"\\n{extra}"
+        graph.node(pkg.key, label=label)
         if visited is None or visited[pkg.key] < max_depth:
             for dep in deps:
                 if visited is not None and dep.key not in visited:
