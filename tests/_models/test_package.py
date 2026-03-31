@@ -372,3 +372,43 @@ def test_dist_package_edge_label_with_extra() -> None:
     rp = ReqPackage(bar_req, extra="signedtoken")
     dp = DistPackage(foo).as_parent_of(rp)
     assert dp.edge_label == "[signedtoken] >=4.0"
+
+
+def test_get_metadata_license(mocker: MockerFixture) -> None:
+    mocker.patch.object(Package, "licenses", return_value="(MIT)")
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata("license") == "MIT License"
+
+
+def test_get_metadata_arbitrary_field(mocker: MockerFixture) -> None:
+    mocker.patch("pipdeptree._models.package.metadata", return_value={"Summary": "A package"})
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata("Summary") == "A package"
+
+
+def test_get_metadata_missing_field(mocker: MockerFixture) -> None:
+    mock_meta = MagicMock()
+    mock_meta.__getitem__ = lambda *_args: None
+    mocker.patch("pipdeptree._models.package.metadata", return_value=mock_meta)
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata("Nonexistent") == "Unknown"
+
+
+def test_get_metadata_unknown_package(mocker: MockerFixture) -> None:
+    mocker.patch("pipdeptree._models.package.metadata", side_effect=PackageNotFoundError("x"))
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata("Summary") == "Unknown"
+
+
+def test_get_metadata_dict(mocker: MockerFixture) -> None:
+    mocker.patch.object(Package, "licenses", return_value="(MIT)")
+    mocker.patch("pipdeptree._models.package.metadata", return_value={"Summary": "A package"})
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    result = DistPackage(dist).get_metadata_dict(["license", "Summary"])
+    assert result == {"license": "MIT License", "Summary": "A package"}
+
+
+def test_get_metadata_values(mocker: MockerFixture) -> None:
+    mocker.patch.object(Package, "licenses", return_value="(MIT)")
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata_values(["license"]) == ["MIT License"]

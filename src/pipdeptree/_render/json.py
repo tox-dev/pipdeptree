@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from pipdeptree._computed import get_computed_values
+from pipdeptree._computed import ComputedValues
 
 if TYPE_CHECKING:
     from pipdeptree._cli import RenderContext
@@ -34,7 +34,7 @@ def render_json(
         if context and context.metadata:
             d["metadata"] = k.get_metadata_dict(list(context.metadata))
         if context and context.computed:
-            d["computed"] = get_computed_values(k.key, context.computed, tree, context.full_tree)
+            d["computed"] = ComputedValues(k.key, tree, context.full_tree).as_dict(context.computed)
         return d
 
     output = json.dumps(

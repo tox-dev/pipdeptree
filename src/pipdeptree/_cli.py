@@ -6,6 +6,8 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, ArgumentType
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
+from pipdeptree._computed import ComputedValues
+
 from .version import __version__
 
 if TYPE_CHECKING:
@@ -51,6 +53,25 @@ class RenderContext:
     @property
     def active(self) -> bool:
         return bool(self.metadata or self.computed)
+
+    def build_node_extra_label(self, key: str, tree: PackageDAG, separator: str) -> str:
+        if not self.active:
+            return ""
+        parts: list[str] = []
+        if self.metadata:
+            parts.extend(self._get_metadata_label_parts(key, self.metadata, tree))
+        if self.computed:
+            computed = ComputedValues(key, tree, self.full_tree)
+            for field_key, field_value in computed.as_dict(self.computed).items():
+                parts.append(f"{field_key}: {field_value}")
+        return separator.join(parts)
+
+    @staticmethod
+    def _get_metadata_label_parts(key: str, fields: list[str], tree: PackageDAG) -> list[str]:
+        for pkg in tree:
+            if pkg.key == key:
+                return pkg.get_metadata_values(fields)
+        return []
 
 
 # NOTE: graphviz-* has been intentionally left out. Users of this var should handle it separately.

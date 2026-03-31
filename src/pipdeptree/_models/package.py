@@ -57,7 +57,8 @@ class Package(ABC):
 
     def get_metadata(self, field: str) -> str:
         if field == "license":
-            return self.licenses().strip("()")
+            raw = self.licenses().strip("()")
+            return raw if "license" in raw.lower() else f"{raw} License"
         try:
             dist_metadata = metadata(self.key)
         except PackageNotFoundError:

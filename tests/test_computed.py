@@ -1,17 +1,12 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from pipdeptree._computed import (
-    _format_size,
-    compute_installed_size_bytes,
-    compute_unique_deps,
-    format_computed_display,
-    get_computed_values,
-)
+from pipdeptree._cli import RenderContext
+from pipdeptree._computed import ComputedValues
 from pipdeptree._models import PackageDAG
 
 if TYPE_CHECKING:
@@ -19,11 +14,13 @@ if TYPE_CHECKING:
     from pathlib import Path
     from unittest.mock import Mock
 
+    from pytest_mock import MockerFixture
+
     from tests.our_types import MockGraph
 
 
 @pytest.mark.parametrize(
-    ("size_bytes", "expected"),
+    ("total_bytes", "expected"),
     [
         pytest.param(0, "0 B", id="zero"),
         pytest.param(512, "512 B", id="bytes"),
@@ -33,29 +30,46 @@ if TYPE_CHECKING:
         pytest.param(1073741824, "1.0 GB", id="gigabytes"),
     ],
 )
-def test_format_size(size_bytes: int, expected: str) -> None:
-    assert _format_size(size_bytes) == expected
+def test_size_formatting(total_bytes: int, expected: str, mocker: MockerFixture) -> None:
+    dag = MagicMock(spec=PackageDAG)
+    mocker.patch(
+        "pipdeptree._computed.distribution",
+        return_value=MagicMock(files=["f"], locate_file=lambda _: "/dev/null"),
+    )
+    mocker.patch.object(ComputedValues, "_file_size", return_value=total_bytes)
+    assert ComputedValues("pkg", dag).size == expected
 
 
-def test_compute_installed_size_bytes_no_files() -> None:
-    mock_dist = MagicMock()
-    mock_dist.files = None
-    with patch("pipdeptree._computed.distribution", return_value=mock_dist):
-        assert compute_installed_size_bytes("some-pkg") is None
+def test_size_bytes_no_files(mocker: MockerFixture) -> None:
+    dag = MagicMock(spec=PackageDAG)
+    mocker.patch("pipdeptree._computed.distribution", return_value=MagicMock(files=None))
+    assert ComputedValues("some-pkg", dag).size_bytes is None
 
 
-def test_compute_installed_size_bytes_with_files(tmp_path: Path) -> None:
+def test_size_bytes_with_files(tmp_path: Path, mocker: MockerFixture) -> None:
     (tmp_path / "file1.py").write_text("x" * 100)
     (tmp_path / "file2.py").write_text("y" * 200)
+    mocker.patch(
+        "pipdeptree._computed.distribution",
+        return_value=MagicMock(files=["file1.py", "file2.py"], locate_file=lambda f: tmp_path / f),
+    )
+    dag = MagicMock(spec=PackageDAG)
+    cv = ComputedValues("some-pkg", dag)
+    assert cv.size_bytes == 300
+    assert cv.size == "300 B"
+    assert cv.size_raw == 300
 
-    mock_dist = MagicMock()
-    mock_dist.files = ["file1.py", "file2.py"]
-    mock_dist.locate_file = lambda f: tmp_path / f
-    with patch("pipdeptree._computed.distribution", return_value=mock_dist):
-        assert compute_installed_size_bytes("some-pkg") == 300
+
+def test_size_bytes_missing_file_on_disk(mocker: MockerFixture) -> None:
+    dag = MagicMock(spec=PackageDAG)
+    mocker.patch(
+        "pipdeptree._computed.distribution",
+        return_value=MagicMock(files=["missing.py"], locate_file=lambda _: "/nonexistent/path"),
+    )
+    assert ComputedValues("pkg", dag).size_bytes == 0
 
 
-def test_compute_unique_deps(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_unique_deps(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
     graph: MockGraph = {
         ("a", "1.0"): [("c", [(">=", "1.0")])],
         ("b", "1.0"): [("d", [(">=", "1.0")])],
@@ -63,75 +77,170 @@ def test_compute_unique_deps(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -
         ("d", "1.0"): [],
     }
     if dag := PackageDAG.from_pkgs(list(mock_pkgs(graph))):
-        assert compute_unique_deps("a", dag) == {"c"}
-        assert compute_unique_deps("b", dag) == {"d"}
+        assert ComputedValues("a", dag).unique_deps == {"c"}
+        assert ComputedValues("b", dag).unique_deps == {"d"}
 
 
-def test_compute_unique_deps_shared(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_unique_deps_shared(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
     graph: MockGraph = {
         ("a", "1.0"): [("c", [(">=", "1.0")])],
         ("b", "1.0"): [("c", [(">=", "1.0")])],
         ("c", "1.0"): [],
     }
     if dag := PackageDAG.from_pkgs(list(mock_pkgs(graph))):
-        assert compute_unique_deps("a", dag) == set()
-        assert compute_unique_deps("b", dag) == set()
+        assert ComputedValues("a", dag).unique_deps == set()
+        assert ComputedValues("b", dag).unique_deps == set()
 
 
-def test_get_computed_values_size_and_unique_deps(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_unique_deps_size(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:
     graph: MockGraph = {
         ("a", "1.0"): [("b", [(">=", "1.0")])],
         ("b", "1.0"): [],
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    with patch("pipdeptree._computed.compute_installed_size_bytes", return_value=100):
-        result = get_computed_values("a", ["size", "unique-deps-count", "unique-deps-names"], dag)
-    assert result == {"size": "100 B", "unique_deps_count": 1, "unique_deps_names": ["b"]}
+    mocker.patch(
+        "pipdeptree._computed.distribution",
+        return_value=MagicMock(files=["f"], locate_file=lambda _: "/dev/null"),
+    )
+    mocker.patch.object(ComputedValues, "_file_size", return_value=2048)
+    assert ComputedValues("a", dag).unique_deps_size == "2.0 KB"
 
 
-def test_get_computed_values_size_raw(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
-    dag = PackageDAG.from_pkgs(list(mock_pkgs({("a", "1.0"): []})))
-    with patch("pipdeptree._computed.compute_installed_size_bytes", return_value=123456):
-        assert get_computed_values("a", ["size-raw"], dag) == {"size_raw": 123456}
+def test_unique_deps_count_matches_names(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+    dag = PackageDAG.from_pkgs(list(mock_pkgs({("a", "1.0"): [("b", [(">=", "1.0")])], ("b", "1.0"): []})))
+    cv = ComputedValues("a", dag)
+    assert cv.unique_deps_count == 1
+    assert cv.unique_deps_names == ["b"]
 
 
-def test_get_computed_values_size_and_size_raw_computes_once(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
-    dag = PackageDAG.from_pkgs(list(mock_pkgs({("a", "1.0"): []})))
-    with patch("pipdeptree._computed.compute_installed_size_bytes", return_value=2048) as mock_size:
-        result = get_computed_values("a", ["size", "size-raw"], dag)
-        mock_size.assert_called_once_with("a")
-    assert result == {"size": "2.0 KB", "size_raw": 2048}
-
-
-def test_get_computed_values_unique_deps_computes_once(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_as_dict(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:
     graph: MockGraph = {
         ("a", "1.0"): [("b", [(">=", "1.0")])],
         ("b", "1.0"): [],
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    with patch("pipdeptree._computed.compute_unique_deps", return_value={"b"}) as mock_unique:
-        result = get_computed_values("a", ["unique-deps-count", "unique-deps-names"], dag)
-        mock_unique.assert_called_once_with("a", dag)
-    assert result == {"unique_deps_count": 1, "unique_deps_names": ["b"]}
+    mocker.patch("pipdeptree._computed.distribution", return_value=MagicMock(files=None))
+    assert ComputedValues("a", dag).as_dict(["size", "unique-deps-count", "unique-deps-names"]) == {
+        "size": "0 B",
+        "unique_deps_count": 1,
+        "unique_deps_names": ["b"],
+    }
 
 
-def test_format_computed_display_count_and_names(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_as_dict_size_raw(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:
+    dag = PackageDAG.from_pkgs(list(mock_pkgs({("a", "1.0"): []})))
+    mocker.patch(
+        "pipdeptree._computed.distribution",
+        return_value=MagicMock(files=["f"], locate_file=lambda _: "/dev/null"),
+    )
+    mocker.patch.object(ComputedValues, "_file_size", return_value=123456)
+    assert ComputedValues("a", dag).as_dict(["size-raw"]) == {"size_raw": 123456}
+
+
+def test_as_dict_unknown_field(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+    dag = PackageDAG.from_pkgs(list(mock_pkgs({("a", "1.0"): []})))
+    assert ComputedValues("a", dag).as_dict(["nonexistent"]) == {}
+
+
+def test_size_computed_once(mocker: MockerFixture) -> None:
+    dag = MagicMock(spec=PackageDAG)
+    mock_dist = mocker.patch("pipdeptree._computed.distribution", return_value=MagicMock(files=None))
+    cv = ComputedValues("a", dag)
+    assert cv.size_bytes is None
+    assert cv.size == "0 B"
+    assert cv.size_raw == 0
+    mock_dist.assert_called_once()
+
+
+def test_format_display(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:
     graph: MockGraph = {
         ("a", "1.0"): [("b", [(">=", "1.0")])],
         ("b", "1.0"): [],
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    with patch("pipdeptree._computed.compute_installed_size_bytes", return_value=100):
-        result = format_computed_display("a", ["size", "unique-deps-count", "unique-deps-names"], dag)
-    assert result == ["100 B", "1 unique deps", "unique: b"]
+    mocker.patch(
+        "pipdeptree._computed.distribution",
+        return_value=MagicMock(files=["f"], locate_file=lambda _: "/dev/null"),
+    )
+    mocker.patch.object(ComputedValues, "_file_size", return_value=100)
+    assert ComputedValues("a", dag).format_display(["size", "unique-deps-count", "unique-deps-names"]) == [
+        "100 B",
+        "1 unique deps",
+        "unique: b",
+    ]
 
 
-def test_format_computed_display_hides_zero_unique_deps(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_format_display_unique_deps_size(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture
+) -> None:
+    graph: MockGraph = {
+        ("a", "1.0"): [("b", [(">=", "1.0")])],
+        ("b", "1.0"): [],
+    }
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    mocker.patch(
+        "pipdeptree._computed.distribution",
+        return_value=MagicMock(files=["f"], locate_file=lambda _: "/dev/null"),
+    )
+    mocker.patch.object(ComputedValues, "_file_size", return_value=1024)
+    assert ComputedValues("a", dag).format_display(["unique-deps-size"]) == ["unique size: 1.0 KB"]
+
+
+def test_format_display_hides_zero_unique_deps(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
     dag = PackageDAG.from_pkgs(list(mock_pkgs({("a", "1.0"): []})))
-    assert format_computed_display("a", ["unique-deps-count", "unique-deps-names"], dag) == []
+    assert ComputedValues("a", dag).format_display(["unique-deps-count", "unique-deps-names", "unique-deps-size"]) == []
 
 
-def test_format_computed_display_size_raw(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_format_display_size_raw(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:
     dag = PackageDAG.from_pkgs(list(mock_pkgs({("a", "1.0"): []})))
-    with patch("pipdeptree._computed.compute_installed_size_bytes", return_value=5000):
-        assert format_computed_display("a", ["size-raw"], dag) == ["5000"]
+    mocker.patch(
+        "pipdeptree._computed.distribution",
+        return_value=MagicMock(files=["f"], locate_file=lambda _: "/dev/null"),
+    )
+    mocker.patch.object(ComputedValues, "_file_size", return_value=5000)
+    assert ComputedValues("a", dag).format_display(["size-raw"]) == ["5000"]
+
+
+def test_build_node_extra_label_inactive() -> None:
+    dag = MagicMock(spec=PackageDAG)
+    assert not RenderContext().build_node_extra_label("a", dag, ", ")
+
+
+def test_build_node_extra_label_metadata(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture
+) -> None:
+    graph: MockGraph = {("a", "1.0"): []}
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    mocker.patch("pipdeptree._models.package.Package.get_metadata_values", return_value=["A package"])
+    ctx = RenderContext(metadata=["Summary"])
+    assert ctx.build_node_extra_label("a", dag, ", ") == "A package"
+
+
+def test_build_node_extra_label_computed(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture
+) -> None:
+    graph: MockGraph = {("a", "1.0"): [("b", [(">=", "1.0")])], ("b", "1.0"): []}
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    mocker.patch("pipdeptree._computed.distribution", return_value=MagicMock(files=None))
+    ctx = RenderContext(computed=["size"])
+    assert ctx.build_node_extra_label("a", dag, ", ") == "size: 0 B"
+
+
+def test_build_node_extra_label_license(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture
+) -> None:
+    graph: MockGraph = {("a", "1.0"): []}
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    mocker.patch("pipdeptree._models.package.Package.licenses", return_value="(MIT)")
+    ctx = RenderContext(metadata=["license"])
+    assert ctx.build_node_extra_label("a", dag, ", ") == "MIT License"
+
+
+def test_build_node_extra_label_missing_metadata_field(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture
+) -> None:
+    graph: MockGraph = {("a", "1.0"): []}
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    mocker.patch("pipdeptree._models.package.Package.get_metadata_values", return_value=[])
+    ctx = RenderContext(metadata=["Author"])
+    assert not ctx.build_node_extra_label("a", dag, ", ")

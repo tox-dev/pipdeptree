@@ -248,22 +248,22 @@ Package metadata
 ----------------
 
 Display metadata fields from the package's ``METADATA`` file with ``--metadata`` (``-m``). Pass a comma-separated list
-of field names. Metadata is shown on every package in the tree in brackets:
+of field names. Metadata is shown on every package in the tree in parentheses:
 
 .. code-block:: console
 
     $ pipdeptree --metadata license --packages rich
-    rich==14.3.3 [MIT License]
-    ├── markdown-it-py [required: >=2.2.0, installed: 4.0.0] [MIT License]
-    │   └── mdurl [required: ~=0.1, installed: 0.1.2] [MIT License]
-    └── Pygments [required: >=2.13.0,<3.0.0, installed: 2.19.2] [BSD License]
+    rich==14.3.3 (MIT License)
+    ├── markdown-it-py [required: >=2.2.0, installed: 4.0.0] (MIT License)
+    │   └── mdurl [required: ~=0.1, installed: 0.1.2] (MIT License)
+    └── Pygments [required: >=2.13.0,<3.0.0, installed: 2.19.2] (BSD License)
 
 Multiple fields can be combined:
 
 .. code-block:: console
 
     $ pipdeptree --metadata license,summary --packages rich -d 0
-    rich==14.3.3 [MIT License, Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal]
+    rich==14.3.3 (MIT License, Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal)
 
 Common metadata fields: ``license``, ``summary``, ``author``, ``author-email``, ``home-page``, ``requires-python``.
 Any field from the package's ``METADATA`` file is accepted.
@@ -285,18 +285,19 @@ Display computed package information with ``--computed`` (``-c``):
 - ``unique-deps-size`` -- total installed size of exclusive dependencies (hidden when 0)
 
 Unique dependencies are transitive: if removing a package would orphan a dependency, and that orphaned dependency
-would in turn orphan its own dependencies, all of them are counted.
+would in turn orphan its own dependencies, all of them are counted. In rich output, unique dependencies are marked
+with a ⭐ icon (alongside ✗ or ⚠ if applicable).
 
 .. code-block:: console
 
     $ pipdeptree --computed size --packages rich -d 0
-    rich==14.3.3 [1.2 MB]
+    rich==14.3.3 (1.2 MB)
 
 .. code-block:: console
 
     $ pipdeptree --computed unique-deps-count,unique-deps-names,unique-deps-size --packages rich
-    rich==14.3.3 [2 unique deps, unique: markdown-it-py, mdurl, unique size: 248.2 KB]
-    ├── markdown-it-py [required: >=2.2.0, installed: 4.0.0] [1 unique deps, unique: mdurl, unique size: 22.9 KB]
+    rich==14.3.3 (2 unique deps, unique: markdown-it-py | mdurl, unique size: 248.2 KB)
+    ├── markdown-it-py [required: >=2.2.0, installed: 4.0.0] (1 unique deps, unique: mdurl, unique size: 22.9 KB)
     │   └── mdurl [required: ~=0.1, installed: 0.1.2]
     └── Pygments [required: >=2.13.0,<3.0.0, installed: 2.19.2]
 

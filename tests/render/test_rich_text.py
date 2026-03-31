@@ -30,7 +30,7 @@ def test_render_rich_text_missing_import(mocker: MockerFixture, example_dag: Pac
 @pytest.mark.parametrize(
     ("list_all", "expected"),
     [
-        pytest.param(True, ["a==3.4.0", "b==2.3.1", "c==5.10.0", "✓", "required:", "installed:"], id="list-all"),
+        pytest.param(True, ["a==3.4.0", "b==2.3.1", "c==5.10.0", "required:", "installed:"], id="list-all"),
         pytest.param(False, ["a==3.4.0", "g==6.8.3rc1"], id="not-list-all"),
     ],
 )
@@ -77,7 +77,7 @@ def test_render_rich_text_with_license_info(
     render_rich_text(dag, max_depth=float("inf"), context=RenderContext(metadata=["license"]))
     output = capsys.readouterr().out
     assert "a==3.4.0" in output
-    assert "[TEST]" in output
+    assert "(TEST License)" in output
 
 
 def test_render_rich_text_with_extras(capsys: pytest.CaptureFixture[str], make_mock_dist: MockDistMaker) -> None:
@@ -129,7 +129,7 @@ def test_render_rich_text_with_circular_deps(
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     render_rich_text(dag, max_depth=float("inf"))
     output = capsys.readouterr().out
-    expected = ["a==1.0.0", "b==1.0.0", "✓"]
+    expected = ["a==1.0.0", "b==1.0.0"]
     for item in expected:
         assert item in output
 
@@ -155,7 +155,7 @@ def test_render_rich_text_with_circular_deps(
                 ("a", "1.0.0"): [("b", [(">=", "1.0.0"), ("<", "2.0.0")])],
                 ("b", "1.5.0"): [],
             },
-            ["✓", "b", ">=1.0.0,<2.0.0", "1.5.0"],
+            ["b", ">=1.0.0,<2.0.0", "1.5.0"],
             id="satisfied",
         ),
     ],

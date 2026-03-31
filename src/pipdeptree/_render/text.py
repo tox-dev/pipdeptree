@@ -3,7 +3,7 @@ from __future__ import annotations
 from itertools import chain
 from typing import TYPE_CHECKING, Any
 
-from pipdeptree._computed import format_computed_display
+from pipdeptree._computed import ComputedValues
 
 if TYPE_CHECKING:
     from pipdeptree._cli import RenderContext
@@ -159,13 +159,15 @@ def _build_suffix(
     node: DistPackage | ReqPackage,
     context: RenderContext,
     tree: PackageDAG,
+    *,
+    exclude: frozenset[str] = frozenset(),
 ) -> str:
     parts: list[str] = []
     if context.metadata:
         parts.extend(node.get_metadata_values(list(context.metadata)))
     if context.computed:
-        parts.extend(format_computed_display(node.key, context.computed, tree, context.full_tree))
-    return f" [{', '.join(parts)}]" if parts else ""
+        parts.extend(ComputedValues(node.key, tree, context.full_tree).format_display(context.computed, exclude))
+    return f" ({', '.join(parts)})" if parts else ""
 
 
 __all__ = ["get_top_level_nodes", "render_text"]

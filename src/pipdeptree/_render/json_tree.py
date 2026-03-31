@@ -4,7 +4,7 @@ import json
 from itertools import chain
 from typing import TYPE_CHECKING, Any
 
-from pipdeptree._computed import get_computed_values
+from pipdeptree._computed import ComputedValues
 from pipdeptree._models import ReqPackage
 
 if TYPE_CHECKING:
@@ -54,7 +54,7 @@ def render_json_tree(
         if context and context.metadata:
             d["metadata"] = node.get_metadata_dict(list(context.metadata))  # ty: ignore[invalid-assignment]
         if context and context.computed:
-            d["computed"] = get_computed_values(node.key, context.computed, tree, context.full_tree)  # ty: ignore[invalid-assignment]
+            d["computed"] = ComputedValues(node.key, tree, context.full_tree).as_dict(context.computed)  # ty: ignore[invalid-assignment]
 
         d["dependencies"] = [
             aux(c, parent=node, cur_chain=[*cur_chain, c.project_name])

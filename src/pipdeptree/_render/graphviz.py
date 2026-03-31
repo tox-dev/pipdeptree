@@ -134,7 +134,7 @@ def _build_reverse_graph(
             continue
         assert isinstance(dep_rev, ReqPackage)
         label = f"{dep_rev.project_name}\\n{dep_rev.installed_version}"
-        if extra := build_node_extra_label(dep_rev.key, context, tree, "\\n"):
+        if context and (extra := context.build_node_extra_label(dep_rev.key, tree, "\\n")):
             label += f"\\n{extra}"
         graph.node(dep_rev.key, label=label)
         if visited is None or visited[dep_rev.key] < max_depth:
@@ -158,7 +158,7 @@ def _build_forward_graph(
         if visited is not None and pkg.key not in visited:
             continue
         label = f"{pkg.project_name}\\n{pkg.version}"
-        if extra := build_node_extra_label(pkg.key, context, tree, "\\n"):
+        if context and (extra := context.build_node_extra_label(pkg.key, tree, "\\n")):
             label += f"\\n{extra}"
         graph.node(pkg.key, label=label)
         if visited is None or visited[pkg.key] < max_depth:

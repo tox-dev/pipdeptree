@@ -4,6 +4,7 @@ import re
 import sys
 from typing import TYPE_CHECKING
 
+from pipdeptree._computed import ComputedValues
 from pipdeptree._models.package import DistPackage, ReqPackage
 from pipdeptree._render.text import _build_suffix, get_top_level_nodes
 
@@ -111,13 +112,20 @@ def _format_node(
     """
     node_str = node.render(parent, frozen=False)
 
+    rich_exclude = frozenset({"unique-deps-names"})
+
     suffix = ""
     if context and context.active:
-        suffix = _build_suffix(node, context, tree)
+        suffix = _build_suffix(node, context, tree, exclude=rich_exclude)
 
     if parent is None:
         return _format_root_node(node_str, suffix)
-    return _format_branch_node(node_str, node, suffix)
+    is_unique = (
+        context is not None
+        and any(f.startswith("unique-deps") for f in context.computed)
+        and node.key in ComputedValues(parent.key, tree, context.full_tree if context else None).unique_deps
+    )
+    return _format_branch_node(node_str, node, suffix, is_unique=is_unique)
 
 
 def _format_root_node(node_str: str, suffix: str = "") -> str:
@@ -129,7 +137,9 @@ def _format_root_node(node_str: str, suffix: str = "") -> str:
     return f"[bold cyan]{name}[/bold cyan][dim]==[/dim][bold green]{version}[/bold green]{suffix_str}"
 
 
-def _format_branch_node(node_str: str, node: DistPackage | ReqPackage, suffix: str = "") -> str:
+def _format_branch_node(
+    node_str: str, node: DistPackage | ReqPackage, suffix: str = "", *, is_unique: bool = False
+) -> str:
     """Format a branch node (dependency)."""
     suffix_str = f" [dim blue]{suffix.strip()}[/dim blue]" if suffix else ""
     if isinstance(node, ReqPackage) and (
@@ -147,10 +157,10 @@ def _format_branch_node(node_str: str, node: DistPackage | ReqPackage, suffix: s
         )
     ):
         name, required, installed, extra = match.groups()
-        status_icon = _get_status_icon(node)
+        status_icon = _get_status_icon(node, is_unique=is_unique)
         extra_str = f" [magenta]\\[extra: {extra}][/magenta]" if extra else ""
         return (
-            f"{status_icon} [bold cyan]{name}[/bold cyan] "
+            f"{status_icon}[bold cyan]{name}[/bold cyan] "
             f"[dim]required:[/dim] [yellow]{required}[/yellow] "
             f"[dim]installed:[/dim] {_format_version(installed, node)}{extra_str}{suffix_str}"
         )
@@ -164,13 +174,16 @@ def _format_branch_node(node_str: str, node: DistPackage | ReqPackage, suffix: s
     )
 
 
-def _get_status_icon(node: ReqPackage) -> str:
+def _get_status_icon(node: ReqPackage, *, is_unique: bool = False) -> str:
     """Get a status icon for a requirement package."""
+    icons: list[str] = []
     if node.is_missing:
-        return "[bold red]✗[/bold red]"
-    if node.is_conflicting():
-        return "[bold yellow]⚠[/bold yellow]"
-    return "[bold green]✓[/bold green]"
+        icons.append("[bold red]✗[/bold red]")
+    elif node.is_conflicting():
+        icons.append("[bold yellow]⚠[/bold yellow]")
+    if is_unique:
+        icons.append("[bold yellow]⭐[/bold yellow]")
+    return "".join(f"{icon} " for icon in icons)
 
 
 def _format_version(version: str, node: ReqPackage) -> str:

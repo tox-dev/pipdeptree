@@ -3,7 +3,6 @@ from __future__ import annotations
 import itertools as it
 from typing import TYPE_CHECKING, Final
 
-from pipdeptree._computed import build_node_extra_label
 from pipdeptree._models import DistPackage, ReqPackage, ReversedPackageDAG
 
 if TYPE_CHECKING:
@@ -79,7 +78,7 @@ def _build_reversed_mermaid(
             package.project_name,
             "(missing)" if package.is_missing else package.installed_version,
         ]
-        if extra := build_node_extra_label(package.key, context, tree, "<br/>"):
+        if extra := context and context.build_node_extra_label(package.key, tree, "<br/>"):
             label_parts.append(extra)
         package_key = _mermaid_id(package.key, node_ids_map)
         nodes.add(f'{package_key}["{"<br/>".join(label_parts)}"]')
@@ -98,7 +97,7 @@ def _build_forward_mermaid(
 ) -> None:
     for package, dependencies in tree.items():
         label_parts = [package.project_name, package.version]
-        if extra := build_node_extra_label(package.key, context, tree, "<br/>"):
+        if extra := context and context.build_node_extra_label(package.key, tree, "<br/>"):
             label_parts.append(extra)
         package_key = _mermaid_id(package.key, node_ids_map)
         nodes.add(f'{package_key}["{"<br/>".join(label_parts)}"]')
