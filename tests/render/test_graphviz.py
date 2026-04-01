@@ -142,16 +142,14 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
     mock_open = mocker.patch("webbrowser.open")
 
     # Capture temp file creation
-    written_content = None
-    written_path = None
 
     class MockTempFile:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args, **kwargs) -> None:
             self._content = b""
             self._name = "/tmp/test_output.pdf"
             self._closed = False
 
-        def write(self, data):
+        def write(self, data) -> None:
             self._content += data
 
         @property
@@ -162,8 +160,6 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
             return self
 
         def __exit__(self, *args):
-            written_content = self._content
-            written_path = self._name
             self._closed = True
 
     mocker.patch("tempfile.NamedTemporaryFile", return_value=MockTempFile())

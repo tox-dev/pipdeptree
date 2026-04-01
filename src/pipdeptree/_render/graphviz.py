@@ -109,7 +109,7 @@ def print_graphviz(dump_output: str | bytes, *, output_format: str = "dot") -> N
             webbrowser.open(temp_path)
         except Exception:
             # If webbrowser fails, print a message
-            print(f"Could not open browser. Please open the file manually.", file=sys.stderr)  # noqa: T201
+            print("Could not open browser. Please open the file manually.", file=sys.stderr)  # noqa: T201
         return
 
     if isinstance(dump_output, str):
