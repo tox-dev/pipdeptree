@@ -126,3 +126,49 @@ def test_render_dot_with_depth_zero(example_dag: PackageDAG) -> None:
     assert "a [label=" in output
     assert "g [label=" in output
     assert "->" not in output
+
+
+def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:
+    """Test that binary output is written to a temp file when stdout is a tty."""
+    output = dump_graphviz(example_dag, output_format="pdf")
+    assert isinstance(output, bytes)
+
+    # Mock stdout.isatty() to return True
+    mock_stdout = mocker.patch.object(sys, "stdout")
+    mock_stdout.isatty.return_value = True
+    mock_stdout.fileno.return_value = 1
+
+    # Mock webbrowser.open to avoid actually opening a browser
+    mock_open = mocker.patch("webbrowser.open")
+
+    # Capture temp file creation
+    written_content = None
+    written_path = None
+
+    class MockTempFile:
+        def __init__(self, *args, **kwargs):
+            self._content = b""
+            self._name = "/tmp/test_output.pdf"
+            self._closed = False
+
+        def write(self, data):
+            self._content += data
+
+        @property
+        def name(self):
+            return self._name
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            written_content = self._content
+            written_path = self._name
+            self._closed = True
+
+    mocker.patch("tempfile.NamedTemporaryFile", return_value=MockTempFile())
+
+    print_graphviz(output, output_format="pdf")
+
+    # Verify that webbrowser.open was called with the temp file path
+    mock_open.assert_called_once_with("/tmp/test_output.pdf")
