@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from textwrap import dedent
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import pytest
 
@@ -142,24 +142,23 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
     mock_open = mocker.patch("webbrowser.open")
 
     # Capture temp file creation
-
     class MockTempFile:
-        def __init__(self, *args, **kwargs) -> None:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
             self._content = b""
-            self._name = "/tmp/test_output.pdf"
+            self._name = "/tmp/pipdeptree_test_output.pdf"  # noqa: S108  # Mock path for testing
             self._closed = False
 
-        def write(self, data) -> None:
+        def write(self, data: bytes) -> None:
             self._content += data
 
         @property
-        def name(self):
+        def name(self) -> str:
             return self._name
 
-        def __enter__(self):
+        def __enter__(self) -> Self:
             return self
 
-        def __exit__(self, *args):
+        def __exit__(self, *_args: object) -> None:
             self._closed = True
 
     mocker.patch("tempfile.NamedTemporaryFile", return_value=MockTempFile())
@@ -167,4 +166,4 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
     print_graphviz(output, output_format="pdf")
 
     # Verify that webbrowser.open was called with the temp file path
-    mock_open.assert_called_once_with("/tmp/test_output.pdf")
+    mock_open.assert_called_once_with("/tmp/pipdeptree_test_output.pdf")  # noqa: S108  # Mock path for testing

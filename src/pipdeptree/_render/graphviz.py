@@ -3,6 +3,8 @@ from __future__ import annotations
 import math
 import os
 import sys
+import tempfile
+import webbrowser
 from collections import deque
 from typing import TYPE_CHECKING
 
@@ -90,9 +92,6 @@ def print_graphviz(dump_output: str | bytes, *, output_format: str = "dot") -> N
     """
     # For binary formats when stdout is a terminal, write to temp file and open
     if isinstance(dump_output, bytes) and sys.stdout.isatty():
-        import tempfile
-        import webbrowser
-
         # Create temp file with appropriate extension
         extension = output_format if output_format != "dot" else "gv"
         with tempfile.NamedTemporaryFile(
@@ -107,7 +106,7 @@ def print_graphviz(dump_output: str | bytes, *, output_format: str = "dot") -> N
         # Try to open the file
         try:
             webbrowser.open(temp_path)
-        except Exception:
+        except OSError:
             # If webbrowser fails, print a message
             print("Could not open browser. Please open the file manually.", file=sys.stderr)  # noqa: T201
         return
