@@ -5,7 +5,6 @@ from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import pytest
-from typing_extensions import Self
 
 from pipdeptree._render.graphviz import dump_graphviz, print_graphviz
 
@@ -156,7 +155,7 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
         def name(self) -> str:
             return self._name
 
-        def __enter__(self) -> Self:
+        def __enter__(self) -> "MockTempFile":  # noqa: PYI034, UP037
             return self
 
         def __exit__(self, *_args: object) -> None:
