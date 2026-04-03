@@ -4,9 +4,8 @@ import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from typing_extensions import Self
-
 import pytest
+from typing_extensions import Self
 
 from pipdeptree._render.graphviz import dump_graphviz, print_graphviz
 
