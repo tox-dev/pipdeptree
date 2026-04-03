@@ -90,12 +90,9 @@ def print_graphviz(dump_output: str | bytes, *, output_format: str = "dot") -> N
     :param output_format: The output format (used to determine file extension)
 
     """
-    # For binary formats when stdout is a terminal, write to temp file and open
     if isinstance(dump_output, bytes) and sys.stdout.isatty():
-        # Create temp file with appropriate extension
-        extension = output_format if output_format != "dot" else "gv"
         with tempfile.NamedTemporaryFile(
-            suffix=f".{extension}",
+            suffix=f".{output_format}",
             delete=False,
         ) as temp_file:
             temp_file.write(dump_output)
@@ -103,11 +100,9 @@ def print_graphviz(dump_output: str | bytes, *, output_format: str = "dot") -> N
 
         print(f"Output written to: {temp_path}", file=sys.stderr)  # noqa: T201
 
-        # Try to open the file
         try:
             webbrowser.open(temp_path)
         except OSError:
-            # If webbrowser fails, print a message
             print("Could not open browser. Please open the file manually.", file=sys.stderr)  # noqa: T201
         return
 

@@ -168,3 +168,25 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
 
     # Verify that webbrowser.open was called with the temp file path
     mock_open.assert_called_once_with("/tmp/pipdeptree_test_output.pdf")  # noqa: S108  # Mock path for testing
+
+
+def test_print_graphviz_binary_non_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:
+    """Test that binary output is written directly to stdout when stdout is not a tty."""
+    output = dump_graphviz(example_dag, output_format="pdf")
+    assert isinstance(output, bytes)
+
+    # Mock stdout.isatty() to return False (non-tty, e.g., piped output)
+    mock_stdout = mocker.patch.object(sys, "stdout")
+    mock_stdout.isatty.return_value = False
+    mock_stdout.fileno.return_value = 1
+
+    # Mock fdopen to capture binary write
+    mock_fdopen = mocker.patch("os.fdopen")
+    mock_bytestream = mocker.MagicMock()
+    mock_fdopen.return_value.__enter__.return_value = mock_bytestream
+
+    print_graphviz(output, output_format="pdf")
+
+    # Verify that binary data was written to stdout
+    mock_fdopen.assert_called_once_with(1, "wb")
+    mock_bytestream.write.assert_called_once_with(output)
