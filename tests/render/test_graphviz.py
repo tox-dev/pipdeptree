@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import sys
 from textwrap import dedent
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING
+
+from typing_extensions import Self
 
 import pytest
 
