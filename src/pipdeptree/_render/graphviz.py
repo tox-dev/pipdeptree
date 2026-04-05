@@ -18,8 +18,7 @@ if TYPE_CHECKING:
 
 def render_graphviz(tree: PackageDAG, *, output_format: str, reverse: bool, max_depth: float = math.inf) -> None:
     output = dump_graphviz(tree, output_format=output_format, is_reverse=reverse, max_depth=max_depth)
-    # For binary formats, pass the format to print_graphviz for temp file extension
-    if output_format != "dot" and isinstance(output, bytes):
+    if isinstance(output, bytes):
         print_graphviz(output, output_format=output_format)
     else:
         print_graphviz(output)
@@ -99,9 +98,9 @@ def print_graphviz(dump_output: str | bytes, *, output_format: str = "dot") -> N
             temp_path = temp_file.name
 
         print(f"Binary output file written to: {temp_path}", file=sys.stderr)  # noqa: T201
-
+        print("Opening file with default application...", file=sys.stderr)  # noqa: T201
         if not webbrowser.open(temp_path):
-            print("Could not open browser. Please open the file manually.", file=sys.stderr)  # noqa: T201
+            print("Could not open file with default application. Please open it manually.", file=sys.stderr)  # noqa: T201
         return
 
     if isinstance(dump_output, str):
