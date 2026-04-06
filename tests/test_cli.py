@@ -77,6 +77,12 @@ def test_get_options_metadata() -> None:
     assert options.context.metadata == ["license", "summary"]
 
 
+def test_get_options_metadata_dedup() -> None:
+    options = get_options(["--metadata", "name,name"])
+    assert options.metadata == ["name"]
+    assert options.context.metadata == ["name"]
+
+
 def test_get_options_computed() -> None:
     options = get_options(["--computed", "size,unique-deps-count"])
     assert options.computed == ["size", "unique-deps-count"]

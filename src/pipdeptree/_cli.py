@@ -255,7 +255,9 @@ def get_options(args: Sequence[str] | None) -> Options:
     options.output_format = _handle_legacy_render_options(options)
     raw_metadata: str = cast("str", options.metadata)
     raw_computed: str = cast("str", options.computed)
-    options.metadata = [f.strip() for f in raw_metadata.split(",") if f.strip()] if raw_metadata else []
+    options.metadata = (
+        list(dict.fromkeys(f.strip() for f in raw_metadata.split(",") if f.strip())) if raw_metadata else []
+    )
     options.computed = [f.strip() for f in raw_computed.split(",") if f.strip()] if raw_computed else []
 
     if options.license:

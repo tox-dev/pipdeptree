@@ -55,7 +55,7 @@ class Package(ABC):
 
         return f"({', '.join(license_strs)})"
 
-    def get_metadata(self, field: str) -> str:
+    def get_metadata(self, field: str) -> str | list[str]:
         if field == "license":
             raw = self.licenses().strip("()")
             return raw if "license" in raw.lower() else f"{raw} License"
@@ -63,14 +63,24 @@ class Package(ABC):
             dist_metadata = metadata(self.key)
         except PackageNotFoundError:
             return "Unknown"
-        if value := dist_metadata[field]:
-            return str(value)
-        return "Unknown"
+        values = dist_metadata.get_all(field)
+        if not values:
+            return "Unknown"
+        if len(values) == 1:
+            return str(values[0])
+        return [str(v) for v in values]
 
     def get_metadata_values(self, fields: list[str]) -> list[str]:
-        return [self.get_metadata(f) for f in fields]
+        result: list[str] = []
+        for f in fields:
+            value = self.get_metadata(f)
+            if isinstance(value, list):
+                result.extend(value)
+            else:
+                result.append(value)
+        return result
 
-    def get_metadata_dict(self, fields: list[str]) -> dict[str, str]:
+    def get_metadata_dict(self, fields: list[str]) -> dict[str, str | list[str]]:
         return {field: self.get_metadata(field) for field in fields}
 
     @abstractmethod
