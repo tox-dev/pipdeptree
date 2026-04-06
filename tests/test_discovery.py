@@ -6,13 +6,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
+import pytest
 import virtualenv
 
 from pipdeptree.__main__ import main
-from pipdeptree._discovery import get_installed_distributions
+from pipdeptree._discovery import get_installed_distributions, has_valid_metadata
 
 if TYPE_CHECKING:
-    import pytest
     from pytest_mock import MockerFixture
 
 
@@ -181,6 +181,13 @@ def test_paths(fake_dist: Path) -> None:
     dists = get_installed_distributions(supplied_paths=mocked_path)
     assert len(dists) == 1
     assert dists[0].metadata["Name"] == "bar"
+
+
+@pytest.mark.parametrize("exc", [TypeError, FileNotFoundError])
+def test_has_valid_metadata_broken(exc: type[Exception]) -> None:
+    dist = Mock()
+    type(dist).metadata = property(lambda _: (_ for _ in ()).throw(exc))
+    assert has_valid_metadata(dist) is False
 
 
 def test_paths_when_in_virtual_env(tmp_path: Path, fake_dist: Path) -> None:

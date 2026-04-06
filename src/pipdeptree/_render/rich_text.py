@@ -47,6 +47,7 @@ def render_rich_text(
     for node in nodes:
         root_label = _format_node(node, parent=None, context=context, tree=tree)
         rich_tree = Tree(root_label, guide_style="bold bright_blue")
+        _add_metadata_leaves(node, rich_tree, context)
         _build_tree(tree, node, rich_tree, max_depth=max_depth, depth=0, cur_chain=[], context=context)
         console.print(rich_tree)
 
@@ -82,6 +83,7 @@ def _build_tree(  # noqa: PLR0913
 
         child_label = _format_node(child, parent=node, context=context, tree=tree)
         child_tree = rich_tree.add(child_label)
+        _add_metadata_leaves(child, child_tree, context)
 
         _build_tree(
             tree,
@@ -116,7 +118,13 @@ def _format_node(
 
     suffix = ""
     if context and context.active:
-        suffix = _build_suffix(node, context, tree, exclude=rich_exclude)
+        # Only include single-line, single-value metadata in the inline suffix;
+        # multi-value and multiline fields render as sub-tree leaves.
+        single_value_fields = [
+            f for f in context.metadata if not isinstance(v := node.get_metadata(f), list) and "\n" not in v
+        ]
+        filtered = context.with_metadata(single_value_fields)
+        suffix = _build_suffix(node, filtered, tree, exclude=rich_exclude)
 
     if parent is None:
         return _format_root_node(node_str, suffix)
@@ -126,6 +134,24 @@ def _format_node(
         and node.key in ComputedValues(parent.key, tree, context.full_tree if context else None).unique_deps
     )
     return _format_branch_node(node_str, node, suffix, is_unique=is_unique)
+
+
+def _add_metadata_leaves(
+    node: DistPackage | ReqPackage,
+    rich_tree: Tree,
+    context: RenderContext | None,
+) -> None:
+    """Add multi-value metadata fields as styled sub-tree leaves."""
+    if not context or not context.metadata:
+        return
+    for f in context.metadata:
+        value = node.get_metadata(f)
+        if isinstance(value, list):
+            field_tree = rich_tree.add(f"[dim]{f}[/dim]", guide_style="dim")
+            for v in value:
+                field_tree.add(f"[dim blue]{v}[/dim blue]")
+        elif "\n" in value:
+            rich_tree.add(f"[dim]{f}:[/dim]\n[dim blue]{value}[/dim blue]")
 
 
 def _format_root_node(node_str: str, suffix: str = "") -> str:

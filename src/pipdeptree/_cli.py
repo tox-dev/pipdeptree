@@ -66,6 +66,10 @@ class RenderContext:
                 parts.append(f"{field_key}: {field_value}")
         return separator.join(parts)
 
+    def with_metadata(self, metadata: list[str]) -> RenderContext:
+        """Return a copy with a different metadata field list."""
+        return RenderContext(metadata=metadata, computed=self.computed, full_tree=self.full_tree)
+
     @staticmethod
     def _get_metadata_label_parts(key: str, fields: list[str], tree: PackageDAG) -> list[str]:
         for pkg in tree:

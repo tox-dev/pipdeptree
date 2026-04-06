@@ -78,7 +78,7 @@ class Package(ABC):
                 result.extend(value)
             else:
                 result.append(value)
-        return result
+        return [r"\n".join(" ".join(line.split()) for line in v.splitlines()) for v in result]
 
     def get_metadata_dict(self, fields: list[str]) -> dict[str, str | list[str]]:
         return {field: self.get_metadata(field) for field in fields}

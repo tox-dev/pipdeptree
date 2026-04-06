@@ -466,3 +466,19 @@ def test_get_metadata_values(mocker: MockerFixture) -> None:
     mocker.patch.object(Package, "licenses", return_value="(MIT)")
     dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
     assert DistPackage(dist).get_metadata_values(["license"]) == ["MIT License"]
+
+
+def test_get_metadata_values_escapes_newlines(mocker: MockerFixture) -> None:
+    msg = Message()
+    msg["Description"] = "A long\nmulti-line\ndescription"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata_values(["Description"]) == [r"A long\nmulti-line\ndescription"]
+
+
+def test_get_metadata_dict_preserves_newlines(mocker: MockerFixture) -> None:
+    msg = Message()
+    msg["Description"] = "A long\nmulti-line\ndescription"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata_dict(["Description"]) == {"Description": "A long\nmulti-line\ndescription"}

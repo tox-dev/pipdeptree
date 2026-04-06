@@ -201,6 +201,16 @@ def test_format_display_size_raw(mock_pkgs: Callable[[MockGraph], Iterator[Mock]
     assert ComputedValues("a", dag).format_display(["size-raw"]) == ["5000"]
 
 
+def test_format_display_with_exclude(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:
+    dag = PackageDAG.from_pkgs(list(mock_pkgs({("a", "1.0"): []})))
+    mocker.patch(
+        "pipdeptree._computed.distribution",
+        return_value=MagicMock(files=["f"], locate_file=lambda _: "/dev/null"),
+    )
+    mocker.patch.object(ComputedValues, "_file_size", return_value=100)
+    assert ComputedValues("a", dag).format_display(["size"], exclude=frozenset({"size"})) == []
+
+
 def test_build_node_extra_label_inactive() -> None:
     dag = MagicMock(spec=PackageDAG)
     assert not RenderContext().build_node_extra_label("a", dag, ", ")
@@ -244,3 +254,12 @@ def test_build_node_extra_label_missing_metadata_field(
     mocker.patch("pipdeptree._models.package.Package.get_metadata_values", return_value=[])
     ctx = RenderContext(metadata=["Author"])
     assert not ctx.build_node_extra_label("a", dag, ", ")
+
+
+def test_build_node_extra_label_key_not_in_tree(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+) -> None:
+    graph: MockGraph = {("a", "1.0"): []}
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    ctx = RenderContext(metadata=["Summary"])
+    assert not ctx.build_node_extra_label("nonexistent", dag, ", ")
