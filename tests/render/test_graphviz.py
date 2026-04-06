@@ -126,3 +126,66 @@ def test_render_dot_with_depth_zero(example_dag: PackageDAG) -> None:
     assert "a [label=" in output
     assert "g [label=" in output
     assert "->" not in output
+
+
+def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:
+    """Test that binary output is written to a temp file when stdout is a tty."""
+    output = dump_graphviz(example_dag, output_format="pdf")
+    assert isinstance(output, bytes)
+
+    # Mock stdout.isatty() to return True
+    mock_stdout = mocker.patch.object(sys, "stdout")
+    mock_stdout.isatty.return_value = True
+    mock_stdout.fileno.return_value = 1
+
+    # Mock webbrowser.open to avoid actually opening a browser
+    mock_open = mocker.patch("webbrowser.open")
+
+    # Capture temp file creation
+    class MockTempFile:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            self._content = b""
+            self._name = "/tmp/pipdeptree_test_output.pdf"  # noqa: S108  # Mock path for testing
+            self._closed = False
+
+        def write(self, data: bytes) -> None:
+            self._content += data
+
+        @property
+        def name(self) -> str:
+            return self._name
+
+        def __enter__(self) -> "MockTempFile":  # noqa: PYI034, UP037
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            self._closed = True
+
+    mocker.patch("tempfile.NamedTemporaryFile", return_value=MockTempFile())
+
+    print_graphviz(output, output_format="pdf")
+
+    # Verify that webbrowser.open was called with the temp file path
+    mock_open.assert_called_once_with("/tmp/pipdeptree_test_output.pdf")  # noqa: S108  # Mock path for testing
+
+
+def test_print_graphviz_binary_non_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:
+    """Test that binary output is written directly to stdout when stdout is not a tty."""
+    output = dump_graphviz(example_dag, output_format="pdf")
+    assert isinstance(output, bytes)
+
+    # Mock stdout.isatty() to return False (non-tty, e.g., piped output)
+    mock_stdout = mocker.patch.object(sys, "stdout")
+    mock_stdout.isatty.return_value = False
+    mock_stdout.fileno.return_value = 1
+
+    # Mock fdopen to capture binary write
+    mock_fdopen = mocker.patch("os.fdopen")
+    mock_bytestream = mocker.MagicMock()
+    mock_fdopen.return_value.__enter__.return_value = mock_bytestream
+
+    print_graphviz(output, output_format="pdf")
+
+    # Verify that binary data was written to stdout
+    mock_fdopen.assert_called_once_with(1, "wb")
+    mock_bytestream.write.assert_called_once_with(output)
