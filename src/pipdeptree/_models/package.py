@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from importlib import import_module
-from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
+from importlib.metadata import Distribution, PackageMetadata, PackageNotFoundError, metadata, version
 from inspect import ismodule
 from typing import TYPE_CHECKING
 
@@ -27,45 +27,43 @@ class InvalidRequirementError(ValueError):
 class Package(ABC):
     """Abstract class for wrappers around objects that pip returns."""
 
-    UNKNOWN_LICENSE_STR = "(Unknown license)"
+    NA = "N/A"
+    UNKNOWN_LICENSE_STR = f"({NA})"
 
     def __init__(self, project_name: str) -> None:
         self.project_name = project_name
         self.key = canonicalize_name(project_name)
 
-    def licenses(self) -> str:
+    def _get_dist_metadata(self) -> PackageMetadata | None:
         try:
-            dist_metadata = metadata(self.key)
+            return metadata(self.key)
         except PackageNotFoundError:
+            return None
+
+    def licenses(self) -> str:
+        if (dist_metadata := self._get_dist_metadata()) is None:
             return self.UNKNOWN_LICENSE_STR
 
-        if license_str := dist_metadata[("License-Expression")]:
+        if license_str := dist_metadata["License-Expression"]:
             return f"({license_str})"
 
         license_strs: list[str] = []
-        classifiers = dist_metadata.get_all("Classifier", [])
-        for classifier in classifiers:
+        for classifier in dist_metadata.get_all("Classifier", []):
             line = str(classifier)
             if line.startswith("License"):
-                license_str = line.rsplit(":: ", 1)[-1]
-                license_strs.append(license_str)
+                license_strs.append(line.rsplit(":: ", 1)[-1])
 
-        if not license_strs:
-            return self.UNKNOWN_LICENSE_STR
-
-        return f"({', '.join(license_strs)})"
+        return f"({', '.join(license_strs)})" if license_strs else self.UNKNOWN_LICENSE_STR
 
     def get_metadata(self, field: str) -> str | list[str]:
         if field == "license":
             raw = self.licenses().strip("()")
             return raw if "license" in raw.lower() else f"{raw} License"
-        try:
-            dist_metadata = metadata(self.key)
-        except PackageNotFoundError:
-            return "Unknown"
+        if (dist_metadata := self._get_dist_metadata()) is None:
+            return self.NA
         values = dist_metadata.get_all(field)
         if not values:
-            return "Unknown"
+            return self.NA
         if len(values) == 1:
             return str(values[0])
         return [str(v) for v in values]
@@ -129,6 +127,9 @@ class DistPackage(Package):
         super().__init__(obj.metadata["Name"])
         self._obj = obj
         self.req = req
+
+    def _get_dist_metadata(self) -> PackageMetadata:
+        return self._obj.metadata
 
     def requires(self) -> Iterator[Requirement]:
         """
