@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import sys
+import warnings
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, ArgumentTypeError, Namespace
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
+
+from pipdeptree._computed import ComputedValues
 
 from .version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from pipdeptree._models import PackageDAG
 
 
 class Options(Namespace):
@@ -31,10 +37,50 @@ class Options(Namespace):
     depth: float
     encoding: str
     license: bool
+    metadata: list[str]
+    computed: list[str]
+    context: RenderContext
+
+
+@dataclass
+class RenderContext:
+    """Bundles metadata and computed fields that augment package display."""
+
+    metadata: list[str] = field(default_factory=list)
+    computed: list[str] = field(default_factory=list)
+    full_tree: PackageDAG | None = field(default=None, repr=False, compare=False)
+
+    @property
+    def active(self) -> bool:
+        return bool(self.metadata or self.computed)
+
+    def build_node_extra_label(self, key: str, tree: PackageDAG, separator: str) -> str:
+        if not self.active:
+            return ""
+        parts: list[str] = []
+        if self.metadata:
+            parts.extend(self._get_metadata_label_parts(key, self.metadata, tree))
+        if self.computed:
+            computed = ComputedValues(key, tree, self.full_tree)
+            for field_key, field_value in computed.as_dict(self.computed).items():
+                parts.append(f"{field_key}: {field_value}")
+        return separator.join(parts)
+
+    def with_metadata(self, metadata: list[str]) -> RenderContext:
+        """Return a copy with a different metadata field list."""
+        return RenderContext(metadata=metadata, computed=self.computed, full_tree=self.full_tree)
+
+    @staticmethod
+    def _get_metadata_label_parts(key: str, fields: list[str], tree: PackageDAG) -> list[str]:
+        for pkg in tree:
+            if pkg.key == key:
+                return pkg.get_metadata_values(fields)
+        return []
 
 
 # NOTE: graphviz-* has been intentionally left out. Users of this var should handle it separately.
 ALLOWED_RENDER_FORMATS = ["freeze", "json", "json-tree", "mermaid", "rich", "text"]
+ALLOWED_COMPUTED_FIELDS = frozenset({"size", "size-raw", "unique-deps-count", "unique-deps-names", "unique-deps-size"})
 
 
 class _Formatter(ArgumentDefaultsHelpFormatter):
@@ -147,7 +193,22 @@ def build_parser() -> ArgumentParser:
     render.add_argument(
         "--license",
         action="store_true",
-        help="list the license(s) of a package (text and rich render only)",
+        help="(Deprecated, use --metadata license) list the license(s) of a package",
+    )
+    render.add_argument(
+        "-m",
+        "--metadata",
+        default="",
+        help="comma separated list of metadata fields to display from the package METADATA file"
+        " (e.g. license,summary,author,home-page,requires-python)",
+        metavar="M",
+    )
+    render.add_argument(
+        "-c",
+        "--computed",
+        default="",
+        help=f"comma separated list of computed fields to display: {', '.join(sorted(ALLOWED_COMPUTED_FIELDS))}",
+        metavar="C",
     )
 
     render_type = render.add_mutually_exclusive_group()
@@ -196,11 +257,27 @@ def get_options(args: Sequence[str] | None) -> Options:
     options = cast("Options", parsed_args)
 
     options.output_format = _handle_legacy_render_options(options)
+    raw_metadata: str = cast("str", options.metadata)
+    raw_computed: str = cast("str", options.computed)
+    options.metadata = (
+        list(dict.fromkeys(f.strip() for f in raw_metadata.split(",") if f.strip())) if raw_metadata else []
+    )
+    options.computed = [f.strip() for f in raw_computed.split(",") if f.strip()] if raw_computed else []
+
+    if options.license:
+        if "license" in options.metadata:
+            return parser.error("cannot use --license with --metadata license")
+        warnings.warn("--license is deprecated, use --metadata license instead", DeprecationWarning, stacklevel=1)
+        options.metadata = ["license", *options.metadata]
+
+    if invalid := set(options.computed) - ALLOWED_COMPUTED_FIELDS:
+        allowed = ", ".join(sorted(ALLOWED_COMPUTED_FIELDS))
+        return parser.error(f"invalid --computed values: {', '.join(sorted(invalid))}. Allowed: {allowed}")
+
+    options.context = RenderContext(metadata=options.metadata, computed=options.computed)
 
     if options.exclude_dependencies and not options.exclude:
         return parser.error("must use --exclude-dependencies with --exclude")
-    if options.license and options.freeze:
-        return parser.error("cannot use --license with --freeze")
     if options.path and (options.local_only or options.user_only):
         return parser.error("cannot use --path with --user-only or --local-only")
 

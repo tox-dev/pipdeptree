@@ -48,6 +48,9 @@ def main(args: Sequence[str] | None = None) -> int | None:
 
     validate(tree)
 
+    if options.context.active:
+        options.context.full_tree = tree
+
     # Reverse the tree (if applicable) before filtering, thus ensuring, that the filter will be applied on ReverseTree
     if options.reverse:
         tree = tree.reverse()

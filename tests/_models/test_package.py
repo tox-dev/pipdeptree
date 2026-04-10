@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from email.message import Message
 from importlib.metadata import PackageNotFoundError
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock
@@ -372,3 +373,112 @@ def test_dist_package_edge_label_with_extra() -> None:
     rp = ReqPackage(bar_req, extra="signedtoken")
     dp = DistPackage(foo).as_parent_of(rp)
     assert dp.edge_label == "[signedtoken] >=4.0"
+
+
+def test_get_metadata_license(mocker: MockerFixture) -> None:
+    mocker.patch.object(Package, "licenses", return_value="(MIT)")
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata("license") == "MIT License"
+
+
+def test_get_metadata_arbitrary_field(mocker: MockerFixture) -> None:
+
+    msg = Message()
+    msg["Summary"] = "A package"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata("Summary") == "A package"
+
+
+def test_get_metadata_missing_field(mocker: MockerFixture) -> None:
+
+    mocker.patch("pipdeptree._models.package.metadata", return_value=Message())
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata("Nonexistent") == "Unknown"
+
+
+def test_get_metadata_unknown_package(mocker: MockerFixture) -> None:
+    mocker.patch("pipdeptree._models.package.metadata", side_effect=PackageNotFoundError("x"))
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata("Summary") == "Unknown"
+
+
+def test_get_metadata_dict(mocker: MockerFixture) -> None:
+
+    mocker.patch.object(Package, "licenses", return_value="(MIT)")
+    msg = Message()
+    msg["Summary"] = "A package"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    result = DistPackage(dist).get_metadata_dict(["license", "Summary"])
+    assert result == {"license": "MIT License", "Summary": "A package"}
+
+
+def test_get_metadata_multi_value(mocker: MockerFixture) -> None:
+
+    msg = Message()
+    msg["Classifier"] = "Development Status :: 5 - Production/Stable"
+    msg["Classifier"] = "License :: OSI Approved :: MIT License"
+    msg["Classifier"] = "Programming Language :: Python :: 3"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    result = DistPackage(dist).get_metadata("Classifier")
+    assert result == [
+        "Development Status :: 5 - Production/Stable",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3",
+    ]
+
+
+def test_get_metadata_values_with_multi_value(mocker: MockerFixture) -> None:
+
+    msg = Message()
+    msg["Classifier"] = "Development Status :: 5 - Production/Stable"
+    msg["Classifier"] = "License :: OSI Approved :: MIT License"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+    mocker.patch.object(Package, "licenses", return_value="(MIT)")
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    result = DistPackage(dist).get_metadata_values(["license", "Classifier"])
+    assert result == [
+        "MIT License",
+        "Development Status :: 5 - Production/Stable",
+        "License :: OSI Approved :: MIT License",
+    ]
+
+
+def test_get_metadata_dict_with_multi_value(mocker: MockerFixture) -> None:
+
+    msg = Message()
+    msg["Classifier"] = "Development Status :: 5 - Production/Stable"
+    msg["Classifier"] = "License :: OSI Approved :: MIT License"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    result = DistPackage(dist).get_metadata_dict(["Classifier"])
+    assert result == {
+        "Classifier": [
+            "Development Status :: 5 - Production/Stable",
+            "License :: OSI Approved :: MIT License",
+        ],
+    }
+
+
+def test_get_metadata_values(mocker: MockerFixture) -> None:
+    mocker.patch.object(Package, "licenses", return_value="(MIT)")
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata_values(["license"]) == ["MIT License"]
+
+
+def test_get_metadata_values_escapes_newlines(mocker: MockerFixture) -> None:
+    msg = Message()
+    msg["Description"] = "A long\nmulti-line\ndescription"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata_values(["Description"]) == [r"A long\nmulti-line\ndescription"]
+
+
+def test_get_metadata_dict_preserves_newlines(mocker: MockerFixture) -> None:
+    msg = Message()
+    msg["Description"] = "A long\nmulti-line\ndescription"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
+    assert DistPackage(dist).get_metadata_dict(["Description"]) == {"Description": "A long\nmulti-line\ndescription"}

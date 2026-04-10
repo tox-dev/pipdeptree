@@ -244,25 +244,65 @@ Use ``-d 0`` to show only top-level packages with no dependencies:
     pytest-cov==7.0.0
     rich==14.3.3
 
-License display
----------------
+Package metadata
+----------------
 
-Show the license metadata for each package (text and rich output only):
+Display metadata fields from the package's ``METADATA`` file with ``--metadata`` (``-m``). Pass a comma-separated list
+of field names. Metadata is shown on every package in the tree in parentheses:
 
 .. code-block:: console
 
-    $ pipdeptree --license --packages pytest,rich
-    pytest==9.0.2 (MIT)
-    ├── iniconfig [required: >=1.0.1, installed: 2.3.0]
-    ├── packaging [required: >=22, installed: 26.0]
-    ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
-    └── Pygments [required: >=2.7.2, installed: 2.19.2]
+    $ pipdeptree --metadata license --packages rich
     rich==14.3.3 (MIT License)
-    ├── markdown-it-py [required: >=2.2.0, installed: 4.0.0]
+    ├── markdown-it-py [required: >=2.2.0, installed: 4.0.0] (MIT License)
+    │   └── mdurl [required: ~=0.1, installed: 0.1.2] (MIT License)
+    └── Pygments [required: >=2.13.0,<3.0.0, installed: 2.19.2] (BSD License)
+
+Multiple fields can be combined:
+
+.. code-block:: console
+
+    $ pipdeptree --metadata license,summary --packages rich -d 0
+    rich==14.3.3 (MIT License, Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal)
+
+Common metadata fields: ``license``, ``summary``, ``author``, ``author-email``, ``home-page``, ``requires-python``.
+Any field from the package's ``METADATA`` file is accepted.
+
+.. note::
+
+   The ``--license`` flag still works for backwards compatibility but is deprecated. Use ``--metadata license``
+   instead.
+
+Computed fields
+---------------
+
+Display computed package information with ``--computed`` (``-c``):
+
+- ``size`` -- installed size on disk (human-readable)
+- ``size-raw`` -- installed size in bytes (integer, useful for JSON output)
+- ``unique-deps-count`` -- number of dependencies exclusive to this package (hidden when 0)
+- ``unique-deps-names`` -- names of dependencies exclusive to this package (hidden when empty)
+- ``unique-deps-size`` -- total installed size of exclusive dependencies (hidden when 0)
+
+Unique dependencies are transitive: if removing a package would orphan a dependency, and that orphaned dependency
+would in turn orphan its own dependencies, all of them are counted. In rich output, unique dependencies are marked
+with a ⭐ icon (alongside ✗ or ⚠ if applicable).
+
+.. code-block:: console
+
+    $ pipdeptree --computed size --packages rich -d 0
+    rich==14.3.3 (1.2 MB)
+
+.. code-block:: console
+
+    $ pipdeptree --computed unique-deps-count,unique-deps-names,unique-deps-size --packages rich
+    rich==14.3.3 (2 unique deps, unique: markdown-it-py | mdurl, unique size: 248.2 KB)
+    ├── markdown-it-py [required: >=2.2.0, installed: 4.0.0] (1 unique deps, unique: mdurl, unique size: 22.9 KB)
     │   └── mdurl [required: ~=0.1, installed: 0.1.2]
     └── Pygments [required: >=2.13.0,<3.0.0, installed: 2.19.2]
 
-The license is shown in parentheses after the version on the top-level package line.
+Both ``--metadata`` and ``--computed`` can be combined and work with all output formats. In JSON output, ``size_raw``
+and ``unique_deps_count`` are native integers, ``unique_deps_names`` is a list of strings.
 
 Including extras
 ----------------

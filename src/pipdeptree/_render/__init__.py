@@ -18,18 +18,22 @@ if TYPE_CHECKING:
 def render(options: Options, tree: PackageDAG) -> None:
     output_format = options.output_format
     if output_format == "json":
-        render_json(tree)
+        render_json(tree, context=options.context)
     elif output_format == "json-tree":
-        render_json_tree(tree)
+        render_json_tree(tree, context=options.context)
     elif output_format == "mermaid":
-        render_mermaid(tree)
+        render_mermaid(tree, context=options.context)
     elif output_format == "freeze":
         render_freeze(tree, max_depth=options.depth, list_all=options.all)
     elif output_format == "rich":
-        render_rich_text(tree, max_depth=options.depth, list_all=options.all, include_license=options.license)
+        render_rich_text(tree, max_depth=options.depth, list_all=options.all, context=options.context)
     elif output_format.startswith("graphviz-"):
         render_graphviz(
-            tree, output_format=output_format[len("graphviz-") :], reverse=options.reverse, max_depth=options.depth
+            tree,
+            output_format=output_format[len("graphviz-") :],
+            reverse=options.reverse,
+            max_depth=options.depth,
+            context=options.context,
         )
     else:
         render_text(
@@ -37,7 +41,7 @@ def render(options: Options, tree: PackageDAG) -> None:
             max_depth=options.depth,
             encoding=options.encoding,
             list_all=options.all,
-            include_license=options.license,
+            context=options.context,
         )
 
 

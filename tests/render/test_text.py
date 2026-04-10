@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
 
+from pipdeptree._cli import RenderContext
 from pipdeptree._models import PackageDAG
 from pipdeptree._models.package import Package
 from pipdeptree._render.text import render_text
@@ -11,6 +13,8 @@ from pipdeptree._render.text import render_text
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
     from unittest.mock import Mock
+
+    from pytest_mock import MockerFixture
 
     from tests.conftest import MockDistMaker
     from tests.our_types import MockGraph
@@ -478,19 +482,19 @@ def test_render_text_list_all_and_packages_options_used(
         (
             "utf-8",
             [
-                "a==3.4.0 (TEST)",
-                "└── c [required: ==1.0.0, installed: 1.0.0]",
-                "b==2.3.1 (TEST)",
-                "c==1.0.0 (TEST)",
+                "a==3.4.0 (TEST License)",
+                "└── c [required: ==1.0.0, installed: 1.0.0] (TEST License)",
+                "b==2.3.1 (TEST License)",
+                "c==1.0.0 (TEST License)",
             ],
         ),
         (
             "ascii",
             [
-                "a==3.4.0 (TEST)",
-                "  - c [required: ==1.0.0, installed: 1.0.0]",
-                "b==2.3.1 (TEST)",
-                "c==1.0.0 (TEST)",
+                "a==3.4.0 (TEST License)",
+                "  - c [required: ==1.0.0, installed: 1.0.0] (TEST License)",
+                "b==2.3.1 (TEST License)",
+                "c==1.0.0 (TEST License)",
             ],
         ),
     ],
@@ -508,9 +512,9 @@ def test_render_text_with_license_info(
         ("c", "1.0.0"): [],
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    monkeypatch.setattr(Package, "licenses", lambda _: "(TEST)")
+    monkeypatch.setattr(Package, "licenses", lambda _: "(TEST License)")
 
-    render_text(dag, max_depth=float("inf"), encoding=encoding, include_license=True)
+    render_text(dag, max_depth=float("inf"), encoding=encoding, context=RenderContext(metadata=["license"]))
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
 
@@ -521,25 +525,25 @@ def test_render_text_with_license_info(
         (
             "utf-8",
             [
-                "a==3.4.0 (TEST)",
-                "b==2.3.1 (TEST)",
-                "└── a==3.4.0 [requires: b==2.3.1]",
-                "c==1.0.0 (TEST)",
-                "├── a==3.4.0 [requires: c==1.0.0]",
-                "└── b==2.3.1 [requires: c==1.0.0]",
-                "    └── a==3.4.0 [requires: b==2.3.1]",
+                "a==3.4.0 (TEST License)",
+                "b==2.3.1 (TEST License)",
+                "└── a==3.4.0 [requires: b==2.3.1] (TEST License)",
+                "c==1.0.0 (TEST License)",
+                "├── a==3.4.0 [requires: c==1.0.0] (TEST License)",
+                "└── b==2.3.1 [requires: c==1.0.0] (TEST License)",
+                "    └── a==3.4.0 [requires: b==2.3.1] (TEST License)",
             ],
         ),
         (
             "ascii",
             [
-                "a==3.4.0 (TEST)",
-                "b==2.3.1 (TEST)",
-                "  - a==3.4.0 [requires: b==2.3.1]",
-                "c==1.0.0 (TEST)",
-                "  - a==3.4.0 [requires: c==1.0.0]",
-                "  - b==2.3.1 [requires: c==1.0.0]",
-                "    - a==3.4.0 [requires: b==2.3.1]",
+                "a==3.4.0 (TEST License)",
+                "b==2.3.1 (TEST License)",
+                "  - a==3.4.0 [requires: b==2.3.1] (TEST License)",
+                "c==1.0.0 (TEST License)",
+                "  - a==3.4.0 [requires: c==1.0.0] (TEST License)",
+                "  - b==2.3.1 [requires: c==1.0.0] (TEST License)",
+                "    - a==3.4.0 [requires: b==2.3.1] (TEST License)",
             ],
         ),
     ],
@@ -558,11 +562,29 @@ def test_render_text_with_license_info_and_reversed_tree(
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     dag = dag.reverse()
-    monkeypatch.setattr(Package, "licenses", lambda _: "(TEST)")
+    monkeypatch.setattr(Package, "licenses", lambda _: "(TEST License)")
 
-    render_text(dag, max_depth=float("inf"), encoding=encoding, include_license=True)
+    render_text(dag, max_depth=float("inf"), encoding=encoding, context=RenderContext(metadata=["license"]))
     captured = capsys.readouterr()
     assert "\n".join(expected_output).strip() == captured.out.strip()
+
+
+def test_render_text_with_computed(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    capsys: pytest.CaptureFixture[str],
+    mocker: MockerFixture,
+) -> None:
+    graph: MockGraph = {
+        ("a", "1.0"): [("b", [(">=", "1.0")])],
+        ("b", "1.0"): [],
+    }
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    mocker.patch("pipdeptree._computed.distribution", return_value=MagicMock(files=None))
+    render_text(
+        dag, max_depth=float("inf"), encoding="utf-8", context=RenderContext(computed=["size", "unique-deps-count"])
+    )
+    output = capsys.readouterr().out
+    assert "(0 B, 1 unique deps)" in output
 
 
 @pytest.mark.parametrize("encoding", [pytest.param("utf-8", id="unicode"), pytest.param("ascii", id="simple")])

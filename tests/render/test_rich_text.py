@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import sys
+from email.message import Message
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
 
+from pipdeptree._cli import RenderContext
 from pipdeptree._models import PackageDAG
 from pipdeptree._models.package import Package
 from pipdeptree._render.rich_text import render_rich_text
@@ -29,7 +32,7 @@ def test_render_rich_text_missing_import(mocker: MockerFixture, example_dag: Pac
 @pytest.mark.parametrize(
     ("list_all", "expected"),
     [
-        pytest.param(True, ["a==3.4.0", "b==2.3.1", "c==5.10.0", "✓", "required:", "installed:"], id="list-all"),
+        pytest.param(True, ["a==3.4.0", "b==2.3.1", "c==5.10.0", "required:", "installed:"], id="list-all"),
         pytest.param(False, ["a==3.4.0", "g==6.8.3rc1"], id="not-list-all"),
     ],
 )
@@ -73,10 +76,10 @@ def test_render_rich_text_with_license_info(
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     monkeypatch.setattr(Package, "licenses", lambda _: "(TEST)")
 
-    render_rich_text(dag, max_depth=float("inf"), include_license=True)
+    render_rich_text(dag, max_depth=float("inf"), context=RenderContext(metadata=["license"]))
     output = capsys.readouterr().out
     assert "a==3.4.0" in output
-    assert "(TEST)" in output
+    assert "(TEST License)" in output
 
 
 def test_render_rich_text_with_extras(capsys: pytest.CaptureFixture[str], make_mock_dist: MockDistMaker) -> None:
@@ -128,7 +131,7 @@ def test_render_rich_text_with_circular_deps(
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     render_rich_text(dag, max_depth=float("inf"))
     output = capsys.readouterr().out
-    expected = ["a==1.0.0", "b==1.0.0", "✓"]
+    expected = ["a==1.0.0", "b==1.0.0"]
     for item in expected:
         assert item in output
 
@@ -154,7 +157,7 @@ def test_render_rich_text_with_circular_deps(
                 ("a", "1.0.0"): [("b", [(">=", "1.0.0"), ("<", "2.0.0")])],
                 ("b", "1.5.0"): [],
             },
-            ["✓", "b", ">=1.0.0,<2.0.0", "1.5.0"],
+            ["b", ">=1.0.0,<2.0.0", "1.5.0"],
             id="satisfied",
         ),
     ],
@@ -171,3 +174,58 @@ def test_render_rich_text_dependency_status(
     output = capsys.readouterr().out
     for item in expected:
         assert item in output
+
+
+def test_render_rich_text_multi_value_metadata(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    capsys: pytest.CaptureFixture[str],
+    mocker: MockerFixture,
+) -> None:
+    pytest.importorskip("rich")
+    graph: MockGraph = {("a", "1.0.0"): []}
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    msg = Message()
+    msg["Classifier"] = "Development Status :: 5 - Production/Stable"
+    msg["Classifier"] = "License :: OSI Approved :: MIT License"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+
+    render_rich_text(dag, max_depth=float("inf"), context=RenderContext(metadata=["Classifier"]))
+    output = capsys.readouterr().out
+    assert "Classifier" in output
+    assert "Development Status :: 5 - Production/Stable" in output
+    assert "License :: OSI Approved :: MIT License" in output
+
+
+def test_render_rich_text_multiline_metadata(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    capsys: pytest.CaptureFixture[str],
+    mocker: MockerFixture,
+) -> None:
+    pytest.importorskip("rich")
+    graph: MockGraph = {("a", "1.0.0"): []}
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    msg = Message()
+    msg["Description"] = "Line one\nLine two\nLine three"
+    mocker.patch("pipdeptree._models.package.metadata", return_value=msg)
+
+    render_rich_text(dag, max_depth=float("inf"), context=RenderContext(metadata=["Description"]))
+    output = capsys.readouterr().out
+    assert "Description" in output
+    assert "Line one" in output
+    assert "Line two" in output
+
+
+def test_render_rich_text_unique_dep_icon(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    capsys: pytest.CaptureFixture[str],
+    mocker: MockerFixture,
+) -> None:
+    pytest.importorskip("rich")
+    # b is only used by a, so it's a unique dep
+    graph: MockGraph = {("a", "1.0.0"): [("b", [(">=", "1.0")])], ("b", "1.0.0"): []}
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    mocker.patch("pipdeptree._computed.distribution", return_value=MagicMock(files=None))
+    ctx = RenderContext(computed=["unique-deps-count"])
+    render_rich_text(dag, max_depth=float("inf"), context=ctx)
+    output = capsys.readouterr().out
+    assert "⭐" in output
