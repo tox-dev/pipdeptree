@@ -58,7 +58,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
     ) -> PackageDAG:
         warning_printer = get_warning_printer()
         dist_pkgs = [DistPackage(p) for p in pkgs]
-        idx = {p.key: p for p in dist_pkgs}
+        idx: dict[str, DistPackage] = {p.key: p for p in dist_pkgs}
         pkg_deps: dict[DistPackage, list[ReqPackage]] = {}
         dist_name_to_invalid_reqs_dict: dict[str, list[str]] = {}
         for pkg in dist_pkgs:
