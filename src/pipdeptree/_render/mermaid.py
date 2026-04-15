@@ -78,7 +78,7 @@ def _build_reversed_mermaid(
             package.project_name,
             "(missing)" if package.is_missing else package.installed_version,
         ]
-        if extra := context and context.build_node_extra_label(package.key, tree, "<br/>"):
+        if context and (extra := context.build_node_extra_label(package.key, tree, "<br/>")):
             label_parts.append(extra)
         package_key = _mermaid_id(package.key, node_ids_map)
         nodes.add(f'{package_key}["{"<br/>".join(label_parts)}"]')
@@ -97,7 +97,7 @@ def _build_forward_mermaid(
 ) -> None:
     for package, dependencies in tree.items():
         label_parts = [package.project_name, package.version]
-        if extra := context and context.build_node_extra_label(package.key, tree, "<br/>"):
+        if context and (extra := context.build_node_extra_label(package.key, tree, "<br/>")):
             label_parts.append(extra)
         package_key = _mermaid_id(package.key, node_ids_map)
         nodes.add(f'{package_key}["{"<br/>".join(label_parts)}"]')
