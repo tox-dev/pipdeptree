@@ -192,6 +192,35 @@ def test_package_dag_reverse(example_dag: PackageDAG) -> None:
     assert all(isinstance(v, ReqPackage) for v in chain.from_iterable(t2.values()))
 
 
+@pytest.mark.parametrize(
+    ("in_place"),
+    [
+        pytest.param(False, id="shallow-copy"),
+        pytest.param(True, id="in-place"),
+    ],
+)
+def test_package_dag_sort(in_place: bool, mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+    unsorted_graph: MockGraph = {
+        ("a", "1.2.3"): [("c", [(">=", "1.0.0")]), ("b", [(">=", "2.0.0")])],
+        ("b", "4.5.6"): [("b", [(">=", "2.0.0")])],
+        ("c", "1.0.0"): [],
+    }
+
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(unsorted_graph)))
+    a_children_unsorted = dag.get_children("a")
+    assert [child.key for child in a_children_unsorted] == ["c", "b"]
+
+    result = dag.sort(in_place=in_place)
+
+    if in_place:
+        assert result is dag
+    else:
+        assert result is not dag
+
+    a_children_sorted = result.get_children("a")
+    assert [child.key for child in a_children_sorted] == ["b", "c"]
+
+
 def test_package_dag_from_pkgs(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
     # when pip's _vendor.packaging.requirements.Requirement's requires() gives a lowercased package name but the actual
     # package name in PyPI is mixed case, expect the mixed case version
