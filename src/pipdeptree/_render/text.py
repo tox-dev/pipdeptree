@@ -39,12 +39,12 @@ def render_text(
 
 def get_top_level_nodes(tree: PackageDAG, *, list_all: bool) -> list[DistPackage]:
     """
-    Get a list of nodes that will appear at the first depth of the dependency tree.
+    Get a list of nodes that will appear at the first depth of the dependency tree. This also sorts `tree` in-place.
 
     :param tree: the package tree
     :param list_all: whether to list all the pkgs at the root level or only those that are the sub-dependencies
     """
-    tree = tree.sort()
+    tree = tree.sort(in_place=True)
     nodes = list(tree.keys())
     branch_keys = {r.key for r in chain.from_iterable(tree.values())}
 
