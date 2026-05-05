@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from collections import defaultdict, deque
 from collections.abc import Iterator, Mapping
+from enum import Enum, auto
 from fnmatch import fnmatch
 from itertools import chain
 from typing import TYPE_CHECKING
@@ -422,6 +423,11 @@ def _collect_satisfied_extras(
     return extras_needed
 
 
+class _Action(Enum):
+    SUCCESS = auto()
+    FAIL = auto()
+
+
 class _Frame:
     __slots__ = ("key", "req_idx", "reqs", "sub_extras", "sub_idx", "used_assumption")
 
@@ -517,11 +523,11 @@ class _ExtrasResolver:
         scope_cache: dict[tuple[str, str], bool],
     ) -> tuple[bool, bool] | None:
         action = self._step(frame)
-        if action is _SUCCESS:
+        if action is _Action.SUCCESS:
             result = self._finalize(frame, result=True, scope_cache=scope_cache)
             stack.pop()
             return result
-        if action is _FAIL:
+        if action is _Action.FAIL:
             result = self._finalize(frame, result=False, scope_cache=scope_cache)
             stack.pop()
             return result
@@ -558,7 +564,7 @@ class _ExtrasResolver:
             return None
         return _Frame((pkg_key, extra_name), reqs)
 
-    def _step(self, frame: _Frame) -> object:
+    def _step(self, frame: _Frame) -> _Action | tuple[str, str]:
         # Empty sub_extras for a req are skipped here so the caller never sees a no-op resolve.
         while True:
             if frame.req_idx >= 0 and frame.sub_idx < len(frame.sub_extras):
@@ -566,10 +572,10 @@ class _ExtrasResolver:
                 return dep_key, frame.sub_extras[frame.sub_idx]
             frame.req_idx += 1
             if frame.req_idx >= len(frame.reqs):
-                return _SUCCESS
+                return _Action.SUCCESS
             req, _, dep_key = frame.reqs[frame.req_idx]
             if dep_key not in self._idx:
-                return _FAIL
+                return _Action.FAIL
             frame.sub_extras = tuple(req.extras)
             frame.sub_idx = 0
 
@@ -586,10 +592,6 @@ class _ExtrasResolver:
         else:
             self._cache[frame.key] = result
         return result, frame.used_assumption
-
-
-_SUCCESS = object()
-_FAIL = object()
 
 
 def _extra_is_satisfied(
