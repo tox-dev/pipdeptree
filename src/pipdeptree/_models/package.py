@@ -184,8 +184,11 @@ class DistPackage(Package):
                     yield req, extra, dep_key
                     break
 
-    @property
+    @cached_property
     def version(self) -> str:
+        # Cached because each access reparses the METADATA file on the underlying Distribution and
+        # the renderer reads it once per occurrence in the tree (tens of thousands of times for
+        # large environments under --extras).
         return self._obj.version
 
     def unwrap(self) -> Distribution:
