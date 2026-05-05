@@ -12,6 +12,8 @@ from packaging.utils import canonicalize_name
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
 
+    from packaging.requirements import Requirement
+
 
 from pipdeptree._warning import get_warning_printer
 
@@ -370,6 +372,9 @@ def _resolve_extras(pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str
     for pkg_key, extras in _collect_satisfied_extras(pkg_deps, idx).items():
         extras_needed.setdefault(pkg_key, set()).update(extras)
     processed: dict[str, set[str]] = {}
+    # The same (parent, child, extra) triple can be reached through multiple req.extras propagation
+    # paths across rounds; without dedup it would be appended once per path.
+    seen_edges: set[tuple[str, str, str]] = set()
     while extras_needed:
         next_round: dict[str, set[str]] = {}
         for pkg_key, extras in extras_needed.items():
@@ -380,10 +385,13 @@ def _resolve_extras(pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str
             dist_pkg = idx.get(pkg_key)
             if dist_pkg is None or dist_pkg not in pkg_deps:
                 continue
-            for req, extra_name in dist_pkg.requires_for_extras(frozenset(new_extras)):
-                dist = idx.get(canonicalize_name(req.name))
-                if dist is None:
+            for req, extra_name, dep_key in dist_pkg.requires_for_extras(frozenset(new_extras)):
+                if (dist := idx.get(dep_key)) is None:
                     continue
+                edge_key = (dist_pkg.key, dist.key, extra_name)
+                if edge_key in seen_edges:
+                    continue
+                seen_edges.add(edge_key)
                 req.name = dist.project_name
                 pkg_deps[dist_pkg].append(ReqPackage(req, dist, extra=extra_name))
                 if req.extras:
@@ -405,12 +413,183 @@ def _collect_satisfied_extras(
     pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage]
 ) -> dict[str, set[str]]:
     """Collect extras whose dependencies are all installed in the environment."""
+    resolver = _ExtrasResolver(pkg_deps, idx)
     extras_needed: dict[str, set[str]] = {}
     for dist_pkg in pkg_deps:
         for extra_name in dist_pkg.provides_extras:
-            if _extra_is_satisfied(dist_pkg.key, extra_name, pkg_deps, idx, set()):
+            if resolver.is_satisfied(dist_pkg.key, extra_name):
                 extras_needed.setdefault(dist_pkg.key, set()).add(extra_name)
     return extras_needed
+
+
+class _Frame:
+    __slots__ = ("key", "req_idx", "reqs", "sub_extras", "sub_idx", "used_assumption")
+
+    def __init__(self, key: tuple[str, str], reqs: list[tuple[Requirement, str, str]]) -> None:
+        self.key = key
+        self.reqs = reqs
+        self.req_idx = -1
+        self.sub_extras: tuple[str, ...] = ()
+        self.sub_idx = 0
+        self.used_assumption = False
+
+
+class _ExtrasResolver:
+    """
+    A shared cache amortizes satisfaction queries across an environment.
+
+    Without sharing the global cache, the same subgraphs would be re-walked O(N) times for an
+    N-node graph because each top-level query starts from scratch.
+    """
+
+    def __init__(
+        self,
+        pkg_deps: dict[DistPackage, list[ReqPackage]],
+        idx: dict[str, DistPackage],
+    ) -> None:
+        self._pkg_deps = pkg_deps
+        self._idx = idx
+        self._cache: dict[tuple[str, str], bool] = {}
+        self._in_progress: set[tuple[str, str]] = set()
+
+    def is_satisfied(self, pkg_key: str, extra_name: str) -> bool:
+        # Without a per-query scope cache, dense extras graphs cause exponential re-exploration of
+        # the same subgraphs through alternative paths.
+        result, _ = self._resolve(pkg_key, extra_name, {})
+        return result
+
+    def _resolve(
+        self,
+        pkg_key: str,
+        extra_name: str,
+        scope_cache: dict[tuple[str, str], bool],
+    ) -> tuple[bool, bool]:
+        # Iterative rather than recursive because extras chains can exceed Python's default 1000
+        # recursion limit and a cyclic SCC's stack grows with the SCC size.
+        # Tentative results (those that relied on the optimistic cycle assumption) live only in
+        # scope_cache because re-evaluating them as a top-level query may yield a different answer.
+        root_key = (pkg_key, extra_name)
+        if (shortcut := self._lookup(root_key, scope_cache)) is not None:
+            return shortcut
+        initial = self._build_frame(pkg_key, extra_name)
+        if initial is None:
+            self._cache[root_key] = False
+            return False, False
+
+        self._in_progress.add(root_key)
+        stack: list[_Frame] = [initial]
+        pending: tuple[bool, bool] | None = None
+        while stack:
+            frame = stack[-1]
+            if pending is not None:
+                pending = self._fold_pending(frame, pending, stack, scope_cache)
+                if pending is not None:
+                    continue
+            pending = self._advance(frame, stack, scope_cache)
+
+        assert pending is not None
+        return pending
+
+    def _fold_pending(
+        self,
+        frame: _Frame,
+        pending: tuple[bool, bool],
+        stack: list[_Frame],
+        scope_cache: dict[tuple[str, str], bool],
+    ) -> tuple[bool, bool] | None:
+        # None signals "advance frame"; a returned tuple bubbles a finished result up. The dual
+        # protocol exists so the caller's loop can distinguish in-progress from completed frames
+        # without an extra flag.
+        satisfied, used = pending
+        if used:
+            frame.used_assumption = True
+        if not satisfied:
+            result = self._finalize(frame, result=False, scope_cache=scope_cache)
+            stack.pop()
+            return result
+        frame.sub_idx += 1
+        return None
+
+    def _advance(
+        self,
+        frame: _Frame,
+        stack: list[_Frame],
+        scope_cache: dict[tuple[str, str], bool],
+    ) -> tuple[bool, bool] | None:
+        action = self._step(frame)
+        if action is _SUCCESS:
+            result = self._finalize(frame, result=True, scope_cache=scope_cache)
+            stack.pop()
+            return result
+        if action is _FAIL:
+            result = self._finalize(frame, result=False, scope_cache=scope_cache)
+            stack.pop()
+            return result
+        sub_key = action
+        if (shortcut := self._lookup(sub_key, scope_cache)) is not None:
+            return shortcut
+        sub_frame = self._build_frame(sub_key[0], sub_key[1])
+        if sub_frame is None:
+            self._cache[sub_key] = False
+            return False, False
+        self._in_progress.add(sub_key)
+        stack.append(sub_frame)
+        return None
+
+    def _lookup(
+        self,
+        key: tuple[str, str],
+        scope_cache: dict[tuple[str, str], bool],
+    ) -> tuple[bool, bool] | None:
+        if (cached := self._cache.get(key)) is not None:
+            return cached, False
+        if (scoped := scope_cache.get(key)) is not None:
+            return scoped, True
+        if key in self._in_progress:
+            return True, True
+        return None
+
+    def _build_frame(self, pkg_key: str, extra_name: str) -> _Frame | None:
+        dist_pkg = self._idx.get(pkg_key)
+        if dist_pkg is None or dist_pkg not in self._pkg_deps:
+            return None
+        reqs = list(dist_pkg.requires_for_extras(frozenset({extra_name})))
+        if not reqs:
+            return None
+        return _Frame((pkg_key, extra_name), reqs)
+
+    def _step(self, frame: _Frame) -> object:
+        # Empty sub_extras for a req are skipped here so the caller never sees a no-op resolve.
+        while True:
+            if frame.req_idx >= 0 and frame.sub_idx < len(frame.sub_extras):
+                _, _, dep_key = frame.reqs[frame.req_idx]
+                return dep_key, frame.sub_extras[frame.sub_idx]
+            frame.req_idx += 1
+            if frame.req_idx >= len(frame.reqs):
+                return _SUCCESS
+            req, _, dep_key = frame.reqs[frame.req_idx]
+            if dep_key not in self._idx:
+                return _FAIL
+            frame.sub_extras = tuple(req.extras)
+            frame.sub_idx = 0
+
+    def _finalize(
+        self,
+        frame: _Frame,
+        *,
+        result: bool,
+        scope_cache: dict[tuple[str, str], bool],
+    ) -> tuple[bool, bool]:
+        self._in_progress.discard(frame.key)
+        if frame.used_assumption:
+            scope_cache[frame.key] = result
+        else:
+            self._cache[frame.key] = result
+        return result, frame.used_assumption
+
+
+_SUCCESS = object()
+_FAIL = object()
 
 
 def _extra_is_satisfied(
@@ -418,21 +597,8 @@ def _extra_is_satisfied(
     extra_name: str,
     pkg_deps: dict[DistPackage, list[ReqPackage]],
     idx: dict[str, DistPackage],
-    visited: set[tuple[str, str]],
 ) -> bool:
-    if (pkg_key, extra_name) in visited:
-        return True
-    visited.add((pkg_key, extra_name))
-    if (dist_pkg := idx.get(pkg_key)) is None or dist_pkg not in pkg_deps:
-        return False
-    if not (reqs := list(dist_pkg.requires_for_extras(frozenset({extra_name})))):
-        return False
-    for req, _ in reqs:
-        if (dep_key := canonicalize_name(req.name)) not in idx:
-            return False
-        if not all(_extra_is_satisfied(dep_key, sub_extra, pkg_deps, idx, visited) for sub_extra in req.extras):
-            return False
-    return True
+    return _ExtrasResolver(pkg_deps, idx).is_satisfied(pkg_key, extra_name)
 
 
 __all__ = [

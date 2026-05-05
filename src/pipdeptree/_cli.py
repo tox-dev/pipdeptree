@@ -143,7 +143,11 @@ def build_parser() -> ArgumentParser:
         "--extras",
         action="store_true",
         default=False,
-        help="include optional (extras) dependencies in the tree",
+        help=(
+            "include optional (extras) dependencies in the tree; an extra is included when it is "
+            "explicitly requested (e.g. ``foo[bar]``) or when every dependency the extra would "
+            "require is already installed"
+        ),
     )
 
     scope = select.add_mutually_exclusive_group()

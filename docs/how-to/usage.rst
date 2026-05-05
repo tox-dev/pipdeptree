@@ -320,3 +320,16 @@ Show optional (extras) dependencies in the tree with ``--extras`` (``-x``):
 
 Without ``--extras``, only mandatory dependencies are shown. Packages that declare optional dependency groups (extras)
 will have those additional dependencies included when this flag is set.
+
+Edges added through an extra are annotated with that extra's name:
+
+.. code-block:: console
+
+    $ pipdeptree --extras --packages oauthlib
+    oauthlib==3.0.0
+    ├── cryptography [required: Any, installed: 2.7, extra: signedtoken]
+    └── pyjwt [required: >=1.0.0, installed: 1.7.1, extra: signedtoken]
+
+An extra is included not only when a parent explicitly requested it (e.g. ``oauthlib[signedtoken]``)
+but also when every dependency that the extra would require is already installed in the
+environment. See :doc:`/explanation` for the rationale.

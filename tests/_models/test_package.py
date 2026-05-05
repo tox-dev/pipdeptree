@@ -248,10 +248,10 @@ def test_requires_for_extras_yields_matching(make_mock_dist: MockDistMaker) -> N
     dp = DistPackage(dist)
     results = list(dp.requires_for_extras(frozenset({"signedtoken"})))
     assert len(results) == 2
+    assert results[0] == (results[0][0], "signedtoken", "cryptography")
     assert results[0][0].name == "cryptography"
-    assert results[0][1] == "signedtoken"
+    assert results[1] == (results[1][0], "signedtoken", "pyjwt")
     assert results[1][0].name == "pyjwt"
-    assert results[1][1] == "signedtoken"
 
 
 def test_requires_for_extras_skips_non_matching(make_mock_dist: MockDistMaker) -> None:
@@ -304,6 +304,25 @@ def test_requires_for_extras_skips_invalid_requirements(make_mock_dist: MockDist
     results = list(dp.requires_for_extras(frozenset({"dev"})))
     assert len(results) == 1
     assert results[0][0].name == "bar"
+
+
+def test_requires_for_extras_no_extras_provided(make_mock_dist: MockDistMaker) -> None:
+    # The cached index must short-circuit when Provides-Extra is empty so unrelated environments stay cheap.
+    dist = make_mock_dist("foo", "1.0.0", requires=["bar ; extra == 'never'"])
+    dp = DistPackage(dist)
+    assert list(dp.requires_for_extras(frozenset({"never"}))) == []
+
+
+def test_requires_for_extras_marker_matches_no_declared_extra(make_mock_dist: MockDistMaker) -> None:
+    # Reqs gated by extras not in Provides-Extra must not be reported, otherwise typos in metadata leak edges.
+    dist = make_mock_dist(
+        "foo",
+        "1.0.0",
+        requires=["bar ; extra == 'undeclared'"],
+        provides_extras=["dev"],
+    )
+    dp = DistPackage(dist)
+    assert list(dp.requires_for_extras(frozenset({"dev"}))) == []
 
 
 def test_req_package_render_as_branch_with_extra() -> None:
