@@ -413,9 +413,7 @@ def test_dag_extras_dedupes_identical_metadata_entries(make_mock_dist: MockDistM
     assert len(leaf_edges) == 1
 
 
-def test_dag_extras_scope_cache_dedupes_cyclic_paths(make_mock_dist: MockDistMaker) -> None:
-    # Multiple branches in a cycle converge on the same (pkg, extra) — without the per-query scope
-    # cache, the convergent node would be re-walked for each path.
+def test_dag_extras_cyclic_convergent_paths_resolve_correctly(make_mock_dist: MockDistMaker) -> None:
     pkgs = [
         make_mock_dist(
             "a-pkg",

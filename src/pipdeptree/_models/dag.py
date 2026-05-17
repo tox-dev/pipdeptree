@@ -459,23 +459,14 @@ class _ExtrasResolver:
         self._in_progress: set[tuple[str, str]] = set()
 
     def is_satisfied(self, pkg_key: str, extra_name: str) -> bool:
-        # Without a per-query scope cache, dense extras graphs cause exponential re-exploration of
-        # the same subgraphs through alternative paths.
-        result, _ = self._resolve(pkg_key, extra_name, {})
+        result, _ = self._resolve(pkg_key, extra_name)
         return result
 
-    def _resolve(
-        self,
-        pkg_key: str,
-        extra_name: str,
-        scope_cache: dict[tuple[str, str], bool],
-    ) -> tuple[bool, bool]:
+    def _resolve(self, pkg_key: str, extra_name: str) -> tuple[bool, bool]:
         # Iterative rather than recursive because extras chains can exceed Python's default 1000
         # recursion limit and a cyclic SCC's stack grows with the SCC size.
-        # Tentative results (those that relied on the optimistic cycle assumption) live only in
-        # scope_cache because re-evaluating them as a top-level query may yield a different answer.
         root_key = (pkg_key, extra_name)
-        if (shortcut := self._lookup(root_key, scope_cache)) is not None:
+        if (shortcut := self._lookup(root_key)) is not None:
             return shortcut
         initial = self._build_frame(pkg_key, extra_name)
         if initial is None:
@@ -488,10 +479,10 @@ class _ExtrasResolver:
         while stack:
             frame = stack[-1]
             if pending is not None:
-                pending = self._fold_pending(frame, pending, stack, scope_cache)
+                pending = self._fold_pending(frame, pending, stack)
                 if pending is not None:
                     continue
-            pending = self._advance(frame, stack, scope_cache)
+            pending = self._advance(frame, stack)
 
         assert pending is not None
         return pending
@@ -501,7 +492,6 @@ class _ExtrasResolver:
         frame: _Frame,
         pending: tuple[bool, bool],
         stack: list[_Frame],
-        scope_cache: dict[tuple[str, str], bool],
     ) -> tuple[bool, bool] | None:
         # None signals "advance frame"; a returned tuple bubbles a finished result up. The dual
         # protocol exists so the caller's loop can distinguish in-progress from completed frames
@@ -510,29 +500,24 @@ class _ExtrasResolver:
         if used:
             frame.used_assumption = True
         if not satisfied:
-            result = self._finalize(frame, result=False, scope_cache=scope_cache)
+            result = self._finalize(frame, result=False)
             stack.pop()
             return result
         frame.sub_idx += 1
         return None
 
-    def _advance(
-        self,
-        frame: _Frame,
-        stack: list[_Frame],
-        scope_cache: dict[tuple[str, str], bool],
-    ) -> tuple[bool, bool] | None:
+    def _advance(self, frame: _Frame, stack: list[_Frame]) -> tuple[bool, bool] | None:
         action = self._step(frame)
         if action is _Action.SUCCESS:
-            result = self._finalize(frame, result=True, scope_cache=scope_cache)
+            result = self._finalize(frame, result=True)
             stack.pop()
             return result
         if action is _Action.FAIL:
-            result = self._finalize(frame, result=False, scope_cache=scope_cache)
+            result = self._finalize(frame, result=False)
             stack.pop()
             return result
         sub_key = action
-        if (shortcut := self._lookup(sub_key, scope_cache)) is not None:
+        if (shortcut := self._lookup(sub_key)) is not None:
             return shortcut
         sub_frame = self._build_frame(sub_key[0], sub_key[1])
         if sub_frame is None:
@@ -542,15 +527,9 @@ class _ExtrasResolver:
         stack.append(sub_frame)
         return None
 
-    def _lookup(
-        self,
-        key: tuple[str, str],
-        scope_cache: dict[tuple[str, str], bool],
-    ) -> tuple[bool, bool] | None:
+    def _lookup(self, key: tuple[str, str]) -> tuple[bool, bool] | None:
         if (cached := self._cache.get(key)) is not None:
             return cached, False
-        if (scoped := scope_cache.get(key)) is not None:
-            return scoped, True
         if key in self._in_progress:
             return True, True
         return None
@@ -579,17 +558,9 @@ class _ExtrasResolver:
             frame.sub_extras = tuple(req.extras)
             frame.sub_idx = 0
 
-    def _finalize(
-        self,
-        frame: _Frame,
-        *,
-        result: bool,
-        scope_cache: dict[tuple[str, str], bool],
-    ) -> tuple[bool, bool]:
+    def _finalize(self, frame: _Frame, *, result: bool) -> tuple[bool, bool]:
         self._in_progress.discard(frame.key)
-        if frame.used_assumption:
-            scope_cache[frame.key] = result
-        else:
+        if not frame.used_assumption:
             self._cache[frame.key] = result
         return result, frame.used_assumption
 
