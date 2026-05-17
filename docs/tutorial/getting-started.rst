@@ -142,5 +142,7 @@ Limit the tree depth:
 Next steps
 ----------
 
-See :doc:`/how-to/usage` for filtering, virtualenv support, and warning control. See :doc:`/how-to/output-formats` for
-all available output formats including JSON, Mermaid, and Graphviz.
+See :doc:`/how-to/usage` for filtering, virtualenv support, warning control, and how to surface
+optional (extras) dependencies. See :doc:`/how-to/output-formats` for all available output formats
+including JSON, Mermaid, and Graphviz. See :doc:`/explanation` for how pipdeptree decides when an
+optional dependency edge is "active".

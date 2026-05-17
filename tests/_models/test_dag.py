@@ -389,4 +389,79 @@ def test_extra_is_satisfied_pkg_in_index_but_not_in_dag(make_mock_dist: MockDist
     dist = DistPackage(make_mock_dist("pkg", "1.0.0", provides_extras=["feat"], requires=["dep ; extra == 'feat'"]))
     idx: dict[str, DistPackage] = {"pkg": dist}
     empty_dag: dict[DistPackage, list[ReqPackage]] = {}
-    assert not _extra_is_satisfied("pkg", "feat", empty_dag, idx, set())
+    assert not _extra_is_satisfied("pkg", "feat", empty_dag, idx)
+
+
+def test_dag_extras_dedupes_identical_metadata_entries(make_mock_dist: MockDistMaker) -> None:
+    # Without dedup, malformed metadata with repeated Requires-Dist entries would yield repeated edges.
+    pkgs = [
+        make_mock_dist(
+            "parent",
+            "1.0.0",
+            requires=["child[feat]"],
+        ),
+        make_mock_dist(
+            "child",
+            "1.0.0",
+            requires=["leaf ; extra == 'feat'", "leaf ; extra == 'feat'"],
+            provides_extras=["feat"],
+        ),
+        make_mock_dist("leaf", "1.0.0"),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    leaf_edges = [d for d in dag.get_children("child") if d.key == "leaf"]
+    assert len(leaf_edges) == 1
+
+
+def test_dag_extras_cyclic_convergent_paths_resolve_correctly(make_mock_dist: MockDistMaker) -> None:
+    pkgs = [
+        make_mock_dist(
+            "a-pkg",
+            "1.0.0",
+            requires=["b-pkg[y] ; extra == 'x'", "c-pkg[y] ; extra == 'x'"],
+            provides_extras=["x"],
+        ),
+        make_mock_dist("b-pkg", "1.0.0", requires=["a-pkg[x] ; extra == 'y'"], provides_extras=["y"]),
+        make_mock_dist("c-pkg", "1.0.0", requires=["b-pkg[y] ; extra == 'y'"], provides_extras=["y"]),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    assert {d.key for d in dag.get_children("a-pkg")} == {"b-pkg", "c-pkg"}
+
+
+def test_dag_extras_resolver_caches_acyclic_results(make_mock_dist: MockDistMaker) -> None:
+    # Two independent satisfied extras exercise the global cache path, not just the per-query scope cache.
+    pkgs = [
+        make_mock_dist("alpha", "1.0.0", requires=["shared ; extra == 'a'"], provides_extras=["a"]),
+        make_mock_dist("beta", "1.0.0", requires=["shared ; extra == 'b'"], provides_extras=["b"]),
+        make_mock_dist("shared", "1.0.0"),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    assert {d.key for d in dag.get_children("alpha")} == {"shared"}
+    assert {d.key for d in dag.get_children("beta")} == {"shared"}
+
+
+def test_dag_extras_unsatisfiable_sub_extra_does_not_activate_parent(make_mock_dist: MockDistMaker) -> None:
+    # Parent's extra requires a sub-package's extra that has no requirements gated behind it; that
+    # sub-extra is vacuously unsatisfied, so parent's extra must also count as unsatisfied.
+    pkgs = [
+        make_mock_dist("parent", "1.0.0", requires=["child[empty] ; extra == 'feat'"], provides_extras=["feat"]),
+        make_mock_dist("child", "1.0.0", provides_extras=["empty"]),
+    ]
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    assert dag.get_children("parent") == []
+
+
+def test_dag_extras_resolves_chains_deeper_than_recursion_limit(make_mock_dist: MockDistMaker) -> None:
+    # An extras chain longer than Python's default recursion limit must still resolve; a recursive
+    # implementation of the satisfaction check would raise RecursionError here.
+    chain_length = 1500
+    pkgs: list[Any] = [make_mock_dist("leaf", "1.0.0")]
+    pkgs.append(
+        make_mock_dist(f"l{chain_length - 1}", "1.0.0", requires=["leaf ; extra == 'x'"], provides_extras=["x"])
+    )
+    pkgs.extend(
+        make_mock_dist(f"l{i}", "1.0.0", requires=[f"l{i + 1}[x] ; extra == 'x'"], provides_extras=["x"])
+        for i in range(chain_length - 1)
+    )
+    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    assert {dep.key for dep in dag.get_children("l0")} == {"l1"}
