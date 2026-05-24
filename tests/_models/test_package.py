@@ -206,6 +206,69 @@ def test_req_package_is_conflicting_handle_dev_versions() -> None:
     assert not rp.is_conflicting()
 
 
+def test_req_package_is_conflicting_exact_match() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=SpecifierSet("==4.1.0"))
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar)
+    assert not rp.is_conflicting()
+
+
+def test_req_package_is_conflicting_out_of_range() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=SpecifierSet("<4.0.0"))
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar)
+    assert rp.is_conflicting()
+
+
+def test_req_package_is_conflicting_when_version_unknown(mocker: MockerFixture) -> None:
+    mocker.patch("pipdeptree._models.package.version", side_effect=PackageNotFoundError)
+    mocker.patch("pipdeptree._models.package.import_module", side_effect=ImportError)
+    bar_req = MagicMock(specifier=SpecifierSet(">=4.0"))
+    bar_req.name = "missing-pkg"
+    rp = ReqPackage(bar_req)
+    assert rp.installed_version == "?"
+    assert rp.is_conflicting()
+
+
+def test_req_package_is_missing_with_known_version() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar)
+    assert not rp.is_missing
+
+
+def test_req_package_is_missing_with_unknown_version(mocker: MockerFixture) -> None:
+    mocker.patch("pipdeptree._models.package.version", side_effect=PackageNotFoundError)
+    mocker.patch("pipdeptree._models.package.import_module", side_effect=ImportError)
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "missing-pkg"
+    rp = ReqPackage(bar_req)
+    assert rp.is_missing
+
+
+def test_req_package_installed_version_unknown_on_import_error(mocker: MockerFixture) -> None:
+    mocker.patch("pipdeptree._models.package.version", side_effect=PackageNotFoundError)
+    mocker.patch("pipdeptree._models.package.import_module", side_effect=ImportError)
+    r = MagicMock()
+    r.name = "not-installed-pkg"
+    assert ReqPackage(r).installed_version == "?"
+
+
+def test_req_package_installed_version_unknown_no_version_attr(mocker: MockerFixture) -> None:
+    mocker.patch("pipdeptree._models.package.version", side_effect=PackageNotFoundError)
+
+    class FakeModule:
+        pass
+
+    mocker.patch("pipdeptree._models.package.import_module", return_value=FakeModule())
+    r = MagicMock()
+    r.name = "no-version-pkg"
+    assert ReqPackage(r).installed_version == "?"
+
+
 def test_req_package_as_dict() -> None:
     bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
     bar_req = MagicMock(specifier=[">=4.0"])
