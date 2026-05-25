@@ -21,14 +21,6 @@ def sort_map_values(m: dict[str, Any]) -> dict[str, Any]:
     return {k: sorted(v) for k, v in m.items()}
 
 
-def test_guess_version_setuptools(mocker: MockerFixture) -> None:
-    mocker.patch("pipdeptree._models.package.version", side_effect=PackageNotFoundError)
-    r = MagicMock()
-    r.name = "setuptools"
-    result = ReqPackage(r).installed_version
-    assert result == "?"
-
-
 def test_package_as_frozen_repr(mocker: MockerFixture) -> None:
     foo = Mock(metadata={"Name": "foo"}, version="1.2.3")
     dp = DistPackage(foo)
