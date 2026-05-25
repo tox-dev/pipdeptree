@@ -291,9 +291,6 @@ class ReqPackage(Package):
                 return version(self.key)
             except PackageNotFoundError:
                 pass
-            # Avoid AssertionError with setuptools, see https://github.com/tox-dev/pipdeptree/issues/162
-            if self.key == "setuptools":
-                return self.UNKNOWN_VERSION
             try:
                 m = import_module(self.key)
             except ImportError:
