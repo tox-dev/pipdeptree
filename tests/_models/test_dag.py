@@ -10,8 +10,10 @@ from pipdeptree._models.dag import IncludeExcludeOverlapError, IncludePatternNot
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
+    from importlib.metadata import Distribution
     from unittest.mock import Mock
 
+    from pipdeptree._models.dag import ExtrasMode
     from tests.conftest import MockDistMaker
     from tests.our_types import MockGraph
 
@@ -266,7 +268,7 @@ def test_package_from_pkgs_given_invalid_requirements(
     )
 
 
-def _build_extras_dag(make_mock_dist: MockDistMaker, *, include_extras: bool = True) -> PackageDAG:
+def _build_extras_dag(make_mock_dist: MockDistMaker, *, extras: ExtrasMode = "active") -> PackageDAG:
     pkgs = [
         make_mock_dist("jira", "2.0.0", requires=["oauthlib[signedtoken]>=1.0.0", "requests>=2.10.0"]),
         make_mock_dist(
@@ -279,28 +281,29 @@ def _build_extras_dag(make_mock_dist: MockDistMaker, *, include_extras: bool = T
         make_mock_dist("cryptography", "2.7"),
         make_mock_dist("pyjwt", "1.7.1"),
     ]
-    return PackageDAG.from_pkgs(pkgs, include_extras=include_extras)
+    return PackageDAG.from_pkgs(pkgs, extras=extras)
 
 
-def test_dag_extras_includes_extra_deps(make_mock_dist: MockDistMaker) -> None:
-    dag = _build_extras_dag(make_mock_dist, include_extras=True)
+@pytest.mark.parametrize(
+    ("extras", "shown"),
+    [
+        pytest.param("active", True, id="active"),
+        pytest.param("explicit", True, id="explicit"),
+        pytest.param("none", False, id="none"),
+    ],
+)
+def test_dag_extras_requested_deps_by_mode(make_mock_dist: MockDistMaker, extras: ExtrasMode, shown: bool) -> None:
+    dag = _build_extras_dag(make_mock_dist, extras=extras)
     dep_keys = {dep.key for dep in dag.get_children("oauthlib")}
-    assert "cryptography" in dep_keys
-    assert "pyjwt" in dep_keys
+    assert ("cryptography" in dep_keys) is shown
+    assert ("pyjwt" in dep_keys) is shown
 
 
 def test_dag_extras_annotates_extra_name(make_mock_dist: MockDistMaker) -> None:
-    dag = _build_extras_dag(make_mock_dist, include_extras=True)
+    dag = _build_extras_dag(make_mock_dist, extras="active")
     extra_deps = [dep for dep in dag.get_children("oauthlib") if dep.extra is not None]
     assert len(extra_deps) == 2
     assert all(dep.extra == "signedtoken" for dep in extra_deps)
-
-
-def test_dag_without_extras_excludes_extra_deps(make_mock_dist: MockDistMaker) -> None:
-    dag = _build_extras_dag(make_mock_dist, include_extras=False)
-    dep_keys = {dep.key for dep in dag.get_children("oauthlib")}
-    assert "cryptography" not in dep_keys
-    assert "pyjwt" not in dep_keys
 
 
 def test_dag_extras_skips_missing_deps(make_mock_dist: MockDistMaker) -> None:
@@ -308,21 +311,35 @@ def test_dag_extras_skips_missing_deps(make_mock_dist: MockDistMaker) -> None:
         make_mock_dist("parent", "1.0.0", requires=["child[feat]"]),
         make_mock_dist("child", "1.0.0", requires=["ghost ; extra == 'feat'"], provides_extras=["feat"]),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     assert len(dag.get_children("child")) == 0
 
 
-def test_dag_extras_includes_satisfied_extras(make_mock_dist: MockDistMaker) -> None:
-    pkgs = [
+@pytest.fixture
+def satisfied_only_pkgs(make_mock_dist: MockDistMaker) -> list[Distribution]:
+    return [
         make_mock_dist(
             "myapp", "1.0.0", requires=["requests>=2.0", "pytest ; extra == 'test'"], provides_extras=["test"]
         ),
         make_mock_dist("requests", "2.22.0"),
         make_mock_dist("pytest", "7.0.0"),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+
+
+@pytest.mark.parametrize(
+    ("extras", "pytest_shown"),
+    [
+        pytest.param("active", True, id="active-infers-satisfied"),
+        pytest.param("explicit", False, id="explicit-skips-satisfied"),
+    ],
+)
+def test_dag_extras_satisfied_only_depends_on_mode(
+    satisfied_only_pkgs: list[Distribution], extras: ExtrasMode, pytest_shown: bool
+) -> None:
+    # pytest is installed but never requested as myapp[test]; only active mode infers it.
+    dag = PackageDAG.from_pkgs(satisfied_only_pkgs, extras=extras)
     dep_keys = {dep.key for dep in dag.get_children("myapp")}
-    assert "pytest" in dep_keys
+    assert ("pytest" in dep_keys) is pytest_shown
     assert "requests" in dep_keys
 
 
@@ -330,7 +347,7 @@ def test_dag_extras_skips_unsatisfied_extras(make_mock_dist: MockDistMaker) -> N
     pkgs = [
         make_mock_dist("myapp", "1.0.0", requires=["missing-dep ; extra == 'feat'"], provides_extras=["feat"]),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     assert len(dag.get_children("myapp")) == 0
 
 
@@ -340,7 +357,7 @@ def test_dag_extras_satisfied_on_transitive_package(make_mock_dist: MockDistMake
         make_mock_dist("middle", "1.0.0", requires=["bottom ; extra == 'feat'"], provides_extras=["feat"]),
         make_mock_dist("bottom", "1.0.0"),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     dep_keys = {dep.key for dep in dag.get_children("middle")}
     assert "bottom" in dep_keys
 
@@ -350,7 +367,7 @@ def test_dag_extras_satisfied_checks_sub_extras(make_mock_dist: MockDistMaker) -
         make_mock_dist("outer", "1.0.0", requires=["inner[feat] ; extra == 'feat'"], provides_extras=["feat"]),
         make_mock_dist("inner", "1.0.0", requires=["leaf ; extra == 'feat'"], provides_extras=["feat"]),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     assert len(dag.get_children("outer")) == 0
 
 
@@ -361,7 +378,7 @@ def test_dag_extras_transitive(make_mock_dist: MockDistMaker) -> None:
         make_mock_dist("c-pkg", "1.0.0", requires=["d-pkg ; extra == 'y'"], provides_extras=["y"]),
         make_mock_dist("d-pkg", "1.0.0"),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     dep_keys = {dep.key for dep in dag.get_children("c-pkg")}
     assert "d-pkg" in dep_keys
 
@@ -372,14 +389,14 @@ def test_dag_extras_cyclic_terminates(make_mock_dist: MockDistMaker) -> None:
         make_mock_dist("b-pkg", "1.0.0", requires=["c-pkg[y] ; extra == 'x'"], provides_extras=["x"]),
         make_mock_dist("c-pkg", "1.0.0", requires=["b-pkg[x] ; extra == 'y'"], provides_extras=["y"]),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     dep_keys = {dep.key for dep in dag.get_children("b-pkg")}
     assert "c-pkg" in dep_keys
 
 
 def test_dag_extras_skips_unresolved_extras_package(make_mock_dist: MockDistMaker) -> None:
     pkgs = [make_mock_dist("parent", "1.0.0", requires=["nonexistent[feat]"])]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     deps = dag.get_children("parent")
     assert len(deps) == 1
     assert deps[0].dist is None
@@ -408,7 +425,7 @@ def test_dag_extras_dedupes_identical_metadata_entries(make_mock_dist: MockDistM
         ),
         make_mock_dist("leaf", "1.0.0"),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     leaf_edges = [d for d in dag.get_children("child") if d.key == "leaf"]
     assert len(leaf_edges) == 1
 
@@ -424,7 +441,7 @@ def test_dag_extras_cyclic_convergent_paths_resolve_correctly(make_mock_dist: Mo
         make_mock_dist("b-pkg", "1.0.0", requires=["a-pkg[x] ; extra == 'y'"], provides_extras=["y"]),
         make_mock_dist("c-pkg", "1.0.0", requires=["b-pkg[y] ; extra == 'y'"], provides_extras=["y"]),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     assert {d.key for d in dag.get_children("a-pkg")} == {"b-pkg", "c-pkg"}
 
 
@@ -435,7 +452,7 @@ def test_dag_extras_resolver_caches_acyclic_results(make_mock_dist: MockDistMake
         make_mock_dist("beta", "1.0.0", requires=["shared ; extra == 'b'"], provides_extras=["b"]),
         make_mock_dist("shared", "1.0.0"),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     assert {d.key for d in dag.get_children("alpha")} == {"shared"}
     assert {d.key for d in dag.get_children("beta")} == {"shared"}
 
@@ -447,7 +464,7 @@ def test_dag_extras_unsatisfiable_sub_extra_does_not_activate_parent(make_mock_d
         make_mock_dist("parent", "1.0.0", requires=["child[empty] ; extra == 'feat'"], provides_extras=["feat"]),
         make_mock_dist("child", "1.0.0", provides_extras=["empty"]),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     assert dag.get_children("parent") == []
 
 
@@ -463,5 +480,5 @@ def test_dag_extras_resolves_chains_deeper_than_recursion_limit(make_mock_dist: 
         make_mock_dist(f"l{i}", "1.0.0", requires=[f"l{i + 1}[x] ; extra == 'x'"], provides_extras=["x"])
         for i in range(chain_length - 1)
     )
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     assert {dep.key for dep in dag.get_children("l0")} == {"l1"}

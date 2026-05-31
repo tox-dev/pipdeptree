@@ -6,7 +6,7 @@ from collections.abc import Iterator, Mapping
 from enum import Enum, auto
 from fnmatch import fnmatch
 from itertools import chain
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from packaging.utils import canonicalize_name
 
@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 from pipdeptree._warning import get_warning_printer
 
 from .package import DistPackage, InvalidRequirementError, ReqPackage
+
+ExtrasMode = Literal["none", "explicit", "active"]
 
 
 class IncludeExcludeOverlapError(Exception):
@@ -57,7 +59,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         cls,
         pkgs: list[Distribution],
         *,
-        include_extras: bool = False,
+        extras: ExtrasMode = "none",
     ) -> PackageDAG:
         warning_printer = get_warning_printer()
         dist_pkgs = [DistPackage(p) for p in pkgs]
@@ -91,8 +93,8 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
                 lambda: render_invalid_reqs_text(dist_name_to_invalid_reqs_dict),
             )
 
-        if include_extras:
-            _resolve_extras(pkg_deps, idx)
+        if extras != "none":
+            _resolve_extras(pkg_deps, idx, extras)
 
         return cls(pkg_deps)
 
@@ -367,19 +369,19 @@ class ReversedPackageDAG(PackageDAG):
         return PackageDAG(dict(forward_dag))
 
 
-def _resolve_extras(pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage]) -> None:
+def _resolve_extras(
+    pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage], extras: ExtrasMode
+) -> None:
     """Add extra/optional dependencies to the DAG in-place."""
-    extras_needed = _collect_explicit_extras(pkg_deps)
-    for pkg_key, extras in _collect_satisfied_extras(pkg_deps, idx).items():
-        extras_needed.setdefault(pkg_key, set()).update(extras)
+    extras_needed = _seed_extras(pkg_deps, idx, extras)
     processed: dict[str, set[str]] = {}
     # The same (parent, child, extra) triple can be reached through multiple req.extras propagation
     # paths across rounds; without dedup it would be appended once per path.
     seen_edges: set[tuple[str, str, str]] = set()
     while extras_needed:
         next_round: dict[str, set[str]] = {}
-        for pkg_key, extras in extras_needed.items():
-            new_extras = extras - processed.get(pkg_key, set())
+        for pkg_key, wanted in extras_needed.items():
+            new_extras = wanted - processed.get(pkg_key, set())
             if not new_extras:
                 continue
             processed.setdefault(pkg_key, set()).update(new_extras)
@@ -398,6 +400,17 @@ def _resolve_extras(pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str
                 if req.extras:
                     next_round.setdefault(dist.key, set()).update(req.extras)
         extras_needed = next_round
+
+
+def _seed_extras(
+    pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage], extras: ExtrasMode
+) -> dict[str, set[str]]:
+    """Collect the extras to resolve: requested extras, plus satisfiable ones in active mode."""
+    extras_needed = _collect_explicit_extras(pkg_deps)
+    if extras == "active":
+        for pkg_key, satisfied in _collect_satisfied_extras(pkg_deps, idx).items():
+            extras_needed.setdefault(pkg_key, set()).update(satisfied)
+    return extras_needed
 
 
 def _collect_explicit_extras(pkg_deps: dict[DistPackage, list[ReqPackage]]) -> dict[str, set[str]]:
@@ -575,6 +588,7 @@ def _extra_is_satisfied(
 
 
 __all__ = [
+    "ExtrasMode",
     "PackageDAG",
     "ReversedPackageDAG",
 ]

@@ -14,7 +14,6 @@ from pipdeptree._parser import distribution_to_specifier
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from importlib.metadata import Distribution
 
 
 class InvalidRequirementError(ValueError):

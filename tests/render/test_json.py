@@ -66,7 +66,7 @@ def test_render_json_with_extras(capsys: pytest.CaptureFixture[str], make_mock_d
         make_mock_dist("foo", "1.0.0", requires=["bar ; extra == 'dev'"], provides_extras=["dev"]),
         make_mock_dist("bar", "2.0.0"),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     render_json(dag)
     output = capsys.readouterr().out
     assert '"extra": "dev"' in output
