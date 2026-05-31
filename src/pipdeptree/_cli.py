@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 class Options(Namespace):
     freeze: bool
-    python: str
+    python: str | None
     path: list[str]
     all: bool
     local_only: bool
@@ -109,10 +109,11 @@ def build_parser() -> ArgumentParser:
     select = parser.add_argument_group(title="select", description="choose what to render")
     select.add_argument(
         "--python",
-        default=sys.executable,
+        default=None,
         help=(
-            'Python interpreter to inspect. With "auto", it attempts to detect your virtual environment and fails if'
-            " it can't."
+            "Python interpreter to inspect. By default it auto-detects your active virtual environment (venv, "
+            "virtualenv, conda, or poetry), falling back to the interpreter running pipdeptree when none is found. "
+            'With "auto" it detects the active virtual environment and fails if it can\'t.'
         ),
     )
     select.add_argument(
