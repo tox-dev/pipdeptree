@@ -17,6 +17,16 @@ from pipdeptree._warning import WarningPrinter, WarningType, get_warning_printer
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+_OVERLAP_MESSAGE = "Cannot have --packages and --exclude contain the same entries"
+
+
+class _FilterError(Exception):
+    """Raised by build_tree when the include/exclude filter cannot be satisfied."""
+
+    def __init__(self, message: str, *, is_fatal: bool) -> None:
+        super().__init__(message)
+        self.is_fatal = is_fatal
+
 
 def main(args: Sequence[str] | None = None) -> int | None:
     """CLI - The main function called as entry point."""
@@ -28,18 +38,41 @@ def main(args: Sequence[str] | None = None) -> int | None:
     warning_printer = get_warning_printer()
     warning_printer.warning_type = WarningType.from_str(options.warn)
 
-    options.python = _resolve_python(options.python)
-
     try:
-        pkgs = get_installed_distributions(
-            interpreter=options.python,
-            supplied_paths=options.path or None,
-            local_only=options.local_only,
-            user_only=options.user_only,
-        )
+        tree = build_tree(options, log_resolved=True)
     except InterpreterQueryError as e:
         print(f"Failed to query custom interpreter: {e}", file=sys.stderr)  # noqa: T201
         return 1
+    except _FilterError as e:
+        if e.is_fatal:
+            print(str(e), file=sys.stderr)  # noqa: T201
+            return 1
+        if warning_printer.should_warn():
+            warning_printer.print_single_line(str(e))
+        return _determine_return_code(warning_printer)
+
+    render(options, tree)
+
+    return _determine_return_code(warning_printer)
+
+
+def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
+    """
+    Discover packages and build the (optionally reversed/filtered) dependency tree.
+
+    Shared by the CLI and the programmatic :func:`pipdeptree.render` API.
+
+    :raises InterpreterQueryError: if querying a custom interpreter failed
+    :raises _FilterError: if the include/exclude filter cannot be satisfied
+    """
+    options.python = _resolve_python(options.python, log_resolved=log_resolved)
+
+    pkgs = get_installed_distributions(
+        interpreter=options.python,
+        supplied_paths=options.path or None,
+        local_only=options.local_only,
+        user_only=options.user_only,
+    )
 
     tree = PackageDAG.from_pkgs(pkgs, extras=options.extras)
 
@@ -58,30 +91,28 @@ def main(args: Sequence[str] | None = None) -> int | None:
     if include is not None or exclude is not None:
         try:
             tree = tree.filter_nodes(include, exclude, exclude_deps=options.exclude_dependencies)
-        except IncludeExcludeOverlapError:
-            print("Cannot have --packages and --exclude contain the same entries", file=sys.stderr)  # noqa: T201
-            return 1
+        except IncludeExcludeOverlapError as e:
+            raise _FilterError(_OVERLAP_MESSAGE, is_fatal=True) from e
         except IncludePatternNotFoundError as e:
-            if warning_printer.should_warn():
-                warning_printer.print_single_line(str(e))
-            return _determine_return_code(warning_printer)
+            raise _FilterError(str(e), is_fatal=False) from e
 
-    render(options, tree)
-
-    return _determine_return_code(warning_printer)
+    return tree
 
 
-def _resolve_python(python: str | None) -> str:
+def _resolve_python(python: str | None, *, log_resolved: bool = False) -> str:
     # Default (None): auto-detect the active virtual environment, silently falling back to the running interpreter so
     # users outside a virtual environment keep the historical behavior. "auto" stays strict and fails if none is found.
+    # log_resolved keeps the resolved-path note CLI-only so the programmatic API stays quiet in notebooks.
     if python is None:
         if resolved_path := find_active_interpreter():
-            print(f"(resolved python: {resolved_path})", file=sys.stderr)  # noqa: T201
+            if log_resolved:
+                print(f"(resolved python: {resolved_path})", file=sys.stderr)  # noqa: T201
             return resolved_path
         return sys.executable
     if python == "auto":
         resolved_path = detect_active_interpreter()
-        print(f"(resolved python: {resolved_path})", file=sys.stderr)  # noqa: T201
+        if log_resolved:
+            print(f"(resolved python: {resolved_path})", file=sys.stderr)  # noqa: T201
         return resolved_path
     return python
 

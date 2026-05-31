@@ -229,6 +229,34 @@ When conflicts exist, the output includes warnings and a non-zero exit code:
     $ echo $?
     1
 
+Use from Python or a notebook
+-----------------------------
+
+When you do not have command-line access -- for example inside a Jupyter or JupyterLite cell -- call
+:func:`pipdeptree.render` to obtain the dependency tree as a string instead of going through ``argv`` and stdout:
+
+.. code-block:: python
+
+    import pipdeptree
+
+    print(pipdeptree.render())                       # text tree of the current env
+    data = pipdeptree.render(output_format="json")   # JSON string, e.g. for json.loads
+    sub = pipdeptree.render(packages="rich", reverse=True)
+
+``output_format`` accepts ``text`` (default), ``json``, ``json-tree``, ``mermaid`` and ``dot`` (Graphviz source).
+Binary Graphviz formats such as ``png`` or ``svg`` cannot be returned as text and raise ``ValueError``; use ``dot`` to
+get the source, or the command-line interface for binary rendering.
+
+The return value is always a ``str``, so ``print``, slicing and comparisons behave as usual. For the default ``text``
+format it is also rich-displayable: in a Jupyter or JupyterLite cell the result renders as a Mermaid dependency
+diagram (natively, with no extra dependency and no Graphviz binary -- which also works in Pyodide/JupyterLite), falling
+back to an HTML ``<pre>`` and then plain text on front-ends that do not render Mermaid. ``str(render())`` and
+``print(render())`` always give the plain text tree. The other formats (``json``, ``json-tree``, ``mermaid``, ``dot``)
+return a plain string with no rich display, so their JSON or source shows verbatim.
+
+Unlike the CLI, warnings are silenced by default (``warn="silence"``) so a notebook cell stays free of stderr noise;
+pass ``warn="suppress"`` or ``warn="fail"`` to opt back in.
+
 Depth limiting
 --------------
 

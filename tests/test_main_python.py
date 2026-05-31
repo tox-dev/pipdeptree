@@ -18,9 +18,22 @@ def test_resolve_python_default_uses_detected_env(
 ) -> None:
     mocker.patch("pipdeptree.__main__.find_active_interpreter", return_value=str(tmp_path))
 
-    assert _resolve_python(None) == str(tmp_path)
+    assert _resolve_python(None, log_resolved=True) == str(tmp_path)
 
     assert capsys.readouterr().err == f"(resolved python: {tmp_path})\n"
+
+
+def test_resolve_python_default_note_silent_without_log(
+    tmp_path: Path, mocker: MockFixture, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The programmatic API resolves without log_resolved, so notebooks get no stderr note.
+    mocker.patch("pipdeptree.__main__.find_active_interpreter", return_value=str(tmp_path))
+
+    assert _resolve_python(None) == str(tmp_path)
+
+    captured = capsys.readouterr()
+    assert not captured.out
+    assert not captured.err
 
 
 def test_resolve_python_default_falls_back_silently(mocker: MockFixture, capsys: pytest.CaptureFixture[str]) -> None:
@@ -38,7 +51,7 @@ def test_resolve_python_auto_uses_strict_detection(
 ) -> None:
     mocker.patch("pipdeptree.__main__.detect_active_interpreter", return_value=str(tmp_path))
 
-    assert _resolve_python("auto") == str(tmp_path)
+    assert _resolve_python("auto", log_resolved=True) == str(tmp_path)
 
     assert capsys.readouterr().err == f"(resolved python: {tmp_path})\n"
 
