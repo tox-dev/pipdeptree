@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from pipdeptree._cli import build_parser, get_options
+from pipdeptree._cli import build_parser, get_options, parse_packages
 
 
 def test_get_options_default() -> None:
@@ -192,3 +192,22 @@ def test_get_options_extras_invalid(capsys: pytest.CaptureFixture[str]) -> None:
     out, err = capsys.readouterr()
     assert not out
     assert "invalid choice: 'bogus'" in err
+
+
+@pytest.mark.parametrize(
+    ("value", "names", "requested_extras"),
+    [
+        pytest.param("foo", ["foo"], {}, id="plain"),
+        pytest.param("foo[bar]", ["foo"], {"foo": {"bar"}}, id="single-extra"),
+        pytest.param("foo[bar,baz]", ["foo"], {"foo": {"bar", "baz"}}, id="multiple-extras"),
+        pytest.param("foo[bar],qux", ["foo", "qux"], {"foo": {"bar"}}, id="mixed-entries"),
+        pytest.param("foo[]", ["foo"], {}, id="empty-extras"),
+        pytest.param("pytest*[x]", ["pytest*"], {"pytest*": {"x"}}, id="wildcard-extra"),
+        pytest.param("a[b], c , d[e,f]", ["a", "c", "d"], {"a": {"b"}, "d": {"e", "f"}}, id="whitespace"),
+        pytest.param(None, [], {}, id="none"),
+        pytest.param("", [], {}, id="empty"),
+        pytest.param(",,", [], {}, id="only-separators"),
+    ],
+)
+def test_parse_packages(value: str | None, names: list[str], requested_extras: dict[str, set[str]]) -> None:
+    assert parse_packages(value) == (names, requested_extras)

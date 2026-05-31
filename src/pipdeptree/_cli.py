@@ -125,7 +125,10 @@ def build_parser() -> ArgumentParser:
     select.add_argument(
         "-p",
         "--packages",
-        help="comma separated list of packages to show - wildcards are supported, like 'somepackage.*'",
+        help=(
+            "comma separated list of packages to show - wildcards are supported, like 'somepackage.*'. append an "
+            "extras spec to also show a package's extra dependencies, like ``somepackage[extra1,extra2]``"
+        ),
         metavar="P",
     )
     select.add_argument(
@@ -316,7 +319,54 @@ def _validate_output_format(value: str) -> str:
     raise ArgumentTypeError(msg)
 
 
+def parse_packages(value: str | None) -> tuple[list[str], dict[str, set[str]]]:
+    """
+    Split a ``--packages`` value into bare name patterns and the extras requested per entry.
+
+    An entry like ``foo[bar,baz]`` yields the name pattern ``foo`` and the extras ``{bar, baz}``; plain entries
+    carry no extras. The extras are matched against installed package names later, so wildcard patterns such as
+    ``foo*[bar]`` apply to every package matching ``foo*``.
+    """
+    if not value:
+        return [], {}
+    names: list[str] = []
+    requested_extras: dict[str, set[str]] = {}
+    for raw in _split_entries(value):
+        if not (entry := raw.strip()):
+            continue
+        name, extras = _split_extras(entry)
+        names.append(name)
+        if extras:
+            requested_extras.setdefault(name, set()).update(extras)
+    return names, requested_extras
+
+
+def _split_entries(value: str) -> list[str]:
+    # Split on commas, but not commas inside an ``[...]`` extras spec, so ``foo[a,b],bar`` yields two entries.
+    entries: list[str] = []
+    depth = 0
+    start = 0
+    for index, char in enumerate(value):
+        if char == "[":
+            depth += 1
+        elif char == "]":
+            depth = max(0, depth - 1)
+        elif char == "," and depth == 0:
+            entries.append(value[start:index])
+            start = index + 1
+    entries.append(value[start:])
+    return entries
+
+
+def _split_extras(entry: str) -> tuple[str, set[str]]:
+    if not entry.endswith("]") or "[" not in entry:
+        return entry, set()
+    name, _, extras_part = entry[:-1].partition("[")
+    return name, {extra.strip() for extra in extras_part.split(",") if extra.strip()}
+
+
 __all__ = [
     "Options",
     "get_options",
+    "parse_packages",
 ]

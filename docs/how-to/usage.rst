@@ -99,6 +99,21 @@ Multiple packages can be comma-separated, and wildcards are supported:
         ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
         └── Pygments [required: >=2.7.2, installed: 2.19.2]
 
+A package entry may carry an extras spec such as ``somepackage[extra1,extra2]`` to also include the dependencies
+gated behind those extras (and their subtrees). The extras spec is parsed off before the name is matched, so
+wildcards keep working, for example ``somepackage*[extra1]``. An extra requested this way is always surfaced, even
+with ``--extras none``:
+
+.. code-block:: console
+
+    $ pipdeptree --packages "requests[socks]"
+    requests==2.32.3
+    ├── certifi [required: >=2017.4.17, installed: 2024.8.30]
+    ├── charset-normalizer [required: >=2,<4, installed: 3.4.0]
+    ├── idna [required: >=2.5,<4, installed: 3.10]
+    ├── urllib3 [required: >=1.21.1,<3, installed: 2.2.3]
+    └── PySocks [required: >=1.5.6,!=1.5.7, installed: 1.7.1, extra: socks]
+
 Excluding packages
 ------------------
 
@@ -342,3 +357,7 @@ Edges added through an extra are annotated with that extra's name:
 An extra is included not only when a parent explicitly requested it (e.g. ``oauthlib[signedtoken]``)
 but also when every dependency that the extra would require is already installed in the
 environment. See :doc:`/explanation` for the rationale.
+
+To surface a single package's extra without enabling extras globally, request it through ``--packages`` using
+the ``somepackage[extra]`` syntax shown in the "Filtering packages" section above; that extra is shown even with
+``--extras none``.

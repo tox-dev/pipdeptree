@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
-from pipdeptree._cli import Options, get_options
+from pipdeptree._cli import Options, get_options, parse_packages
 from pipdeptree._detect_env import detect_active_interpreter, find_active_interpreter
 from pipdeptree._discovery import InterpreterQueryError, get_installed_distributions
 from pipdeptree._models import PackageDAG
@@ -41,7 +41,8 @@ def main(args: Sequence[str] | None = None) -> int | None:
         print(f"Failed to query custom interpreter: {e}", file=sys.stderr)  # noqa: T201
         return 1
 
-    tree = PackageDAG.from_pkgs(pkgs, extras=options.extras)
+    include, requested_extras = parse_packages(options.packages)
+    tree = PackageDAG.from_pkgs(pkgs, extras=options.extras, requested_extras=requested_extras)
 
     validate(tree)
 
@@ -52,7 +53,7 @@ def main(args: Sequence[str] | None = None) -> int | None:
     if options.reverse:
         tree = tree.reverse()
 
-    include = options.packages.split(",") if options.packages else None
+    include = include or None
     exclude = set(options.exclude.split(",")) if options.exclude else None
 
     if include is not None or exclude is not None:
