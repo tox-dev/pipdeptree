@@ -166,12 +166,29 @@ def test_parse_warn_option_invalid() -> None:
         get_options(["--warn", "non-existent-warning-type"])
 
 
-@pytest.mark.parametrize("flag", ["-x", "--extras"])
-def test_get_options_extras(flag: str) -> None:
-    options = get_options([flag])
-    assert options.extras is True
+@pytest.mark.parametrize(
+    ("args", "expected"),
+    [
+        (["-x"], "explicit"),
+        (["--extras"], "explicit"),
+        (["--extras", "explicit"], "explicit"),
+        (["--extras", "active"], "active"),
+        (["--extras", "none"], "none"),
+    ],
+)
+def test_get_options_extras(args: list[str], expected: str) -> None:
+    options = get_options(args)
+    assert options.extras == expected
 
 
 def test_get_options_extras_default() -> None:
     options = get_options([])
-    assert options.extras is False
+    assert options.extras == "explicit"
+
+
+def test_get_options_extras_invalid(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["--extras", "bogus"])
+    out, err = capsys.readouterr()
+    assert not out
+    assert "invalid choice: 'bogus'" in err

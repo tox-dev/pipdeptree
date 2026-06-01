@@ -68,23 +68,23 @@ Circular dependency detection uses cycle detection on the directed dependency gr
 Optional dependencies (extras)
 ------------------------------
 
-When you pass ``--extras``, pipdeptree augments the tree with optional dependency edges. Two kinds
-of extras are surfaced:
+The ``--extras`` option controls which optional dependency edges appear in the tree. It takes one
+of three values:
 
-1. **Explicitly requested extras.** When a parent's metadata records a dependency like
-   ``oauthlib[signedtoken]``, the deps gated behind oauthlib's ``signedtoken`` extra get
-   added under oauthlib in the tree, annotated with ``extra: signedtoken``.
+``explicit`` (the default)
+    Show an extra only when a parent's metadata requests it via ``name[extra]``, such as
+    ``oauthlib[signedtoken]``. The deps gated behind that extra are added under the parent,
+    annotated with ``extra: signedtoken``. This propagates: if ``A[x]`` pulls in ``B[y]``, the
+    deps ``B[y]`` gates are added too.
 
-2. **Active extras.** Python packaging metadata never records *why* a package was installed,
-   only what it could require. pipdeptree therefore considers an extra "active" when every dep
-   that extra would have requested is already installed -- the same heuristic Python libraries use
-   at runtime to decide whether a feature is available (``try: import optional_dep``). When an
-   extra is active, pipdeptree adds the same edges it would have added if the extra had been
-   requested explicitly.
+``active``
+    Everything ``explicit`` shows, plus extras that nothing requested but whose dependencies are
+    all installed. Packaging metadata never records why a package was installed, so this treats a
+    satisfiable extra as if it had been requested. The same package can then appear under several
+    parents, and the tree grows accordingly.
 
-Both kinds propagate. If activating ``A[x]`` pulls in ``B[y]``, pipdeptree also adds the deps
-``B[y]`` would gate. Because metadata cannot tell us that ``B`` was installed for some other
-reason, the same package may appear under multiple parents through this mechanism.
+``none``
+    Omit optional edges entirely.
 
 .. mermaid::
 
@@ -96,16 +96,16 @@ reason, the same package may appear under multiple parents through this mechanis
         style C fill:#8e44ad,color:#fff
         style P fill:#8e44ad,color:#fff
 
-To leave optional edges out entirely, omit ``--extras`` (the default). Edges added through
-extras are always annotated with the originating extra, so they remain distinguishable from
-mandatory dependencies in every output format.
+Edges added through an extra are always annotated with the originating extra, so they stay
+distinguishable from mandatory dependencies in every output format.
 
 Limitations
 -----------
 
 - pipdeptree only sees packages that are already installed. It cannot predict what a ``pip install`` will do.
 - If you need a dependency resolver that works without installing packages first, consider :pypi:`uv`.
-- Extra/optional dependencies are not shown by default; use ``--extras`` to include them.
+- Optional dependencies show by default (``--extras=explicit``); use ``--extras=none`` to omit them,
+  or ``--extras=active`` to also include extras that are merely satisfiable.
 - ``--extras`` cannot reconstruct extras that were requested only on the command line
   (e.g. ``pip install foo[dev]`` where ``foo`` is itself top-level), because that information
   is never persisted into installed package metadata.

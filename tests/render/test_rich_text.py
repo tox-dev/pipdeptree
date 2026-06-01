@@ -94,7 +94,7 @@ def test_render_rich_text_with_extras(capsys: pytest.CaptureFixture[str], make_m
         ),
         make_mock_dist("cryptography", "2.7"),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     render_rich_text(dag, max_depth=float("inf"))
     output = capsys.readouterr().out
     expected = ["jira==2.0.0", "oauthlib==3.0.0", "[extra: signedtoken]", "cryptography==2.7"]

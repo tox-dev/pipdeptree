@@ -4,9 +4,10 @@ import sys
 import warnings
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, ArgumentTypeError, Namespace
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, get_args
 
 from pipdeptree._computed import ComputedValues
+from pipdeptree._models.dag import ExtrasMode
 
 from .version import __version__
 
@@ -33,7 +34,7 @@ class Options(Namespace):
     mermaid: bool
     graphviz_format: str | None
     output_format: str
-    extras: bool
+    extras: ExtrasMode
     depth: float
     encoding: str
     license: bool
@@ -142,12 +143,14 @@ def build_parser() -> ArgumentParser:
     select.add_argument(
         "-x",
         "--extras",
-        action="store_true",
-        default=False,
+        nargs="?",
+        const="explicit",
+        choices=get_args(ExtrasMode),
+        default="explicit",
         help=(
-            "include optional (extras) dependencies in the tree; an extra is included when it is "
-            "explicitly requested (e.g. ``foo[bar]``) or when every dependency the extra would "
-            "require is already installed"
+            "which optional (extras) dependencies to include: 'explicit' (default) shows extras requested via "
+            "name[extra], including transitively; 'active' also shows extras whose dependencies are all "
+            "installed; 'none' shows none. Bare --extras means 'explicit'"
         ),
     )
 

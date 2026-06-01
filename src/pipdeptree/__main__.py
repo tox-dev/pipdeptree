@@ -41,7 +41,7 @@ def main(args: Sequence[str] | None = None) -> int | None:
         print(f"Failed to query custom interpreter: {e}", file=sys.stderr)  # noqa: T201
         return 1
 
-    tree = PackageDAG.from_pkgs(pkgs, include_extras=options.extras)
+    tree = PackageDAG.from_pkgs(pkgs, extras=options.extras)
 
     validate(tree)
 

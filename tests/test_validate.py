@@ -181,7 +181,7 @@ def test_render_cycles_text_annotates_extras(capsys: pytest.CaptureFixture[str],
         make_mock_dist("a", "1.0.0", requires=["b[x]>=1.0"]),
         make_mock_dist("b", "1.0.0", requires=["a>=1.0 ; extra == 'x'"], provides_extras=["x"]),
     ]
-    tree = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    tree = PackageDAG.from_pkgs(pkgs, extras="active")
     cycles = cyclic_deps(tree)
     assert len(cycles) > 0
     render_cycles_text(cycles)

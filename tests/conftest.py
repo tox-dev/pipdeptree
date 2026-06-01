@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import locale
+from importlib.metadata import Distribution, PackageMetadata
 from pathlib import Path
 from random import shuffle
 from typing import TYPE_CHECKING, Protocol
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import pytest
 
@@ -12,7 +13,8 @@ from pipdeptree._models import PackageDAG
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
-    from importlib.metadata import Distribution
+
+    from pytest_mock import MockerFixture
 
     from tests.our_types import MockGraph
 
@@ -82,21 +84,24 @@ class MockDistMaker(Protocol):
     ) -> Distribution: ...
 
 
-def _make_mock_dist(
-    name: str,
-    version: str,
-    requires: list[str] | None = None,
-    provides_extras: list[str] | None = None,
-) -> Distribution:
-    metadata = MagicMock()
-    metadata.__getitem__ = lambda _, key: {"Name": name}.get(key)
-    metadata.get_all = lambda key: provides_extras if key == "Provides-Extra" else None
-    return Mock(metadata=metadata, version=version, requires=requires)
+@pytest.fixture
+def make_mock_dist(mocker: MockerFixture) -> MockDistMaker:
+    def func(
+        name: str,
+        version: str,
+        requires: list[str] | None = None,
+        provides_extras: list[str] | None = None,
+    ) -> Distribution:
+        metadata = mocker.create_autospec(PackageMetadata, instance=True)
+        metadata.__getitem__.side_effect = {"Name": name}.get
+        metadata.get_all.side_effect = lambda key, failobj=None: provides_extras if key == "Provides-Extra" else failobj
+        dist = mocker.create_autospec(Distribution, instance=True)
+        dist.metadata = metadata
+        dist.version = version
+        dist.requires = requires
+        return dist
 
-
-@pytest.fixture(scope="session")
-def make_mock_dist() -> MockDistMaker:
-    return _make_mock_dist
+    return func
 
 
 @pytest.fixture

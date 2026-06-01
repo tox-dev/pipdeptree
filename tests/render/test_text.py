@@ -601,7 +601,7 @@ def test_render_text_with_extras(
         ),
         make_mock_dist("cryptography", "2.7"),
     ]
-    dag = PackageDAG.from_pkgs(pkgs, include_extras=True)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active")
     render_text(dag, max_depth=float("inf"), encoding=encoding)
     output = capsys.readouterr().out
     assert "extra: signedtoken" in output
