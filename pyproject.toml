@@ -78,8 +78,8 @@ docs = [
 ]
 
 [tool.hatch]
-build.hooks.vcs.version-file = "src/pipdeptree/version.py"
 version.source = "vcs"
+build.hooks.vcs.version-file = "src/pipdeptree/version.py"
 
 [tool.ruff]
 line-length = 120
@@ -125,16 +125,16 @@ lint.preview = true
 
 [tool.codespell]
 builtin = "clear,usage,en-GB_to_en-US"
+ignore-words-list = "master"
 count = true
 quiet-level = 3
-ignore-words-list = "master"
 
 [tool.pyproject-fmt]
 max_supported_python = "3.14"
 
 [tool.ty]
-environment.python-version = "3.14"
 src.exclude = []
+environment.python-version = "3.14"
 
 [tool.coverage]
 run.parallel = true
