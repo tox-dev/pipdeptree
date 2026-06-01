@@ -2,10 +2,7 @@
 build-backend = "hatchling.build"
 requires = [
   "hatch-vcs>=0.5",
-  # hatchling 1.30 emits Metadata-Version 2.5 (PEP 794), which neither released twine (the
-  # validator monkeypatch removed in pypa/twine#1317 is unreleased) nor PyPI (pypi/warehouse#19083)
-  # accepts yet. Cap until both ship 2.5 support, then drop this and bump the twine floor.
-  "hatchling>=1.27,<1.30",
+  "hatchling>=1.27",
 ]
 
 [project]
