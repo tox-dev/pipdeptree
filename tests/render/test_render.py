@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 def test_json_routing(option: list[str], mocker: MockerFixture) -> None:
     render = mocker.patch("pipdeptree._render.render_json")
     main(option)
-    render.assert_called_once_with(ANY, context=RenderContext())
+    render.assert_called_once_with(ANY, context=RenderContext(), mode="default")
 
 
 @pytest.mark.parametrize(
@@ -29,7 +29,7 @@ def test_json_routing(option: list[str], mocker: MockerFixture) -> None:
 def test_json_tree_routing(option: list[str], mocker: MockerFixture) -> None:
     render = mocker.patch("pipdeptree._render.render_json_tree")
     main(option)
-    render.assert_called_once_with(ANY, context=RenderContext())
+    render.assert_called_once_with(ANY, context=RenderContext(), mode="default")
 
 
 @pytest.mark.parametrize(
@@ -59,7 +59,9 @@ def test_grahpviz_routing(option: list[str], mocker: MockerFixture) -> None:
 def test_text_routing(option: list[str], mocker: MockerFixture) -> None:
     render = mocker.patch("pipdeptree._render.render_text")
     main(option)
-    render.assert_called_once_with(ANY, encoding="utf-8", max_depth=inf, list_all=False, context=RenderContext())
+    render.assert_called_once_with(
+        ANY, encoding="utf-8", max_depth=inf, list_all=False, context=RenderContext(), mode="default"
+    )
 
 
 @pytest.mark.parametrize(
@@ -76,4 +78,4 @@ def test_freeze_routing(option: list[str], mocker: MockerFixture) -> None:
 def test_rich_routing(option: list[str], mocker: MockerFixture) -> None:
     render = mocker.patch("pipdeptree._render.render_rich_text")
     main(option)
-    render.assert_called_once_with(ANY, max_depth=inf, list_all=False, context=RenderContext())
+    render.assert_called_once_with(ANY, max_depth=inf, list_all=False, context=RenderContext(), mode="default")

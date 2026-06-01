@@ -221,3 +221,7 @@ Other formats render the graph directly to binary output:
 
 The format is specified as ``graphviz-<format>`` where ``<format>`` is any
 `Graphviz output format <https://graphviz.org/docs/outputs/>`_ (dot, pdf, png, svg, jpeg, etc.).
+
+Every format above also works with the ``from-index`` subcommand, e.g.
+``pipdeptree from-index --requirements requirements.txt -o json``
+to render a tree resolved from the package index without installing. See :doc:`/how-to/usage` for details.

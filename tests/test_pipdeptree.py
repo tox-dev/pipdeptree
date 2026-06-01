@@ -39,7 +39,7 @@ def test_console_script() -> None:
         pytest.fail(f"Unexpected error: {e}")
 
     with pytest.raises(SystemExit, match="0"):
-        pipdeptree(["", "--help"])
+        pipdeptree(["--help"])
 
 
 def test_main_log_resolved(tmp_path: Path, mocker: MockFixture, capsys: pytest.CaptureFixture[str]) -> None:

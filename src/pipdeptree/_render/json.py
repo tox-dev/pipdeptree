@@ -8,12 +8,14 @@ from pipdeptree._computed import ComputedValues
 if TYPE_CHECKING:
     from pipdeptree._cli import RenderContext
     from pipdeptree._models import PackageDAG
+    from pipdeptree._models.package import RenderMode
 
 
 def render_json(
     tree: PackageDAG,
     *,
     context: RenderContext | None = None,
+    mode: RenderMode = "default",
 ) -> None:
     """
     Convert the tree into a flat json representation.
@@ -24,13 +26,14 @@ def render_json(
 
     :param tree: dependency tree
     :param context: metadata and computed fields to include
+    :param mode: "resolved" emits candidate_version instead of installed/required for resolved trees
     :returns: JSON representation of the tree
 
     """
     tree = tree.sort()
 
     def _package_dict(k: Any) -> dict[str, Any]:
-        d: dict[str, Any] = k.as_dict()
+        d: dict[str, Any] = k.as_dict(mode=mode)
         if context and context.metadata:
             d["metadata"] = k.get_metadata_dict(list(context.metadata))
         if context and context.computed:
@@ -38,7 +41,7 @@ def render_json(
         return d
 
     output = json.dumps(
-        [{"package": _package_dict(k), "dependencies": [v.as_dict() for v in vs]} for k, vs in tree.items()],
+        [{"package": _package_dict(k), "dependencies": [v.as_dict(mode=mode) for v in vs]} for k, vs in tree.items()],
         indent=4,
     )
     print(output)  # noqa: T201

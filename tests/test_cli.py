@@ -115,6 +115,88 @@ def test_get_options_path_with_either_local_or_user_not_supported(
     assert "cannot use --path with --user-only or --local-only" in err
 
 
+def test_get_options_default_has_no_subcommand() -> None:
+    options = get_options([])
+    assert options.command is None
+    assert options.requirement == []
+    assert options.requirements is None
+    assert options.pyproject is None
+
+
+def test_get_options_default_top_level_flag_still_works() -> None:
+    options = get_options(["-o", "json"])
+    assert options.command is None
+    assert options.output_format == "json"
+
+
+@pytest.mark.parametrize(
+    "requirements",
+    [
+        pytest.param(["fastapi<=0.115.2"], id="single"),
+        pytest.param(["fastapi", "starlette"], id="multiple"),
+    ],
+)
+def test_get_options_from_index_requirements(requirements: list[str]) -> None:
+    options = get_options(["from-index", *requirements])
+    assert options.command == "from-index"
+    assert options.requirement == requirements
+
+
+def test_get_options_from_index_accumulates_file_flags() -> None:
+    options = get_options(["from-index", "--requirements", "r.txt", "--pyproject", "p.toml"])
+    assert options.command == "from-index"
+    assert options.requirement == []
+    assert options.requirements == ["r.txt"]
+    assert options.pyproject == ["p.toml"]
+
+
+def test_get_options_from_index_requires_a_source(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["from-index"])
+    out, err = capsys.readouterr()
+    assert not out
+    assert "from-index needs at least one REQUIREMENT, --requirements FILE, or --pyproject FILE" in err
+
+
+def test_get_options_from_index_shares_render_flags() -> None:
+    options = get_options(["from-index", "fastapi", "-o", "json"])
+    assert options.command == "from-index"
+    assert options.requirement == ["fastapi"]
+    assert options.output_format == "json"
+
+
+def test_get_options_from_index_keeps_extras() -> None:
+    options = get_options(["from-index", "fastapi", "-x", "active"])
+    assert options.command == "from-index"
+    assert options.extras == "active"
+
+
+def test_get_options_from_index_defaults_installed_metadata_options() -> None:
+    options = get_options(["from-index", "fastapi"])
+    assert options.license is False
+    assert options.metadata == []
+    assert options.computed == []
+    assert options.context.active is False
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        pytest.param(["--license"], id="license"),
+        pytest.param(["--metadata", "license"], id="metadata"),
+        pytest.param(["--computed", "size"], id="computed"),
+    ],
+)
+def test_get_options_from_index_rejects_installed_metadata_options(
+    args: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["from-index", "fastapi", *args])
+    out, err = capsys.readouterr()
+    assert not out
+    assert "unrecognized arguments" in err
+
+
 def test_get_options_exclude_dependencies_without_exclude(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit, match="2"):
         get_options(["--exclude-dependencies"])

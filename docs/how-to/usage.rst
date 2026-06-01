@@ -33,6 +33,342 @@ default, which silently falls back to the running interpreter):
 
 Alternatively, install pipdeptree inside the virtualenv and run it directly.
 
+from-index (resolve by querying the index)
+-------------------------------------------
+
+pipdeptree inspects an installed environment by default. The ``from-index`` subcommand resolves a set of
+requirements by querying the package index (PyPI) and shows the resulting tree **without installing or inspecting
+anything**. It uses the optional index resolver, so install the extra first:
+
+.. code-block:: console
+
+    $ pip install pipdeptree[index]
+
+You name each source; pipdeptree never guesses one from a path's shape. Positional arguments are inline PEP 508
+requirements, the same strings you pass to ``pip install``. You supply files with repeatable flags:
+
+- positional ``REQUIREMENT`` -- an inline PEP 508 requirement string, version specifiers and extras included;
+- ``--requirements FILE`` -- a standard ``requirements.txt`` or ``.in`` style file;
+- ``--pyproject FILE`` -- a ``pyproject.toml`` handed to the resolver, which reads ``[project].dependencies`` and
+  honors its ``[tool.nab]`` configuration.
+
+Pass at least one source. Each edge shows the candidate version the resolver selected, never a package on your
+machine: the resolver produces a single version per package with no requirement range, so edges read
+``[candidate: <version>]`` instead of the ``[required: ..., installed: ...]`` pair shown for an installed
+environment.
+
+Resolve inline requirements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A single requirement resolves to its full tree:
+
+.. code-block:: console
+
+    $ pipdeptree from-index "starlette"
+    starlette==1.2.1
+    ├── anyio [candidate: 4.13.0]
+    │   ├── idna [candidate: 3.18]
+    │   └── typing-extensions [candidate: 4.15.0]
+    └── typing-extensions [candidate: 4.15.0]
+
+Several requirements resolve together into one graph, and a version specifier bounds the pick:
+
+.. code-block:: console
+
+    $ pipdeptree from-index "fastapi<=0.115.2" starlette
+    fastapi==0.115.2
+    ├── pydantic [candidate: 2.13.4]
+    │   ├── annotated-types [candidate: 0.7.0]
+    │   ├── pydantic-core [candidate: 2.46.4]
+    │   │   └── typing-extensions [candidate: 4.15.0]
+    │   ├── typing-extensions [candidate: 4.15.0]
+    │   └── typing-inspection [candidate: 0.4.2]
+    │       └── typing-extensions [candidate: 4.15.0]
+    ├── starlette [candidate: 0.40.0]
+    │   └── anyio [candidate: 4.13.0]
+    │       ├── idna [candidate: 3.18]
+    │       └── typing-extensions [candidate: 4.15.0]
+    └── typing-extensions [candidate: 4.15.0]
+
+Request extras with the ``name[extra]`` syntax. The resolver pulls the extra's dependencies into the tree, where
+they appear as ordinary children (here ``pysocks``) with the pinned version the resolve picked, not as edges
+labeled with the extra:
+
+.. code-block:: console
+
+    $ pipdeptree from-index "requests[socks]"
+    requests==2.34.2
+    ├── certifi [candidate: 2026.5.20]
+    ├── charset-normalizer [candidate: 3.4.7]
+    ├── idna [candidate: 3.18]
+    ├── pysocks [candidate: 1.7.1]
+    └── urllib3 [candidate: 2.7.0]
+
+An environment marker gates a requirement on the interpreter the resolve targets: when the marker is true the
+requirement resolves and shows in the tree, when false it drops out. Quote the whole argument so the shell keeps
+the marker attached:
+
+.. code-block:: console
+
+    $ pipdeptree from-index 'idna; python_version >= "3.10"'
+    idna==3.18
+
+Resolve from a requirements file
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Point ``--requirements`` at a ``requirements.txt``:
+
+.. code-block:: console
+
+    $ pipdeptree from-index --requirements requirements.txt
+
+pipdeptree parses the file as a standard requirements file, so a real-world one resolves as-is. Take this
+``requirements.txt``:
+
+.. code-block:: text
+
+    -r base.txt                        # nested include, followed
+    -c constraints.txt                 # constraints, fed to the resolver
+    httpx[http2]                       # extras kept
+    tomli; python_version < "3.11"     # environment marker kept
+    # pin chosen by the security team   <- comment, ignored
+    requests==2.32.3 \
+        --hash=sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+Each directive maps as follows: the ``-r base.txt`` include is read inline, the ``-c constraints.txt`` pins bound
+the resolve, the marker and the ``[http2]`` extra reach the resolver intact, the comment drops out, and the
+``--hash`` line resolves ``requests`` while the hash itself is ignored (the resolver verifies nothing from the
+index). The same goes for ``--index-url`` and similar pip-only options.
+
+Resolve from a pyproject.toml
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Give ``--pyproject`` as the only source and the resolver reads it natively: the full ``[project]`` table and any
+``[tool.nab]`` configuration in the file:
+
+.. code-block:: console
+
+    $ pipdeptree from-index --pyproject pyproject.toml
+
+Add any other source and the ``[project].dependencies`` from that pyproject merge into one combined resolve
+instead. Its ``[tool.nab]`` settings drop out on this path:
+
+.. code-block:: console
+
+    $ pipdeptree from-index --pyproject pyproject.toml httpx
+
+Combine and repeat sources
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Both flags repeat, and every source folds into a single resolve alongside the positional requirements:
+
+.. code-block:: console
+
+    $ pipdeptree from-index --requirements a.txt --requirements b.txt --pyproject p.toml extra-pkg
+
+Use a private or custom index
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default the resolve runs against PyPI. Point it at an internal index with ``--index-url`` and add more with
+``--extra-index-url`` (repeatable):
+
+.. code-block:: console
+
+    $ pipdeptree from-index "internal-lib" --index-url https://nexus.corp/repository/pypi/simple
+    $ pipdeptree from-index "internal-lib" --extra-index-url https://nexus.corp/repository/pypi/simple
+
+``--index-url`` replaces PyPI as the primary index, matching pip's ``--index-url``. ``--extra-index-url`` keeps
+PyPI as the primary and appends each extra after it. When a flag is absent, the value falls back to the environment:
+``--index-url`` reads ``PIP_INDEX_URL`` then ``UV_INDEX_URL``, and ``--extra-index-url`` reads
+``PIP_EXTRA_INDEX_URL`` then ``UV_EXTRA_INDEX_URL`` (both whitespace separated, like pip and uv). With nothing set
+the resolve uses PyPI.
+
+The resolver searches indexes in order and the first index that has a package wins. This differs from pip, which
+merges every index and picks the highest version across all of them. Order your indexes so the one you trust for a
+given package comes first.
+
+The index flags and their environment fallbacks override a ``--pyproject``'s own ``[tool.nab].indexes``. With no
+flag and no environment override, the resolve uses the indexes declared in the pyproject.
+
+.. code-block:: console
+
+    $ PIP_INDEX_URL=https://nexus.corp/repository/pypi/simple pipdeptree from-index "internal-lib"
+    $ pipdeptree from-index --pyproject pyproject.toml --index-url https://nexus.corp/repository/pypi/simple
+
+Apply render flags
+~~~~~~~~~~~~~~~~~~~
+
+The graph and render flags behave as they do for the default command. Emit JSON for tooling:
+
+.. code-block:: console
+
+    $ pipdeptree from-index "starlette" -o json
+    [
+        {
+            "package": {
+                "key": "anyio",
+                "package_name": "anyio",
+                "candidate_version": "4.13.0"
+            },
+            "dependencies": [
+                {
+                    "key": "idna",
+                    "package_name": "idna",
+                    "candidate_version": "3.18"
+                },
+                {
+                    "key": "typing-extensions",
+                    "package_name": "typing-extensions",
+                    "candidate_version": "4.15.0"
+                }
+            ]
+        },
+        {
+            "package": {
+                "key": "idna",
+                "package_name": "idna",
+                "candidate_version": "3.18"
+            },
+            "dependencies": []
+        },
+        {
+            "package": {
+                "key": "starlette",
+                "package_name": "starlette",
+                "candidate_version": "1.2.1"
+            },
+            "dependencies": [
+                {
+                    "key": "anyio",
+                    "package_name": "anyio",
+                    "candidate_version": "4.13.0"
+                },
+                {
+                    "key": "typing-extensions",
+                    "package_name": "typing-extensions",
+                    "candidate_version": "4.15.0"
+                }
+            ]
+        },
+        {
+            "package": {
+                "key": "typing-extensions",
+                "package_name": "typing-extensions",
+                "candidate_version": "4.15.0"
+            },
+            "dependencies": []
+        }
+    ]
+
+Trace why the resolver pulled a package in with ``--reverse`` (``-r``):
+
+.. code-block:: console
+
+    $ pipdeptree from-index "fastapi<=0.115.2" --reverse --packages anyio
+    anyio==4.13.0
+    └── starlette==0.40.0 [requires: anyio==4.13.0]
+        └── fastapi==0.115.2 [requires: starlette==0.40.0]
+
+The rest carry over too: ``-o mermaid`` and the ``graphviz-*`` formats, ``--depth`` (``-d``) to cap the tree,
+``--packages`` (``-p``) and ``--exclude`` (``-e``) to filter, ``--extras`` (``-x``) to control optional edges, and
+``--encoding``:
+
+.. code-block:: console
+
+    $ pipdeptree from-index "fastapi<=0.115.2" --depth 1
+    $ pipdeptree from-index "fastapi<=0.115.2" -o mermaid
+    $ pipdeptree from-index "fastapi<=0.115.2" --packages starlette
+    $ pipdeptree from-index "fastapi<=0.115.2" --exclude anyio
+    $ pipdeptree from-index "requests[socks]" --extras none
+
+Resolve editable, local and git requirements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For a requirement that points at a checkout instead of the index, the resolver reads the target's PEP 621
+metadata. It reads the project's ``[project]`` table (name, version, dependencies) statically, with no build, and
+falls back to a build backend only when the target declares its dependencies dynamically. A project with a static
+``[project]`` resolves with no build; a dynamic-metadata project triggers its backend.
+
+Editable installs are a ``--requirements`` file directive, so pass them through a file:
+
+.. code-block:: console
+
+    $ printf -- '-e ./mypkg\n' > requirements.txt
+    $ pipdeptree from-index --requirements requirements.txt
+
+Local paths (``./mypkg``, ``file:///abs/path``) work the same, as positional arguments or file lines. For a pinned
+git requirement, the resolver clones the repo to its cache and reads the metadata:
+
+.. code-block:: console
+
+    $ pipdeptree from-index "mypkg @ git+https://github.com/o/r.git@<full-40-char-commit-sha>"
+
+The git ref must be a full 40-character commit sha; pipdeptree refuses a tag or branch so the resolve stays
+reproducible. Bare wheel/sdist archive URLs and non-git VCS schemes (``hg+``/``bzr+``/``svn+``) stay out of scope.
+
+Handle errors
+~~~~~~~~~~~~~
+
+A ``--requirements`` or ``--pyproject`` file must exist; a missing one stops the command. Positional arguments are
+requirement strings, never file paths:
+
+.. code-block:: console
+
+    $ pipdeptree from-index --requirements missing.txt
+    source file does not exist: missing.txt
+
+A bare wheel/sdist archive URL or a non-git VCS scheme (``hg+``/``bzr+``/``svn+``) has no index mapping, so
+pipdeptree names the file and line that carried it:
+
+.. code-block:: console
+
+    $ pipdeptree from-index --requirements requirements.txt
+    URL requirements are not supported by the index resolver: foo @ https://h/foo-1.0-py3-none-any.whl (requirements.txt:3)
+
+An unpinned git ref fails the same way, and so does a constraint that carries extras or a URL.
+
+The installed-only display options inspect on-disk files, so ``from-index`` does not accept them. Passing one is an
+error:
+
+.. code-block:: console
+
+    $ pipdeptree from-index "starlette" --metadata license
+    ...
+    pipdeptree: error: unrecognized arguments: --metadata license
+
+The same holds for ``--computed`` (``-c``), ``--license``, and the environment-inspection options (``--python``,
+``--path``, ``-l``/``-u``): none have a downloaded package or an environment to read. Giving no source at all is
+also an error:
+
+.. code-block:: console
+
+    $ pipdeptree from-index
+    ...
+    pipdeptree: error: from-index needs at least one REQUIREMENT, --requirements FILE, or --pyproject FILE
+
+Limitations
+~~~~~~~~~~~
+
+- A ``--requirements`` or ``--pyproject`` file must exist, or the command errors (shown above). Positional
+  arguments are always requirement strings, never file paths.
+- Extras resolve everywhere a requirement can appear: a positional ``requests[socks]``, a ``requests[socks]`` line
+  in a ``--requirements`` file (including nested ``-r`` includes), and ``[project.optional-dependencies]`` reached
+  through a ``--pyproject``. The one exception is a ``-c`` constraint line: pip and the resolver both reject an
+  extra on a constraint (``foo[bar]<2``), because a constraint bounds a version without pulling the package in, so
+  the extra has nothing to attach to.
+- The resolver reads PEP 621 metadata for editable installs (``-e``), local paths (``./pkg``, ``file://``) and
+  pinned git requirements (``package @ git+https://...@<sha>``), as the resolve subsection covers above. Bare
+  wheel/sdist archive URLs and non-git VCS (``hg+``/``bzr+``/``svn+``) stay out of scope and error with the
+  offending file and line; a constraint that carries a URL fails the same way.
+- ``from-index`` rejects the installed-only display options (``--metadata``/``-m``, ``--computed``/``-c``,
+  ``--license``) and the environment-inspection options (``--python``, ``--path``, ``-l``/``-u``), since the
+  resolver produces only names, versions and dependency edges. Extras (``-x``) work, since they are part of the
+  resolved graph.
+- A ``--pyproject`` keeps its ``[tool.nab]`` configuration only when it is the lone source; mixing it with other
+  sources merges its ``[project].dependencies`` and drops its ``[tool.nab]``.
+- The subcommand needs network access and the ``pipdeptree[index]`` extra. Without the extra installed, it errors
+  with an install hint.
+
 Filtering packages
 ------------------
 

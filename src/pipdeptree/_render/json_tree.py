@@ -10,12 +10,14 @@ from pipdeptree._models import ReqPackage
 if TYPE_CHECKING:
     from pipdeptree._cli import RenderContext
     from pipdeptree._models import DistPackage, PackageDAG
+    from pipdeptree._models.package import RenderMode
 
 
 def render_json_tree(
     tree: PackageDAG,
     *,
     context: RenderContext | None = None,
+    mode: RenderMode = "default",
 ) -> None:
     """
     Convert the tree into a nested json representation.
@@ -30,6 +32,7 @@ def render_json_tree(
 
     :param tree: dependency tree
     :param context: metadata and computed fields to include
+    :param mode: "resolved" emits candidate_version instead of installed/required for resolved trees
     :returns: json representation of the tree
 
     """
@@ -45,11 +48,14 @@ def render_json_tree(
         if cur_chain is None:
             cur_chain = [node.project_name]
 
-        d: dict[str, str | list[Any] | None] = node.as_dict()  # ty: ignore[invalid-assignment]
-        if parent:
-            d["required_version"] = node.version_spec if isinstance(node, ReqPackage) and node.version_spec else "Any"
-        else:
-            d["required_version"] = d["installed_version"]
+        d: dict[str, str | list[Any] | None] = node.as_dict(mode=mode)  # ty: ignore[invalid-assignment]
+        if mode == "default":
+            if parent:
+                d["required_version"] = (
+                    node.version_spec if isinstance(node, ReqPackage) and node.version_spec else "Any"
+                )
+            else:
+                d["required_version"] = d["installed_version"]
 
         if context and context.metadata:
             d["metadata"] = node.get_metadata_dict(list(context.metadata))  # ty: ignore[invalid-assignment]

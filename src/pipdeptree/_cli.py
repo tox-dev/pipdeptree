@@ -21,6 +21,12 @@ class Options(Namespace):
     freeze: bool
     python: str | None
     path: list[str]
+    command: str | None
+    requirement: list[str]
+    requirements: list[str] | None
+    pyproject: list[str] | None
+    index_url: str | None
+    extra_index_url: list[str] | None
     all: bool
     local_only: bool
     user_only: bool
@@ -90,22 +96,18 @@ class _Formatter(ArgumentDefaultsHelpFormatter):
 
 
 def build_parser() -> ArgumentParser:
+    # The render/select flags shared by the default command and the from-index subcommand are defined once on a
+    # parent parser; both the top-level parser and the from-index subparser inherit them via parents=[...], so the
+    # flags stay single-sourced and the top-level CLI keeps its existing behavior.
+    render_parent = _build_render_parent()
+
     parser = ArgumentParser(
-        prog="pipdeptree", description="Dependency tree of the installed python packages", formatter_class=_Formatter
+        prog="pipdeptree",
+        description="Dependency tree of the installed python packages",
+        formatter_class=_Formatter,
+        parents=[render_parent],
     )
     parser.add_argument("-v", "--version", action="version", version=f"{__version__}")
-    parser.add_argument(
-        "-w",
-        "--warn",
-        dest="warn",
-        type=str,
-        choices=["silence", "suppress", "fail"],
-        default="suppress",
-        help=(
-            "warning control: suppress will show warnings but return 0 whether or not they are present; silence will "
-            "not show warnings at all and  always return 0; fail will show warnings and  return 1 if any are present"
-        ),
-    )
 
     select = parser.add_argument_group(title="select", description="choose what to render")
     select.add_argument(
@@ -122,7 +124,104 @@ def build_parser() -> ArgumentParser:
         help="passes a path used to restrict where packages should be looked for (can be used multiple times)",
         action="append",
     )
-    select.add_argument(
+
+    scope = select.add_mutually_exclusive_group()
+    scope.add_argument(
+        "-l",
+        "--local-only",
+        action="store_true",
+        help="if in a virtualenv that has global access do not show globally installed packages",
+    )
+    scope.add_argument("-u", "--user-only", action="store_true", help="only show installations in the user site dir")
+
+    _add_installed_metadata_arguments(parser)
+
+    sub = parser.add_subparsers(dest="command")
+    from_index = sub.add_parser(
+        "from-index",
+        parents=[render_parent],
+        formatter_class=_Formatter,
+        help="resolve requirements by querying a package index and render their tree (needs the index extra)",
+        description=(
+            "Resolve the given requirements by querying the package index (PyPI) and render the dependency tree "
+            "without installing or inspecting the environment. Positional arguments are inline PEP 508 requirements; "
+            "files are supplied explicitly via --requirements and --pyproject. A lone --pyproject is resolved "
+            "natively (honoring [tool.nab]); otherwise every source merges into one resolve. Needs the optional "
+            "index resolver (pip install pipdeptree[index])."
+        ),
+    )
+    from_index.add_argument(
+        "requirement",
+        nargs="*",
+        metavar="REQUIREMENT",
+        help="inline PEP 508 requirement to resolve, like a pip install argument; repeatable",
+    )
+    from_index.add_argument(
+        "--requirements",
+        action="append",
+        metavar="FILE",
+        help="a requirements.txt or .in style file (nested -r, -c constraints, markers and comments supported); "
+        "repeatable",
+    )
+    from_index.add_argument(
+        "--pyproject",
+        action="append",
+        metavar="FILE",
+        help="a pyproject.toml handed natively to the resolver when it is the only source; repeatable",
+    )
+    from_index.add_argument(
+        "--index-url",
+        metavar="URL",
+        default=None,
+        help="primary package index to resolve against, replacing PyPI; falls back to PIP_INDEX_URL then "
+        "UV_INDEX_URL when unset, and defaults to PyPI",
+    )
+    from_index.add_argument(
+        "--extra-index-url",
+        action="append",
+        metavar="URL",
+        default=None,
+        help="additional package index to resolve against, repeatable; falls back to PIP_EXTRA_INDEX_URL then "
+        "UV_EXTRA_INDEX_URL (whitespace separated) when unset",
+    )
+
+    # Bare ``pipdeptree`` does not visit the subparser, so seed defaults for its attributes to keep Options total. The
+    # installed-only display options (license/metadata/computed) are not exposed on the from-index subparser, so seed
+    # them too: this keeps Options total whichever path argparse takes, so get_options can post-process it always.
+    parser.set_defaults(
+        command=None,
+        requirement=[],
+        requirements=None,
+        pyproject=None,
+        index_url=None,
+        extra_index_url=None,
+        license=False,
+        metadata="",
+        computed="",
+    )
+    return parser
+
+
+def _build_render_parent() -> ArgumentParser:
+    parent = ArgumentParser(add_help=False)
+    parent.add_argument(
+        "-w",
+        "--warn",
+        dest="warn",
+        type=str,
+        choices=["silence", "suppress", "fail"],
+        default="suppress",
+        help=(
+            "warning control: suppress will show warnings but return 0 whether or not they are present; silence will "
+            "not show warnings at all and  always return 0; fail will show warnings and  return 1 if any are present"
+        ),
+    )
+    _add_render_arguments(parent)
+    return parent
+
+
+def _add_render_arguments(parser: ArgumentParser) -> None:
+    parser.add_argument(
         "-p",
         "--packages",
         help=(
@@ -131,19 +230,19 @@ def build_parser() -> ArgumentParser:
         ),
         metavar="P",
     )
-    select.add_argument(
+    parser.add_argument(
         "-e",
         "--exclude",
         help="comma separated list of packages to not show - wildcards are supported, like 'somepackage.*'. "
         "(cannot combine with -p or -a)",
         metavar="P",
     )
-    select.add_argument(
+    parser.add_argument(
         "--exclude-dependencies",
         help="used along with --exclude to also exclude dependencies of packages",
         action="store_true",
     )
-    select.add_argument(
+    parser.add_argument(
         "-x",
         "--extras",
         nargs="?",
@@ -156,42 +255,28 @@ def build_parser() -> ArgumentParser:
             "installed; 'none' shows none. Bare --extras means 'explicit'"
         ),
     )
-
-    scope = select.add_mutually_exclusive_group()
-    scope.add_argument(
-        "-l",
-        "--local-only",
-        action="store_true",
-        help="if in a virtualenv that has global access do not show globally installed packages",
-    )
-    scope.add_argument("-u", "--user-only", action="store_true", help="only show installations in the user site dir")
-
-    render = parser.add_argument_group(
-        title="render",
-        description="choose how to render the dependency tree",
-    )
-    render.add_argument(
+    parser.add_argument(
         "-f", "--freeze", action="store_true", help="(Deprecated, use -o) print names so as to write freeze files"
     )
-    render.add_argument(
+    parser.add_argument(
         "--encoding",
         dest="encoding",
         default=sys.stdout.encoding,
         help="the encoding to use when writing to the output",
         metavar="E",
     )
-    render.add_argument(
+    parser.add_argument(
         "-a", "--all", action="store_true", help="list all deps at top level (text, rich, and freeze render only)"
     )
-    render.add_argument(
+    parser.add_argument(
         "-d",
         "--depth",
-        type=lambda x: int(x) if x.isdigit() and (int(x) >= 0) else parser.error("Depth must be a number that is >= 0"),
+        type=_positive_int,
         default=float("inf"),
         help="limit the depth of the tree (text, rich, freeze, and graphviz render only)",
         metavar="D",
     )
-    render.add_argument(
+    parser.add_argument(
         "-r",
         "--reverse",
         action="store_true",
@@ -201,28 +286,7 @@ def build_parser() -> ArgumentParser:
             "packages that need them under them"
         ),
     )
-    render.add_argument(
-        "--license",
-        action="store_true",
-        help="(Deprecated, use --metadata license) list the license(s) of a package",
-    )
-    render.add_argument(
-        "-m",
-        "--metadata",
-        default="",
-        help="comma separated list of metadata fields to display from the package METADATA file"
-        " (e.g. license,summary,author,home-page,requires-python)",
-        metavar="M",
-    )
-    render.add_argument(
-        "-c",
-        "--computed",
-        default="",
-        help=f"comma separated list of computed fields to display: {', '.join(sorted(ALLOWED_COMPUTED_FIELDS))}",
-        metavar="C",
-    )
-
-    render_type = render.add_mutually_exclusive_group()
+    render_type = parser.add_mutually_exclusive_group()
     render_type.add_argument(
         "-j",
         "--json",
@@ -259,7 +323,39 @@ def build_parser() -> ArgumentParser:
         help=f"specify how to render the tree; supported formats: {', '.join(ALLOWED_RENDER_FORMATS)}, or graphviz-*\
             (e.g. graphviz-png, graphviz-dot)",
     )
-    return parser
+
+
+def _add_installed_metadata_arguments(parser: ArgumentParser) -> None:
+    # These read state of already-installed packages (METADATA file contents, on-disk file sizes), so they only make
+    # sense for the default command that inspects an environment. The from-index subcommand renders resolver output for
+    # packages that are never installed, so it intentionally omits them.
+    parser.add_argument(
+        "--license",
+        action="store_true",
+        help="(Deprecated, use --metadata license) list the license(s) of a package",
+    )
+    parser.add_argument(
+        "-m",
+        "--metadata",
+        default="",
+        help="comma separated list of metadata fields to display from the package METADATA file"
+        " (e.g. license,summary,author,home-page,requires-python)",
+        metavar="M",
+    )
+    parser.add_argument(
+        "-c",
+        "--computed",
+        default="",
+        help=f"comma separated list of computed fields to display: {', '.join(sorted(ALLOWED_COMPUTED_FIELDS))}",
+        metavar="C",
+    )
+
+
+def _positive_int(value: str) -> int:
+    if value.isdigit() and int(value) >= 0:
+        return int(value)
+    msg = "Depth must be a number that is >= 0"
+    raise ArgumentTypeError(msg)
 
 
 def get_options(args: Sequence[str] | None) -> Options:
@@ -287,6 +383,8 @@ def get_options(args: Sequence[str] | None) -> Options:
 
     options.context = RenderContext(metadata=options.metadata, computed=options.computed)
 
+    if options.command == "from-index" and not (options.requirement or options.requirements or options.pyproject):
+        return parser.error("from-index needs at least one REQUIREMENT, --requirements FILE, or --pyproject FILE")
     if options.exclude_dependencies and not options.exclude:
         return parser.error("must use --exclude-dependencies with --exclude")
     if options.path and (options.local_only or options.user_only):
