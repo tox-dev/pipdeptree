@@ -4,7 +4,15 @@ Usage patterns
 Running in virtualenvs
 ----------------------
 
-If pipdeptree is installed globally but you want to inspect a virtualenv, use ``--python``:
+By default pipdeptree auto-detects your active virtual environment (venv, virtualenv, conda, or poetry) and inspects
+it. When no virtual environment is active, it falls back to the interpreter running pipdeptree, so a globally
+installed pipdeptree keeps inspecting the global packages:
+
+.. code-block:: console
+
+    $ pipdeptree
+
+To inspect a specific interpreter regardless of what is active, pass its path to ``--python``:
 
 .. code-block:: console
 
@@ -13,7 +21,8 @@ If pipdeptree is installed globally but you want to inspect a virtualenv, use ``
     └── coverage [required: >=6.0.2, installed: 7.13.5]
     ...
 
-As of version 2.21.0, you can use ``--python auto`` to auto-detect the active virtualenv:
+Use ``--python auto`` to force auto-detection of the active virtualenv and fail if none can be found (unlike the
+default, which silently falls back to the running interpreter):
 
 .. code-block:: console
 

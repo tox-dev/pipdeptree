@@ -32,6 +32,10 @@ def test_local_only(tmp_path: Path, mocker: MockerFixture, capfd: pytest.Capture
     mock_path = sys_path + venv_site_packages
     mocker.patch("pipdeptree._discovery.sys.path", mock_path)
     mocker.patch("pipdeptree._discovery.sys.argv", cmd)
+
+    # The test mocks the running interpreter's environment, so keep the default --python on the running interpreter.
+    mocker.patch("pipdeptree.__main__.find_active_interpreter", return_value=None)
+
     main()
     out, _ = capfd.readouterr()
     found = {i.split("==")[0] for i in out.splitlines()}
@@ -50,6 +54,9 @@ def test_user_only(fake_dist: Path, mocker: MockerFixture, capfd: pytest.Capture
     # Add fake user site directory into a fake sys.path (normal environments will have the user site in sys.path).
     fake_sys_path = [*sys.path, fake_user_site]
     mocker.patch("pipdeptree._discovery.sys.path", fake_sys_path)
+
+    # The test mocks the running interpreter's environment, so keep the default --python on the running interpreter.
+    mocker.patch("pipdeptree.__main__.find_active_interpreter", return_value=None)
 
     cmd = ["", "--user-only"]
     mocker.patch("pipdeptree.__main__.sys.argv", cmd)
@@ -75,6 +82,9 @@ def test_user_only_when_in_virtual_env(
     venv_site_packages = site.getsitepackages([venv_path])
     mocker.patch("pipdeptree._discovery.sys.path", venv_site_packages)
     mocker.patch("pipdeptree._discovery.sys.prefix", venv_path)
+
+    # The test mocks the running interpreter's environment, so keep the default --python on the running interpreter.
+    mocker.patch("pipdeptree.__main__.find_active_interpreter", return_value=None)
 
     cmd = ["", "--user-only"]
     mocker.patch("pipdeptree.__main__.sys.argv", cmd)
@@ -107,6 +117,9 @@ def test_user_only_when_in_virtual_env_and_system_site_pkgs_enabled(
     mock_path = sys.path + venv_site_packages + [fake_user_site]
     mocker.patch("pipdeptree._discovery.sys.path", mock_path)
     mocker.patch("pipdeptree._discovery.sys.prefix", venv_path)
+
+    # The test mocks the running interpreter's environment, so keep the default --python on the running interpreter.
+    mocker.patch("pipdeptree.__main__.find_active_interpreter", return_value=None)
 
     cmd = ["", "--user-only"]
     mocker.patch("pipdeptree.__main__.sys.argv", cmd)

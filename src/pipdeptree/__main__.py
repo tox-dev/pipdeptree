@@ -6,7 +6,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from pipdeptree._cli import Options, get_options
-from pipdeptree._detect_env import detect_active_interpreter
+from pipdeptree._detect_env import detect_active_interpreter, find_active_interpreter
 from pipdeptree._discovery import InterpreterQueryError, get_installed_distributions
 from pipdeptree._models import PackageDAG
 from pipdeptree._models.dag import IncludeExcludeOverlapError, IncludePatternNotFoundError
@@ -28,10 +28,7 @@ def main(args: Sequence[str] | None = None) -> int | None:
     warning_printer = get_warning_printer()
     warning_printer.warning_type = WarningType.from_str(options.warn)
 
-    if options.python == "auto":
-        resolved_path = detect_active_interpreter()
-        options.python = resolved_path
-        print(f"(resolved python: {resolved_path})", file=sys.stderr)  # noqa: T201
+    options.python = _resolve_python(options.python)
 
     try:
         pkgs = get_installed_distributions(
@@ -72,6 +69,21 @@ def main(args: Sequence[str] | None = None) -> int | None:
     render(options, tree)
 
     return _determine_return_code(warning_printer)
+
+
+def _resolve_python(python: str | None) -> str:
+    # Default (None): auto-detect the active virtual environment, silently falling back to the running interpreter so
+    # users outside a virtual environment keep the historical behavior. "auto" stays strict and fails if none is found.
+    if python is None:
+        if resolved_path := find_active_interpreter():
+            print(f"(resolved python: {resolved_path})", file=sys.stderr)  # noqa: T201
+            return resolved_path
+        return sys.executable
+    if python == "auto":
+        resolved_path = detect_active_interpreter()
+        print(f"(resolved python: {resolved_path})", file=sys.stderr)  # noqa: T201
+        return resolved_path
+    return python
 
 
 def _is_text_output(options: Options) -> bool:

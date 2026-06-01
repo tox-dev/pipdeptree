@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pipdeptree._detect_env import detect_active_interpreter
+from pipdeptree._detect_env import detect_active_interpreter, find_active_interpreter
 
 if TYPE_CHECKING:
     from pytest_mock import MockFixture
@@ -71,3 +71,20 @@ def test_detect_active_interpreter_continue_when_other_detections_fail(tmp_path:
     detected_path = detect_active_interpreter()
 
     assert detected_path == str(fake_python_path)
+
+
+def test_find_active_interpreter_returns_path_when_detected(tmp_path: Path, mocker: MockFixture) -> None:
+    mocker.patch("pipdeptree._detect_env.os.environ", {"VIRTUAL_ENV": str(tmp_path)})
+    mocker.patch("pipdeptree._detect_env.Path.exists", return_value=True)
+
+    detected = find_active_interpreter()
+
+    assert detected is not None
+    assert detected.startswith(str(tmp_path))
+
+
+def test_find_active_interpreter_returns_none_when_nothing_detected(mocker: MockFixture) -> None:
+    mocker.patch("pipdeptree._detect_env.os.environ", {})
+    mocker.patch("pipdeptree._detect_env.subprocess.run", side_effect=FileNotFoundError)
+
+    assert find_active_interpreter() is None
