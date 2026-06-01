@@ -44,6 +44,7 @@ dynamic = [
 ]
 dependencies = [
   "packaging>=26",
+  "tomli>=2; python_version<'3.11'",
 ]
 optional-dependencies.graphviz = [
   "graphviz>=0.21",

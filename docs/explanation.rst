@@ -119,6 +119,18 @@ exist for un-downloaded packages, and the environment-inspection options (``--py
 have no environment to point at. The pure graph/version/render flags -- filtering, depth, ``--reverse``,
 ``--extras`` and the output formats -- apply unchanged.
 
+``from-lock`` and ``from-index`` differ in where the answer comes from. ``from-index`` **resolves** a tree from an
+index: the versions and edges do not exist yet, so the resolver computes them and needs the ``[index]`` extra and
+network access. ``from-lock`` **reads** an already-resolved
+`PEP 751 <https://peps.python.org/pep-0751/>`_ lock (``pylock.toml``).
+
+A PEP 751 lock records each package's name, its pinned version and the forward edges between packages (its
+``[[packages]]`` and ``[[packages.dependencies]]`` tables). The tool that wrote the lock did the resolution.
+``from-lock`` runs offline: it maps the TOML tables to a graph and feeds that graph through the same render
+machinery, with no resolver, no network and no extra. The edges live in the file, so nothing is left to compute.
+``from-lock`` shares one limit with ``from-index``: a lock holds only names, versions and edges, so the
+installed-only display options stay absent.
+
 Optional dependencies (extras)
 ------------------------------
 

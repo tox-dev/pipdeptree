@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pipdeptree._cli import Options, get_options, parse_packages
 from pipdeptree._detect_env import detect_active_interpreter, find_active_interpreter
 from pipdeptree._discovery import InterpreterQueryError, get_installed_distributions
 from pipdeptree._from_index import FromIndexInputError, FromIndexUnavailableError, resolve_from_index
+from pipdeptree._from_lock import FromLockError, load_lock
 from pipdeptree._models import PackageDAG
 from pipdeptree._models.dag import IncludeExcludeOverlapError, IncludePatternNotFoundError
 from pipdeptree._render import render
@@ -44,7 +46,7 @@ def main(args: Sequence[str] | None = None) -> int | None:
     except InterpreterQueryError as e:
         print(f"Failed to query custom interpreter: {e}", file=sys.stderr)  # noqa: T201
         return 1
-    except (FromIndexUnavailableError, FromIndexInputError) as e:
+    except (FromIndexUnavailableError, FromIndexInputError, FromLockError) as e:
         print(str(e), file=sys.stderr)  # noqa: T201
         return 1
     except _FilterError as e:
@@ -69,6 +71,7 @@ def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
     :raises InterpreterQueryError: if querying a custom interpreter failed
     :raises FromIndexUnavailableError: if from-index is used but the optional nab resolver is missing
     :raises FromIndexInputError: if a from-index source is missing or a requirements file uses an unsupported directive
+    :raises FromLockError: if a from-lock file is missing or is not a valid PEP 751 lock
     :raises _FilterError: if the include/exclude filter cannot be satisfied
     """
     if options.command == "from-index":
@@ -81,6 +84,9 @@ def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
             index_url=options.index_url,
             extra_index_url=options.extra_index_url,
         )
+    elif options.command == "from-lock":
+        # A PEP 751 lock is already resolved, so it is read straight off disk -- no interpreter, network, or index.
+        pkgs = load_lock(Path(options.lock))  # ty: ignore[invalid-argument-type]
     else:
         options.python = _resolve_python(options.python, log_resolved=log_resolved)
         pkgs = get_installed_distributions(
