@@ -60,6 +60,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         pkgs: list[Distribution],
         *,
         extras: ExtrasMode = "none",
+        requested_extras: Mapping[str, set[str]] | None = None,
     ) -> PackageDAG:
         warning_printer = get_warning_printer()
         dist_pkgs = [DistPackage(p) for p in pkgs]
@@ -93,8 +94,11 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
                 lambda: render_invalid_reqs_text(dist_name_to_invalid_reqs_dict),
             )
 
-        if extras != "none":
-            _resolve_extras(pkg_deps, idx, extras)
+        # User-requested extras (via ``--packages foo[bar]``) are expanded against the actual package keys and
+        # always honored, even with ``--extras none``, so the requested subtree is surfaced before filtering.
+        user_requested = _expand_requested_extras(idx, requested_extras)
+        if extras != "none" or user_requested:
+            _resolve_extras(pkg_deps, idx, extras, user_requested)
 
         return cls(pkg_deps)
 
@@ -369,11 +373,32 @@ class ReversedPackageDAG(PackageDAG):
         return PackageDAG(dict(forward_dag))
 
 
+def _expand_requested_extras(
+    idx: dict[str, DistPackage], requested_extras: Mapping[str, set[str]] | None
+) -> dict[str, set[str]]:
+    """Map ``--packages`` name patterns to the extras requested for the matching installed packages."""
+    expanded: dict[str, set[str]] = {}
+    if not requested_extras:
+        return expanded
+    for pattern, extras in requested_extras.items():
+        if normalized := {canonicalize_name(extra) for extra in extras}:
+            canonical_pattern = canonicalize_name(pattern)
+            for key in idx:
+                if fnmatch(key, canonical_pattern):
+                    expanded.setdefault(key, set()).update(normalized)
+    return expanded
+
+
 def _resolve_extras(
-    pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage], extras: ExtrasMode
+    pkg_deps: dict[DistPackage, list[ReqPackage]],
+    idx: dict[str, DistPackage],
+    extras: ExtrasMode,
+    requested_extras: dict[str, set[str]] | None = None,
 ) -> None:
     """Add extra/optional dependencies to the DAG in-place."""
     extras_needed = _seed_extras(pkg_deps, idx, extras)
+    for key, wanted in (requested_extras or {}).items():
+        extras_needed.setdefault(key, set()).update(wanted)
     processed: dict[str, set[str]] = {}
     # The same (parent, child, extra) triple can be reached through multiple req.extras propagation
     # paths across rounds; without dedup it would be appended once per path.

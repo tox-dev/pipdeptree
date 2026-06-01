@@ -306,6 +306,59 @@ def test_dag_extras_annotates_extra_name(make_mock_dist: MockDistMaker) -> None:
     assert all(dep.extra == "signedtoken" for dep in extra_deps)
 
 
+def _build_requested_extras_pkgs(make_mock_dist: MockDistMaker) -> list[Distribution]:
+    return [
+        make_mock_dist(
+            "click",
+            "8.1.0",
+            requires=["colorama ; extra == 'colorama'", "pyamqp>=1.0.0 ; extra == 'amqp'"],
+            provides_extras=["colorama", "amqp"],
+        ),
+        make_mock_dist("colorama", "0.4.6"),
+        make_mock_dist("pyamqp", "1.0.0"),
+    ]
+
+
+def test_dag_requested_extras_added_with_extras_none(make_mock_dist: MockDistMaker) -> None:
+    pkgs = _build_requested_extras_pkgs(make_mock_dist)
+    dag = PackageDAG.from_pkgs(pkgs, extras="none", requested_extras={"click": {"colorama"}})
+    children = {dep.key for dep in dag.get_children("click")}
+    assert "colorama" in children
+    assert "pyamqp" not in children
+
+
+def test_dag_requested_extras_supports_multiple_extras(make_mock_dist: MockDistMaker) -> None:
+    pkgs = _build_requested_extras_pkgs(make_mock_dist)
+    dag = PackageDAG.from_pkgs(pkgs, extras="none", requested_extras={"click": {"colorama", "amqp"}})
+    children = {dep.key for dep in dag.get_children("click")}
+    assert {"colorama", "pyamqp"} <= children
+
+
+def test_dag_requested_extras_unknown_extra_adds_no_edge(make_mock_dist: MockDistMaker) -> None:
+    pkgs = _build_requested_extras_pkgs(make_mock_dist)
+    dag = PackageDAG.from_pkgs(pkgs, extras="none", requested_extras={"click": {"missing"}})
+    assert dag.get_children("click") == []
+
+
+def test_dag_requested_extras_matches_wildcard_pattern(make_mock_dist: MockDistMaker) -> None:
+    pkgs = _build_requested_extras_pkgs(make_mock_dist)
+    dag = PackageDAG.from_pkgs(pkgs, extras="none", requested_extras={"cli*": {"colorama"}})
+    assert "colorama" in {dep.key for dep in dag.get_children("click")}
+
+
+def test_dag_requested_extras_empty_set_is_ignored(make_mock_dist: MockDistMaker) -> None:
+    pkgs = _build_requested_extras_pkgs(make_mock_dist)
+    dag = PackageDAG.from_pkgs(pkgs, extras="none", requested_extras={"click": set()})
+    assert dag.get_children("click") == []
+
+
+def test_dag_requested_extras_merges_with_active_mode(make_mock_dist: MockDistMaker) -> None:
+    pkgs = _build_requested_extras_pkgs(make_mock_dist)
+    dag = PackageDAG.from_pkgs(pkgs, extras="active", requested_extras={"click": {"colorama"}})
+    children = {dep.key for dep in dag.get_children("click")}
+    assert {"colorama", "pyamqp"} <= children
+
+
 def test_dag_extras_skips_missing_deps(make_mock_dist: MockDistMaker) -> None:
     pkgs = [
         make_mock_dist("parent", "1.0.0", requires=["child[feat]"]),
