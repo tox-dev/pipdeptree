@@ -26,7 +26,8 @@ from typing import TYPE_CHECKING
 
 from pipdeptree import _render
 from pipdeptree.__main__ import _FilterError, build_tree
-from pipdeptree._cli import get_options
+from pipdeptree._cli import SUMMARY_RENDER_FORMATS, get_options
+from pipdeptree._render.summary import summary_html
 from pipdeptree._warning import WarningType, get_warning_printer
 
 from .version import __version__
@@ -54,6 +55,7 @@ def render(  # noqa: PLR0913
     packages: str | None = None,
     exclude: str | None = None,
     output_format: str = "text",
+    summary: bool = False,
     reverse: bool = False,
     depth: float = inf,
     extras: bool | str = False,
@@ -69,7 +71,10 @@ def render(  # noqa: PLR0913
     :param packages: comma separated allow-list of packages to show (wildcards allowed)
     :param exclude: comma separated deny-list of packages to hide (wildcards allowed)
     :param output_format: one of ``text``, ``json``, ``json-tree``, ``mermaid`` or ``dot`` (Graphviz source); binary
-        Graphviz formats (png, svg, ...) cannot be returned as text and raise :class:`ValueError`
+        Graphviz formats (png, svg, ...) cannot be returned as text and raise :class:`ValueError`. With
+        ``summary=True`` it instead selects the summary style and must be ``text``, ``rich`` or ``json``
+    :param summary: return a one-block health report of the environment rather than the tree; in a notebook the
+        ``text`` style additionally displays as an HTML table
     :param reverse: list sub-dependencies with the packages that require them
     :param depth: limit the depth of the tree (text output only)
     :param extras: include optional (extras) dependencies in the tree; ``True`` is shorthand for ``"explicit"``
@@ -89,7 +94,13 @@ def render(  # noqa: PLR0913
     ``json-tree``, ``mermaid``, ``dot``) return a plain :class:`str` with no rich display, so their source/JSON shows
     as-is.
     """
-    argv = ["--warn", warn, "--encoding", encoding, *_format_flags(output_format)]
+    if summary and output_format not in SUMMARY_RENDER_FORMATS:
+        allowed = ", ".join(sorted(SUMMARY_RENDER_FORMATS))
+        msg = f"summary output_format must be one of {allowed}; got {output_format!r}"
+        raise ValueError(msg)
+
+    format_argv = ["--summary", "--output", output_format] if summary else _format_flags(output_format)
+    argv = ["--warn", warn, "--encoding", encoding, *format_argv]
     for flag, value in (("--packages", packages), ("--exclude", exclude), ("--python", python)):
         if value is not None:
             argv += [flag, value]
@@ -117,6 +128,13 @@ def render(  # noqa: PLR0913
         return ""
 
     text = _render_to_str(options, tree)
+    return _finalize(text, argv=argv, tree=tree, output_format=output_format, summary=summary)
+
+
+def _finalize(text: str, *, argv: list[str], tree: PackageDAG, output_format: str, summary: bool) -> str:
+    if summary:
+        # The aggregate report has no tree diagram; the text style instead displays as an HTML table in a notebook.
+        return _SummaryResult(text, html=summary_html(tree)) if output_format == "text" else text
     if output_format != "text":
         # Non-text formats (JSON, Mermaid source, Graphviz source) are returned as plain strings so they display
         # verbatim in a notebook instead of being reinterpreted as a diagram.
@@ -157,6 +175,29 @@ class _RenderResult(str):  # noqa: FURB189  # Must stay a real ``str`` so isinst
             "text/html": f"<pre>{escape(str(self))}</pre>",
             "text/plain": str(self),
         }
+        if include is not None:
+            bundle = {key: value for key, value in bundle.items() if key in include}
+        return bundle
+
+
+class _SummaryResult(str):  # noqa: FURB189  # Must stay a real ``str`` so isinstance/print/slicing keep working.
+    """A ``str`` whose value is the text summary but that also renders as an HTML table in a notebook cell."""
+
+    __slots__ = ("_html",)
+
+    _html: str
+
+    def __new__(cls, text: str, *, html: str) -> _SummaryResult:  # noqa: PYI034  # str subclass, concrete type is fine.
+        self = super().__new__(cls, text)
+        self._html = html
+        return self
+
+    def _repr_mimebundle_(  # noqa: PLW3201  # Jupyter rich-display protocol method, not a Python dunder.
+        self,
+        include: Container[str] | None = None,
+        exclude: Container[str] | None = None,  # noqa: ARG002
+    ) -> dict[str, str]:
+        bundle = {"text/html": self._html, "text/plain": str(self)}
         if include is not None:
             bundle = {key: value for key, value in bundle.items() if key in include}
         return bundle

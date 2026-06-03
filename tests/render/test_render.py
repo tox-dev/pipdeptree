@@ -79,3 +79,17 @@ def test_rich_routing(option: list[str], mocker: MockerFixture) -> None:
     render = mocker.patch("pipdeptree._render.render_rich_text")
     main(option)
     render.assert_called_once_with(ANY, max_depth=inf, list_all=False, context=RenderContext(), mode="default")
+
+
+@pytest.mark.parametrize(
+    ("option", "style"),
+    [
+        pytest.param([], "text", id="default-style"),
+        pytest.param(["--output", "rich"], "rich", id="rich"),
+        pytest.param(["--output", "json"], "json", id="json"),
+    ],
+)
+def test_summary_routing(option: list[str], style: str, mocker: MockerFixture) -> None:
+    render = mocker.patch("pipdeptree._render.render_summary")
+    main(["--summary", *option])
+    render.assert_called_once_with(ANY, mode="default", style=style)

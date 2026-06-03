@@ -81,6 +81,9 @@ class MockDistMaker(Protocol):
         version: str,
         requires: list[str] | None = None,
         provides_extras: list[str] | None = None,
+        *,
+        license_expression: str | None = None,
+        requires_python: list[str] | None = None,
     ) -> Distribution: ...
 
 
@@ -91,10 +94,14 @@ def make_mock_dist(mocker: MockerFixture) -> MockDistMaker:
         version: str,
         requires: list[str] | None = None,
         provides_extras: list[str] | None = None,
+        *,
+        license_expression: str | None = None,
+        requires_python: list[str] | None = None,
     ) -> Distribution:
         metadata = mocker.create_autospec(PackageMetadata, instance=True)
-        metadata.__getitem__.side_effect = {"Name": name}.get
-        metadata.get_all.side_effect = lambda key, failobj=None: provides_extras if key == "Provides-Extra" else failobj
+        metadata.__getitem__.side_effect = {"Name": name, "License-Expression": license_expression}.get
+        get_all = {"Provides-Extra": provides_extras, "Requires-Python": requires_python}
+        metadata.get_all.side_effect = lambda key, failobj=None: get_all.get(key, failobj)
         dist = mocker.create_autospec(Distribution, instance=True)
         dist.metadata = metadata
         dist.version = version

@@ -131,6 +131,29 @@ machinery, with no resolver, no network and no extra. The edges live in the file
 ``from-lock`` shares one limit with ``from-index``: a lock holds only names, versions and edges, so the
 installed-only display options stay absent.
 
+The summary report and its two tiers
+------------------------------------
+
+``--summary`` condenses the whole tree into one block of environment-health metrics. It is a deliberately separate
+axis from the renderers: the flag chooses *what* to produce (the aggregate report), while ``-o`` chooses *how* to
+style it (``text``, ``rich`` or ``json``). Keeping them orthogonal is why the same report can print as a styled
+table, serialize to JSON, or display as an HTML table in a notebook, and why it composes with every tree source --
+``from-index``/``from-lock`` included -- instead of being locked to one. The tree-only renderers (mermaid,
+graphviz, freeze, json-tree) have no meaning for a flat report, so the flag rejects them.
+
+The metrics fall into two tiers that mirror the same installed-vs-resolved split as the display options above.
+
+*Graph-structural* metrics -- total/direct/transitive counts, max depth and cyclic dependencies -- derive purely
+from the DAG's nodes and edges. Every command can produce them, including ``from-index`` and ``from-lock``, because
+a resolved or locked graph still has nodes and edges.
+
+*Installed-environment* metrics -- missing and conflicting dependencies, the license breakdown, the minimum
+``Requires-Python`` and total on-disk size -- read real ``METADATA`` files and files on disk. The synthetic graphs
+behind ``from-index``/``from-lock`` carry only names, versions and edges (the same reason ``--metadata`` and
+``--computed`` are unavailable there), so these metrics cannot be computed. Rather than print a misleading ``0``,
+the summary marks them ``n/a`` in text and omits them from JSON, so an automated check can tell "zero conflicts"
+apart from "conflicts were never measured".
+
 Optional dependencies (extras)
 ------------------------------
 

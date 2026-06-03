@@ -6,12 +6,20 @@ from typing import TYPE_CHECKING
 import pytest
 
 import pipdeptree
-from pipdeptree import _RenderResult
+from pipdeptree import _RenderResult, _SummaryResult
+from pipdeptree._computed import ComputedValues
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
     from tests.conftest import MockDistMaker
+
+
+@pytest.fixture
+def patched_env_no_size(patched_env: None, mocker: MockerFixture) -> None:  # noqa: ARG001
+    # Summary reads on-disk size via ComputedValues, which would look the mocked packages up in the real
+    # environment; pin it so the summary metrics stay deterministic.
+    mocker.patch.object(ComputedValues, "size_raw", 0)
 
 
 @pytest.fixture
@@ -160,6 +168,44 @@ def test_render_warnings_do_not_leak_by_default(
     )
     pipdeptree.render()
     assert not capsys.readouterr().err
+
+
+@pytest.mark.usefixtures("patched_env_no_size")
+def test_render_summary_text_has_html_mimebundle() -> None:
+    out = pipdeptree.render(summary=True)
+    assert isinstance(out, _SummaryResult)
+    assert out.startswith("total packages:")
+    bundle = out._repr_mimebundle_()
+    assert set(bundle) == {"text/html", "text/plain"}
+    assert bundle["text/html"].startswith("<table>")
+    assert bundle["text/plain"] == str(out)
+
+
+@pytest.mark.usefixtures("patched_env_no_size")
+def test_render_summary_text_mimebundle_respects_include() -> None:
+    out = pipdeptree.render(summary=True)
+    assert isinstance(out, _SummaryResult)
+    assert set(out._repr_mimebundle_(include={"text/plain"})) == {"text/plain"}
+
+
+@pytest.mark.usefixtures("patched_env_no_size")
+def test_render_summary_json_is_plain_str() -> None:
+    out = pipdeptree.render(summary=True, output_format="json")
+    assert not hasattr(out, "_repr_mimebundle_")
+    assert json.loads(out)["total_packages"] == 2
+
+
+@pytest.mark.usefixtures("patched_env_no_size")
+def test_render_summary_rich_is_plain_str() -> None:
+    out = pipdeptree.render(summary=True, output_format="rich")
+    assert not hasattr(out, "_repr_mimebundle_")
+    assert "environment summary" in out
+
+
+@pytest.mark.usefixtures("patched_env")
+def test_render_summary_rejects_tree_format() -> None:
+    with pytest.raises(ValueError, match="summary output_format must be one of"):
+        pipdeptree.render(summary=True, output_format="mermaid")
 
 
 @pytest.mark.usefixtures("patched_env")

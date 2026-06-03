@@ -41,6 +41,7 @@ class Options(Namespace):
     mermaid: bool
     graphviz_format: str | None
     output_format: str
+    summary: bool
     extras: ExtrasMode
     depth: float
     encoding: str
@@ -88,6 +89,9 @@ class RenderContext:
 
 # NOTE: graphviz-* has been intentionally left out. Users of this var should handle it separately.
 ALLOWED_RENDER_FORMATS = ["freeze", "json", "json-tree", "mermaid", "rich", "text"]
+# Tree-specific renderers (mermaid, graphviz, freeze, json-tree) have no meaning for the aggregate summary, so
+# --summary is restricted to the styles that can present a flat report.
+SUMMARY_RENDER_FORMATS = frozenset({"text", "rich", "json"})
 ALLOWED_COMPUTED_FIELDS = frozenset({"size", "size-raw", "unique-deps-count", "unique-deps-names", "unique-deps-size"})
 
 
@@ -140,6 +144,7 @@ def build_parser() -> ArgumentParser:
     sub = parser.add_subparsers(dest="command")
     from_index = sub.add_parser(
         "from-index",
+        aliases=["i"],
         parents=[render_parent],
         formatter_class=_Formatter,
         help="resolve requirements by querying a package index and render their tree (needs the index extra)",
@@ -157,6 +162,9 @@ def build_parser() -> ArgumentParser:
         metavar="REQUIREMENT",
         help="inline PEP 508 requirement to resolve, like a pip install argument; repeatable",
     )
+    # argparse records the alias actually typed in ``command``; pin it to the canonical name so __main__ and
+    # get_options can branch on a single value regardless of whether the user typed "from-index" or "i".
+    from_index.set_defaults(command="from-index")
     from_index.add_argument(
         "--requirements",
         action="append",
@@ -188,6 +196,7 @@ def build_parser() -> ArgumentParser:
 
     from_lock = sub.add_parser(
         "from-lock",
+        aliases=["l"],
         parents=[render_parent],
         formatter_class=_Formatter,
         help="render the dependency tree from a PEP 751 pylock.toml (offline; no index/network needed)",
@@ -197,6 +206,7 @@ def build_parser() -> ArgumentParser:
         ),
     )
     from_lock.add_argument("lock", metavar="PYLOCK", help="path to a PEP 751 pylock.toml lock file")
+    from_lock.set_defaults(command="from-lock")
 
     # Bare ``pipdeptree`` does not visit the subparser, so seed defaults for its attributes to keep Options total. The
     # installed-only display options (license/metadata/computed) are not exposed on the subparsers, so seed them too:
@@ -300,6 +310,13 @@ def _add_render_arguments(parser: ArgumentParser) -> None:
             "packages that need them under them"
         ),
     )
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        default=False,
+        help="render a one-block health report of the tree instead of the tree itself; combine with -o text "
+        "(default), rich, or json. Composes with from-index/from-lock",
+    )
     render_type = parser.add_mutually_exclusive_group()
     render_type.add_argument(
         "-j",
@@ -385,24 +402,29 @@ def get_options(args: Sequence[str] | None) -> Options:
     )
     options.computed = [f.strip() for f in raw_computed.split(",") if f.strip()] if raw_computed else []
 
+    # ``parser.error`` is ``NoReturn`` (it raises ``SystemExit``), so these are terminal guards, not returns.
     if options.license:
         if "license" in options.metadata:
-            return parser.error("cannot use --license with --metadata license")
+            parser.error("cannot use --license with --metadata license")
         warnings.warn("--license is deprecated, use --metadata license instead", DeprecationWarning, stacklevel=1)
         options.metadata = ["license", *options.metadata]
 
     if invalid := set(options.computed) - ALLOWED_COMPUTED_FIELDS:
         allowed = ", ".join(sorted(ALLOWED_COMPUTED_FIELDS))
-        return parser.error(f"invalid --computed values: {', '.join(sorted(invalid))}. Allowed: {allowed}")
+        parser.error(f"invalid --computed values: {', '.join(sorted(invalid))}. Allowed: {allowed}")
 
     options.context = RenderContext(metadata=options.metadata, computed=options.computed)
 
+    if options.summary and options.output_format not in SUMMARY_RENDER_FORMATS:
+        allowed = ", ".join(sorted(SUMMARY_RENDER_FORMATS))
+        parser.error(f"--summary supports only -o {allowed} (got {options.output_format})")
+
     if options.command == "from-index" and not (options.requirement or options.requirements or options.pyproject):
-        return parser.error("from-index needs at least one REQUIREMENT, --requirements FILE, or --pyproject FILE")
+        parser.error("from-index needs at least one REQUIREMENT, --requirements FILE, or --pyproject FILE")
     if options.exclude_dependencies and not options.exclude:
-        return parser.error("must use --exclude-dependencies with --exclude")
+        parser.error("must use --exclude-dependencies with --exclude")
     if options.path and (options.local_only or options.user_only):
-        return parser.error("cannot use --path with --user-only or --local-only")
+        parser.error("cannot use --path with --user-only or --local-only")
 
     return options
 
