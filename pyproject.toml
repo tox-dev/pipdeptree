@@ -48,12 +48,18 @@ dependencies = [
 optional-dependencies.graphviz = [
   "graphviz>=0.21",
 ]
+optional-dependencies.index = [
+  "nab-index>=0.0.4",
+  "nab-python>=0.0.4",
+  "pip-requirements-parser>=32",
+]
 optional-dependencies.rich = [
   "rich>=14.3.3",
 ]
 optional-dependencies.test = [
   "covdefaults>=2.3",
   "diff-cover>=9.7.1",
+  "pipdeptree[index]",
   "pytest>=8.4.2",
   "pytest-cov>=7",
   "pytest-mock>=3.15.1",

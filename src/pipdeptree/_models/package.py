@@ -5,7 +5,7 @@ from functools import cached_property
 from importlib import import_module
 from importlib.metadata import Distribution, PackageMetadata, PackageNotFoundError, metadata, version
 from inspect import ismodule
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
@@ -14,6 +14,8 @@ from pipdeptree._parser import distribution_to_specifier
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+RenderMode = Literal["default", "resolved"]
 
 
 class InvalidRequirementError(ValueError):
@@ -86,11 +88,11 @@ class Package(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def render_as_branch(self, *, frozen: bool) -> str:
+    def render_as_branch(self, *, frozen: bool, mode: RenderMode = "default") -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self, *, mode: RenderMode = "default") -> dict[str, str]:
         raise NotImplementedError
 
     def render(
@@ -98,9 +100,11 @@ class Package(ABC):
         parent: DistPackage | ReqPackage | None = None,
         *,
         frozen: bool = False,
+        mode: RenderMode = "default",
     ) -> str:
-        render = self.render_as_branch if parent else self.render_as_root
-        return render(frozen=frozen)
+        if parent:
+            return self.render_as_branch(frozen=frozen, mode=mode)
+        return self.render_as_root(frozen=frozen)
 
     @staticmethod
     def as_frozen_repr(distribution: Distribution) -> str:
@@ -197,7 +201,9 @@ class DistPackage(Package):
     def render_as_root(self, *, frozen: bool) -> str:
         return self.as_frozen_repr(self._obj) if frozen else f"{self.project_name}=={self.version}"
 
-    def render_as_branch(self, *, frozen: bool) -> str:
+    def render_as_branch(self, *, frozen: bool, mode: RenderMode = "default") -> str:  # noqa: ARG002
+        # resolved mode only relabels ReqPackage branches; a DistPackage branch appears in reverse mode
+        # where the "[requires: parent]" label describes the parent edge, so it is left unchanged.
         assert self.req is not None
         if not frozen:
             parent_ver_spec = self.req.version_spec
@@ -236,8 +242,9 @@ class DistPackage(Package):
             return f"[{self.req.extra}] {version}"
         return version
 
-    def as_dict(self) -> dict[str, str]:
-        return {"key": self.key, "package_name": self.project_name, "installed_version": self.version}
+    def as_dict(self, *, mode: RenderMode = "default") -> dict[str, str]:
+        version_key = "candidate_version" if mode == "resolved" else "installed_version"
+        return {"key": self.key, "package_name": self.project_name, version_key: self.version}
 
 
 class ReqPackage(Package):
@@ -264,10 +271,14 @@ class ReqPackage(Package):
             return self.as_frozen_repr(self.dist.unwrap())
         return self.project_name
 
-    def render_as_branch(self, *, frozen: bool) -> str:
+    def render_as_branch(self, *, frozen: bool, mode: RenderMode = "default") -> str:
         if not frozen:
-            req_ver = self.version_spec or "Any"
             extra_str = f", extra: {self.extra}" if self.extra else ""
+            if mode == "resolved":
+                # nab resolves one version per package and discards the per-edge range, so there is no
+                # "required" to show; surface only the selected candidate.
+                return f"{self.project_name} [candidate: {self.installed_version}{extra_str}]"
+            req_ver = self.version_spec or "Any"
             return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}{extra_str}]"
         return self.render_as_root(frozen=frozen)
 
@@ -313,13 +324,22 @@ class ReqPackage(Package):
     def is_missing(self) -> bool:
         return self.installed_version == self.UNKNOWN_VERSION
 
-    def as_dict(self) -> dict[str, str]:
-        result = {
-            "key": self.key,
-            "package_name": self.project_name,
-            "installed_version": self.installed_version,
-            "required_version": self.version_spec if self.version_spec is not None else "Any",
-        }
+    def as_dict(self, *, mode: RenderMode = "default") -> dict[str, str]:
+        if mode == "resolved":
+            # nab discards the per-edge range, so drop required_version and report the single resolved
+            # version under candidate_version.
+            result = {
+                "key": self.key,
+                "package_name": self.project_name,
+                "candidate_version": self.installed_version,
+            }
+        else:
+            result = {
+                "key": self.key,
+                "package_name": self.project_name,
+                "installed_version": self.installed_version,
+                "required_version": self.version_spec if self.version_spec is not None else "Any",
+            }
         if self.extra:
             result["extra"] = self.extra
         return result
@@ -334,5 +354,6 @@ def _try_parse_requirement(raw_req: str) -> Requirement | str:
 
 __all__ = [
     "DistPackage",
+    "RenderMode",
     "ReqPackage",
 ]

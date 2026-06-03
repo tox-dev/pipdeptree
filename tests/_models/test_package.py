@@ -188,6 +188,30 @@ def test_req_package_render_as_branch() -> None:
     assert rp.render_as_branch(frozen=False) == "bar [required: >=4.0, installed: 4.1.0]"
 
 
+def test_req_package_render_as_branch_candidate() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar)
+    assert rp.render_as_branch(frozen=False, mode="resolved") == "bar [candidate: 4.1.0]"
+
+
+def test_req_package_render_as_branch_candidate_with_extra() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar, extra="dev")
+    assert rp.render_as_branch(frozen=False, mode="resolved") == "bar [candidate: 4.1.0, extra: dev]"
+
+
+def test_req_package_render_as_branch_default_unchanged() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar)
+    assert rp.render_as_branch(frozen=False, mode="default") == "bar [required: >=4.0, installed: 4.1.0]"
+
+
 def test_req_package_is_conflicting_handle_dev_versions() -> None:
     # ensure that we can handle development versions when detecting conflicts
     # see https://github.com/tox-dev/pipdeptree/issues/393
@@ -278,6 +302,36 @@ def test_req_package_as_dict_with_no_version_spec() -> None:
     rp = ReqPackage(bar_req, dist=bar)
     result = rp.as_dict()
     expected = {"key": "bar", "package_name": "bar", "installed_version": "4.1.0", "required_version": "Any"}
+    assert expected == result
+
+
+def test_req_package_as_dict_candidate() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar)
+    result = rp.as_dict(mode="resolved")
+    expected = {"key": "bar", "package_name": "bar", "candidate_version": "4.1.0"}
+    assert expected == result
+    assert "required_version" not in result
+    assert "installed_version" not in result
+
+
+def test_req_package_as_dict_default_unchanged() -> None:
+    bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
+    bar_req = MagicMock(specifier=[">=4.0"])
+    bar_req.name = "bar"
+    rp = ReqPackage(bar_req, dist=bar)
+    result = rp.as_dict(mode="default")
+    expected = {"key": "bar", "package_name": "bar", "installed_version": "4.1.0", "required_version": ">=4.0"}
+    assert expected == result
+
+
+def test_dist_package_as_dict_candidate() -> None:
+    foo = Mock(metadata={"Name": "foo"}, version="1.3.2b1")
+    dp = DistPackage(foo)
+    result = dp.as_dict(mode="resolved")
+    expected = {"key": "foo", "package_name": "foo", "candidate_version": "1.3.2b1"}
     assert expected == result
 
 

@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
     from pipdeptree._cli import RenderContext
     from pipdeptree._models import PackageDAG
+    from pipdeptree._models.package import RenderMode
 
 
 def render_rich_text(
@@ -21,6 +22,7 @@ def render_rich_text(
     max_depth: float,
     list_all: bool = True,
     context: RenderContext | None = None,
+    mode: RenderMode = "default",
 ) -> None:
     """
     Print tree using Rich library for enhanced terminal output.
@@ -29,6 +31,7 @@ def render_rich_text(
     :param max_depth: the maximum depth of the dependency tree
     :param list_all: whether to list all the pkgs at the root level or only those that are the sub-dependencies
     :param context: metadata and computed fields to display
+    :param mode: "resolved" renders edges as "candidate: <version>" for resolved trees
     :returns: None
     """
     try:
@@ -45,10 +48,10 @@ def render_rich_text(
     console = Console()
 
     for node in nodes:
-        root_label = _format_node(node, parent=None, context=context, tree=tree)
+        root_label = _format_node(node, parent=None, context=context, tree=tree, mode=mode)
         rich_tree = Tree(root_label, guide_style="bold bright_blue")
         _add_metadata_leaves(node, rich_tree, context)
-        _build_tree(tree, node, rich_tree, max_depth=max_depth, depth=0, cur_chain=[], context=context)
+        _build_tree(tree, node, rich_tree, max_depth=max_depth, depth=0, cur_chain=[], context=context, mode=mode)
         console.print(rich_tree)
 
 
@@ -61,18 +64,9 @@ def _build_tree(  # noqa: PLR0913
     depth: int,
     cur_chain: list[str],
     context: RenderContext | None,
+    mode: RenderMode = "default",
 ) -> None:
-    """
-    Recursively build the rich tree structure.
-
-    :param tree: the package tree
-    :param node: current node
-    :param rich_tree: the rich Tree object to add children to
-    :param max_depth: maximum depth
-    :param depth: current depth
-    :param cur_chain: chain of package names to detect cycles
-    :param context: metadata and computed fields to display
-    """
+    """Recursively build the rich tree structure."""
     if depth >= max_depth:
         return
 
@@ -81,7 +75,7 @@ def _build_tree(  # noqa: PLR0913
         if child.project_name in cur_chain:
             continue
 
-        child_label = _format_node(child, parent=node, context=context, tree=tree)
+        child_label = _format_node(child, parent=node, context=context, tree=tree, mode=mode)
         child_tree = rich_tree.add(child_label)
         _add_metadata_leaves(child, child_tree, context)
 
@@ -93,6 +87,7 @@ def _build_tree(  # noqa: PLR0913
             depth=depth + 1,
             cur_chain=[*cur_chain, child.project_name],
             context=context,
+            mode=mode,
         )
 
 
@@ -102,17 +97,10 @@ def _format_node(
     *,
     context: RenderContext | None,
     tree: PackageDAG,
+    mode: RenderMode = "default",
 ) -> str:
-    """
-    Format a node for display with rich styling.
-
-    :param node: the node to format
-    :param parent: the parent node (if any)
-    :param context: metadata and computed fields to display
-    :param tree: the package tree (needed for computed fields)
-    :return: formatted string with rich markup
-    """
-    node_str = node.render(parent, frozen=False)
+    """Format a node for display with rich styling."""
+    node_str = node.render(parent, frozen=False, mode=mode)
 
     rich_exclude = frozenset({"unique-deps-names"})
 
@@ -133,7 +121,7 @@ def _format_node(
         and any(f.startswith("unique-deps") for f in context.computed)
         and node.key in ComputedValues(parent.key, tree, context.full_tree if context else None).unique_deps
     )
-    return _format_branch_node(node_str, node, suffix, is_unique=is_unique)
+    return _format_branch_node(node_str, node, suffix, is_unique=is_unique, mode=mode)
 
 
 def _add_metadata_leaves(
@@ -164,10 +152,25 @@ def _format_root_node(node_str: str, suffix: str = "") -> str:
 
 
 def _format_branch_node(
-    node_str: str, node: DistPackage | ReqPackage, suffix: str = "", *, is_unique: bool = False
+    node_str: str,
+    node: DistPackage | ReqPackage,
+    suffix: str = "",
+    *,
+    is_unique: bool = False,
+    mode: RenderMode = "default",
 ) -> str:
     """Format a branch node (dependency)."""
     suffix_str = f" [dim blue]{suffix.strip()}[/dim blue]" if suffix else ""
+    if mode == "resolved" and isinstance(node, ReqPackage):
+        match = re.match(r"^(.+?)\s+\[candidate:\s*(.+?)(?:,\s+extra:\s*(.+?))?\]$", node_str)
+        assert match, f"Unexpected candidate branch node format: {node_str}"
+        name, version, extra = match.groups()
+        status_icon = _get_status_icon(node, is_unique=is_unique)
+        extra_str = f" [magenta]\\[extra: {extra}][/magenta]" if extra else ""
+        return (
+            f"{status_icon}[bold cyan]{name}[/bold cyan] "
+            f"[dim]candidate:[/dim] {_format_version(version, node)}{extra_str}{suffix_str}"
+        )
     if isinstance(node, ReqPackage) and (
         match := re.match(
             r"""

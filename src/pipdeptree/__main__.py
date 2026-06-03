@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from pipdeptree._cli import Options, get_options, parse_packages
 from pipdeptree._detect_env import detect_active_interpreter, find_active_interpreter
 from pipdeptree._discovery import InterpreterQueryError, get_installed_distributions
+from pipdeptree._from_index import FromIndexInputError, FromIndexUnavailableError, resolve_from_index
 from pipdeptree._models import PackageDAG
 from pipdeptree._models.dag import IncludeExcludeOverlapError, IncludePatternNotFoundError
 from pipdeptree._render import render
@@ -43,6 +44,9 @@ def main(args: Sequence[str] | None = None) -> int | None:
     except InterpreterQueryError as e:
         print(f"Failed to query custom interpreter: {e}", file=sys.stderr)  # noqa: T201
         return 1
+    except (FromIndexUnavailableError, FromIndexInputError) as e:
+        print(str(e), file=sys.stderr)  # noqa: T201
+        return 1
     except _FilterError as e:
         if e.is_fatal:
             print(str(e), file=sys.stderr)  # noqa: T201
@@ -63,16 +67,28 @@ def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
     Shared by the CLI and the programmatic :func:`pipdeptree.render` API.
 
     :raises InterpreterQueryError: if querying a custom interpreter failed
+    :raises FromIndexUnavailableError: if from-index is used but the optional nab resolver is missing
+    :raises FromIndexInputError: if a from-index source is missing or a requirements file uses an unsupported directive
     :raises _FilterError: if the include/exclude filter cannot be satisfied
     """
-    options.python = _resolve_python(options.python, log_resolved=log_resolved)
-
-    pkgs = get_installed_distributions(
-        interpreter=options.python,
-        supplied_paths=options.path or None,
-        local_only=options.local_only,
-        user_only=options.user_only,
-    )
+    if options.command == "from-index":
+        # from-index resolves requirements by querying the package index instead of inspecting an installed
+        # environment, so interpreter resolution is skipped entirely.
+        pkgs = resolve_from_index(
+            requirements=options.requirement,
+            requirement_files=options.requirements or [],
+            pyproject_files=options.pyproject or [],
+            index_url=options.index_url,
+            extra_index_url=options.extra_index_url,
+        )
+    else:
+        options.python = _resolve_python(options.python, log_resolved=log_resolved)
+        pkgs = get_installed_distributions(
+            interpreter=options.python,
+            supplied_paths=options.path or None,
+            local_only=options.local_only,
+            user_only=options.user_only,
+        )
 
     include, requested_extras = parse_packages(options.packages)
     tree = PackageDAG.from_pkgs(pkgs, extras=options.extras, requested_extras=requested_extras)

@@ -8,15 +8,17 @@ from pipdeptree._computed import ComputedValues
 if TYPE_CHECKING:
     from pipdeptree._cli import RenderContext
     from pipdeptree._models import DistPackage, PackageDAG, ReqPackage
+    from pipdeptree._models.package import RenderMode
 
 
-def render_text(
+def render_text(  # noqa: PLR0913
     tree: PackageDAG,
     *,
     max_depth: float,
     encoding: str,
     list_all: bool = True,
     context: RenderContext | None = None,
+    mode: RenderMode = "default",
 ) -> None:
     """
     Print tree as text on console.
@@ -26,15 +28,16 @@ def render_text(
     :param encoding: encoding to use (use "utf-8", "utf-16", "utf-32" for unicode or anything else for legacy output)
     :param list_all: whether to list all the pkgs at the root level or only those that are the sub-dependencies
     :param context: metadata and computed fields to display
+    :param mode: "resolved" renders edges as "[candidate: <version>]" for resolved trees
     :returns: None
 
     """
     nodes = get_top_level_nodes(tree, list_all=list_all)
 
     if encoding in {"utf-8", "utf-16", "utf-32"}:
-        _render_text_with_unicode(tree, nodes, max_depth, context)
+        _render_text_with_unicode(tree, nodes, max_depth, context, mode=mode)
     else:
-        _render_text_simple(tree, nodes, max_depth, context=context)
+        _render_text_simple(tree, nodes, max_depth, context=context, mode=mode)
 
 
 def get_top_level_nodes(tree: PackageDAG, *, list_all: bool) -> list[DistPackage]:
@@ -59,6 +62,8 @@ def _render_text_with_unicode(
     nodes: list[DistPackage],
     max_depth: float,
     context: RenderContext | None,
+    *,
+    mode: RenderMode = "default",
 ) -> None:
     def aux(  # noqa: PLR0913, PLR0917
         node: DistPackage | ReqPackage,
@@ -72,7 +77,7 @@ def _render_text_with_unicode(
         parent_is_last_child: bool = False,  # noqa: FBT001, FBT002
     ) -> list[Any]:
         cur_chain = cur_chain or []
-        node_str = node.render(parent, frozen=False)
+        node_str = node.render(parent, frozen=False, mode=mode)
         if context and context.active:
             node_str += _build_suffix(node, context, tree)
         next_prefix = ""
@@ -128,6 +133,7 @@ def _render_text_simple(  # noqa: PLR0913
     context: RenderContext | None = None,
     frozen: bool = False,
     bullet: str = "- ",
+    mode: RenderMode = "default",
 ) -> None:
     def aux(
         node: DistPackage | ReqPackage,
@@ -137,7 +143,7 @@ def _render_text_simple(  # noqa: PLR0913
         depth: int = 0,
     ) -> list[Any]:
         cur_chain = cur_chain or []
-        node_str = node.render(parent, frozen=frozen)
+        node_str = node.render(parent, frozen=frozen, mode=mode)
         if context and context.active:
             node_str += _build_suffix(node, context, tree)
         if parent:

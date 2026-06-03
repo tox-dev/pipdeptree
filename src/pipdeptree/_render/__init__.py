@@ -13,20 +13,24 @@ from .text import render_text
 if TYPE_CHECKING:
     from pipdeptree._cli import Options
     from pipdeptree._models import PackageDAG
+    from pipdeptree._models.package import RenderMode
 
 
 def render(options: Options, tree: PackageDAG) -> None:
     output_format = options.output_format
+    # from-index/from-lock build a tree from resolved data: one version per package and no per-edge
+    # range, so edges show "[candidate: <version>]" instead of "[required:, installed:]".
+    mode: RenderMode = "resolved" if options.command in {"from-index", "from-lock"} else "default"
     if output_format == "json":
-        render_json(tree, context=options.context)
+        render_json(tree, context=options.context, mode=mode)
     elif output_format == "json-tree":
-        render_json_tree(tree, context=options.context)
+        render_json_tree(tree, context=options.context, mode=mode)
     elif output_format == "mermaid":
         render_mermaid(tree, context=options.context)
     elif output_format == "freeze":
         render_freeze(tree, max_depth=options.depth, list_all=options.all)
     elif output_format == "rich":
-        render_rich_text(tree, max_depth=options.depth, list_all=options.all, context=options.context)
+        render_rich_text(tree, max_depth=options.depth, list_all=options.all, context=options.context, mode=mode)
     elif output_format.startswith("graphviz-"):
         render_graphviz(
             tree,
@@ -42,6 +46,7 @@ def render(options: Options, tree: PackageDAG) -> None:
             encoding=options.encoding,
             list_all=options.all,
             context=options.context,
+            mode=mode,
         )
 
 

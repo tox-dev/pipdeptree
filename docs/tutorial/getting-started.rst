@@ -139,6 +139,59 @@ Limit the tree depth:
     ├── chardet [required: >=3.0.0, installed: 7.1.0]
     └── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
 
+Preview a tree before installing
+--------------------------------
+
+So far you have looked at packages that are already installed. You can also peek at the tree a package *would*
+pull in before you commit to installing it. This lives in the ``from-index`` subcommand, which queries PyPI
+instead of inspecting your environment. It ships in an optional extra, so install that first:
+
+.. code-block:: console
+
+    $ pip install pipdeptree[index]
+
+Now ask what ``starlette`` brings along:
+
+.. code-block:: console
+
+    $ pipdeptree from-index "starlette"
+    starlette==1.2.1
+    ├── anyio [candidate: 4.13.0]
+    │   ├── idna [candidate: 3.17]
+    │   └── typing-extensions [candidate: 4.15.0]
+    └── typing-extensions [candidate: 4.15.0]
+
+Read this the same way as the tree from your environment. The top line is the requirement you asked for and the
+indented lines are its dependencies. Each edge shows the candidate version the resolver selected from PyPI:
+nothing is installed and the resolver produces a single version per package without a requirement range, so the
+edges read ``[candidate: <version>]`` rather than the ``[required: ..., installed: ...]`` pair you see for an
+installed environment.
+
+The positional argument is a PEP 508 requirement, the same string you would pass to ``pip install``, so you can
+pin or bound it. Bound ``fastapi`` and resolve it alongside ``starlette`` -- the pin lands on the upper bound:
+
+.. code-block:: console
+
+    $ pipdeptree from-index "fastapi<=0.115.2" starlette
+    fastapi==0.115.2
+    ├── pydantic [candidate: 2.13.4]
+    │   ├── annotated-types [candidate: 0.7.0]
+    │   ├── pydantic-core [candidate: 2.46.4]
+    │   │   └── typing-extensions [candidate: 4.15.0]
+    │   ├── typing-extensions [candidate: 4.15.0]
+    │   └── typing-inspection [candidate: 0.4.2]
+    │       └── typing-extensions [candidate: 4.15.0]
+    ├── starlette [candidate: 0.40.0]
+    │   └── anyio [candidate: 4.13.0]
+    │       ├── idna [candidate: 3.17]
+    │       └── typing-extensions [candidate: 4.15.0]
+    └── typing-extensions [candidate: 4.15.0]
+
+The constraint moves the top-level pin to ``0.115.2`` and the dependency picks follow from it. You can also resolve
+a ``pyproject.toml`` with ``--pyproject`` or a requirements file with ``--requirements``, and even a local checkout
+or a pinned git requirement, where the resolver reads the target's metadata. See :doc:`/how-to/usage` for those
+sources, the render flags, and the inputs the resolver rejects.
+
 Next steps
 ----------
 

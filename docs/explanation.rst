@@ -65,6 +65,60 @@ Circular dependency detection uses cycle detection on the directed dependency gr
         style X fill:#e67e22,color:#fff
         style Y fill:#e67e22,color:#fff
 
+from-index: resolving from an index instead of inspecting
+---------------------------------------------------------
+
+The default command reads ``importlib.metadata`` for packages that are *already installed*: each one has a
+``METADATA`` file and real files on disk, so pipdeptree can report its version, dependencies, license, metadata
+fields and on-disk size.
+
+The ``from-index`` subcommand answers a different question -- "what *would* this tree look like?" -- so it cannot
+read installed state, because nothing is installed. It hands the requirements to the optional index resolver, which
+runs a PubGrub solve against a package index (PyPI) and picks a consistent set of versions *without downloading or
+installing anything*. The name says where the answer comes from: the index server, not the Python environment.
+It reads requirements files as standard ``requirements.txt`` files, so nested ``-r``, ``-c`` constraints,
+environment markers and comments all carry through. Editable installs, local paths and pinned git requirements
+resolve from the checkout itself rather than the index (see below). Bare wheel/sdist archive URLs and non-git VCS
+schemes stay out of scope, since the resolver has no way to map them. pipdeptree then renders that resolved graph
+through the same machinery as the default command.
+
+PubGrub is a version-solving algorithm: the resolver asks the index for the candidate versions of each
+requirement, follows their declared dependencies, and backtracks when two constraints cannot hold at once until it
+reaches a single consistent assignment or proves none exists. Querying the index is why the subcommand needs the
+network and the extra. The default command reads files already on disk, so it needs neither.
+
+This solve depends on the same environment markers that govern a real install. A requirement guarded by
+``; python_version < "3.9"`` enters the resolve only when the marker evaluates true, so the Python version you
+resolve for can change which packages appear. The resolver evaluates markers against the interpreter running
+pipdeptree, which matters when you preview a tree for a version other than your own.
+
+The resolver handles a checkout (an editable install, a local path, or a cloned git repo) by reading its metadata
+rather than querying the index. It reads the project's PEP 621 ``[project]`` table -- and PEP 643 static metadata
+in sdists -- *statically*, with no build. It runs a build backend only when a target declares its dependencies
+dynamically and offers no static fallback. Most local and git dependencies resolve without any build; a project
+that computes its dependencies at build time pays for one.
+
+.. mermaid::
+
+    flowchart TD
+        S["requirements /<br/>pyproject.toml"] --> R["PubGrub resolver<br/>(index = PyPI)"]
+        R --> G["Resolved graph<br/>(names, versions, edges)"]
+        G --> E["Render output"]
+        style S fill:#2c3e50,color:#ecf0f1
+        style R fill:#2980b9,color:#fff
+        style G fill:#27ae60,color:#fff
+        style E fill:#8e44ad,color:#fff
+
+Index selection feeds the resolver's index list. ``--index-url``/``--extra-index-url``, their ``PIP_*``/``UV_*``
+environment fallbacks, and a ``--pyproject``'s ``[tool.nab].indexes`` each supply that list; with none set the
+resolve uses PyPI.
+
+The resolver yields only names, versions and dependency edges, so ``from-index`` drops the installed-only display
+options: ``--metadata``, ``--computed`` and ``--license`` each need a ``METADATA`` file or on-disk files that never
+exist for un-downloaded packages, and the environment-inspection options (``--python``, ``--path``, ``-l``/``-u``)
+have no environment to point at. The pure graph/version/render flags -- filtering, depth, ``--reverse``,
+``--extras`` and the output formats -- apply unchanged.
+
 Optional dependencies (extras)
 ------------------------------
 
@@ -103,7 +157,10 @@ Limitations
 -----------
 
 - pipdeptree only sees packages that are already installed. It cannot predict what a ``pip install`` will do.
-- If you need a dependency resolver that works without installing packages first, consider :pypi:`uv`.
+- To preview the tree for a set of requirements without installing them, use the ``from-index`` subcommand (see
+  :doc:`/how-to/usage` and the "from-index: resolving from an index instead of inspecting" section above), which
+  resolves them via the optional index resolver. For a full-featured standalone resolver, :pypi:`uv` is another
+  option.
 - Optional dependencies show by default (``--extras=explicit``); use ``--extras=none`` to omit them,
   or ``--extras=active`` to also include extras that are merely satisfiable.
 - ``--extras`` cannot reconstruct extras that were requested only on the command line
