@@ -40,6 +40,26 @@ pipdeptree -o mermaid
 pipdeptree -o graphviz-svg > deps.svg
 ```
 
+Get a one-block environment health report (counts, depth, conflicts, cycles, licenses, size):
+
+```bash
+pipdeptree --summary           # aligned text
+pipdeptree --summary -o rich   # styled table
+pipdeptree --summary -o json   # machine-readable
+```
+
+Inspect a tree without installing it. Resolve requirements against a package index (needs the `index` extra), or read an
+already-resolved [PEP 751](https://peps.python.org/pep-0751/) lock offline:
+
+```bash
+pip install pipdeptree[index]
+pipdeptree from-index "flask"          # i is a shorthand alias
+pipdeptree from-index --requirements requirements.txt
+pipdeptree from-lock pylock.toml       # l is a shorthand alias
+```
+
+Every render flag above, including `--summary`, works with both subcommands.
+
 For the full documentation, visit [pipdeptree.readthedocs.io](https://pipdeptree.readthedocs.io).
 
 - [Documentation](https://pipdeptree.readthedocs.io)

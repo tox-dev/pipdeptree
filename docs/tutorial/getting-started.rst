@@ -139,6 +139,28 @@ Limit the tree depth:
     ├── chardet [required: >=3.0.0, installed: 7.1.0]
     └── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
 
+Get an at-a-glance health report with ``--summary``:
+
+.. code-block:: console
+
+    $ pipdeptree --packages pytest --summary
+    total packages:           5
+    direct dependencies:      1
+    transitive dependencies:  4
+    max depth:                2
+    cyclic dependencies:      0
+    missing dependencies:     0
+    conflicting dependencies: 0 (0 edges)
+    licenses:                 (Apache-2.0 OR BSD-2-Clause): 1, (BSD-2-Clause): 1, (MIT License): 1, (MIT): 2
+    unknown licenses:         0
+    copyleft licenses:        no
+    min requires-python:      3.10
+    total size:               6.0 MB
+
+Drop ``--packages`` to report on the whole environment. Add ``-o rich`` for a styled table, or ``-o json`` for a
+machine-readable version to gate CI on. The programmatic ``pipdeptree.render(summary=True)`` returns the same report
+and displays as an HTML table in a notebook. See :doc:`/how-to/output-formats` for the full field list.
+
 Preview a tree before installing
 --------------------------------
 

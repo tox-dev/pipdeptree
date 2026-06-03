@@ -56,6 +56,34 @@ def test_get_options_output_format_that_does_not_exist(capsys: pytest.CaptureFix
     assert 'i-dont-exist" is not a known output format.' in err
 
 
+@pytest.mark.parametrize("fmt", ["text", "rich", "json"])
+def test_get_options_summary_allows_styles(fmt: str) -> None:
+    options = get_options(["--summary", "-o", fmt])
+    assert options.summary
+    assert options.output_format == fmt
+
+
+def test_get_options_summary_default_text() -> None:
+    options = get_options(["--summary"])
+    assert options.summary
+    assert options.output_format == "text"
+
+
+@pytest.mark.parametrize("fmt", ["mermaid", "json-tree", "freeze", "graphviz-png"])
+def test_get_options_summary_rejects_tree_formats(fmt: str, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        get_options(["--summary", "-o", fmt])
+
+    assert "--summary supports only -o json, rich, text" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(("alias", "canonical"), [("i", "from-index"), ("l", "from-lock")])
+def test_get_options_subcommand_aliases(alias: str, canonical: str) -> None:
+    args = [alias, "req"] if canonical == "from-index" else [alias, "pylock.toml"]
+    options = get_options(args)
+    assert options.command == canonical
+
+
 def test_get_options_license_deprecated() -> None:
     with pytest.warns(DeprecationWarning, match="--license is deprecated"):
         options = get_options(["--license"])

@@ -8,6 +8,7 @@ from .json import render_json
 from .json_tree import render_json_tree
 from .mermaid import render_mermaid
 from .rich_text import render_rich_text
+from .summary import render_summary
 from .text import render_text
 
 if TYPE_CHECKING:
@@ -21,7 +22,10 @@ def render(options: Options, tree: PackageDAG) -> None:
     # from-index/from-lock build a tree from resolved data: one version per package and no per-edge
     # range, so edges show "[candidate: <version>]" instead of "[required:, installed:]".
     mode: RenderMode = "resolved" if options.command in {"from-index", "from-lock"} else "default"
-    if output_format == "json":
+    # --summary reduces the tree to an aggregate report; output_format then only selects its presentation style.
+    if options.summary:
+        render_summary(tree, mode=mode, style=output_format)
+    elif output_format == "json":
         render_json(tree, context=options.context, mode=mode)
     elif output_format == "json-tree":
         render_json_tree(tree, context=options.context, mode=mode)

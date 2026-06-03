@@ -222,8 +222,75 @@ Other formats render the graph directly to binary output:
 The format is specified as ``graphviz-<format>`` where ``<format>`` is any
 `Graphviz output format <https://graphviz.org/docs/outputs/>`_ (dot, pdf, png, svg, jpeg, etc.).
 
-Every format above also works with the ``from-index`` subcommand, e.g.
+summary
+-------
+
+``--summary`` replaces the tree with a single-block health report of the environment -- for CI gates and
+at-a-glance audits rather than per-package inspection. It is a separate axis from the renderers above: ``--summary``
+chooses *what* to show, while ``-o`` chooses *how* to style it. The styles that make sense for a flat report are
+``text`` (the default), ``rich`` and ``json``; the tree-only renderers (mermaid, graphviz, freeze, json-tree) are
+rejected. Run it over the whole environment, or scope it with ``--packages`` like the examples above:
+
+.. code-block:: console
+
+    $ pipdeptree --packages pytest --summary
+    total packages:           5
+    direct dependencies:      1
+    transitive dependencies:  4
+    max depth:                2
+    cyclic dependencies:      0
+    missing dependencies:     0
+    conflicting dependencies: 0 (0 edges)
+    licenses:                 (Apache-2.0 OR BSD-2-Clause): 1, (BSD-2-Clause): 1, (MIT License): 1, (MIT): 2
+    unknown licenses:         0
+    copyleft licenses:        no
+    min requires-python:      3.10
+    total size:               6.0 MB
+
+For terminals, ``--summary -o rich`` prints the same metrics as a styled table. For automation, ``-o json`` emits
+a machine-readable object:
+
+.. code-block:: console
+
+    $ pipdeptree --packages pytest --summary -o json
+
+.. code-block:: json
+
+    {
+      "total_packages": 5,
+      "direct_dependencies": 1,
+      "transitive_dependencies": 4,
+      "max_depth": 2,
+      "cyclic_dependencies": 0,
+      "missing_dependencies": 0,
+      "conflicting_dependencies": {
+        "packages": 0,
+        "edges": 0
+      },
+      "licenses": {
+        "breakdown": {
+          "(Apache-2.0 OR BSD-2-Clause)": 1,
+          "(BSD-2-Clause)": 1,
+          "(MIT License)": 1,
+          "(MIT)": 2
+        },
+        "unknown": 0,
+        "copyleft": false
+      },
+      "min_requires_python": "3.10",
+      "total_size": "6.0 MB",
+      "total_size_raw": 6320765
+    }
+
+``--summary`` composes with the tree sources too: ``pipdeptree from-lock pylock.toml --summary`` and
+``pipdeptree from-index 'flask' --summary`` summarize a resolved tree. The graph-structural metrics (the first
+five) come from the tree alone and work everywhere. The installed-environment metrics (missing/conflicting deps,
+licenses, requires-python, size) read real distribution metadata and files, which the ``from-index``/``from-lock``
+synthetic trees do not carry, so under those subcommands they report ``n/a`` (text) or are omitted (JSON) rather
+than a misleading zero. See :doc:`/explanation` for the reasoning.
+
+Every format above also works with the ``from-index`` subcommand (alias ``i``), e.g.
 ``pipdeptree from-index --requirements requirements.txt -o json``
-to render a tree resolved from the package index without installing, and with the ``from-lock`` subcommand, e.g.
-``pipdeptree from-lock pylock.toml -o json`` to render an already-resolved PEP 751 lock offline. See
-:doc:`/how-to/usage` for details.
+to render a tree resolved from the package index without installing, and with the ``from-lock`` subcommand
+(alias ``l``), e.g. ``pipdeptree from-lock pylock.toml -o json`` to render an already-resolved PEP 751 lock offline.
+See :doc:`/how-to/usage` for details.

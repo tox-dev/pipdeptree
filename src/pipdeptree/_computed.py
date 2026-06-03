@@ -44,7 +44,7 @@ class ComputedValues:
 
     @cached_property
     def size(self) -> str:
-        return self._format_size(self.size_bytes) if self.size_bytes is not None else "0 B"
+        return self.format_size(self.size_bytes) if self.size_bytes is not None else "0 B"
 
     @cached_property
     def size_raw(self) -> int:
@@ -65,7 +65,7 @@ class ComputedValues:
             return 0
 
     @staticmethod
-    def _format_size(size_bytes: int) -> str:
+    def format_size(size_bytes: int) -> str:
         for unit in ("B", "KB", "MB", "GB"):
             if size_bytes < 1024 or unit == "GB":
                 return f"{size_bytes:.1f} {unit}" if unit != "B" else f"{size_bytes} B"
@@ -83,7 +83,7 @@ class ComputedValues:
     @cached_property
     def unique_deps_size(self) -> str:
         total = sum(ComputedValues(dep, self.tree, self.full_tree).size_raw for dep in self.unique_deps)
-        return self._format_size(total)
+        return self.format_size(total)
 
     @cached_property
     def unique_deps(self) -> set[str]:
