@@ -369,6 +369,172 @@ Limitations
 - The subcommand needs network access and the ``pipdeptree[index]`` extra. Without the extra installed, it errors
   with an install hint.
 
+from-lock (render a PEP 751 lock)
+---------------------------------
+
+The ``from-lock`` subcommand reads a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock file
+(``pylock.toml``) and renders its dependency tree. A lock is already resolved: it records the pinned packages,
+their versions and the edges between them. ``from-lock`` runs **offline** with no package index, no network and no
+extra, and it works on every supported Python. The standard-library ``tomllib`` parses the file on 3.11+, and
+:pypi:`tomli` parses it on 3.10.
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml
+    build==1.5.0
+    ├── packaging [candidate: 26.2]
+    └── pyproject-hooks [candidate: 1.2.0]
+
+Each edge shows the ``candidate:`` version the lock pinned, not a package on your machine. pipdeptree reads
+nothing off disk and installs nothing.
+
+Producing a pylock.toml
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Any PEP 751 emitter writes a file ``from-lock`` can read. :pypi:`uv` exports one from a project:
+
+.. code-block:: console
+
+    $ uv export -o pylock.toml          # or: uv lock then export
+    $ pipdeptree from-lock pylock.toml
+
+Render flags on a lock
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The lock supplies every name, version and edge, so the graph and render flags behave as they do for the default
+command: ``--packages`` (``-p``), ``--exclude`` (``-e``), ``--depth`` (``-d``), ``--extras`` (``-x``),
+``--reverse`` (``-r``), ``--encoding`` and every output format from ``-o``.
+
+Emit JSON for another tool to consume:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml -o json
+    [
+        {
+            "package": {
+                "key": "build",
+                "package_name": "build",
+                "candidate_version": "1.5.0"
+            },
+            "dependencies": [
+                {
+                    "key": "packaging",
+                    "package_name": "packaging",
+                    "candidate_version": "26.2"
+                },
+                {
+                    "key": "pyproject-hooks",
+                    "package_name": "pyproject-hooks",
+                    "candidate_version": "1.2.0"
+                }
+            ]
+        },
+        {
+            "package": {
+                "key": "packaging",
+                "package_name": "packaging",
+                "candidate_version": "26.2"
+            },
+            "dependencies": []
+        },
+        {
+            "package": {
+                "key": "pyproject-hooks",
+                "package_name": "pyproject-hooks",
+                "candidate_version": "1.2.0"
+            },
+            "dependencies": []
+        }
+    ]
+
+Flip the edges with ``--reverse`` to see which packages pull in a given dependency:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml --reverse
+    packaging==26.2
+    └── build==1.5.0 [requires: packaging==26.2]
+    pyproject-hooks==1.2.0
+    └── build==1.5.0 [requires: pyproject-hooks==1.2.0]
+
+Draw a Mermaid diagram for a docs page or chat client:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml -o mermaid
+
+Narrow the tree the same way you would for an installed environment. Keep one root with ``--packages``:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml --packages build
+
+Hide a package with ``--exclude``:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml --exclude packaging
+
+Stop after the first level with ``--depth``:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml --depth 1
+
+Locks without edges
+~~~~~~~~~~~~~~~~~~~~~
+
+A valid PEP 751 lock may pin packages without recording the edges between them. ``from-lock`` then renders a flat
+list of pinned packages, each with no children:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml
+    build==1.5.0
+    packaging==26.2
+    pyproject-hooks==1.2.0
+
+Lock limitations
+~~~~~~~~~~~~~~~~~
+
+A lock carries only names, versions and edges, so the installed-only display options have nothing to read. The
+subcommand omits them, and passing one errors:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml --metadata license
+    ...
+    pipdeptree: error: unrecognized arguments: --metadata license
+    $ pipdeptree from-lock pylock.toml --license
+
+The same holds for ``--computed`` (``-c``) and the environment-inspection options (``--python``, ``--path``,
+``-l``/``-u``): a lock has no ``METADATA`` file, no on-disk sizes and no environment to point at.
+
+A missing lock file stops the command with a message and exit code 1:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock missing.toml
+    lock file does not exist: missing.toml
+    $ echo $?
+    1
+
+A malformed lock fails the same way. ``from-lock`` rejects a file that parses as TOML but has no ``packages``
+array:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml
+    not a valid PEP 751 lock file: pylock.toml (missing 'packages' array)
+
+A package entry without a ``name`` key, or a file that is not TOML at all, reports the offending file too:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml
+    not a valid PEP 751 lock file: pylock.toml (a package entry is missing 'name')
+
 Filtering packages
 ------------------
 

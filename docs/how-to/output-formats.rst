@@ -224,4 +224,6 @@ The format is specified as ``graphviz-<format>`` where ``<format>`` is any
 
 Every format above also works with the ``from-index`` subcommand, e.g.
 ``pipdeptree from-index --requirements requirements.txt -o json``
-to render a tree resolved from the package index without installing. See :doc:`/how-to/usage` for details.
+to render a tree resolved from the package index without installing, and with the ``from-lock`` subcommand, e.g.
+``pipdeptree from-lock pylock.toml -o json`` to render an already-resolved PEP 751 lock offline. See
+:doc:`/how-to/usage` for details.

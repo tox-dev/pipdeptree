@@ -192,6 +192,23 @@ a ``pyproject.toml`` with ``--pyproject`` or a requirements file with ``--requir
 or a pinned git requirement, where the resolver reads the target's metadata. See :doc:`/how-to/usage` for those
 sources, the render flags, and the inputs the resolver rejects.
 
+Render a lock file
+------------------
+
+If you already have a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock file (a ``pylock.toml``, such as the one
+:pypi:`uv` exports), point ``from-lock`` at it to read its tree:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml
+    build==1.5.0
+    ├── packaging [candidate: 26.2]
+    └── pyproject-hooks [candidate: 1.2.0]
+
+The lock already lists every package, version and edge, so ``from-lock`` runs offline with no install, no network
+and no extra. The filtering and output flags you used above work here too. See :doc:`/how-to/usage` for the full
+set.
+
 Next steps
 ----------
 

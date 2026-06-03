@@ -13,7 +13,6 @@ from pipdeptree._cli import get_options
 from pipdeptree._from_index import (
     FromIndexInputError,
     FromIndexUnavailableError,
-    _FromIndexDistribution,
     _LocalSource,
     _parse_requirements_file,
     _ParsedInputs,
@@ -25,6 +24,7 @@ from pipdeptree._from_index import (
     resolve_from_index,
 )
 from pipdeptree._models import PackageDAG
+from pipdeptree._synthetic_dist import SyntheticDistribution
 
 _PYPI_NAME = "pypi"
 _PYPI_URL = "https://pypi.org/simple"
@@ -223,8 +223,8 @@ def test_render_pyproject_quotes_special_chars() -> None:
     assert 'dependencies = [\n  "foo>=1; extra == \\"bar\\"",\n]' in rendered
 
 
-def test_from_index_distribution_file_helpers() -> None:
-    dist = _FromIndexDistribution("foo", "1.0", ("bar==2.0",))
+def test_synthetic_distribution_file_helpers() -> None:
+    dist = SyntheticDistribution("foo", "1.0", ("bar==2.0",))
     assert dist.read_text("METADATA") is None
     assert dist.locate_file("METADATA") == Path("METADATA")
 

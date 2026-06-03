@@ -27,6 +27,7 @@ class Options(Namespace):
     pyproject: list[str] | None
     index_url: str | None
     extra_index_url: list[str] | None
+    lock: str | None
     all: bool
     local_only: bool
     user_only: bool
@@ -185,9 +186,21 @@ def build_parser() -> ArgumentParser:
         "UV_EXTRA_INDEX_URL (whitespace separated) when unset",
     )
 
+    from_lock = sub.add_parser(
+        "from-lock",
+        parents=[render_parent],
+        formatter_class=_Formatter,
+        help="render the dependency tree from a PEP 751 pylock.toml (offline; no index/network needed)",
+        description=(
+            "Read a PEP 751 lock file (pylock.toml) and render its dependency tree. The lock is already resolved, so "
+            "this is fully offline -- no package index, network, or extra is required."
+        ),
+    )
+    from_lock.add_argument("lock", metavar="PYLOCK", help="path to a PEP 751 pylock.toml lock file")
+
     # Bare ``pipdeptree`` does not visit the subparser, so seed defaults for its attributes to keep Options total. The
-    # installed-only display options (license/metadata/computed) are not exposed on the from-index subparser, so seed
-    # them too: this keeps Options total whichever path argparse takes, so get_options can post-process it always.
+    # installed-only display options (license/metadata/computed) are not exposed on the subparsers, so seed them too:
+    # this keeps Options total whichever path argparse takes, so get_options can post-process it always.
     parser.set_defaults(
         command=None,
         requirement=[],
@@ -195,6 +208,7 @@ def build_parser() -> ArgumentParser:
         pyproject=None,
         index_url=None,
         extra_index_url=None,
+        lock=None,
         license=False,
         metadata="",
         computed="",
