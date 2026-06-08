@@ -351,40 +351,55 @@ def local_pkg(tmp_path: Path) -> Path:
     return pkg
 
 
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="stdlib tomllib (and no tomli dep) only on 3.11+")
+@pytest.mark.usefixtures("read_name")
 def test_translate_editable_local_source(
     captured_pyproject: dict[str, str],
-    read_name: None,  # noqa: ARG001
     local_pkg: Path,
     tmp_path: Path,
 ) -> None:
+    import tomllib  # noqa: PLC0415
     req = tmp_path / "requirements.txt"
     req.write_text("-e ./localpkg\n", encoding="utf-8")
 
     _resolve(requirement_files=[str(req)])
 
     content = captured_pyproject["content"]
-    assert '"localpkg",' in content
-    assert f'[[tool.nab.local-sources]]\nname = "localpkg"\npath = "{local_pkg}"\neditable = true\n' in content
-    assert 'build-policy = "build-remote"' in content
+    data = tomllib.loads(content)
+    nab = data["tool"]["nab"]
+    assert nab
+    assert nab["build-policy"] == "build-remote"
+    source = nab["local-sources"][0]
+    assert source
+    assert source["name"] == "localpkg"
+    assert source["path"] == str(local_pkg)
+    assert source["editable"] is True
 
 
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="stdlib tomllib (and no tomli dep) only on 3.11+")
+@pytest.mark.usefixtures("read_name")
 def test_translate_file_url_local_source_not_editable(
     captured_pyproject: dict[str, str],
-    read_name: None,  # noqa: ARG001
     local_pkg: Path,
     tmp_path: Path,
 ) -> None:
+    import tomllib  # noqa: PLC0415
     req = tmp_path / "requirements.txt"
-    req.write_text(f"localpkg @ file://{local_pkg}\n", encoding="utf-8")
+    req.write_text(f"localpkg @ {local_pkg.as_uri()}\n", encoding="utf-8")
 
     _resolve(requirement_files=[str(req)])
 
     content = captured_pyproject["content"]
-    assert f'[[tool.nab.local-sources]]\nname = "localpkg"\npath = "{local_pkg}"\neditable = false\n' in content
+    data = tomllib.loads(content)
+    source = data["tool"]["nab"]["local-sources"][0]
+    assert source
+    assert source["name"] == "localpkg"
+    assert source["path"] == str(local_pkg)
+    assert source["editable"] is False
 
 
+@pytest.mark.usefixtures("read_name")
 def test_translate_local_source_without_project_name(
-    read_name: None,  # noqa: ARG001
     tmp_path: Path,
 ) -> None:
     pkg = tmp_path / "nameless"
@@ -419,10 +434,10 @@ def test_translate_git_vcs_without_pin(tmp_path: Path) -> None:
         _resolve(requirement_files=[str(req)])
 
 
+@pytest.mark.usefixtures("read_name")
+@pytest.mark.usefixtures("local_pkg")
 def test_translate_mixed_sources(
     captured_pyproject: dict[str, str],
-    read_name: None,  # noqa: ARG001
-    local_pkg: Path,  # noqa: ARG001
     tmp_path: Path,
 ) -> None:
     sha = "1234567890abcdef1234567890abcdef12345678"
@@ -628,8 +643,8 @@ def nab_index_defaults(mocker: MockerFixture) -> None:
         ),
     ],
 )
+@pytest.mark.usefixtures("nab_index_defaults")
 def test_resolve_indexes(
-    nab_index_defaults: None,  # noqa: ARG001
     monkeypatch: pytest.MonkeyPatch,
     index_url: str | None,
     extra_index_url: list[str] | None,
@@ -684,8 +699,8 @@ def test_render_pyproject_indexes_round_trip_as_toml() -> None:
     ]
 
 
+@pytest.mark.usefixtures("nab_index_defaults")
 def test_resolve_from_index_temp_path_emits_indexes(
-    nab_index_defaults: None,  # noqa: ARG001
     captured_pyproject: dict[str, str],
 ) -> None:
     resolve_from_index(
@@ -711,8 +726,8 @@ class _FakeConfig:
     indexes: tuple[_FakeIndexConfig, ...]
 
 
+@pytest.mark.usefixtures("nab_index_defaults")
 def test_lone_pyproject_override_replaces_indexes(
-    nab_index_defaults: None,  # noqa: ARG001
     mocker: MockerFixture,
     fake_result: SimpleNamespace,
     write_pyproject: Callable[[], Path],

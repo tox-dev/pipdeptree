@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-import platform
+import os
 from pathlib import Path
 from subprocess import CompletedProcess  # noqa: S404
 from typing import TYPE_CHECKING
 
 import pytest
 
-from pipdeptree._detect_env import detect_active_interpreter, find_active_interpreter
+from pipdeptree._detect_env import (
+    detect_active_interpreter,
+    determine_bin_dir,
+    determine_interpreter_file_name,
+    find_active_interpreter,
+)
 
 if TYPE_CHECKING:
     from pytest_mock import MockFixture
@@ -56,21 +61,25 @@ def test_detect_active_interpreter_non_existent_path(
 
 
 def test_detect_active_interpreter_continue_when_other_detections_fail(tmp_path: Path, mocker: MockFixture) -> None:
-    # ensures that we fallback to another virtual env detection in case a detection (in this scenario virtualenv)
-    # points to a non-existent path
-    fake_python_path = tmp_path / "bin"
-    fake_python_path.mkdir()
-    fake_python_path /= "python" if platform.python_implementation() == "CPython" else "pypy"
-    fake_python_path.write_text("This is a fake Python file")
-    fake_path = str(Path(*("i", "dont", "exist")))
+    # ensures that we fallback to another virtual env detection in case a detection (in this scenario virtualenv) points
+    # to a non-existent path
+    non_existent_path = Path("/i/dont/exist")
     mocker.patch(
         "pipdeptree._detect_env.os.environ.get",
-        side_effect=lambda key: fake_path if key == "VIRTUAL_ENV" else str(tmp_path),
+        side_effect=lambda key: non_existent_path if key == "VIRTUAL_ENV" else str(tmp_path)
     )
+    fake_conda_python_dir = tmp_path
+    if os.name == "posix":  # pragma: posix cover
+        fake_conda_python_dir /= determine_bin_dir()
+        fake_conda_python_dir.mkdir()
+    interpreter_file = determine_interpreter_file_name()
+    assert interpreter_file
+    fake_conda_python_interpreter_path = fake_conda_python_dir / interpreter_file
+    fake_conda_python_interpreter_path.write_text("This is a fake Python interpreter", encoding="utf-8")
 
     detected_path = detect_active_interpreter()
 
-    assert detected_path == str(fake_python_path)
+    assert detected_path == str(fake_conda_python_interpreter_path)
 
 
 def test_find_active_interpreter_returns_path_when_detected(tmp_path: Path, mocker: MockFixture) -> None:
