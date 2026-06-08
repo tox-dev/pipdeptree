@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         env:
-          - "pypy-3.10"
+          - "pypy-3.11"
           - "3.14"
           - "3.13"
           - "3.12"
