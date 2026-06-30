@@ -205,6 +205,16 @@ def test_parse_direct_url_json(json_data: dict, check_fn: Callable[[DirectUrl], 
             id="hash-invalid-format",
         ),
         pytest.param(
+            '{"url": "https://example.com", "archive_info": {"hash": "=abc123"}}',
+            "invalid archive_info.hash format",
+            id="hash-missing-algorithm",
+        ),
+        pytest.param(
+            '{"url": "https://example.com", "archive_info": {"hash": "sha256="}}',
+            "invalid archive_info.hash format",
+            id="hash-missing-digest",
+        ),
+        pytest.param(
             '{"url": "https://example.com", "archive_info": {"hashes": "not-a-dict"}}',
             "archive_info.hashes must be a dict",
             id="hashes-not-dict",

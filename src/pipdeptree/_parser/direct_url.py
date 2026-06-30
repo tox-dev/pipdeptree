@@ -119,7 +119,8 @@ def _parse_archive_info(archive_data: dict) -> ArchiveInfo:
         if not isinstance(hash_value, str):
             msg = "archive_info.hash must be a string"
             raise DirectUrlValidationError(msg)
-        if "=" not in hash_value or len(hash_value.split("=", 1)) != 2:
+        algo, _, digest = hash_value.partition("=")
+        if not algo or not digest:
             msg = f"invalid archive_info.hash format: {hash_value!r}"
             raise DirectUrlValidationError(msg)
     hashes: dict[str, str] = {}
@@ -129,7 +130,7 @@ def _parse_archive_info(archive_data: dict) -> ArchiveInfo:
             raise DirectUrlValidationError(msg)
         hashes = {str(k): str(v) for k, v in raw_hashes.items()}
     if not hashes and hash_value:
-        algo, digest = hash_value.split("=", 1)
+        algo, _, digest = hash_value.partition("=")
         hashes = {algo: digest}
     return ArchiveInfo(hash=hash_value, hashes=hashes)
 
