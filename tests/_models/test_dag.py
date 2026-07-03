@@ -306,6 +306,44 @@ def test_dag_extras_annotates_extra_name(make_mock_dist: MockDistMaker) -> None:
     assert all(dep.extra == "signedtoken" for dep in extra_deps)
 
 
+def _build_socks_dag(make_mock_dist: MockDistMaker, *, extras: ExtrasMode = "explicit") -> PackageDAG:
+    pkgs = [
+        make_mock_dist("selenium", "4.35.0", requires=["urllib3[socks]>=2.5.0,<3.0"]),
+        make_mock_dist("requests", "2.33.1", requires=["urllib3>=1.26,<3"]),
+        make_mock_dist("urllib3", "2.7.0", requires=["pysocks ; extra == 'socks'"], provides_extras=["socks"]),
+        make_mock_dist("pysocks", "1.7.1"),
+    ]
+    return PackageDAG.from_pkgs(pkgs, extras=extras)
+
+
+def _edge_into(dag: PackageDAG, parent_key: str, child_key: str) -> ReqPackage:
+    return next(dep for dep in dag.get_children(parent_key) if dep.key == child_key)
+
+
+@pytest.mark.parametrize(
+    ("extras", "via", "shown"),
+    [
+        pytest.param("explicit", "requests", False, id="explicit-non-requesting-parent-hides"),
+        pytest.param("explicit", "selenium", True, id="explicit-requesting-parent-shows"),
+        pytest.param("explicit", None, True, id="explicit-no-parent-shows-all"),
+        pytest.param("active", "requests", True, id="active-shows-under-every-parent"),
+    ],
+)
+def test_dag_edge_scoped_extra_visibility(
+    make_mock_dist: MockDistMaker, extras: ExtrasMode, via: str | None, shown: bool
+) -> None:
+    dag = _build_socks_dag(make_mock_dist, extras=extras)
+    parent = _edge_into(dag, via, "urllib3") if via else None
+    assert ("pysocks" in {c.key for c in dag.get_children("urllib3", parent)}) is shown
+
+
+def test_dag_reverse_edge_scoped_extra_keeps_only_requesting_dependent(make_mock_dist: MockDistMaker) -> None:
+    reversed_dag = _build_socks_dag(make_mock_dist).reverse()
+    urllib3_dist = next(d for d in reversed_dag.get_children("pysocks") if d.key == "urllib3")
+    dependents = {d.key for d in reversed_dag.get_children("urllib3", urllib3_dist)}
+    assert dependents == {"selenium"}
+
+
 def _build_requested_extras_pkgs(make_mock_dist: MockDistMaker) -> list[Distribution]:
     return [
         make_mock_dist(

@@ -101,7 +101,7 @@ def _render_text_with_unicode(
 
         result = [node_str]
 
-        children = tree.get_children(node.key)
+        children = tree.get_children(node.key, node)
         children_strings = [
             aux(
                 c,
@@ -151,7 +151,7 @@ def _render_text_simple(  # noqa: PLR0913
         result = [node_str]
         children = [
             aux(c, node, indent=indent + 2, cur_chain=[*cur_chain, c.project_name], depth=depth + 1)
-            for c in tree.get_children(node.key)
+            for c in tree.get_children(node.key, node)
             if c.project_name not in cur_chain and depth + 1 <= max_depth
         ]
         result += list(chain.from_iterable(children))

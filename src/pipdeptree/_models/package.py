@@ -258,11 +258,22 @@ class ReqPackage(Package):
 
     UNKNOWN_VERSION = "?"
 
-    def __init__(self, obj: Requirement, dist: DistPackage | None = None, extra: str | None = None) -> None:
+    def __init__(
+        self,
+        obj: Requirement,
+        dist: DistPackage | None = None,
+        extra: str | None = None,
+        *,
+        scoped_extra: str | None = None,
+    ) -> None:
         super().__init__(obj.name)
         self._obj = obj
         self.dist = dist
         self.extra = extra
+        # The extra this edge is gated behind, or None to surface it everywhere. Set only for an optional dependency
+        # reached through an explicit ``name[extra]`` request (e.g. ``urllib3[socks]``); extras pulled in by
+        # ``--extras active`` or ``--packages foo[extra]`` stay None. PackageDAG.get_children reads it to gate output.
+        self.scoped_extra = scoped_extra
 
     def render_as_root(self, *, frozen: bool) -> str:
         if not frozen:
@@ -286,6 +297,11 @@ class ReqPackage(Package):
     def version_spec(self) -> str | None:
         specs = sorted(map(str, self._obj.specifier), reverse=True)  # `reverse` makes '>' prior to '<'
         return ",".join(specs) if specs else None
+
+    @property
+    def requested_extras(self) -> frozenset[str]:
+        """Extras the requiring package asked for on this edge (e.g. ``urllib3[socks]`` -> ``{'socks'}``)."""
+        return frozenset(self._obj.extras)
 
     @property
     def edge_label(self) -> str:

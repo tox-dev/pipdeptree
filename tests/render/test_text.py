@@ -605,3 +605,34 @@ def test_render_text_with_extras(
     render_text(dag, max_depth=float("inf"), encoding=encoding)
     output = capsys.readouterr().out
     assert "extra: signedtoken" in output
+
+
+def _socks_dag(make_mock_dist: MockDistMaker) -> PackageDAG:
+    pkgs = [
+        make_mock_dist("selenium", "4.35.0", requires=["urllib3[socks]>=2.5.0,<3.0"]),
+        make_mock_dist("requests", "2.33.1", requires=["urllib3>=1.26,<3"]),
+        make_mock_dist("urllib3", "2.7.0", requires=["pysocks ; extra == 'socks'"], provides_extras=["socks"]),
+        make_mock_dist("pysocks", "1.7.1"),
+    ]
+    return PackageDAG.from_pkgs(pkgs, extras="explicit")
+
+
+def test_render_text_edge_scoped_extra_only_under_requesting_parent(
+    capsys: pytest.CaptureFixture[str], make_mock_dist: MockDistMaker
+) -> None:
+    render_text(_socks_dag(make_mock_dist), max_depth=float("inf"), encoding="utf-8", list_all=False)
+    lines = capsys.readouterr().out.splitlines()
+    requests_block = lines[lines.index("requests==2.33.1") : lines.index("selenium==4.35.0")]
+    selenium_block = lines[lines.index("selenium==4.35.0") :]
+    assert not any("pysocks" in line for line in requests_block)
+    assert any("pysocks" in line for line in selenium_block)
+
+
+def test_render_text_reverse_edge_scoped_extra_prunes_unrelated_dependents(
+    capsys: pytest.CaptureFixture[str], make_mock_dist: MockDistMaker
+) -> None:
+    reversed_dag = _socks_dag(make_mock_dist).reverse().filter_nodes(["pysocks"], None)
+    render_text(reversed_dag, max_depth=float("inf"), encoding="utf-8", list_all=False)
+    output = capsys.readouterr().out
+    assert "selenium" in output
+    assert "requests" not in output

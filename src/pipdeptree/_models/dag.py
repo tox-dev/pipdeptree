@@ -5,6 +5,7 @@ from collections import defaultdict, deque
 from collections.abc import Iterator, Mapping
 from enum import Enum, auto
 from fnmatch import fnmatch
+from functools import cached_property
 from itertools import chain
 from typing import TYPE_CHECKING, Literal
 
@@ -130,16 +131,38 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         except KeyError:
             return None
 
-    def get_children(self, node_key: str) -> list[ReqPackage]:
+    def get_children(self, node_key: str, parent: DistPackage | ReqPackage | None = None) -> list[ReqPackage]:
         """
         Get child nodes for a node by its key.
 
         :param node_key: key of the node to get children of
+        :param parent: the edge the node was reached through; gates edge-scoped extras so ``PySocks`` shows only
+            beneath the ``urllib3[socks]`` that asked for it. ``None`` skips gating, which suits top-level nodes and
+            the graph renderers
         :returns: child nodes
 
         """
         node = self.get_node_as_parent(node_key)
-        return self._obj[node] if node else []
+        if node is None:
+            return []
+        children = self._obj[node]
+        if isinstance(parent, ReqPackage):
+            if node_key in self._scoped_parent_keys:
+                return _gate_requested(children, parent.requested_extras)
+            return children
+        if isinstance(parent, DistPackage) and parent.req is not None and (scoped := parent.req.scoped_extra):
+            return _gate_dependents(children, scoped)
+        return children
+
+    @cached_property
+    def _scoped_parent_keys(self) -> frozenset[str]:
+        # Node keys whose children include an edge-scoped extra; only these pay the forward-gating cost. Rendering
+        # revisits a node once per path, so skipping the per-call allocation for the common ungated node matters.
+        return frozenset(
+            node.key
+            for node, children in self._obj.items()
+            if any(isinstance(c, ReqPackage) and c.scoped_extra for c in children)
+        )
 
     def filter_nodes(  # noqa: C901, PLR0912
         self,
@@ -373,6 +396,28 @@ class ReversedPackageDAG(PackageDAG):
         return PackageDAG(dict(forward_dag))
 
 
+def _gate_requested(children: list[ReqPackage], requested_extras: frozenset[str]) -> list[ReqPackage]:
+    """Forward gate: keep an extra-scoped edge only when the requiring edge asked for that extra."""
+    requested = {canonicalize_name(e) for e in requested_extras}
+    return [
+        c
+        for c in children
+        if not isinstance(c, ReqPackage) or c.scoped_extra is None or canonicalize_name(c.scoped_extra) in requested
+    ]
+
+
+def _gate_dependents(children: list[ReqPackage], extra: str) -> list[ReqPackage]:
+    """Reverse gate: having descended into a package through ``extra``, keep only dependents that asked for it."""
+    wanted = canonicalize_name(extra)
+    return [
+        c
+        for c in children
+        if not isinstance(c, DistPackage)
+        or c.req is None
+        or wanted in {canonicalize_name(e) for e in c.req.requested_extras}
+    ]
+
+
 def _expand_requested_extras(
     idx: dict[str, DistPackage], requested_extras: Mapping[str, set[str]] | None
 ) -> dict[str, set[str]]:
@@ -396,46 +441,84 @@ def _resolve_extras(
     requested_extras: dict[str, set[str]] | None = None,
 ) -> None:
     """Add extra/optional dependencies to the DAG in-place."""
-    extras_needed = _seed_extras(pkg_deps, idx, extras)
+    seed, unconditional = _seed_extras(pkg_deps, idx, extras)
     for key, wanted in (requested_extras or {}).items():
-        extras_needed.setdefault(key, set()).update(wanted)
-    processed: dict[str, set[str]] = {}
-    # The same (parent, child, extra) triple can be reached through multiple req.extras propagation
-    # paths across rounds; without dedup it would be appended once per path.
-    seen_edges: set[tuple[str, str, str]] = set()
-    while extras_needed:
-        next_round: dict[str, set[str]] = {}
-        for pkg_key, wanted in extras_needed.items():
-            new_extras = wanted - processed.get(pkg_key, set())
-            if not new_extras:
+        seed.setdefault(key, set()).update(wanted)
+        # ``--packages foo[extra]`` is a direct request, so surface it wherever ``foo`` appears.
+        unconditional.update((key, extra) for extra in wanted)
+    _ExtrasExpander(pkg_deps, idx, unconditional).expand(seed)
+
+
+class _ExtrasExpander:
+    """
+    Append extra/optional dependencies to a node-keyed DAG, breadth-first over ``req.extras`` chains.
+
+    Each appended edge records the ``scoped_extra`` gating it, unless its ``(pkg_key, extra)`` is unconditional
+    (active-satisfied or ``--packages`` requested). The renderer reads that tag to place an optional dependency only
+    beneath the parent that asked for the extra instead of under every occurrence of the provider.
+    """
+
+    def __init__(
+        self,
+        pkg_deps: dict[DistPackage, list[ReqPackage]],
+        idx: dict[str, DistPackage],
+        unconditional: set[tuple[str, str]],
+    ) -> None:
+        self._pkg_deps = pkg_deps
+        self._idx = idx
+        self._unconditional = unconditional
+        # The same (parent, child, extra) triple can be reached through multiple req.extras propagation paths across
+        # rounds; without dedup it would be appended once per path.
+        self._seen_edges: set[tuple[str, str, str]] = set()
+        self._processed: dict[str, set[str]] = {}
+
+    def expand(self, pending: dict[str, set[str]]) -> None:
+        while pending:
+            next_round: dict[str, set[str]] = {}
+            for pkg_key, wanted in pending.items():
+                if new_extras := wanted - self._processed.get(pkg_key, set()):
+                    self._processed.setdefault(pkg_key, set()).update(new_extras)
+                    self._attach(pkg_key, new_extras, next_round)
+            pending = next_round
+
+    def _attach(self, pkg_key: str, new_extras: set[str], next_round: dict[str, set[str]]) -> None:
+        dist_pkg = self._idx.get(pkg_key)
+        if dist_pkg is None or dist_pkg not in self._pkg_deps:
+            return
+        for req, extra_name, dep_key in dist_pkg.requires_for_extras(frozenset(new_extras)):
+            if (dist := self._idx.get(dep_key)) is None:
                 continue
-            processed.setdefault(pkg_key, set()).update(new_extras)
-            dist_pkg = idx.get(pkg_key)
-            if dist_pkg is None or dist_pkg not in pkg_deps:
+            edge_key = (dist_pkg.key, dist.key, extra_name)
+            if edge_key in self._seen_edges:
                 continue
-            for req, extra_name, dep_key in dist_pkg.requires_for_extras(frozenset(new_extras)):
-                if (dist := idx.get(dep_key)) is None:
-                    continue
-                edge_key = (dist_pkg.key, dist.key, extra_name)
-                if edge_key in seen_edges:
-                    continue
-                seen_edges.add(edge_key)
-                req.name = dist.project_name
-                pkg_deps[dist_pkg].append(ReqPackage(req, dist, extra=extra_name))
-                if req.extras:
-                    next_round.setdefault(dist.key, set()).update(req.extras)
-        extras_needed = next_round
+            self._seen_edges.add(edge_key)
+            req.name = dist.project_name
+            unconditional = (pkg_key, extra_name) in self._unconditional
+            scoped_extra = None if unconditional else extra_name
+            self._pkg_deps[dist_pkg].append(ReqPackage(req, dist, extra=extra_name, scoped_extra=scoped_extra))
+            if req.extras:
+                next_round.setdefault(dist.key, set()).update(req.extras)
+                if unconditional:
+                    # An unconditional extra pulls its own sub-extras unconditionally too.
+                    self._unconditional.update((dist.key, sub) for sub in req.extras)
 
 
 def _seed_extras(
     pkg_deps: dict[DistPackage, list[ReqPackage]], idx: dict[str, DistPackage], extras: ExtrasMode
-) -> dict[str, set[str]]:
-    """Collect the extras to resolve: requested extras, plus satisfiable ones in active mode."""
+) -> tuple[dict[str, set[str]], set[tuple[str, str]]]:
+    """
+    Collect the extras to resolve: explicit ``name[extra]`` requests, plus satisfiable ones in active mode.
+
+    Returns the extras keyed by package and the set of ``(pkg_key, extra)`` pairs that are unconditional, i.e.
+    active-satisfied rather than gated behind a specific requiring edge.
+    """
     extras_needed = _collect_explicit_extras(pkg_deps)
+    unconditional: set[tuple[str, str]] = set()
     if extras == "active":
         for pkg_key, satisfied in _collect_satisfied_extras(pkg_deps, idx).items():
             extras_needed.setdefault(pkg_key, set()).update(satisfied)
-    return extras_needed
+            unconditional.update((pkg_key, extra) for extra in satisfied)
+    return extras_needed, unconditional
 
 
 def _collect_explicit_extras(pkg_deps: dict[DistPackage, list[ReqPackage]]) -> dict[str, set[str]]:
