@@ -70,7 +70,7 @@ def _build_tree(  # noqa: PLR0913
     if depth >= max_depth:
         return
 
-    children = tree.get_children(node.key)
+    children = tree.get_children(node.key, node)
     for child in children:
         if child.project_name in cur_chain:
             continue

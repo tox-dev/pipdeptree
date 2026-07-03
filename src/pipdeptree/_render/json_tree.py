@@ -64,7 +64,7 @@ def render_json_tree(
 
         d["dependencies"] = [
             aux(c, parent=node, cur_chain=[*cur_chain, c.project_name])
-            for c in tree.get_children(node.key)
+            for c in tree.get_children(node.key, node)
             if c.project_name not in cur_chain
         ]
 
