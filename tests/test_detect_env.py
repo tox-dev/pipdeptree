@@ -66,7 +66,7 @@ def test_detect_active_interpreter_continue_when_other_detections_fail(tmp_path:
     non_existent_path = Path("/i/dont/exist")
     mocker.patch(
         "pipdeptree._detect_env.os.environ.get",
-        side_effect=lambda key: non_existent_path if key == "VIRTUAL_ENV" else str(tmp_path)
+        side_effect=lambda key: non_existent_path if key == "VIRTUAL_ENV" else str(tmp_path),
     )
     fake_conda_python_dir = tmp_path
     if os.name == "posix":  # pragma: posix cover

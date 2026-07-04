@@ -359,6 +359,7 @@ def test_translate_editable_local_source(
     tmp_path: Path,
 ) -> None:
     import tomllib  # noqa: PLC0415
+
     req = tmp_path / "requirements.txt"
     req.write_text("-e ./localpkg\n", encoding="utf-8")
 
@@ -384,6 +385,7 @@ def test_translate_file_url_local_source_not_editable(
     tmp_path: Path,
 ) -> None:
     import tomllib  # noqa: PLC0415
+
     req = tmp_path / "requirements.txt"
     req.write_text(f"localpkg @ {local_pkg.as_uri()}\n", encoding="utf-8")
 
