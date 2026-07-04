@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -10,24 +11,22 @@ import pytest
 from pipdeptree._parser.editable import find_egg_link, get_editable_location, url_to_path
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from pytest_mock import MockerFixture
 
 
 @pytest.mark.parametrize(
     ("url", "expected_location"),
     [
-        pytest.param("file:///home/user/project", "/home/user/project", id="unix-path"),
-        pytest.param("file:///home/user/my%20project", "/home/user/my project", id="path-with-spaces"),
-        pytest.param("file://localhost/home/user/project", "/home/user/project", id="localhost"),
+        pytest.param("file:///home/user/project", Path("/home/user/project"), id="normal-path"),
+        pytest.param("file:///home/user/my%20project", Path("/home/user/my project"), id="path-with-spaces"),
+        pytest.param("file://localhost/home/user/project", Path("/home/user/project"), id="localhost"),
     ],
 )
-def test_get_editable_location_url_conversion(url: str, expected_location: str) -> None:
+def test_get_editable_location_url_conversion(url: str, expected_location: Path) -> None:
     dist = Mock(metadata={"Name": "mypackage"})
     dist.read_text.return_value = json.dumps({"url": url, "dir_info": {"editable": True}})
     result = get_editable_location(dist)
-    assert result == expected_location
+    assert result == str(expected_location)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="UNC paths are Windows-only")

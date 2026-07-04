@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -10,8 +11,6 @@ from pipdeptree._parser import distribution_to_specifier
 from pipdeptree._parser.vcs import VcsError, VcsResult
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from pytest_mock import MockerFixture
 
 
@@ -84,7 +83,9 @@ def test_distribution_to_specifier_editable_no_vcs(mocker: MockerFixture) -> Non
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
     distribution.read_text.return_value = json.dumps({"url": "file:///path/to/source", "dir_info": {"editable": True}})
     result = distribution_to_specifier(distribution)
-    assert result == "# Editable install with no version control (mypackage==1.0.0)\n-e /path/to/source"
+
+    local_path = Path("/path/to/source")
+    assert result == f"# Editable install with no version control (mypackage==1.0.0)\n-e {local_path!s}"
 
 
 def test_distribution_to_specifier_editable_no_remote(mocker: MockerFixture) -> None:
@@ -95,7 +96,9 @@ def test_distribution_to_specifier_editable_no_remote(mocker: MockerFixture) -> 
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
     distribution.read_text.return_value = json.dumps({"url": "file:///path/to/source", "dir_info": {"editable": True}})
     result = distribution_to_specifier(distribution)
-    assert result == "# Editable git install with no remote (mypackage==1.0.0)\n-e /path/to/source"
+
+    local_path = Path("/path/to/source")
+    assert result == f"# Editable git install with no remote (mypackage==1.0.0)\n-e {local_path!s}"
 
 
 def test_distribution_to_specifier_editable_invalid_remote(mocker: MockerFixture) -> None:
@@ -106,8 +109,10 @@ def test_distribution_to_specifier_editable_invalid_remote(mocker: MockerFixture
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
     distribution.read_text.return_value = json.dumps({"url": "file:///path/to/source", "dir_info": {"editable": True}})
     result = distribution_to_specifier(distribution)
+
     expected_comment = "# Editable git install (mypackage==1.0.0) with either a deleted local remote or invalid URI:"
-    assert result == f"{expected_comment}\n-e /path/to/source"
+    local_path = Path("/path/to/source")
+    assert result == f"{expected_comment}\n-e {local_path!s}"
 
 
 def test_distribution_to_specifier_editable_command_not_found(mocker: MockerFixture) -> None:
@@ -118,7 +123,9 @@ def test_distribution_to_specifier_editable_command_not_found(mocker: MockerFixt
     distribution = Mock(metadata={"Name": "mypackage"}, version="1.0.0")
     distribution.read_text.return_value = json.dumps({"url": "file:///path/to/source", "dir_info": {"editable": True}})
     result = distribution_to_specifier(distribution)
-    assert result == "-e /path/to/source"
+
+    local_path = Path("/path/to/source")
+    assert result == f"-e {local_path!s}"
 
 
 def test_distribution_to_specifier_egg_link_fallback(mocker: MockerFixture, tmp_path: Path) -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,8 +10,6 @@ from pipdeptree._parser.vcs import VcsError, get_vcs_requirement
 from .conftest import raise_file_not_found
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from pytest_subprocess import FakeProcess
 
 
@@ -109,13 +108,14 @@ def test_hg_shared_repo_dotfile(tmp_path: Path, fp: FakeProcess) -> None:
 
 def test_hg_with_subdirectory(tmp_path: Path, fp: FakeProcess) -> None:
     (tmp_path / ".hg").mkdir()
-    subdir = tmp_path / "src" / "pkg"
-    subdir.mkdir(parents=True)
-    (subdir / "setup.py").touch()
+    relative_subdir = Path("src/pkg")
+    absolute_subdir = tmp_path / relative_subdir
+    absolute_subdir.mkdir(parents=True)
+    (absolute_subdir / "setup.py").touch()
     fp.register(["git", "rev-parse", "--show-toplevel"], returncode=1)
     fp.register(["hg", "showconfig", "paths.default"], stdout="https://hg.example.com/repo\n")
     fp.register(["hg", "parents", "--template={node}"], stdout="abc123\n")
 
-    result = get_vcs_requirement(str(subdir), "mypackage")
+    result = get_vcs_requirement(str(absolute_subdir), "mypackage")
 
-    assert result.requirement == "hg+https://hg.example.com/repo@abc123#egg=mypackage&subdirectory=src/pkg"
+    assert result.requirement == f"hg+https://hg.example.com/repo@abc123#egg=mypackage&subdirectory={relative_subdir!s}"

@@ -17,10 +17,14 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
         env:
           - "pypy-3.11"
           - "3.14"
@@ -32,26 +36,48 @@ jobs:
           - docs
           - dev
           - pkg_meta
+        exclude:
+          # Run non-runtime checks only on Linux
+          - os: windows-latest
+            env: type
+          - os: windows-latest
+            env: docs
+          - os: windows-latest
+            env: dev
+          - os: windows-latest
+            env: pkg_meta
+
     steps:
-      - name: Install OS dependencies
+      - name: Install OS dependencies (Linux)
+        if: runner.os == 'Linux'
         run: sudo apt-get install graphviz -y
+
+      - name: Install OS dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: choco install graphviz -y
+
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
+
       - name: Install the latest version of uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           enable-cache: false
           cache-dependency-glob: "pyproject.toml"
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install tox
         run: uv tool install --python-preference only-managed --python 3.14 tox --with tox-uv
+
       - name: Install Python
         if: (startsWith(matrix.env, '3.') || startsWith(matrix.env, 'pypy-')) && matrix.env != '3.14'
         run: uv python install --python-preference only-managed ${{ matrix.env }}
+
       - name: Setup test suite
         run: tox run -vv --notest --skip-missing-interpreters false -e ${{ matrix.env }}
+
       - name: Run test suite
         run: tox run --skip-pkg-install -e ${{ matrix.env }}
         env:
