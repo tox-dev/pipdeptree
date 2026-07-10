@@ -12,6 +12,8 @@ from packaging.utils import canonicalize_name
 
 from pipdeptree._warning import get_warning_printer
 
+from ._models.package import DistributionInfo
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -25,6 +27,7 @@ def get_installed_distributions(
     supplied_paths: list[str] | None = None,
     local_only: bool = False,  # noqa: FBT001, FBT002
     user_only: bool = False,  # noqa: FBT001, FBT002
+    distribution_info: dict[int, DistributionInfo] | None = None,
 ) -> list[Distribution]:
     """
     Return the distributions installed in the interpreter's environment.
@@ -46,7 +49,7 @@ def get_installed_distributions(
     if user_only:
         computed_paths = [p for p in computed_paths if p.startswith(site.getusersitepackages())]
 
-    return filter_valid_distributions(distributions(path=computed_paths))
+    return filter_valid_distributions(distributions(path=computed_paths), distribution_info)
 
 
 def query_interpreter_for_paths(interpreter: str, *, local_only: bool = False) -> list[str]:
@@ -70,7 +73,9 @@ def query_interpreter_for_paths(interpreter: str, *, local_only: bool = False) -
         raise InterpreterQueryError(str(e)) from e
 
 
-def filter_valid_distributions(iterable_dists: Iterable[Distribution]) -> list[Distribution]:
+def filter_valid_distributions(
+    iterable_dists: Iterable[Distribution], distribution_info: dict[int, DistributionInfo] | None = None
+) -> list[Distribution]:
     warning_printer = get_warning_printer()
 
     # Since importlib.metadata.distributions() can return duplicate packages, we need to handle this. pip's approach is
@@ -86,11 +91,23 @@ def filter_valid_distributions(iterable_dists: Iterable[Distribution]) -> list[D
 
     dists = []
     for dist in iterable_dists:
-        if not has_valid_metadata(dist):
+        try:
+            dist_metadata = dist.metadata
+            valid = "Name" in dist_metadata
+        except (TypeError, FileNotFoundError):
+            valid = False
+        if not valid:
             site_dir = str(dist.locate_file(""))
             site_dir_with_invalid_metadata.add(site_dir)
             continue
-        normalized_name = canonicalize_name(dist.metadata["Name"])
+        if distribution_info is not None:
+            distribution_info[id(dist)] = DistributionInfo(
+                name=dist_metadata["Name"],
+                version=dist_metadata["Version"],
+                requires=tuple(dist_metadata.get_all("Requires-Dist") or ()),
+                provides_extras=tuple(dist_metadata.get_all("Provides-Extra") or ()),
+            )
+        normalized_name = canonicalize_name(dist_metadata["Name"])
         if normalized_name not in seen_dists:
             seen_dists[normalized_name] = dist
             dists.append(dist)

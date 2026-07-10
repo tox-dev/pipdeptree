@@ -3,24 +3,20 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
-from pipdeptree._cli import Options, get_options, parse_packages
-from pipdeptree._detect_env import detect_active_interpreter, find_active_interpreter
-from pipdeptree._discovery import InterpreterQueryError, get_installed_distributions
-from pipdeptree._from_index import FromIndexInputError, FromIndexUnavailableError, resolve_from_index
-from pipdeptree._from_lock import FromLockError, load_lock
-from pipdeptree._models import PackageDAG
-from pipdeptree._models.dag import IncludeExcludeOverlapError, IncludePatternNotFoundError
-from pipdeptree._render import render
-from pipdeptree._validate import validate
-from pipdeptree._warning import WarningPrinter, WarningType, get_warning_printer
+from pipdeptree._cli import get_options, parse_packages
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from importlib.metadata import Distribution
 
-_OVERLAP_MESSAGE = "Cannot have --packages and --exclude contain the same entries"
+    from pipdeptree._cli import Options
+    from pipdeptree._models import PackageDAG
+    from pipdeptree._models.package import DistributionInfo
+    from pipdeptree._warning import WarningPrinter
+
+_OVERLAP_MESSAGE: Final[str] = "Cannot have --packages and --exclude contain the same entries"
 
 
 class _FilterError(Exception):
@@ -35,6 +31,31 @@ def main(args: Sequence[str] | None = None) -> int | None:
     """CLI - The main function called as entry point."""
     options = get_options(args)
 
+    from pipdeptree._render import render  # noqa: PLC0415  # Help and version exit before graph imports.
+    from pipdeptree._warning import (  # noqa: PLC0415  # Help and version exit before graph imports.
+        WarningType,
+        get_warning_printer,
+    )
+
+    if options.command == "from-index":
+        from pipdeptree._from_index import (  # noqa: PLC0415  # The index resolver is optional.
+            FromIndexInputError,
+            FromIndexUnavailableError,
+        )
+
+        build_errors: tuple[type[Exception], ...] = (FromIndexUnavailableError, FromIndexInputError)
+        error_prefix = ""
+    elif options.command == "from-lock":
+        from pipdeptree._from_lock import FromLockError  # noqa: PLC0415  # Lock parsing is optional.
+
+        build_errors = (FromLockError,)
+        error_prefix = ""
+    else:
+        from pipdeptree._discovery import InterpreterQueryError  # noqa: PLC0415  # Environment discovery is optional.
+
+        build_errors = (InterpreterQueryError,)
+        error_prefix = "Failed to query custom interpreter: "
+
     # Warnings are only enabled when using text output.
     if not _is_text_output(options):
         options.warn = "silence"
@@ -43,18 +64,15 @@ def main(args: Sequence[str] | None = None) -> int | None:
 
     try:
         tree = build_tree(options, log_resolved=True)
-    except InterpreterQueryError as e:
-        print(f"Failed to query custom interpreter: {e}", file=sys.stderr)  # noqa: T201
+    except build_errors as error:
+        print(f"{error_prefix}{error}", file=sys.stderr)  # noqa: T201
         return 1
-    except (FromIndexUnavailableError, FromIndexInputError, FromLockError) as e:
-        print(str(e), file=sys.stderr)  # noqa: T201
-        return 1
-    except _FilterError as e:
-        if e.is_fatal:
-            print(str(e), file=sys.stderr)  # noqa: T201
+    except _FilterError as error:
+        if error.is_fatal:
+            print(str(error), file=sys.stderr)  # noqa: T201
             return 1
         if warning_printer.should_warn():
-            warning_printer.print_single_line(str(e))
+            warning_printer.print_single_line(str(error))
         return _determine_return_code(warning_printer)
 
     render(options, tree)
@@ -74,6 +92,14 @@ def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
     :raises FromLockError: if a from-lock file is missing or is not a valid PEP 751 lock
     :raises _FilterError: if the include/exclude filter cannot be satisfied
     """
+    from pipdeptree._models import PackageDAG  # noqa: PLC0415  # Help and version do not build a graph.
+    from pipdeptree._models.dag import (  # noqa: PLC0415  # Help and version do not build a graph.
+        IncludeExcludeOverlapError,
+        IncludePatternNotFoundError,
+    )
+    from pipdeptree._validate import validate  # noqa: PLC0415  # Help and version do not validate a graph.
+
+    distribution_info = {}
     if options.command == "from-index":
         # from-index resolves requirements by querying the package index instead of inspecting an installed
         # environment, so interpreter resolution is skipped entirely.
@@ -85,6 +111,10 @@ def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
             extra_index_url=options.extra_index_url,
         )
     elif options.command == "from-lock":
+        from pathlib import Path  # noqa: PLC0415  # Lock parsing is optional.
+
+        from pipdeptree._from_lock import load_lock  # noqa: PLC0415  # Lock parsing is optional.
+
         # A PEP 751 lock is already resolved, so it is read straight off disk -- no interpreter, network, or index.
         pkgs = load_lock(Path(options.lock))  # ty: ignore[invalid-argument-type]
     else:
@@ -94,10 +124,16 @@ def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
             supplied_paths=options.path or None,
             local_only=options.local_only,
             user_only=options.user_only,
+            distribution_info=distribution_info,
         )
 
     include, requested_extras = parse_packages(options.packages)
-    tree = PackageDAG.from_pkgs(pkgs, extras=options.extras, requested_extras=requested_extras)
+    tree = PackageDAG.from_pkgs(
+        pkgs,
+        extras=options.extras,
+        requested_extras=requested_extras,
+        distribution_info=distribution_info,
+    )
 
     validate(tree)
 
@@ -138,6 +174,59 @@ def _resolve_python(python: str | None, *, log_resolved: bool = False) -> str:
             print(f"(resolved python: {resolved_path})", file=sys.stderr)  # noqa: T201
         return resolved_path
     return python
+
+
+def get_installed_distributions(
+    interpreter: str = sys.executable or "",
+    supplied_paths: list[str] | None = None,
+    local_only: bool = False,  # noqa: FBT001, FBT002
+    user_only: bool = False,  # noqa: FBT001, FBT002
+    distribution_info: dict[int, DistributionInfo] | None = None,
+) -> list[Distribution]:
+    """Defer environment discovery imports until a command needs an installed tree."""
+    from pipdeptree._discovery import (  # noqa: PLC0415  # Environment discovery is optional.
+        get_installed_distributions as discover,
+    )
+
+    return discover(interpreter, supplied_paths, local_only, user_only, distribution_info)
+
+
+def resolve_from_index(
+    *,
+    requirements: list[str],
+    requirement_files: list[str],
+    pyproject_files: list[str],
+    index_url: str | None = None,
+    extra_index_url: list[str] | None = None,
+) -> list[Distribution]:
+    """Defer index resolver imports until the from-index command runs."""
+    from pipdeptree._from_index import resolve_from_index as resolve  # noqa: PLC0415  # The index resolver is optional.
+
+    return resolve(
+        requirements=requirements,
+        requirement_files=requirement_files,
+        pyproject_files=pyproject_files,
+        index_url=index_url,
+        extra_index_url=extra_index_url,
+    )
+
+
+def find_active_interpreter() -> str | None:
+    """Defer interpreter detection until an installed environment needs inspection."""
+    from pipdeptree._detect_env import (  # noqa: PLC0415  # Resolved sources do not inspect an interpreter.
+        find_active_interpreter as find,
+    )
+
+    return find()
+
+
+def detect_active_interpreter() -> str:
+    """Defer strict interpreter detection until the user requests it."""
+    from pipdeptree._detect_env import (  # noqa: PLC0415  # Resolved sources do not inspect an interpreter.
+        detect_active_interpreter as detect,
+    )
+
+    return detect()
 
 
 def _is_text_output(options: Options) -> bool:

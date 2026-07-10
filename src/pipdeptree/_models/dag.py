@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
     from packaging.requirements import Requirement
 
+    from .package import DistributionInfo
+
 
 from pipdeptree._warning import get_warning_printer
 
@@ -62,9 +64,12 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         *,
         extras: ExtrasMode = "none",
         requested_extras: Mapping[str, set[str]] | None = None,
+        distribution_info: Mapping[int, DistributionInfo] | None = None,
     ) -> PackageDAG:
         warning_printer = get_warning_printer()
-        dist_pkgs = [DistPackage(p) for p in pkgs]
+        dist_pkgs = [
+            DistPackage(p, dist_info=distribution_info.get(id(p)) if distribution_info else None) for p in pkgs
+        ]
         idx: dict[str, DistPackage] = {p.key: p for p in dist_pkgs}
         pkg_deps: dict[DistPackage, list[ReqPackage]] = {}
         dist_name_to_invalid_reqs_dict: dict[str, list[str]] = {}

@@ -4,17 +4,16 @@ import sys
 import warnings
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, ArgumentTypeError, Namespace
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, cast, get_args
-
-from pipdeptree._computed import ComputedValues
-from pipdeptree._models.dag import ExtrasMode
+from typing import TYPE_CHECKING, cast
 
 from .version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from pipdeptree._computed import ComputedValues
     from pipdeptree._models import PackageDAG
+    from pipdeptree._models.dag import ExtrasMode
 
 
 class Options(Namespace):
@@ -58,6 +57,12 @@ class RenderContext:
     metadata: list[str] = field(default_factory=list)
     computed: list[str] = field(default_factory=list)
     full_tree: PackageDAG | None = field(default=None, repr=False, compare=False)
+    _computed_cache: dict[tuple[int, int, str], ComputedValues] = field(
+        default_factory=dict,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     @property
     def active(self) -> bool:
@@ -70,14 +75,23 @@ class RenderContext:
         if self.metadata:
             parts.extend(self._get_metadata_label_parts(key, self.metadata, tree))
         if self.computed:
-            computed = ComputedValues(key, tree, self.full_tree)
-            for field_key, field_value in computed.as_dict(self.computed).items():
+            for field_key, field_value in self.get_computed_values(key, tree).as_dict(self.computed).items():
                 parts.append(f"{field_key}: {field_value}")
         return separator.join(parts)
 
+    def get_computed_values(self, key: str, tree: PackageDAG) -> ComputedValues:
+        from pipdeptree._computed import ComputedValues  # noqa: PLC0415  # Computed fields are optional.
+
+        cache_key = (id(tree), id(self.full_tree), key)
+        if (computed := self._computed_cache.get(cache_key)) is None:
+            computed = self._computed_cache[cache_key] = ComputedValues(key, tree, self.full_tree)
+        return computed
+
     def with_metadata(self, metadata: list[str]) -> RenderContext:
         """Return a copy with a different metadata field list."""
-        return RenderContext(metadata=metadata, computed=self.computed, full_tree=self.full_tree)
+        context = RenderContext(metadata=metadata, computed=self.computed, full_tree=self.full_tree)
+        context._computed_cache = self._computed_cache
+        return context
 
     @staticmethod
     def _get_metadata_label_parts(key: str, fields: list[str], tree: PackageDAG) -> list[str]:
@@ -271,7 +285,7 @@ def _add_render_arguments(parser: ArgumentParser) -> None:
         "--extras",
         nargs="?",
         const="explicit",
-        choices=get_args(ExtrasMode),
+        choices=("none", "explicit", "active"),
         default="explicit",
         help=(
             "which optional (extras) dependencies to include: 'explicit' (default) shows extras requested via "

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import TYPE_CHECKING, Any
-
-from pipdeptree._computed import ComputedValues
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from pipdeptree._cli import RenderContext
     from pipdeptree._models import DistPackage, PackageDAG, ReqPackage
     from pipdeptree._models.package import RenderMode
@@ -69,14 +69,14 @@ def _render_text_with_unicode(
         node: DistPackage | ReqPackage,
         parent: DistPackage | ReqPackage | None = None,
         indent: int = 0,
-        cur_chain: list[str] | None = None,
+        cur_chain: set[str] | None = None,
         prefix: str = "",
         depth: int = 0,
         has_grand_parent: bool = False,  # noqa: FBT001, FBT002
         is_last_child: bool = False,  # noqa: FBT001, FBT002
         parent_is_last_child: bool = False,  # noqa: FBT001, FBT002
-    ) -> list[Any]:
-        cur_chain = cur_chain or []
+    ) -> Iterator[str]:
+        cur_chain = cur_chain or set()
         node_str = node.render(parent, frozen=False, mode=mode)
         if context and context.active:
             node_str += _build_suffix(node, context, tree)
@@ -99,29 +99,26 @@ def _render_text_with_unicode(
             next_prefix = prefix
             node_str = prefix + bullet + node_str
 
-        result = [node_str]
-
+        yield node_str
         children = tree.get_children(node.key, node)
-        children_strings = [
-            aux(
-                c,
+        for child in children:
+            if child.project_name in cur_chain or depth + 1 > max_depth:
+                continue
+            cur_chain.add(child.project_name)
+            yield from aux(
+                child,
                 node,
                 indent=next_indent,
-                cur_chain=[*cur_chain, c.project_name],
+                cur_chain=cur_chain,
                 prefix=next_prefix,
                 depth=depth + 1,
                 has_grand_parent=parent is not None,
-                is_last_child=c is children[-1],
+                is_last_child=child is children[-1],
                 parent_is_last_child=is_last_child,
             )
-            for c in children
-            if c.project_name not in cur_chain and depth + 1 <= max_depth
-        ]
+            cur_chain.remove(child.project_name)
 
-        result += list(chain.from_iterable(children_strings))
-        return result
-
-    lines = chain.from_iterable([aux(p) for p in nodes])
+    lines = chain.from_iterable(aux(node) for node in nodes)
     print("\n".join(lines))  # noqa: T201
 
 
@@ -139,25 +136,24 @@ def _render_text_simple(  # noqa: PLR0913
         node: DistPackage | ReqPackage,
         parent: DistPackage | ReqPackage | None = None,
         indent: int = 0,
-        cur_chain: list[str] | None = None,
+        cur_chain: set[str] | None = None,
         depth: int = 0,
-    ) -> list[Any]:
-        cur_chain = cur_chain or []
+    ) -> Iterator[str]:
+        cur_chain = cur_chain or set()
         node_str = node.render(parent, frozen=frozen, mode=mode)
         if context and context.active:
             node_str += _build_suffix(node, context, tree)
         if parent:
             node_str = " " * indent + bullet + node_str
-        result = [node_str]
-        children = [
-            aux(c, node, indent=indent + 2, cur_chain=[*cur_chain, c.project_name], depth=depth + 1)
-            for c in tree.get_children(node.key, node)
-            if c.project_name not in cur_chain and depth + 1 <= max_depth
-        ]
-        result += list(chain.from_iterable(children))
-        return result
+        yield node_str
+        for child in tree.get_children(node.key, node):
+            if child.project_name in cur_chain or depth + 1 > max_depth:
+                continue
+            cur_chain.add(child.project_name)
+            yield from aux(child, node, indent=indent + 2, cur_chain=cur_chain, depth=depth + 1)
+            cur_chain.remove(child.project_name)
 
-    lines = chain.from_iterable([aux(p) for p in nodes])
+    lines = chain.from_iterable(aux(node) for node in nodes)
     print("\n".join(lines))  # noqa: T201
 
 
@@ -172,7 +168,7 @@ def _build_suffix(
     if context.metadata:
         parts.extend(node.get_metadata_values(list(context.metadata)))
     if context.computed:
-        parts.extend(ComputedValues(node.key, tree, context.full_tree).format_display(context.computed, exclude))
+        parts.extend(context.get_computed_values(node.key, tree).format_display(context.computed, exclude))
     return f" ({', '.join(parts)})" if parts else ""
 
 

@@ -88,30 +88,20 @@ class ComputedValues:
     @cached_property
     def unique_deps(self) -> set[str]:
         tree = self.full_tree or self.tree
-        own_deps = self._transitive_deps(self.key, tree)
         removed = {self.key}
-        changed = True
-        while changed:
-            changed = False
-            reachable: set[str] = set()
-            for pkg in tree:
-                if pkg.key not in removed:
-                    reachable |= self._transitive_deps(pkg.key, tree, exclude=removed)
-            if newly_orphaned := own_deps - reachable - removed:
-                removed |= newly_orphaned
-                changed = True
-        return removed - {self.key}
+        parent_counts: dict[str, int] = {}
+        for dependencies in tree.values():
+            for dependency in dependencies:
+                parent_counts[dependency.key] = parent_counts.get(dependency.key, 0) + 1
 
-    @staticmethod
-    def _transitive_deps(key: str, tree: PackageDAG, exclude: set[str] | None = None) -> set[str]:
-        result: set[str] = set()
-        excluded = exclude or set()
-        stack = [c.key for c in tree.get_children(key) if c.key not in excluded]
+        stack = [self.key]
         while stack:
-            if (dep := stack.pop()) not in result:
-                result.add(dep)
-                stack.extend(c.key for c in tree.get_children(dep) if c.key not in excluded)
-        return result
+            for dependency in tree.get_children(stack.pop()):
+                parent_counts[dependency.key] -= 1
+                if parent_counts[dependency.key] == 0 and dependency.key not in removed:
+                    removed.add(dependency.key)
+                    stack.append(dependency.key)
+        return removed - {self.key}
 
 
 __all__ = [
