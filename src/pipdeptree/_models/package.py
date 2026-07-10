@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from copy import copy
+from dataclasses import dataclass
+from email.message import Message
 from functools import cached_property
 from importlib import import_module
 from importlib.metadata import Distribution, PackageMetadata, PackageNotFoundError, metadata, version
@@ -16,6 +19,14 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 RenderMode = Literal["default", "resolved"]
+
+
+@dataclass(frozen=True, slots=True)
+class DistributionInfo:
+    name: str
+    version: str | None
+    requires: tuple[str, ...]
+    provides_extras: tuple[str, ...]
 
 
 class InvalidRequirementError(ValueError):
@@ -127,20 +138,50 @@ class DistPackage(Package):
 
     """
 
-    def __init__(self, obj: Distribution, req: ReqPackage | None = None) -> None:
-        super().__init__(obj.metadata["Name"])
+    def __init__(
+        self,
+        obj: Distribution,
+        req: ReqPackage | None = None,
+        *,
+        dist_info: DistributionInfo | None = None,
+    ) -> None:
         self._obj = obj
         self.req = req
+        if dist_info is None:
+            dist_metadata = obj.metadata
+            super().__init__(dist_metadata["Name"])
+            self._raw_requires = (
+                dist_metadata.get_all("Requires-Dist") if isinstance(dist_metadata, Message) else obj.requires
+            )
+            self._provides_extras = frozenset(
+                get_all("Provides-Extra") or () if (get_all := getattr(dist_metadata, "get_all", None)) else ()
+            )
+            try:
+                metadata_version = dist_metadata["Version"]
+            except KeyError:
+                metadata_version = None
+            self._version = str(metadata_version) if metadata_version else obj.version
+        else:
+            super().__init__(dist_info.name)
+            self._raw_requires = dist_info.requires
+            self._provides_extras = frozenset(dist_info.provides_extras)
+            self._version = dist_info.version or obj.version
+
+    @cached_property
+    def _loaded_metadata(self) -> PackageMetadata:
+        return self._obj.metadata
 
     def _get_dist_metadata(self) -> PackageMetadata:
-        return self._obj.metadata
+        return self._loaded_metadata
 
     @cached_property
     def _parsed_requires(self) -> list[Requirement | str]:
         # Shared between requires() and _extras_index so PEP 508 parsing happens at most once per
         # raw entry. str entries preserve the raw text of invalid requirements so requires() can
         # still surface them via InvalidRequirementError, matching the original semantics.
-        return [_try_parse_requirement(raw_req) for raw_req in self._obj.requires or []]
+        result = [_try_parse_requirement(raw_req) for raw_req in self._raw_requires or []]
+        del self._raw_requires
+        return result
 
     def requires(self) -> Iterator[Requirement]:
         """
@@ -156,9 +197,9 @@ class DistPackage(Package):
                 # reqs from this mandatory-only iterator.
                 yield entry
 
-    @cached_property
+    @property
     def provides_extras(self) -> frozenset[str]:
-        return frozenset(self._obj.metadata.get_all("Provides-Extra") or ())
+        return self._provides_extras
 
     @cached_property
     def _extras_index(self) -> list[tuple[Requirement, list[str], str]]:
@@ -187,12 +228,12 @@ class DistPackage(Package):
                     yield req, extra, dep_key
                     break
 
-    @cached_property
+    @property
     def version(self) -> str:
         # Cached because each access reparses the METADATA file on the underlying Distribution and
         # the renderer reads it once per occurrence in the tree (tens of thousands of times for
         # large environments under --extras).
-        return self._obj.version
+        return self._version
 
     def unwrap(self) -> Distribution:
         """Exposes the internal `importlib.metadata.Distribution` object."""
@@ -233,7 +274,9 @@ class DistPackage(Package):
         """
         if req is None and self.req is None:
             return self
-        return self.__class__(self._obj, req)
+        result = copy(self)
+        result.req = req
+        return result
 
     @property
     def edge_label(self) -> str:
@@ -293,12 +336,12 @@ class ReqPackage(Package):
             return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}{extra_str}]"
         return self.render_as_root(frozen=frozen)
 
-    @property
+    @cached_property
     def version_spec(self) -> str | None:
         specs = sorted(map(str, self._obj.specifier), reverse=True)  # `reverse` makes '>' prior to '<'
         return ",".join(specs) if specs else None
 
-    @property
+    @cached_property
     def requested_extras(self) -> frozenset[str]:
         """Extras the requiring package asked for on this edge (e.g. ``urllib3[socks]`` -> ``{'socks'}``)."""
         return frozenset(self._obj.extras)
@@ -310,7 +353,7 @@ class ReqPackage(Package):
             return f"[{self.extra}] {version}"
         return version
 
-    @property
+    @cached_property
     def installed_version(self) -> str:
         if not self.dist:
             try:
@@ -370,6 +413,7 @@ def _try_parse_requirement(raw_req: str) -> Requirement | str:
 
 __all__ = [
     "DistPackage",
+    "DistributionInfo",
     "RenderMode",
     "ReqPackage",
 ]

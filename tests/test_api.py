@@ -8,6 +8,7 @@ import pytest
 import pipdeptree
 from pipdeptree import _RenderResult, _SummaryResult
 from pipdeptree._computed import ComputedValues
+from pipdeptree._models import PackageDAG
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -130,7 +131,7 @@ def test_render_local_only_passed_through(mocker: MockerFixture, make_mock_dist:
 
 
 def test_render_extras_passed_through(mocker: MockerFixture, make_mock_dist: MockDistMaker) -> None:
-    spy = mocker.spy(pipdeptree.__main__.PackageDAG, "from_pkgs")
+    spy = mocker.spy(PackageDAG, "from_pkgs")
     mocker.patch(
         "pipdeptree.__main__.get_installed_distributions",
         return_value=[make_mock_dist(name="a", version="1.0.0")],
@@ -140,7 +141,7 @@ def test_render_extras_passed_through(mocker: MockerFixture, make_mock_dist: Moc
 
 
 def test_render_extras_mode_passed_through(mocker: MockerFixture, make_mock_dist: MockDistMaker) -> None:
-    spy = mocker.spy(pipdeptree.__main__.PackageDAG, "from_pkgs")
+    spy = mocker.spy(PackageDAG, "from_pkgs")
     mocker.patch(
         "pipdeptree.__main__.get_installed_distributions",
         return_value=[make_mock_dist(name="a", version="1.0.0")],

@@ -4,7 +4,6 @@ import re
 import sys
 from typing import TYPE_CHECKING
 
-from pipdeptree._computed import ComputedValues
 from pipdeptree._models.package import DistPackage, ReqPackage
 from pipdeptree._render.text import _build_suffix, get_top_level_nodes
 
@@ -119,7 +118,7 @@ def _format_node(
     is_unique = (
         context is not None
         and any(f.startswith("unique-deps") for f in context.computed)
-        and node.key in ComputedValues(parent.key, tree, context.full_tree if context else None).unique_deps
+        and node.key in context.get_computed_values(parent.key, tree).unique_deps
     )
     return _format_branch_node(node_str, node, suffix, is_unique=is_unique, mode=mode)
 

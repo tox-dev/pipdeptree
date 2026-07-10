@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     "option", [pytest.param(["--json"], id="flag"), pytest.param(["--output", "json"], id="output")]
 )
 def test_json_routing(option: list[str], mocker: MockerFixture) -> None:
-    render = mocker.patch("pipdeptree._render.render_json")
+    render = mocker.patch("pipdeptree._render.json.render_json")
     main(option)
     render.assert_called_once_with(ANY, context=RenderContext(), mode="default")
 
@@ -27,7 +27,7 @@ def test_json_routing(option: list[str], mocker: MockerFixture) -> None:
     [pytest.param(["--json-tree"], id="flag"), pytest.param(["--output", "json-tree"], id="output")],
 )
 def test_json_tree_routing(option: list[str], mocker: MockerFixture) -> None:
-    render = mocker.patch("pipdeptree._render.render_json_tree")
+    render = mocker.patch("pipdeptree._render.json_tree.render_json_tree")
     main(option)
     render.assert_called_once_with(ANY, context=RenderContext(), mode="default")
 
@@ -37,7 +37,7 @@ def test_json_tree_routing(option: list[str], mocker: MockerFixture) -> None:
     [pytest.param(["--mermaid"], id="flag"), pytest.param(["--output", "mermaid"], id="output")],
 )
 def test_mermaid_routing(option: list[str], mocker: MockerFixture) -> None:
-    render = mocker.patch("pipdeptree._render.render_mermaid")
+    render = mocker.patch("pipdeptree._render.mermaid.render_mermaid")
     main(option)
     render.assert_called_once_with(ANY, context=RenderContext())
 
@@ -47,7 +47,7 @@ def test_mermaid_routing(option: list[str], mocker: MockerFixture) -> None:
     [pytest.param(["--graph-output", "dot"], id="flag"), pytest.param(["--output", "graphviz-dot"], id="output")],
 )
 def test_grahpviz_routing(option: list[str], mocker: MockerFixture) -> None:
-    render = mocker.patch("pipdeptree._render.render_graphviz")
+    render = mocker.patch("pipdeptree._render.graphviz.render_graphviz")
     main(option)
     render.assert_called_once_with(ANY, output_format="dot", reverse=False, max_depth=inf, context=RenderContext())
 
@@ -57,7 +57,7 @@ def test_grahpviz_routing(option: list[str], mocker: MockerFixture) -> None:
     [pytest.param([], id="default"), pytest.param(["--output", "text"], id="output")],
 )
 def test_text_routing(option: list[str], mocker: MockerFixture) -> None:
-    render = mocker.patch("pipdeptree._render.render_text")
+    render = mocker.patch("pipdeptree._render.text.render_text")
     main(option)
     render.assert_called_once_with(
         ANY, encoding="utf-8", max_depth=inf, list_all=False, context=RenderContext(), mode="default"
@@ -69,14 +69,14 @@ def test_text_routing(option: list[str], mocker: MockerFixture) -> None:
     [pytest.param(["--freeze"], id="flag"), pytest.param(["--output", "freeze"], id="output")],
 )
 def test_freeze_routing(option: list[str], mocker: MockerFixture) -> None:
-    render = mocker.patch("pipdeptree._render.render_freeze")
+    render = mocker.patch("pipdeptree._render.freeze.render_freeze")
     main(option)
     render.assert_called_once_with(ANY, max_depth=inf, list_all=False)
 
 
 @pytest.mark.parametrize("option", [pytest.param(["--output", "rich"], id="output")])
 def test_rich_routing(option: list[str], mocker: MockerFixture) -> None:
-    render = mocker.patch("pipdeptree._render.render_rich_text")
+    render = mocker.patch("pipdeptree._render.rich_text.render_rich_text")
     main(option)
     render.assert_called_once_with(ANY, max_depth=inf, list_all=False, context=RenderContext(), mode="default")
 
@@ -90,6 +90,6 @@ def test_rich_routing(option: list[str], mocker: MockerFixture) -> None:
     ],
 )
 def test_summary_routing(option: list[str], style: str, mocker: MockerFixture) -> None:
-    render = mocker.patch("pipdeptree._render.render_summary")
+    render = mocker.patch("pipdeptree._render.summary.render_summary")
     main(["--summary", *option])
     render.assert_called_once_with(ANY, mode="default", style=style)

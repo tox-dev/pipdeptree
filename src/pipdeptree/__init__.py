@@ -22,13 +22,7 @@ import io
 from contextlib import redirect_stdout
 from html import escape
 from math import inf
-from typing import TYPE_CHECKING
-
-from pipdeptree import _render
-from pipdeptree.__main__ import _FilterError, build_tree
-from pipdeptree._cli import SUMMARY_RENDER_FORMATS, get_options
-from pipdeptree._render.summary import summary_html
-from pipdeptree._warning import WarningType, get_warning_printer
+from typing import TYPE_CHECKING, Final
 
 from .version import __version__
 
@@ -40,8 +34,8 @@ if TYPE_CHECKING:
 
 __all__ = ["__version__", "render"]
 
-_BINARY_GRAPHVIZ_FORMATS = frozenset({"png", "svg", "pdf", "jpeg", "jpg", "gif", "bmp", "ps"})
-_FORMAT_FLAGS: dict[str, list[str]] = {
+_BINARY_GRAPHVIZ_FORMATS: Final[frozenset[str]] = frozenset({"png", "svg", "pdf", "jpeg", "jpg", "gif", "bmp", "ps"})
+_FORMAT_FLAGS: Final[dict[str, list[str]]] = {
     "text": [],
     "json": ["--json"],
     "json-tree": ["--json-tree"],
@@ -94,6 +88,13 @@ def render(  # noqa: PLR0913
     ``json-tree``, ``mermaid``, ``dot``) return a plain :class:`str` with no rich display, so their source/JSON shows
     as-is.
     """
+    from pipdeptree.__main__ import _FilterError, build_tree  # noqa: PLC0415  # Keep package import lightweight.
+    from pipdeptree._cli import SUMMARY_RENDER_FORMATS, get_options  # noqa: PLC0415  # Keep package import lightweight.
+    from pipdeptree._warning import (  # noqa: PLC0415  # Keep package import lightweight.
+        WarningType,
+        get_warning_printer,
+    )
+
     if summary and output_format not in SUMMARY_RENDER_FORMATS:
         allowed = ", ".join(sorted(SUMMARY_RENDER_FORMATS))
         msg = f"summary output_format must be one of {allowed}; got {output_format!r}"
@@ -134,6 +135,8 @@ def render(  # noqa: PLR0913
 def _finalize(text: str, *, argv: list[str], tree: PackageDAG, output_format: str, summary: bool) -> str:
     if summary:
         # The aggregate report has no tree diagram; the text style instead displays as an HTML table in a notebook.
+        from pipdeptree._render.summary import summary_html  # noqa: PLC0415  # Summary is optional.
+
         return _SummaryResult(text, html=summary_html(tree)) if output_format == "text" else text
     if output_format != "text":
         # Non-text formats (JSON, Mermaid source, Graphviz source) are returned as plain strings so they display
@@ -141,12 +144,16 @@ def _finalize(text: str, *, argv: list[str], tree: PackageDAG, output_format: st
         return text
 
     # Reuse the already-discovered tree to also produce a Mermaid diagram for the rich notebook display.
+    from pipdeptree._cli import get_options  # noqa: PLC0415  # Programmatic rendering is optional.
+
     mermaid_options = get_options([*argv, "--mermaid"])
     mermaid = _render_to_str(mermaid_options, tree)
     return _RenderResult(text, mermaid=mermaid)
 
 
 def _render_to_str(options: Options, tree: PackageDAG) -> str:
+    from pipdeptree import _render  # noqa: PLC0415  # Programmatic rendering is optional.
+
     buffer = io.StringIO()
     with redirect_stdout(buffer):
         _render.render(options, tree)
