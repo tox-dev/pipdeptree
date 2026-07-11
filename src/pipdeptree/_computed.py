@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pathlib
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from functools import cached_property
 from importlib.metadata import distribution
 from typing import TYPE_CHECKING, Any
@@ -17,6 +18,7 @@ class ComputedValues:
     key: str
     tree: PackageDAG
     full_tree: PackageDAG | None = None
+    _size_cache: dict[str, int | None] | None = dataclass_field(default=None, repr=False, compare=False, kw_only=True)
 
     def as_dict(self, fields: Sequence[str]) -> dict[str, Any]:
         return {
@@ -52,14 +54,20 @@ class ComputedValues:
 
     @cached_property
     def size_bytes(self) -> int | None:
+        size_cache = self._size_cache
+        if size_cache is not None and self.key in size_cache:
+            return size_cache[self.key]
         dist = distribution(self.key)
         if record := dist.read_text("RECORD"):
             from csv import reader  # noqa: PLC0415  # Other computed fields do not read package file lists.
 
             files = (row[0] for row in reader(record.splitlines()))
-        elif not (files := dist.files):
-            return None
-        return sum(self._file_size(str(dist.locate_file(f))) for f in files)
+        else:
+            files = dist.files
+        result = sum(self._file_size(str(dist.locate_file(f))) for f in files) if files else None
+        if size_cache is not None:
+            size_cache[self.key] = result
+        return result
 
     @staticmethod
     def _file_size(path: str) -> int:
@@ -86,7 +94,10 @@ class ComputedValues:
 
     @cached_property
     def unique_deps_size(self) -> str:
-        total = sum(ComputedValues(dep, self.tree, self.full_tree).size_raw for dep in self.unique_deps)
+        size_cache = self._size_cache if self._size_cache is not None else {}
+        total = sum(
+            ComputedValues(dep, self.tree, self.full_tree, _size_cache=size_cache).size_raw for dep in self.unique_deps
+        )
         return self.format_size(total)
 
     @cached_property
