@@ -53,7 +53,11 @@ class ComputedValues:
     @cached_property
     def size_bytes(self) -> int | None:
         dist = distribution(self.key)
-        if not (files := dist.files):
+        if record := dist.read_text("RECORD"):
+            from csv import reader  # noqa: PLC0415  # Other computed fields do not read package file lists.
+
+            files = (row[0] for row in reader(record.splitlines()))
+        elif not (files := dist.files):
             return None
         return sum(self._file_size(str(dist.locate_file(f))) for f in files)
 
