@@ -247,8 +247,12 @@ class DistPackage(Package):
         """Exposes the internal `importlib.metadata.Distribution` object."""
         return self._obj
 
+    @cached_property
+    def _frozen_repr(self) -> str:
+        return self.as_frozen_repr(self._obj)
+
     def render_as_root(self, *, frozen: bool) -> str:
-        return self.as_frozen_repr(self._obj) if frozen else f"{self.project_name}=={self.version}"
+        return self._frozen_repr if frozen else f"{self.project_name}=={self.version}"
 
     def render_as_branch(self, *, frozen: bool, mode: RenderMode = "default") -> str:  # noqa: ARG002
         # resolved mode only relabels ReqPackage branches; a DistPackage branch appears in reverse mode
@@ -336,7 +340,7 @@ class ReqPackage(Package):
         if not frozen:
             return f"{self.project_name}=={self.installed_version}"
         if self.dist:
-            return self.as_frozen_repr(self.dist.unwrap())
+            return self.dist.render_as_root(frozen=True)
         return self.project_name
 
     def render_as_branch(self, *, frozen: bool, mode: RenderMode = "default") -> str:
