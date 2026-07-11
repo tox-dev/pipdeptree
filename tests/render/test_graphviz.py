@@ -8,7 +8,7 @@ import pytest
 
 from pipdeptree._cli import RenderContext
 from pipdeptree._models import PackageDAG
-from pipdeptree._models.package import Package
+from pipdeptree._models.package import DistPackage
 from pipdeptree._render.graphviz import dump_graphviz, print_graphviz, render_graphviz
 
 if TYPE_CHECKING:
@@ -203,7 +203,7 @@ def test_render_graphviz_with_metadata(
 ) -> None:
     graph: MockGraph = {("a", "1.0"): [("b", [(">=", "1.0")])], ("b", "1.0"): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    monkeypatch.setattr(Package, "licenses", lambda _: "(MIT)")
+    monkeypatch.setattr(DistPackage, "licenses", lambda _: "(MIT)")
     ctx = RenderContext(metadata=["license"])
     render_graphviz(dag, output_format="dot", reverse=False, context=ctx)
     output = capsys.readouterr().out
@@ -217,7 +217,7 @@ def test_render_graphviz_reversed_with_metadata(
 ) -> None:
     graph: MockGraph = {("a", "1.0"): [("b", [(">=", "1.0")])], ("b", "1.0"): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    monkeypatch.setattr(Package, "licenses", lambda _: "(MIT)")
+    monkeypatch.setattr(DistPackage, "licenses", lambda _: "(MIT)")
     ctx = RenderContext(metadata=["license"])
     render_graphviz(dag.reverse(), output_format="dot", reverse=True, context=ctx)
     output = capsys.readouterr().out

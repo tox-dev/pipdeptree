@@ -148,6 +148,13 @@ def test_licenses_importlib_cant_find_package(mocker: MockerFixture) -> None:
     assert ReqPackage(req).licenses() == Package.UNKNOWN_LICENSE_STR
 
 
+def test_req_package_licenses_use_global_metadata_when_dist_missing(mocker: MockerFixture) -> None:
+    mocker.patch("pipdeptree._models.package.metadata", return_value=_license_msg(license_expression="MIT"))
+    req = MagicMock()
+    req.name = "foo"
+    assert ReqPackage(req).licenses() == "(MIT)"
+
+
 def test_dist_package_key_pep503_normalized() -> None:
     foobar = Mock(metadata={"Name": "foo.bar"}, version="20.4.1")
     dp = DistPackage(foobar)
@@ -484,10 +491,11 @@ def test_dist_package_edge_label_with_extra() -> None:
     assert dp.edge_label == "[signedtoken] >=4.0"
 
 
-def test_get_metadata_license(mocker: MockerFixture) -> None:
-    mocker.patch.object(Package, "licenses", return_value="(MIT)")
-    dist = MagicMock(metadata={"Name": "foo"}, version="1.0")
-    assert DistPackage(dist).get_metadata("license") == "MIT License"
+def test_get_metadata_license() -> None:
+    msg = Message()
+    msg["Name"] = "foo"
+    msg["License-Expression"] = "MIT"
+    assert DistPackage(MagicMock(metadata=msg, version="1.0")).get_metadata("license") == "MIT License"
 
 
 def _make_dist_msg(**fields: str | list[str]) -> MagicMock:
@@ -519,9 +527,8 @@ def test_get_metadata_unknown_package(mocker: MockerFixture) -> None:
     assert ReqPackage(req).get_metadata("Summary") == "N/A"
 
 
-def test_get_metadata_dict(mocker: MockerFixture) -> None:
-    mocker.patch.object(Package, "licenses", return_value="(MIT)")
-    dist = _make_dist_msg(Summary="A package")
+def test_get_metadata_dict() -> None:
+    dist = _make_dist_msg(Summary="A package", Classifier=["License :: OSI Approved :: MIT License"])
     result = DistPackage(dist).get_metadata_dict(["license", "Summary"])
     assert result == {"license": "MIT License", "Summary": "A package"}
 
@@ -541,8 +548,7 @@ def test_get_metadata_multi_value() -> None:
     ]
 
 
-def test_get_metadata_values_with_multi_value(mocker: MockerFixture) -> None:
-    mocker.patch.object(Package, "licenses", return_value="(MIT)")
+def test_get_metadata_values_with_multi_value() -> None:
     dist = _make_dist_msg(
         Classifier=["Development Status :: 5 - Production/Stable", "License :: OSI Approved :: MIT License"],
     )
@@ -565,9 +571,8 @@ def test_get_metadata_dict_with_multi_value() -> None:
     }
 
 
-def test_get_metadata_values(mocker: MockerFixture) -> None:
-    mocker.patch.object(Package, "licenses", return_value="(MIT)")
-    dist = _make_dist_msg()
+def test_get_metadata_values() -> None:
+    dist = _make_dist_msg(Classifier=["License :: OSI Approved :: MIT License"])
     assert DistPackage(dist).get_metadata_values(["license"]) == ["MIT License"]
 
 
@@ -591,6 +596,23 @@ def test_get_metadata_uses_dist_not_global_lookup(mocker: MockerFixture) -> None
     global_metadata.assert_not_called()
 
 
+def test_req_package_get_metadata_uses_dist_not_global_lookup(mocker: MockerFixture) -> None:
+    dist = DistPackage(_make_dist_msg(Summary="From dist"))
+    req = MagicMock()
+    req.name = "foo"
+    global_metadata = mocker.patch("pipdeptree._models.package.metadata", side_effect=PackageNotFoundError("x"))
+    assert ReqPackage(req, dist).get_metadata("Summary") == "From dist"
+    global_metadata.assert_not_called()
+
+
+def test_req_package_get_metadata_dict_uses_dist() -> None:
+    req = MagicMock()
+    req.name = "foo"
+    assert ReqPackage(req, DistPackage(_make_dist_msg(Summary="From dist"))).get_metadata_dict(["Summary"]) == {
+        "Summary": "From dist",
+    }
+
+
 def test_licenses_uses_dist_not_global_lookup(mocker: MockerFixture) -> None:
     msg = Message()
     msg["Name"] = "foo"
@@ -598,4 +620,15 @@ def test_licenses_uses_dist_not_global_lookup(mocker: MockerFixture) -> None:
     dist = MagicMock(metadata=msg, version="1.0")
     global_metadata = mocker.patch("pipdeptree._models.package.metadata", side_effect=PackageNotFoundError("x"))
     assert DistPackage(dist).licenses() == "(MIT)"
+    global_metadata.assert_not_called()
+
+
+def test_req_package_licenses_use_dist_not_global_lookup(mocker: MockerFixture) -> None:
+    msg = Message()
+    msg["Name"] = "foo"
+    msg["License-Expression"] = "MIT"
+    req = MagicMock()
+    req.name = "foo"
+    global_metadata = mocker.patch("pipdeptree._models.package.metadata", side_effect=PackageNotFoundError("x"))
+    assert ReqPackage(req, DistPackage(MagicMock(metadata=msg, version="1.0"))).licenses() == "(MIT)"
     global_metadata.assert_not_called()

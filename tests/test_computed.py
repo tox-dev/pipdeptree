@@ -221,7 +221,7 @@ def test_build_node_extra_label_metadata(
 ) -> None:
     graph: MockGraph = {("a", "1.0"): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch("pipdeptree._models.package.Package.get_metadata_values", return_value=["A package"])
+    mocker.patch("pipdeptree._models.package.DistPackage.get_metadata_values", return_value=["A package"])
     ctx = RenderContext(metadata=["Summary"])
     assert ctx.build_node_extra_label("a", dag, ", ") == "A package"
 
@@ -241,7 +241,7 @@ def test_build_node_extra_label_license(
 ) -> None:
     graph: MockGraph = {("a", "1.0"): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch("pipdeptree._models.package.Package.licenses", return_value="(MIT)")
+    mocker.patch("pipdeptree._models.package.DistPackage.licenses", return_value="(MIT)")
     ctx = RenderContext(metadata=["license"])
     assert ctx.build_node_extra_label("a", dag, ", ") == "MIT License"
 
@@ -251,7 +251,7 @@ def test_build_node_extra_label_missing_metadata_field(
 ) -> None:
     graph: MockGraph = {("a", "1.0"): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch("pipdeptree._models.package.Package.get_metadata_values", return_value=[])
+    mocker.patch("pipdeptree._models.package.DistPackage.get_metadata_values", return_value=[])
     ctx = RenderContext(metadata=["Author"])
     assert not ctx.build_node_extra_label("a", dag, ", ")
 

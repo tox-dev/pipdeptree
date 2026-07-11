@@ -7,7 +7,7 @@ import pytest
 
 from pipdeptree._cli import RenderContext
 from pipdeptree._models import PackageDAG
-from pipdeptree._models.package import Package
+from pipdeptree._models.package import DistPackage
 from pipdeptree._render.text import render_text
 
 if TYPE_CHECKING:
@@ -512,7 +512,7 @@ def test_render_text_with_license_info(
         ("c", "1.0.0"): [],
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    monkeypatch.setattr(Package, "licenses", lambda _: "(TEST License)")
+    monkeypatch.setattr(DistPackage, "licenses", lambda _: "(TEST License)")
 
     render_text(dag, max_depth=float("inf"), encoding=encoding, context=RenderContext(metadata=["license"]))
     captured = capsys.readouterr()
@@ -562,7 +562,7 @@ def test_render_text_with_license_info_and_reversed_tree(
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     dag = dag.reverse()
-    monkeypatch.setattr(Package, "licenses", lambda _: "(TEST License)")
+    monkeypatch.setattr(DistPackage, "licenses", lambda _: "(TEST License)")
 
     render_text(dag, max_depth=float("inf"), encoding=encoding, context=RenderContext(metadata=["license"]))
     captured = capsys.readouterr()

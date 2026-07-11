@@ -9,7 +9,7 @@ import pytest
 
 from pipdeptree._cli import RenderContext
 from pipdeptree._models import PackageDAG
-from pipdeptree._models.package import DistPackage, Package
+from pipdeptree._models.package import DistPackage
 from pipdeptree._render.rich_text import render_rich_text
 
 if TYPE_CHECKING:
@@ -74,7 +74,7 @@ def test_render_rich_text_with_license_info(
         ("c", "1.0.0"): [],
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    monkeypatch.setattr(Package, "licenses", lambda _: "(TEST)")
+    monkeypatch.setattr(DistPackage, "licenses", lambda _: "(TEST)")
 
     render_rich_text(dag, max_depth=float("inf"), context=RenderContext(metadata=["license"]))
     output = capsys.readouterr().out
@@ -187,7 +187,7 @@ def test_render_rich_text_multi_value_metadata(
     msg = Message()
     msg["Classifier"] = "Development Status :: 5 - Production/Stable"
     msg["Classifier"] = "License :: OSI Approved :: MIT License"
-    mocker.patch.object(DistPackage, "_get_dist_metadata", return_value=msg)
+    mocker.patch.object(next(iter(dag)).unwrap(), "metadata", msg)
 
     render_rich_text(dag, max_depth=float("inf"), context=RenderContext(metadata=["Classifier"]))
     output = capsys.readouterr().out
@@ -206,7 +206,7 @@ def test_render_rich_text_multiline_metadata(
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     msg = Message()
     msg["Description"] = "Line one\nLine two\nLine three"
-    mocker.patch.object(DistPackage, "_get_dist_metadata", return_value=msg)
+    mocker.patch.object(next(iter(dag)).unwrap(), "metadata", msg)
 
     render_rich_text(dag, max_depth=float("inf"), context=RenderContext(metadata=["Description"]))
     output = capsys.readouterr().out

@@ -56,17 +56,7 @@ class Package(ABC):
     def licenses(self) -> str:
         if (dist_metadata := self._get_dist_metadata()) is None:
             return self.UNKNOWN_LICENSE_STR
-
-        if license_str := dist_metadata["License-Expression"]:
-            return f"({license_str})"
-
-        license_strs: list[str] = []
-        for classifier in dist_metadata.get_all("Classifier", []):
-            line = str(classifier)
-            if line.startswith("License"):
-                license_strs.append(line.rsplit(":: ", 1)[-1])
-
-        return f"({', '.join(license_strs)})" if license_strs else self.UNKNOWN_LICENSE_STR
+        return _licenses_from_metadata(dist_metadata)
 
     def get_metadata(self, field: str) -> str | list[str]:
         if field == "license":
@@ -168,11 +158,29 @@ class DistPackage(Package):
             self._version = dist_info.version or obj.version
 
     @cached_property
-    def _loaded_metadata(self) -> PackageMetadata:
-        return self._obj.metadata
+    def _metadata_cache(self) -> dict[str, str | list[str]]:
+        return {}
 
-    def _get_dist_metadata(self) -> PackageMetadata:
-        return self._loaded_metadata
+    def licenses(self) -> str:
+        return self._cached_license
+
+    @cached_property
+    def _cached_license(self) -> str:
+        return _licenses_from_metadata(self._obj.metadata)
+
+    def get_metadata(self, field: str) -> str | list[str]:
+        if field == "license":
+            return super().get_metadata(field)
+        if (value := self._metadata_cache.get(field)) is None:
+            values = self._obj.metadata.get_all(field)
+            if not values:
+                value = self.NA
+            elif len(values) == 1:
+                value = str(values[0])
+            else:
+                value = [str(item) for item in values]
+            self._metadata_cache[field] = value
+        return value.copy() if isinstance(value, list) else value
 
     @cached_property
     def _parsed_requires(self) -> list[Requirement | str]:
@@ -318,6 +326,12 @@ class ReqPackage(Package):
         # ``--extras active`` or ``--packages foo[extra]`` stay None. PackageDAG.get_children reads it to gate output.
         self.scoped_extra = scoped_extra
 
+    def licenses(self) -> str:
+        return self.dist.licenses() if self.dist is not None else super().licenses()
+
+    def get_metadata(self, field: str) -> str | list[str]:
+        return self.dist.get_metadata(field) if self.dist is not None else super().get_metadata(field)
+
     def render_as_root(self, *, frozen: bool) -> str:
         if not frozen:
             return f"{self.project_name}=={self.installed_version}"
@@ -409,6 +423,17 @@ def _try_parse_requirement(raw_req: str) -> Requirement | str:
         return Requirement(raw_req)
     except InvalidRequirement:
         return raw_req
+
+
+def _licenses_from_metadata(dist_metadata: PackageMetadata) -> str:
+    if license_str := dist_metadata["License-Expression"]:
+        return f"({license_str})"
+    licenses = [
+        line.rsplit(":: ", 1)[-1]
+        for classifier in dist_metadata.get_all("Classifier", [])
+        if (line := str(classifier)).startswith("License")
+    ]
+    return f"({', '.join(licenses)})" if licenses else Package.UNKNOWN_LICENSE_STR
 
 
 __all__ = [
