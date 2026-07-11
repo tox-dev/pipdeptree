@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from pipdeptree._cli import RenderContext
 from pipdeptree._models import PackageDAG
-from pipdeptree._models.package import Package
+from pipdeptree._models.package import DistPackage
 from pipdeptree._render.mermaid import render_mermaid
 
 if TYPE_CHECKING:
@@ -115,7 +115,7 @@ def test_mermaid_with_metadata(
 ) -> None:
     graph: MockGraph = {("a", "1.0"): [("b", [(">=", "1.0")])], ("b", "1.0"): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    monkeypatch.setattr(Package, "licenses", lambda _: "(MIT)")
+    monkeypatch.setattr(DistPackage, "licenses", lambda _: "(MIT)")
     ctx = RenderContext(metadata=["license"])
     render_mermaid(dag, context=ctx)
     output = capsys.readouterr().out
@@ -129,7 +129,7 @@ def test_mermaid_reversed_with_metadata(
 ) -> None:
     graph: MockGraph = {("a", "1.0"): [("b", [(">=", "1.0")])], ("b", "1.0"): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    monkeypatch.setattr(Package, "licenses", lambda _: "(MIT)")
+    monkeypatch.setattr(DistPackage, "licenses", lambda _: "(MIT)")
     ctx = RenderContext(metadata=["license"])
     render_mermaid(dag.reverse(), context=ctx)
     output = capsys.readouterr().out
