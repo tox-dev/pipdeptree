@@ -65,12 +65,11 @@ def test_dist_package_render_as_branch() -> None:
     assert dp.render_as_branch(frozen=False) == "foo==20.4.1 [requires: bar>=4.0]"
 
 
-def test_dist_package_render_as_root_with_frozen(mocker: MockerFixture) -> None:
+def test_dist_package_render_as_root_with_frozen_caches_specifier(mocker: MockerFixture) -> None:
     foo = Mock(metadata={"Name": "foo"}, version="1.2.3")
     dp = DistPackage(foo)
-    expected = "test"
-    mocker.patch("pipdeptree._models.package.distribution_to_specifier", Mock(return_value=expected))
-    assert dp.render_as_root(frozen=True) == expected
+    specifier = mocker.patch("pipdeptree._models.package.distribution_to_specifier", return_value="test")
+    assert ([dp.render_as_root(frozen=True) for _ in range(2)], specifier.call_count) == (["test", "test"], 1)
 
 
 def test_dist_package_as_parent_of() -> None:
@@ -176,15 +175,17 @@ def test_req_package_render_as_root() -> None:
     assert rp.render_as_root(frozen=False) == "bar==4.1.0"
 
 
-def test_req_package_render_as_root_with_frozen(mocker: MockerFixture) -> None:
+def test_req_package_render_as_root_with_frozen_uses_dist_cache(mocker: MockerFixture) -> None:
     bar = Mock(metadata={"Name": "bar"}, version="4.1.0")
     dp = DistPackage(bar)
     bar_req = MagicMock(specifier=[">=4.0"])
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dp)
-    expected = "test"
-    mocker.patch("pipdeptree._models.package.distribution_to_specifier", Mock(return_value=expected))
-    assert rp.render_as_root(frozen=True) == expected
+    specifier = mocker.patch("pipdeptree._models.package.distribution_to_specifier", return_value="test")
+    assert ([rp.render_as_root(frozen=True), dp.render_as_root(frozen=True)], specifier.call_count) == (
+        ["test", "test"],
+        1,
+    )
 
 
 def test_req_package_render_as_branch() -> None:
