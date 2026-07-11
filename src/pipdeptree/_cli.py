@@ -63,6 +63,7 @@ class RenderContext:
         repr=False,
         compare=False,
     )
+    _size_cache: dict[str, int | None] = field(default_factory=dict, init=False, repr=False, compare=False)
 
     @property
     def active(self) -> bool:
@@ -84,13 +85,17 @@ class RenderContext:
 
         cache_key = (id(tree), id(self.full_tree), key)
         if (computed := self._computed_cache.get(cache_key)) is None:
-            computed = self._computed_cache[cache_key] = ComputedValues(key, tree, self.full_tree)
+            size_cache = self._size_cache if "unique-deps-size" in self.computed else None
+            computed = self._computed_cache[cache_key] = ComputedValues(
+                key, tree, self.full_tree, _size_cache=size_cache
+            )
         return computed
 
     def with_metadata(self, metadata: list[str]) -> RenderContext:
         """Return a copy with a different metadata field list."""
         context = RenderContext(metadata=metadata, computed=self.computed, full_tree=self.full_tree)
         context._computed_cache = self._computed_cache
+        context._size_cache = self._size_cache
         return context
 
     @staticmethod

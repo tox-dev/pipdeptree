@@ -128,6 +128,27 @@ def test_unique_deps_size(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mock
     assert ComputedValues("a", dag).unique_deps_size == "2.0 KB"
 
 
+def test_render_context_reuses_unique_dependency_sizes(
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture
+) -> None:
+    graph: MockGraph = {
+        ("a", "1.0"): [("b", [(">=", "1.0")])],
+        ("b", "1.0"): [("c", [(">=", "1.0")])],
+        ("c", "1.0"): [],
+    }
+    dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
+    mocker.patch(
+        "pipdeptree._computed.distribution",
+        return_value=MagicMock(files=["f"], locate_file=lambda _: "/dev/null", read_text=lambda _: None),
+    )
+    file_size = mocker.patch.object(ComputedValues, "_file_size", return_value=1024)
+    context = RenderContext(computed=["unique-deps-size"])
+    assert (
+        [context.get_computed_values(key, dag).unique_deps_size for key in ("a", "b")],
+        file_size.call_count,
+    ) == (["2.0 KB", "1.0 KB"], 2)
+
+
 def test_unique_deps_count_matches_names(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
     dag = PackageDAG.from_pkgs(list(mock_pkgs({("a", "1.0"): [("b", [(">=", "1.0")])], ("b", "1.0"): []})))
     cv = ComputedValues("a", dag)
