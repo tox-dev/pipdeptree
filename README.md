@@ -7,9 +7,8 @@
 [![PyPI - License](https://img.shields.io/pypi/l/pipdeptree?style=flat-square)](https://opensource.org/licenses/MIT)
 [![check](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yaml/badge.svg)](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yaml)
 
-A command-line utility for displaying installed Python packages as a dependency tree. While `pip freeze` shows a flat
-list, `pipdeptree` reveals which packages are top-level and what they depend on, including conflicting or circular
-dependencies.
+pipdeptree displays installed Python packages as a dependency tree. `pip freeze` shows a flat list; `pipdeptree` adds
+parent-child relationships and reports dependency conflicts or cycles.
 
 ## Quick start
 
@@ -20,13 +19,13 @@ pipdeptree
 
 ```text
 Flask==0.10.1
-  - itsdangerous [required: >=0.21, installed: 0.24]
-  - Jinja2 [required: >=2.4, installed: 2.11.2]
-    - MarkupSafe [required: >=0.23, installed: 0.22]
-  - Werkzeug [required: >=0.7, installed: 0.11.2]
+┣━━ ✓ itsdangerous required: >=0.21 installed: 0.24
+┣━━ ✓ Jinja2 required: >=2.4 installed: 2.11.2
+┃   ┗━━ ⚠ MarkupSafe required: >=0.23 installed: 0.22
+┗━━ ✓ Werkzeug required: >=0.7 installed: 0.11.2
 ```
 
-Find out why a package is installed:
+Find packages that require a dependency:
 
 ```bash
 pipdeptree --reverse --packages markupsafe
@@ -40,7 +39,7 @@ pipdeptree -o mermaid
 pipdeptree -o graphviz-svg > deps.svg
 ```
 
-Get a one-block environment health report (counts, depth, conflicts, cycles, licenses, size):
+Report package counts, depth, conflicts, cycles, licenses and size:
 
 ```bash
 pipdeptree --summary           # aligned text
@@ -48,21 +47,19 @@ pipdeptree --summary -o rich   # styled table
 pipdeptree --summary -o json   # machine-readable
 ```
 
-Inspect a tree without installing it. Resolve requirements against a package index (needs the `index` extra), or read an
-already-resolved [PEP 751](https://peps.python.org/pep-0751/) lock offline:
+Inspect a tree without installing it. Resolve requirements against a package index, or read a resolved
+[PEP 751](https://peps.python.org/pep-0751/) lock offline:
 
 ```bash
-pip install pipdeptree[index]
 pipdeptree from-index "flask"          # i is a shorthand alias
 pipdeptree from-index --requirements requirements.txt
 pipdeptree from-lock pylock.toml       # l is a shorthand alias
 ```
 
-Every render flag above, including `--summary`, works with both subcommands.
+The render flags above, including `--summary`, work with both subcommands.
 
 For the full documentation, visit [pipdeptree.readthedocs.io](https://pipdeptree.readthedocs.io).
 
-- [Documentation](https://pipdeptree.readthedocs.io)
 - [Installation](https://pipdeptree.readthedocs.io/en/latest/tutorial/getting-started.html)
 - [Usage](https://pipdeptree.readthedocs.io/en/latest/how-to/usage.html)
 - [Changelog](https://github.com/tox-dev/pipdeptree/releases)

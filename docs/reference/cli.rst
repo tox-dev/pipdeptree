@@ -1,17 +1,15 @@
 CLI reference
 =============
 
-.. sphinx_argparse_cli::
-    :module: pipdeptree._cli
-    :func: build_parser
-    :title:
+The native argument parser defines the command interface. Run ``pipdeptree --help`` to list the installed version's
+options.
 
 Summary metrics
 ---------------
 
-Fields emitted by ``--summary`` (styled with ``-o text``, ``rich`` or ``json``). The *Modes* column notes where
-each is available: *all* works for every command; *default* needs an installed environment and is reported as
-``n/a`` (omitted in JSON) under ``from-index``/``from-lock``.
+``--summary`` emits the fields below in text, rich or JSON form. The *Modes* column identifies their sources. *all*
+works for each command. *default* needs an installed environment; text reports ``n/a`` and JSON omits those fields for
+``from-index`` and ``from-lock``.
 
 .. list-table::
     :header-rows: 1
@@ -27,7 +25,7 @@ each is available: *all* works for every command; *default* needs an installed e
       - Top-level packages (not required by any other package).
       - all
     * - ``transitive_dependencies``
-      - Packages pulled in only as a dependency of another (``total - direct``).
+      - Packages required by another package (``total - direct``).
       - all
     * - ``max_depth``
       - Longest dependency chain, counted in packages.

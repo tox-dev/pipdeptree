@@ -4,5 +4,6 @@ build:
   tools: {}
   commands:
     - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
     - ~/.local/bin/uv tool install tox --with tox-uv -p 3.14 --managed-python
-    - ~/.local/bin/tox run -e docs --
+    - PATH="$HOME/.cargo/bin:$PATH" ~/.local/bin/tox run -e docs --

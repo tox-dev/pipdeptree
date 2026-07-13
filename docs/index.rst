@@ -26,7 +26,7 @@
     :alt: PyPI - License
 
 ``pipdeptree`` is a command-line utility that displays installed Python packages as a dependency tree. It works for
-packages installed globally or inside a virtualenv.
+packages installed in the global site or inside a virtualenv.
 
 **********************
  Why use pipdeptree?

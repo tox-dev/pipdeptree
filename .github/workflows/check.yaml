@@ -13,6 +13,32 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  rust:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/.python-packages
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install Graphviz
+        run: sudo apt-get install graphviz -y
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          enable-cache: false
+      - name: Install resolver dependencies
+        run: uv pip install --target .python-packages 'nab-index>=0.0.8' 'nab-python>=0.0.8'
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Check lints
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Install coverage tool
+        uses: taiki-e/install-action@4684b8405694ae9dd42c9f39ba901a70ae83f4a3 # v2.82.9
+        with:
+          tool: cargo-llvm-cov
+      - name: Run tests with coverage
+        run: cargo llvm-cov --no-default-features --test public_api --fail-under-lines 100 --fail-under-functions 100
   test:
     runs-on: ${{ matrix.os }}
     strategy:

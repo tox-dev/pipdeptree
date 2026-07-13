@@ -12,7 +12,11 @@ Clone the repository and create a development environment:
     cd pipdeptree
     tox run -e dev
 
-This installs pipdeptree in editable mode with all extras (graphviz, rich, test).
+Tox installs pipdeptree in editable mode with its test dependencies.
+
+The build uses Meson for editable installs and wheels. Its native target invokes Cargo for dependency resolution and
+compilation; PyO3 provides the extension boundary. Python exposes the public API, notebook display hooks and CLI byte
+output. Rust handles environment inspection, package data, dependency graphs, lock and index input, and rendering.
 
 Running from source
 -------------------
@@ -23,23 +27,46 @@ After setting up the dev environment:
 
     .tox/dev/bin/pipdeptree
 
+Building packages
+-----------------
+
+Build through the PEP 517 Meson backend:
+
+.. code-block:: bash
+
+    uv build
+
+To inspect the native build without creating a wheel:
+
+.. code-block:: bash
+
+    meson setup build
+    meson compile -C build
+
 Running tests
 -------------
 
 .. code-block:: bash
 
-    tox run -e 3.13
+    cargo test --no-default-features --test public_api
+    cargo llvm-cov --no-default-features --test public_api --fail-under-lines 100 --fail-under-functions 100
+    tox run -e 3.14
 
-This runs the full test suite with coverage. You can substitute any supported Python version (3.10--3.14).
+The Rust suite calls production code through ``Application`` and its public process boundary. Disabling
+extension-module linking lets the test executable link to Python. The Python suite tests the packaged API and CLI.
+Pytest discovers RST doctests and evaluates the documented commands against a synthetic package directory. You can
+substitute a supported Python version from 3.10 through 3.14.
 
 Linting and formatting
 -----------------------
 
 .. code-block:: bash
 
+    cargo fmt --all --check
+    cargo clippy --all-targets --all-features -- -D warnings
     tox run -e fix
 
-This runs all pre-commit hooks including ruff formatting and linting.
+The tox environment runs the repository hooks. These include Ruff, TOML formatters, workflow validation and Prettier.
 
 Type checking
 -------------
@@ -55,12 +82,12 @@ Building documentation
 
     tox run -e docs
 
-The output is written to ``.tox/docs_out/html/index.html``.
+Sphinx writes ``.tox/docs_out/html/index.html``.
 
 Contributing
 ------------
 
 1. Fork the repository.
 2. Create a feature branch.
-3. Ensure ``tox run -e fix`` passes.
+3. Run the Rust tests, ``tox run -e 3.14,type,docs,pkg_meta`` and ``prek run --all-files``.
 4. Submit a pull request.

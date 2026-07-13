@@ -1,38 +1,25 @@
 """
 Programmatic access to pipdeptree.
 
-The :func:`render` function lets you obtain the dependency tree as a string from
-within Python -- e.g. a Jupyter or JupyterLite cell -- without going through the
-command line or capturing stdout yourself::
-
-    import pipdeptree
-
-    print(pipdeptree.render())  # text tree, defaults
-    pipdeptree.render(output_format="json")  # JSON string
-    pipdeptree.render(packages="rich", reverse=True)  # filtered + reversed
-
-In a Jupyter or JupyterLite notebook cell, the default (``text``) render also
-displays as a Mermaid dependency diagram (with an HTML/text fallback) via the
-rich-display protocol, while its string value stays the plain text tree.
+Use :func:`render` when stdout is unavailable or when a dependency tree is needed as a string. Text results implement
+the notebook rich-display protocol while retaining normal :class:`str` behavior.
 """
 
 from __future__ import annotations
 
-import io
-from contextlib import redirect_stdout
+from dataclasses import dataclass
 from html import escape
 from math import inf
 from typing import TYPE_CHECKING, Final
+
+from pipdeptree._rust import render as _render
 
 from .version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import Container
 
-    from pipdeptree._cli import Options
-    from pipdeptree._models import PackageDAG
-
-__all__ = ["__version__", "render"]
+    from typing_extensions import Self
 
 _BINARY_GRAPHVIZ_FORMATS: Final[frozenset[str]] = frozenset({"png", "svg", "pdf", "jpeg", "jpg", "gif", "bmp", "ps"})
 _FORMAT_FLAGS: Final[dict[str, list[str]]] = {
@@ -42,9 +29,10 @@ _FORMAT_FLAGS: Final[dict[str, list[str]]] = {
     "mermaid": ["--mermaid"],
     "dot": ["--graph-output", "dot"],
 }
+_SUMMARY_FORMATS: Final[frozenset[str]] = frozenset({"json", "rich", "text"})
 
 
-def render(  # noqa: PLR0913
+def render(  # noqa: PLR0913  # The public keyword API predates the Rust implementation.
     *,
     packages: str | None = None,
     exclude: str | None = None,
@@ -60,157 +48,80 @@ def render(  # noqa: PLR0913
     warn: str = "silence",
 ) -> str:
     """
-    Render the dependency tree of an environment and return it as a string.
+    Render an environment's dependency tree.
 
-    :param packages: comma separated allow-list of packages to show (wildcards allowed)
-    :param exclude: comma separated deny-list of packages to hide (wildcards allowed)
-    :param output_format: one of ``text``, ``json``, ``json-tree``, ``mermaid`` or ``dot`` (Graphviz source); binary
-        Graphviz formats (png, svg, ...) cannot be returned as text and raise :class:`ValueError`. With
-        ``summary=True`` it instead selects the summary style and must be ``text``, ``rich`` or ``json``
-    :param summary: return a one-block health report of the environment rather than the tree; in a notebook the
-        ``text`` style additionally displays as an HTML table
-    :param reverse: list sub-dependencies with the packages that require them
-    :param depth: limit the depth of the tree (text output only)
-    :param extras: include optional (extras) dependencies in the tree; ``True`` is shorthand for ``"explicit"``
-    :param local_only: only show packages installed in the local virtual environment
-    :param user_only: only show packages installed in the user site
-    :param python: interpreter whose environment to inspect; defaults to the current one
-    :param encoding: encoding used for the text renderer's box-drawing characters
-    :param warn: warning control (``silence``, ``suppress`` or ``fail``); defaults to ``silence`` so notebooks are not
-        polluted with stderr output
-    :raises ValueError: for an unknown ``output_format`` or a binary Graphviz format
-    :return: the rendered dependency tree
-
-    The result is always a :class:`str` whose value is the rendering for the requested ``output_format``, so
-    ``print``, slicing, ``==`` and other string operations behave exactly as before. For the default ``text`` format
-    the result additionally implements Jupyter's rich-display protocol (:meth:`_repr_mimebundle_`), so a notebook cell
-    shows a Mermaid dependency diagram with an HTML ``<pre>`` and plain-text fallback. Other formats (``json``,
-    ``json-tree``, ``mermaid``, ``dot``) return a plain :class:`str` with no rich display, so their source/JSON shows
-    as-is.
+    :param packages: Comma-separated package allowlist. Wildcards and ``name[extra]`` are supported.
+    :param exclude: Comma-separated package denylist. Wildcards are supported.
+    :param output_format: ``text``, ``json``, ``json-tree``, ``mermaid`` or ``dot``. With ``summary=True``, use
+        ``text``, ``rich`` or ``json``.
+    :param summary: Return an environment health report instead of a dependency tree.
+    :param reverse: Show packages beneath the dependencies that require them.
+    :param depth: Maximum rendered tree depth.
+    :param extras: Extras mode. ``True`` means ``"explicit"``; named modes are ``"none"``, ``"explicit"`` and
+        ``"active"``.
+    :param local_only: Exclude globally installed packages from a virtual environment.
+    :param user_only: Include only packages installed in the user site.
+    :param python: Python interpreter whose environment to inspect.
+    :param encoding: Encoding used to select text tree characters.
+    :param warn: Warning mode: ``silence``, ``suppress`` or ``fail``.
+    :raises ValueError: If an option is invalid or a binary Graphviz format is requested.
+    :return: The rendered output. Text and text-summary results also provide notebook display hooks.
     """
-    from pipdeptree.__main__ import _FilterError, build_tree  # noqa: PLC0415  # Keep package import lightweight.
-    from pipdeptree._cli import SUMMARY_RENDER_FORMATS, get_options  # noqa: PLC0415  # Keep package import lightweight.
-    from pipdeptree._warning import (  # noqa: PLC0415  # Keep package import lightweight.
-        WarningType,
-        get_warning_printer,
-    )
-
-    if summary and output_format not in SUMMARY_RENDER_FORMATS:
-        allowed = ", ".join(sorted(SUMMARY_RENDER_FORMATS))
-        msg = f"summary output_format must be one of {allowed}; got {output_format!r}"
+    if summary and output_format not in _SUMMARY_FORMATS:
+        msg = f"summary output_format must be one of {', '.join(sorted(_SUMMARY_FORMATS))}; got {output_format!r}"
         raise ValueError(msg)
 
-    format_argv = ["--summary", "--output", output_format] if summary else _format_flags(output_format)
-    argv = ["--warn", warn, "--encoding", encoding, *format_argv]
-    for flag, value in (("--packages", packages), ("--exclude", exclude), ("--python", python)):
+    args = _render_args(
+        _RenderOptions(
+            packages=packages,
+            exclude=exclude,
+            output_format=output_format,
+            summary=summary,
+            reverse=reverse,
+            depth=depth,
+            extras=extras,
+            local_only=local_only,
+            user_only=user_only,
+            python=python,
+            encoding=encoding,
+            warn=warn,
+        )
+    )
+    text = _render(args)
+    if summary:
+        return _SummaryResult(text, html=_summary_html(text)) if output_format == "text" else text
+    if output_format != "text":
+        return text
+    return _RenderResult(text, args=args)
+
+
+def _render_args(options: _RenderOptions) -> list[str]:
+    format_args = (
+        ["--summary", "--output", options.output_format] if options.summary else _format_args(options.output_format)
+    )
+    args = ["--warn", options.warn, "--encoding", options.encoding, *format_args]
+    for flag, value in (
+        ("--packages", options.packages),
+        ("--exclude", options.exclude),
+        ("--python", options.python),
+    ):
         if value is not None:
-            argv += [flag, value]
-    if depth != inf:
-        argv += ["--depth", str(int(depth))]
-    if extras:
-        # Bare --extras means the "explicit" mode; the boolean keeps the historical call signature working.
-        argv += ["--extras", extras if isinstance(extras, str) else "explicit"]
+            args += [flag, value]
+    if options.depth != inf:
+        args += ["--depth", str(int(options.depth))]
+    if options.extras:
+        args += ["--extras", options.extras if isinstance(options.extras, str) else "explicit"]
     for flag, enabled in (
-        ("--reverse", reverse),
-        ("--local-only", local_only),
-        ("--user-only", user_only),
+        ("--reverse", options.reverse),
+        ("--local-only", options.local_only),
+        ("--user-only", options.user_only),
     ):
         if enabled:
-            argv.append(flag)
-    options = get_options(argv)
-
-    # Share the global warning printer so validation warnings honor ``warn`` too and default to silence, keeping
-    # notebooks free of stderr noise.
-    get_warning_printer().warning_type = WarningType.from_str(options.warn)
-
-    try:
-        tree = build_tree(options)
-    except _FilterError:
-        return ""
-
-    text = _render_to_str(options, tree)
-    return _finalize(text, argv=argv, tree=tree, output_format=output_format, summary=summary)
+            args.append(flag)
+    return args
 
 
-def _finalize(text: str, *, argv: list[str], tree: PackageDAG, output_format: str, summary: bool) -> str:
-    if summary:
-        # The aggregate report has no tree diagram; the text style instead displays as an HTML table in a notebook.
-        from pipdeptree._render.summary import summary_html  # noqa: PLC0415  # Summary is optional.
-
-        return _SummaryResult(text, html=summary_html(tree)) if output_format == "text" else text
-    if output_format != "text":
-        # Non-text formats (JSON, Mermaid source, Graphviz source) are returned as plain strings so they display
-        # verbatim in a notebook instead of being reinterpreted as a diagram.
-        return text
-
-    # Reuse the already-discovered tree to also produce a Mermaid diagram for the rich notebook display.
-    from pipdeptree._cli import get_options  # noqa: PLC0415  # Programmatic rendering is optional.
-
-    mermaid_options = get_options([*argv, "--mermaid"])
-    mermaid = _render_to_str(mermaid_options, tree)
-    return _RenderResult(text, mermaid=mermaid)
-
-
-def _render_to_str(options: Options, tree: PackageDAG) -> str:
-    from pipdeptree import _render  # noqa: PLC0415  # Programmatic rendering is optional.
-
-    buffer = io.StringIO()
-    with redirect_stdout(buffer):
-        _render.render(options, tree)
-    return buffer.getvalue()
-
-
-class _RenderResult(str):  # noqa: FURB189  # Must stay a real ``str`` so isinstance/print/slicing keep working.
-    """A ``str`` whose value is the text tree but that also renders as a Mermaid diagram in a notebook cell."""
-
-    __slots__ = ("_mermaid",)
-
-    _mermaid: str
-
-    def __new__(cls, text: str, *, mermaid: str) -> _RenderResult:  # noqa: PYI034  # str subclass, concrete type is fine.
-        self = super().__new__(cls, text)
-        self._mermaid = mermaid
-        return self
-
-    def _repr_mimebundle_(  # noqa: PLW3201  # Jupyter rich-display protocol method, not a Python dunder.
-        self,
-        include: Container[str] | None = None,
-        exclude: Container[str] | None = None,  # noqa: ARG002
-    ) -> dict[str, str]:
-        bundle = {
-            "text/vnd.mermaid": self._mermaid,
-            "text/html": f"<pre>{escape(str(self))}</pre>",
-            "text/plain": str(self),
-        }
-        if include is not None:
-            bundle = {key: value for key, value in bundle.items() if key in include}
-        return bundle
-
-
-class _SummaryResult(str):  # noqa: FURB189  # Must stay a real ``str`` so isinstance/print/slicing keep working.
-    """A ``str`` whose value is the text summary but that also renders as an HTML table in a notebook cell."""
-
-    __slots__ = ("_html",)
-
-    _html: str
-
-    def __new__(cls, text: str, *, html: str) -> _SummaryResult:  # noqa: PYI034  # str subclass, concrete type is fine.
-        self = super().__new__(cls, text)
-        self._html = html
-        return self
-
-    def _repr_mimebundle_(  # noqa: PLW3201  # Jupyter rich-display protocol method, not a Python dunder.
-        self,
-        include: Container[str] | None = None,
-        exclude: Container[str] | None = None,  # noqa: ARG002
-    ) -> dict[str, str]:
-        bundle = {"text/html": self._html, "text/plain": str(self)}
-        if include is not None:
-            bundle = {key: value for key, value in bundle.items() if key in include}
-        return bundle
-
-
-def _format_flags(output_format: str) -> list[str]:
+def _format_args(output_format: str) -> list[str]:
     if output_format in _FORMAT_FLAGS:
         return _FORMAT_FLAGS[output_format]
     if output_format in _BINARY_GRAPHVIZ_FORMATS:
@@ -221,3 +132,85 @@ def _format_flags(output_format: str) -> list[str]:
         raise ValueError(msg)
     msg = f"unknown output_format {output_format!r}; expected one of {', '.join(_FORMAT_FLAGS)}"
     raise ValueError(msg)
+
+
+def _summary_html(text: str) -> str:
+    rows = "".join(
+        f"<tr><td>{escape(label)}</td><td>{escape(value.strip())}</td></tr>"
+        for line in text.splitlines()
+        for label, _, value in (line.partition(":"),)
+    )
+    return f"<table>\n<tr><th>metric</th><th>value</th></tr>\n{rows}\n</table>"
+
+
+@dataclass(frozen=True, slots=True)
+class _RenderOptions:
+    packages: str | None
+    exclude: str | None
+    output_format: str
+    summary: bool
+    reverse: bool
+    depth: float
+    extras: bool | str
+    local_only: bool
+    user_only: bool
+    python: str | None
+    encoding: str
+    warn: str
+
+
+class _RenderResult(str):  # noqa: FURB189  # Notebook results must retain concrete str behavior.
+    __slots__ = ("_args", "_mermaid")
+
+    _args: tuple[str, ...]
+    _mermaid: str | None
+
+    def __new__(cls, text: str, *, args: list[str]) -> Self:
+        self = super().__new__(cls, text)
+        self._args = tuple(args)
+        self._mermaid = None
+        return self
+
+    def _repr_mimebundle_(
+        self,
+        include: Container[str] | None = None,
+        exclude: Container[str] | None = None,
+    ) -> dict[str, str]:
+        bundle = {"text/html": f"<pre>{escape(str(self))}</pre>", "text/plain": str(self)}
+        mermaid_type = "text/vnd.mermaid"
+        if (include is None or mermaid_type in include) and (exclude is None or mermaid_type not in exclude):
+            if self._mermaid is None:
+                self._mermaid = _render([*self._args, "--mermaid"])
+            bundle[mermaid_type] = self._mermaid
+        return _filter_bundle(bundle, include, exclude)
+
+
+class _SummaryResult(str):  # noqa: FURB189  # Notebook results must retain concrete str behavior.
+    __slots__ = ("_html",)
+
+    _html: str
+
+    def __new__(cls, text: str, *, html: str) -> Self:
+        self = super().__new__(cls, text)
+        self._html = html
+        return self
+
+    def _repr_mimebundle_(
+        self,
+        include: Container[str] | None = None,
+        exclude: Container[str] | None = None,
+    ) -> dict[str, str]:
+        return _filter_bundle({"text/html": self._html, "text/plain": str(self)}, include, exclude)
+
+
+def _filter_bundle(
+    bundle: dict[str, str],
+    include: Container[str] | None,
+    exclude: Container[str] | None,
+) -> dict[str, str]:
+    if include is not None:
+        bundle = {key: value for key, value in bundle.items() if key in include}
+    return bundle if exclude is None else {key: value for key, value in bundle.items() if key not in exclude}
+
+
+__all__ = ["__version__", "render"]
