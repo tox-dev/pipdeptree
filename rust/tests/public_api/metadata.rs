@@ -70,6 +70,33 @@ fn renders_selected_metadata_and_size() {
     );
 }
 
+#[test]
+fn warns_about_archive_search_paths() {
+    let site = PackageSite::new();
+    site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+    let archive = site.path().join("bundle.zip");
+    fs::write(&archive, "not a directory").unwrap();
+
+    let output = execute(&[
+        "--path",
+        site.path().to_str().unwrap(),
+        "--path",
+        archive.to_str().unwrap(),
+        "--warn",
+        "fail",
+    ]);
+
+    assert_eq!(
+        (
+            output.code,
+            stdout(&output).contains("demo==1"),
+            output.stderr.contains("unsupported archives"),
+            output.stderr.contains("bundle.zip"),
+        ),
+        (1, true, true, true)
+    );
+}
+
 #[rstest]
 fn discovers_metadata_forms(metadata_sites: (PackageSite, PackageSite)) {
     let (first, second) = metadata_sites;

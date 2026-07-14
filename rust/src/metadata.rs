@@ -343,8 +343,14 @@ fn discover_with_fields(
     let mut invalid_paths = BTreeSet::new();
     let mut duplicates = BTreeMap::<PathBuf, Vec<(String, String, String, PathBuf)>>::new();
     let mut seen = BTreeMap::<String, (String, PathBuf)>::new();
+    let mut archive_paths = BTreeSet::new();
     for (search, path) in search_paths.iter().enumerate() {
         let Ok(entries) = fs::read_dir(path) else {
+            // Nonexistent sys.path entries are routine; a file (zipped egg, zipapp) held
+            // packages the old importlib-based discovery listed, so losing it deserves a warning.
+            if path.is_file() {
+                archive_paths.insert(path.clone());
+            }
             continue;
         };
         for (entry, kind) in entries.filter_map(Result::ok).filter_map(|entry| {
@@ -390,7 +396,32 @@ fn discover_with_fields(
     for package in &mut packages {
         package.legacy_editable = legacy_editables.find(&package.name).cloned();
     }
+    Ok((
+        packages,
+        path_warnings(&archive_paths, &invalid_paths, duplicates),
+    ))
+}
+
+fn path_warnings(
+    archive_paths: &BTreeSet<PathBuf>,
+    invalid_paths: &BTreeSet<PathBuf>,
+    duplicates: BTreeMap<PathBuf, Vec<(String, String, String, PathBuf)>>,
+) -> Vec<DiscoveryWarning> {
     let mut warnings = Vec::new();
+    if !archive_paths.is_empty() {
+        warnings.push(DiscoveryWarning {
+            message: format!(
+                "Warning: unsupported archives on the search path; the packages inside are not listed:\n{}\n{}\n",
+                archive_paths
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+                "-".repeat(72)
+            ),
+            failure: true,
+        });
+    }
     if !invalid_paths.is_empty() {
         warnings.push(DiscoveryWarning {
             message: format!(
@@ -426,7 +457,7 @@ fn discover_with_fields(
             failure: false,
         });
     }
-    Ok((packages, warnings))
+    warnings
 }
 
 pub fn canonicalize_name(name: &str) -> String {
