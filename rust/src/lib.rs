@@ -132,7 +132,7 @@ fn execute(
             graphviz_format: None,
         };
     }
-    if let Err(error) = options.validate() {
+    if let Err(error) = options.validate(color) {
         return failure(2, format!("pipdeptree: error: {error}\n"));
     }
     let graphviz_format = options

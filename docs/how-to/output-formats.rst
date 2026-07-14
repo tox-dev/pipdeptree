@@ -1,11 +1,12 @@
 Output formats
 ==============
 
-pipdeptree supports multiple output formats via ``-o FMT`` (or ``--output FMT``); the default is ``text``. The
-executable examples use ``--packages pytest`` to keep the output concise.
+pipdeptree supports multiple output formats via ``-o FMT`` (or ``--output FMT``). An interactive terminal defaults to
+``rich``. Redirected output, ``TERM=dumb`` and ``NO_COLOR`` default to ``text``. The executable examples use
+``--packages pytest`` to keep the output concise.
 
-text (default)
---------------
+text
+----
 
 Unicode box-drawing tree:
 

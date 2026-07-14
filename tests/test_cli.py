@@ -295,7 +295,7 @@ def test_cli_terminal_color(
     assert (code, "\x1b[" in capsys.readouterr().out) == (0, colored)
 
 
-def test_cli_defaults_to_text_on_terminals(
+def test_cli_defaults_to_rich_on_terminals(
     entry_point: Callable[[Sequence[str] | None], int | None],
     package_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -308,4 +308,4 @@ def test_cli_defaults_to_text_on_terminals(
     code = entry_point(["--path", str(package_path), "--warn", "silence"])
     out = capsys.readouterr().out
 
-    assert (code, "\x1b[" in out, "└──" in out) == (0, False, True)
+    assert (code, "\x1b[" in out, "┗━━" in out) == (0, True, True)

@@ -174,7 +174,7 @@ fn colors_help_for_terminals() {
                 output.code,
                 stdout(&output).contains(&format!("{heading}Usage:{heading:#}")),
                 stdout(&output).contains(&format!("{flag}--help{flag:#}")),
-                stdout(&output).contains("text (default)"),
+                stdout(&output).contains("[default: rich on color terminals, text otherwise]"),
             ),
             (0, true, true, true)
         );
@@ -203,7 +203,7 @@ fn colors_terminal_errors_red() {
 }
 
 #[rstest]
-fn defaults_to_text_for_terminals(package_site: PackageSite) {
+fn defaults_to_rich_for_terminals(package_site: PackageSite) {
     with_python(|python| {
         let output = execute_with_runner(
             &_pipdeptree::SystemProcessRunner,
@@ -221,9 +221,9 @@ fn defaults_to_text_for_terminals(package_site: PackageSite) {
             (
                 output.code,
                 stdout(&output).contains("\u{1b}["),
-                stdout(&output).contains("└──"),
+                stdout(&output).contains("┗━━"),
             ),
-            (0, false, true)
+            (0, true, true)
         );
     });
 }

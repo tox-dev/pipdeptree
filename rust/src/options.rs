@@ -160,7 +160,8 @@ pub struct Options {
         long = "output",
         value_name = "FMT",
         global = true,
-        help = "Output format: text (default), rich, freeze, json, json-tree, mermaid, or graphviz-FMT"
+        help = "Output format: text, rich, freeze, json, json-tree, mermaid, or graphviz-FMT \
+                [default: rich on color terminals, text otherwise]"
     )]
     output: Option<String>,
 
@@ -341,7 +342,7 @@ impl Options {
         Self::from_arg_matches(&matches)
     }
 
-    pub fn validate(&mut self) -> Result<(), Error> {
+    pub fn validate(&mut self, color: bool) -> Result<(), Error> {
         let legacy_formats = usize::from(self.legacy_formats.freeze)
             + usize::from(self.legacy_formats.json)
             + usize::from(self.legacy_formats.json_tree)
@@ -361,7 +362,9 @@ impl Options {
         } else if let Some(format) = &self.graphviz_format {
             format!("graphviz-{format}")
         } else {
-            self.output.clone().unwrap_or_else(|| "text".to_string())
+            self.output
+                .clone()
+                .unwrap_or_else(|| if color { "rich" } else { "text" }.to_string())
         };
         if !matches!(
             self.output_format.as_str(),
