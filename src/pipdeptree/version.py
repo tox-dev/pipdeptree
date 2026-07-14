@@ -8,7 +8,7 @@ from pipdeptree._rust import version as _version
 
 version: Final = _version()
 __version__: Final = version
-version_tuple: Final = tuple(int(part) for part in version.split("."))
+version_tuple: Final = tuple(int(part) if part.isdigit() else part for part in version.split("."))
 __version_tuple__: Final = version_tuple
 commit_id: Final = None
 __commit_id__: Final = commit_id
