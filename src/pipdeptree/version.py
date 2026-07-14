@@ -13,4 +13,11 @@ __version_tuple__: Final = version_tuple
 commit_id: Final = None
 __commit_id__: Final = commit_id
 
-__all__ = ["__commit_id__", "__version__", "__version_tuple__", "commit_id", "version", "version_tuple"]
+__all__ = [
+    "__commit_id__",
+    "__version__",
+    "__version_tuple__",
+    "commit_id",
+    "version",
+    "version_tuple",
+]

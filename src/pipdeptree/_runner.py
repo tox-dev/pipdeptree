@@ -51,4 +51,6 @@ def _write(stream: TextIO, value: bytes, *, graphviz_format: str | None) -> None
         sys.stderr.write("Could not open file with default application. Please open it manually.\n")
 
 
-__all__ = ["main"]
+__all__ = [
+    "main",
+]
