@@ -101,7 +101,9 @@ fn render_py(py: Python<'_>, args: &Bound<'_, PyList>) -> PyResult<String> {
         false,
         Interface::Python,
     );
-    if output.code != 0 {
+    // warn=fail sets a nonzero code while still rendering; the API contract raises only when
+    // nothing could be rendered (invalid options, discovery failures).
+    if output.code != 0 && output.stdout.is_empty() {
         return Err(PyValueError::new_err(output.stderr.trim().to_string()));
     }
     Ok(String::from_utf8(output.stdout).expect("Rust renderers emit UTF-8"))

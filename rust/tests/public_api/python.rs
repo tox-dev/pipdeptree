@@ -2,7 +2,7 @@ use _pipdeptree::install_python_module;
 use pyo3::types::{PyAnyMethods as _, PyDict, PyDictMethods as _, PyList, PyModule};
 use pyo3::{Bound, Python};
 
-use super::common::with_python;
+use super::common::{PackageSite, with_python};
 
 #[test]
 fn reports_python_extension_metadata() {
@@ -88,6 +88,34 @@ fn renders_through_python_extension() {
             .extract::<String>()
             .unwrap();
         assert_eq!(rendered, "\n");
+    });
+}
+
+#[test]
+fn returns_python_render_output_despite_fail_warnings() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        "Name: root\nVersion: 1\nRequires-Dist: child>=2\n",
+    );
+    site.write("child-1.dist-info", "Name: child\nVersion: 1\n");
+
+    with_python(|python| {
+        let module = extension(python);
+        let args = PyList::new(
+            python,
+            ["--path", site.path().to_str().unwrap(), "--warn", "fail"],
+        )
+        .unwrap();
+        let rendered = module
+            .getattr("render")
+            .unwrap()
+            .call1((args,))
+            .unwrap()
+            .extract::<String>()
+            .unwrap();
+
+        assert!(rendered.contains("child [required: >=2, installed: 1]"));
     });
 }
 
