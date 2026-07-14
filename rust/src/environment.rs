@@ -1,6 +1,7 @@
 use std::env;
 use std::ffi::CString;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use pep508_rs::{MarkerEnvironment, MarkerEnvironmentBuilder};
 use pyo3::exceptions::PyValueError;
@@ -87,17 +88,24 @@ impl Runtime {
             return Self::from_info(&current, options.path.clone(), options, None, false);
         }
 
-        let detected = match options.python.as_deref() {
-            Some("auto") => Some(
-                detect_interpreter(processes, &current.marker.implementation_name)
-                    .ok_or_else(|| Error::message("Unable to detect virtual environment."))?,
+        let (detected, auto_detected) = match options.python.as_deref() {
+            Some("auto") => (
+                Some(
+                    detect_interpreter(processes, &current.marker.implementation_name)
+                        .ok_or_else(|| Error::message("Unable to detect virtual environment."))?,
+                ),
+                true,
             ),
-            Some(value) => Some(PathBuf::from(value)),
-            None => detect_interpreter(processes, &current.marker.implementation_name),
+            Some(value) => (Some(PathBuf::from(value)), false),
+            None => (
+                detect_interpreter(processes, &current.marker.implementation_name),
+                true,
+            ),
         };
+        // An explicit --python PATH is the user's own choice; only auto-detection logs it.
         let resolved_message = detected
             .as_ref()
-            .filter(|_| log_resolved)
+            .filter(|_| log_resolved && auto_detected)
             .map(|path| format!("(resolved python: {})\n", path.display()));
         let (info, queried) = if let Some(interpreter) = detected {
             if same_file(&interpreter, &current.executable) {
@@ -219,10 +227,10 @@ fn detect_interpreter(processes: &dyn ProcessRunner, implementation: &str) -> Op
         }
     }
     processes
-        .run(&ProcessRequest::new(
-            "poetry",
-            ["env", "info", "--executable"],
-        ))
+        .run(
+            &ProcessRequest::new("poetry", ["env", "info", "--executable"])
+                .with_timeout(Duration::from_secs(5)),
+        )
         .ok()
         .filter(|output| output.success)
         .and_then(|output| String::from_utf8(output.stdout).ok())

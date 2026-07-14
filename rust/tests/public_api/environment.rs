@@ -49,7 +49,7 @@ fn queries_selected_interpreters() {
                 stdout(&output).contains("\"package_name\": \"demo\""),
                 output.stderr.contains("(resolved python:"),
             ),
-            (0, true, true)
+            (0, true, false)
         );
     });
 }
@@ -378,15 +378,20 @@ fn detects_environment_variables(#[case] variable: &str) {
         ],
         || {
             with_python(|python| {
-                let output =
-                    execute_with_runner(&processes, python, &["--python", "auto", "--json"], false);
+                let output = Application::new(&processes).run(
+                    python,
+                    &["--python", "auto", "--json"].map(ToString::to_string),
+                    false,
+                    true,
+                );
 
                 assert_eq!(
                     (
                         output.code,
                         stdout(&output).contains("\"package_name\": \"demo\""),
+                        output.stderr.contains("(resolved python:"),
                     ),
-                    (0, true)
+                    (0, true, true)
                 );
             });
         },
