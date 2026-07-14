@@ -116,6 +116,31 @@ fn orders_json_tree_keys_by_insertion() {
 }
 
 #[test]
+fn reverses_flat_json_dependencies() {
+    let site = render_site();
+    let output = execute(&site, &["--json", "--reverse"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let child = value
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["package"]["key"] == "child")
+        .unwrap();
+    let dependents = child["dependencies"].as_array().unwrap();
+
+    assert_eq!(
+        (
+            dependents
+                .iter()
+                .map(|entry| entry["key"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            &dependents[1]["required_version"],
+        ),
+        (vec!["other", "root"], &json!(">=2"))
+    );
+}
+
+#[test]
 fn lists_missing_packages_in_reverse_json_tree() {
     let site = render_site();
     let output = execute(&site, &["--json-tree", "--reverse"]);
@@ -202,6 +227,7 @@ fn renders_resolved_json_fields() {
 
     for args in [
         &["--json"] as &[&str],
+        &["--json", "--reverse"],
         &["--json-tree"],
         &["--json-tree", "--reverse"],
     ] {

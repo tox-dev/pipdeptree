@@ -101,7 +101,14 @@ impl TreeRenderer<'_> {
         let unique = (self.style == TextStyle::Rich
             && self.options.computed.iter().any(|field| field.is_unique()))
         .then(|| self.graph.unique_dependencies(parent));
-        let children = children.collect::<Vec<_>>();
+        // A child already on the path closes a cycle; the chain stops without re-printing it.
+        let children = children
+            .filter(|dependency| {
+                dependency
+                    .target
+                    .is_none_or(|target| !self.path.contains(&target))
+            })
+            .collect::<Vec<_>>();
         let count = children.len();
         for (position, dependency) in children.into_iter().enumerate() {
             let last = position + 1 == count;
@@ -118,9 +125,7 @@ impl TreeRenderer<'_> {
             let Some(child) = dependency.target else {
                 continue;
             };
-            if !self.path.insert(child) {
-                continue;
-            }
+            self.path.insert(child);
             let extras = dependency.requested_extras();
             let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
             self.walk_forward(child, Some(&extras), &next_prefix, depth + 1);
@@ -147,6 +152,8 @@ impl TreeRenderer<'_> {
         if self.options.depth.is_some_and(|limit| depth >= limit) {
             return;
         }
+        let mut parents = parents;
+        parents.retain(|(parent, _)| !self.path.contains(parent));
         let count = parents.len();
         for (position, (parent, dependency)) in parents.into_iter().enumerate() {
             let last = position + 1 == count;
@@ -164,9 +171,7 @@ impl TreeRenderer<'_> {
                 tree_prefix(prefix, self.style, last, self.color, self.unicode),
                 label
             ));
-            if !self.path.insert(parent) {
-                continue;
-            }
+            self.path.insert(parent);
             let required_extra = dependency
                 .activated_by
                 .as_deref()
@@ -212,7 +217,10 @@ fn reverse_label(
     if style == TextStyle::Frozen {
         return package.frozen(processes);
     }
-    let mut required = dependency.key().to_string();
+    let mut required = dependency.target.map_or_else(
+        || dependency.key().to_string(),
+        |target| graph.nodes[target].package.name.clone(),
+    );
     if let Some(specifier) = dependency.version_spec() {
         required.push_str(&specifier);
     }

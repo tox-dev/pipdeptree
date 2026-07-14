@@ -78,6 +78,19 @@ impl Serialize for JsonDependencies<'_> {
     where
         S: Serializer,
     {
+        if self.options.reverse {
+            let dependents = self.graph.parents_for(self.index, None);
+            let mut sequence = serializer.serialize_seq(Some(dependents.len()))?;
+            for (parent, dependency) in dependents {
+                sequence.serialize_element(&JsonDependent {
+                    graph: self.graph,
+                    options: self.options,
+                    parent,
+                    dependency,
+                })?;
+            }
+            return sequence.end();
+        }
         let dependencies = self.graph.expanded_children(self.index).collect::<Vec<_>>();
         let mut sequence = serializer.serialize_seq(Some(dependencies.len()))?;
         for dependency in dependencies {
@@ -88,6 +101,37 @@ impl Serialize for JsonDependencies<'_> {
             })?;
         }
         sequence.end()
+    }
+}
+
+struct JsonDependent<'a> {
+    graph: &'a Graph,
+    options: &'a Options,
+    parent: usize,
+    dependency: &'a crate::graph::Dependency,
+}
+
+impl Serialize for JsonDependent<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let package = &self.graph.nodes[self.parent].package;
+        let resolved = self.options.resolved();
+        let mut object = serializer.serialize_map(Some(3 + usize::from(!resolved)))?;
+        object.serialize_entry("key", &package.key)?;
+        object.serialize_entry("package_name", &package.name)?;
+        let version_key = if resolved {
+            "candidate_version"
+        } else {
+            "installed_version"
+        };
+        object.serialize_entry(version_key, &package.version)?;
+        if !resolved {
+            let required = self.dependency.version_spec();
+            object.serialize_entry("required_version", required.as_deref().unwrap_or("Any"))?;
+        }
+        object.end()
     }
 }
 

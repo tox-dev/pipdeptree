@@ -39,6 +39,7 @@ fn interleaves_missing_reverse_roots_alphabetically() {
         "beta-1.dist-info",
         "Name: beta\nVersion: 1\nRequires-Dist: aa-missing\n",
     );
+    site.write("zz-1.dist-info", "Name: zz\nVersion: 1\n");
 
     let output = execute(&site, &["--reverse"]);
 
@@ -48,8 +49,7 @@ fn interleaves_missing_reverse_roots_alphabetically() {
             "aa-missing==?\n",
             "├── alpha==1 [requires: aa-missing]\n",
             "└── beta==1 [requires: aa-missing]\n",
-            "alpha==1\n",
-            "beta==1\n",
+            "zz==1\n",
         )
     );
 }
@@ -235,6 +235,6 @@ fn marks_unique_conflicts_and_stops_reverse_cycles() {
             text(&rich).contains("⚠ ⭐ second"),
             text(&reverse).matches("first==1").count(),
         ),
-        (true, 3)
+        (true, 2)
     );
 }

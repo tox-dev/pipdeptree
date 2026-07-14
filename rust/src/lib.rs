@@ -106,7 +106,11 @@ fn render_py(py: Python<'_>, args: &Bound<'_, PyList>) -> PyResult<String> {
     if output.code != 0 && output.stdout.is_empty() {
         return Err(PyValueError::new_err(output.stderr.trim().to_string()));
     }
-    Ok(String::from_utf8(output.stdout).expect("Rust renderers emit UTF-8"))
+    String::from_utf8(output.stdout).map_err(|_| {
+        PyValueError::new_err(
+            "binary graphviz output cannot be returned as a string; use the dot format",
+        )
+    })
 }
 
 #[must_use]

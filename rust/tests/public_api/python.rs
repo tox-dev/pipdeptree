@@ -120,6 +120,33 @@ fn returns_python_render_output_despite_fail_warnings() {
 }
 
 #[test]
+fn rejects_binary_python_render_output() {
+    let site = PackageSite::new();
+    site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+
+    with_python(|python| {
+        let module = extension(python);
+        let args = PyList::new(
+            python,
+            [
+                "--path",
+                site.path().to_str().unwrap(),
+                "--graph-output",
+                "png",
+            ],
+        )
+        .unwrap();
+        let error = module
+            .getattr("render")
+            .unwrap()
+            .call1((args,))
+            .unwrap_err();
+
+        assert!(error.to_string().contains("binary graphviz output"));
+    });
+}
+
+#[test]
 fn reports_python_render_errors() {
     with_python(|python| {
         let module = extension(python);
