@@ -131,9 +131,12 @@ impl ProcessRunner for SystemProcessRunner {
                 .expect("process stderr reader does not panic")?;
             if status.success() {
                 if let Some(writer) = writer {
+                    // The exit status is authoritative: dot stops reading stdin once the graph
+                    // parses, so a write error to a finished, successful child is not a failure.
                     writer
                         .join()
-                        .expect("process stdin writer does not panic")?;
+                        .expect("process stdin writer does not panic")
+                        .ok();
                 }
             }
             Ok(ProcessOutput {

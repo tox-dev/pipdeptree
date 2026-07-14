@@ -110,6 +110,19 @@ fn drains_output_while_writing_input() {
 }
 
 #[test]
+fn ignores_unread_input_when_child_succeeds() {
+    let output = SystemProcessRunner
+        .run(
+            &ProcessRequest::new(python(), ["-c", "print('ok')"])
+                .with_stdin(vec![b'i'; 1_000_000])
+                .with_timeout(Duration::from_secs(5)),
+        )
+        .unwrap();
+
+    assert_eq!((output.success, output.stdout), (true, b"ok\n".to_vec()));
+}
+
+#[test]
 fn preserves_child_error_when_it_closes_stdin() {
     let output = SystemProcessRunner
         .run(
