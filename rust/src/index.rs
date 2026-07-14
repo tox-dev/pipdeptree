@@ -564,18 +564,31 @@ fn require_file(path: &Path) -> Result<&Path, Error> {
 }
 
 fn option_value<'a>(line: &'a str, short: &str, long: &str) -> Option<&'a str> {
+    // pip's optparse also accepts an attached short value ("-rnested.txt").
     line.strip_prefix(&format!("{short} "))
         .or_else(|| line.strip_prefix(&format!("{long} ")))
         .or_else(|| line.strip_prefix(&format!("{long}=")))
+        .or_else(|| {
+            line.strip_prefix(short)
+                .filter(|value| !value.is_empty() && !value.starts_with('-'))
+        })
         .map(str::trim)
 }
 
 fn strip_comment(line: &str) -> &str {
+    // pip strips a '#' preceded by any whitespace, not just a space.
     if line.starts_with('#') {
-        ""
-    } else {
-        line.find(" #").map_or(line, |position| &line[..position])
+        return "";
     }
+    line.char_indices()
+        .find(|(position, character)| {
+            *character == '#'
+                && line[..*position]
+                    .chars()
+                    .next_back()
+                    .is_some_and(char::is_whitespace)
+        })
+        .map_or(line, |(position, _)| &line[..position])
 }
 
 fn looks_like_source(requirement: &str) -> bool {

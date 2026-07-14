@@ -108,6 +108,43 @@ fn parses_requirement_sources() {
 }
 
 #[test]
+fn parses_pip_requirement_file_syntax() {
+    let directory = tempdir().unwrap();
+    fs::write(directory.path().join("nested.txt"), "nested-package\n").unwrap();
+    fs::write(
+        directory.path().join("requirements.txt"),
+        "-rnested.txt\nparent\t# tab comment\n",
+    )
+    .unwrap();
+    let capture = directory.path().join("capture.txt");
+
+    let output = with_python(|python| {
+        install_resolver(python, &capture).unwrap();
+        execute_with_python(
+            python,
+            &[
+                "--warn",
+                "silence",
+                "from-index",
+                "--requirements",
+                directory.path().join("requirements.txt").to_str().unwrap(),
+            ],
+        )
+    });
+    let pyproject = fs::read_to_string(capture).unwrap();
+
+    assert_eq!(
+        (
+            output.code,
+            output.stderr.as_str(),
+            pyproject.contains("\"nested-package\""),
+            pyproject.contains("\"parent\""),
+        ),
+        (0, "", true, true)
+    );
+}
+
+#[test]
 fn inherits_constraint_flag_for_nested_requirement_files() {
     let directory = tempdir().unwrap();
     fs::write(directory.path().join("nested.txt"), "pinned<3\n").unwrap();

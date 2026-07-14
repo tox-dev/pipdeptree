@@ -160,6 +160,58 @@ fn reports_metadata_warnings(
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn discovers_symlinked_distributions() {
+    let site = PackageSite::new();
+    let real = tempfile::tempdir().unwrap();
+    let metadata = real.path().join("beta-2.dist-info");
+    fs::create_dir(&metadata).unwrap();
+    fs::write(metadata.join("METADATA"), "Name: beta\nVersion: 2\n").unwrap();
+    std::os::unix::fs::symlink(&metadata, site.path().join("beta-2.dist-info")).unwrap();
+
+    let output = execute_in(&site, &["--json"]);
+
+    assert_eq!(
+        (output.code, visible_names(&output)),
+        (0, vec!["beta".to_string()])
+    );
+}
+
+#[test]
+fn canonicalizes_boundary_separators() {
+    let site = PackageSite::new();
+    site.write("odd-1.dist-info", "Name: demo.\nVersion: 1\n");
+
+    let output = execute_in(&site, &["--json"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(
+        (output.code, value[0]["package"]["key"].clone()),
+        (0, json!("demo-"))
+    );
+}
+
+#[test]
+fn reads_the_legacy_license_field() {
+    let site = PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        "Name: demo\nVersion: 1\nLicense: BSD-3-Clause\n",
+    );
+
+    let output = execute_in(
+        &site,
+        &["--metadata", "license", "--packages", "demo", "--json"],
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(
+        value[0]["package"]["metadata"]["license"].clone(),
+        json!("BSD-3-Clause License")
+    );
+}
+
 #[test]
 fn stops_crlf_headers_at_the_body() {
     let site = PackageSite::new();
@@ -337,10 +389,18 @@ fn discovers_empty_runtime_path_from_current_directory() {
 )]
 #[case::archive_hashes(
     concat!(
-        r#"{"url":"https://example.com/demo.whl","archive_info":{"hashes":{"sha512":"def","sha256":"abc"}},"#,
+        r#"{"url":"https://example.com/demo.whl","archive_info":{"hashes":{"md5":"bad","sha256":"abc"}},"#,
         r#""subdirectory":"pkg"}"#
     ),
     "demo @ https://example.com/demo.whl#sha256=abc&subdirectory=pkg\n"
+)]
+#[case::archive_hashes_prefers_strongest(
+    r#"{"url":"https://example.com/demo.whl","archive_info":{"hashes":{"sha512":"def","sha256":"abc"}}}"#,
+    "demo @ https://example.com/demo.whl#sha512=def\n"
+)]
+#[case::archive_hashes_unknown_algorithm(
+    r#"{"url":"https://example.com/demo.whl","archive_info":{"hashes":{"blake2b":"abc"}}}"#,
+    "demo @ https://example.com/demo.whl#blake2b=abc\n"
 )]
 #[case::archive_hashes_precede_hash(
     r#"{"url":"https://example.com/demo.whl","archive_info":{"hash":"sha256=old","hashes":{"sha256":"new"}}}"#,

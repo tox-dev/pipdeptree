@@ -85,8 +85,12 @@ impl VcsInfo {
 
 impl ArchiveInfo {
     pub(super) fn hash_fragment(&self) -> Option<String> {
-        self.hashes
-            .first_key_value()
+        // PEP 610 leaves the hashes unordered; pick the strongest rather than the first.
+        const PREFERRED: [&str; 4] = ["sha512", "sha384", "sha256", "sha1"];
+        PREFERRED
+            .iter()
+            .find_map(|algorithm| self.hashes.get_key_value(*algorithm))
+            .or_else(|| self.hashes.first_key_value())
             .map(|(algorithm, digest)| format!("{algorithm}={digest}"))
     }
 }

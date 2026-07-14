@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::str::FromStr;
 
+use pep508_rs::{MarkerEnvironment, MarkerTree};
 use serde::Deserialize;
 
 use crate::Error;
@@ -9,6 +11,8 @@ use crate::metadata::{Package, canonicalize_name};
 
 #[derive(Debug, Deserialize)]
 struct Lock {
+    #[serde(rename = "lock-version")]
+    lock_version: Option<String>,
     packages: Option<toml::Value>,
 }
 
@@ -17,6 +21,7 @@ struct LockPackage {
     name: Option<String>,
     #[serde(default)]
     version: String,
+    marker: Option<String>,
     #[serde(default)]
     dependencies: Vec<LockDependency>,
 }
@@ -26,7 +31,7 @@ struct LockDependency {
     name: String,
 }
 
-pub fn load(path: &Path) -> Result<Vec<Package>, Error> {
+pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Vec<Package>, Error> {
     if !path.is_file() {
         return Err(Error::message(format!(
             "lock file does not exist: {}",
@@ -36,6 +41,14 @@ pub fn load(path: &Path) -> Result<Vec<Package>, Error> {
     let content = fs::read_to_string(path)?;
     let lock: Lock = toml::from_str(&content)
         .map_err(|error| Error::message(format!("malformed TOML: {error}")))?;
+    // PEP 751 tools must refuse a lock whose major version they do not implement.
+    if let Some(version) = &lock.lock_version {
+        if version.split('.').next() != Some("1") {
+            return Err(Error::message(format!(
+                "unsupported lock-version: {version}"
+            )));
+        }
+    }
     let packages = lock
         .packages
         .filter(toml::Value::is_array)
@@ -44,6 +57,11 @@ pub fn load(path: &Path) -> Result<Vec<Package>, Error> {
         Ok(packages) => packages,
         Err(error) => return Err(Error::message(format!("malformed TOML: {error}"))),
     };
+    // A lock may hold several entries per package, disambiguated by their environment marker.
+    let packages = packages
+        .into_iter()
+        .filter(|package| applies(package.marker.as_deref(), marker))
+        .collect::<Vec<_>>();
     let versions = packages
         .iter()
         .filter_map(|package| {
@@ -80,4 +98,11 @@ pub fn load(path: &Path) -> Result<Vec<Package>, Error> {
             Ok(Package::synthetic(name, package.version, requires))
         })
         .collect()
+}
+
+fn applies(marker: Option<&str>, environment: &MarkerEnvironment) -> bool {
+    // An unparseable marker cannot be shown to exclude the package, so the entry stays.
+    marker.is_none_or(|marker| {
+        MarkerTree::from_str(marker).map_or(true, |tree| tree.evaluate(environment, &[]))
+    })
 }

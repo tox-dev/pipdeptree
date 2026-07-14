@@ -301,8 +301,8 @@ for a summary. Run it over the environment or scope it with ``--packages``:
     cyclic dependencies:      0
     missing dependencies:     0
     conflicting dependencies: 0 (0 edges)
-    licenses:                 (Apache-2.0 OR BSD-2-Clause): 1, (BSD-2-Clause): 1, (MIT): 2, (N/A): 1
-    unknown licenses:         1
+    licenses:                 (Apache-2.0 OR BSD-2-Clause): 1, (BSD-2-Clause): 1, (MIT License): 1, (MIT): 2
+    unknown licenses:         0
     copyleft licenses:        no
     min requires-python:      3.10
     total size:               0 B
@@ -328,10 +328,10 @@ a machine-readable object:
         "breakdown": {
           "(Apache-2.0 OR BSD-2-Clause)": 1,
           "(BSD-2-Clause)": 1,
-          "(MIT)": 2,
-          "(N/A)": 1
+          "(MIT License)": 1,
+          "(MIT)": 2
         },
-        "unknown": 1,
+        "unknown": 0,
         "copyleft": false
       },
       "min_requires_python": "3.10",

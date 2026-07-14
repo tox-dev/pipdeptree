@@ -51,6 +51,23 @@ fn selects_extras(complex_site: PackageSite, #[case] args: &[&str], #[case] expe
 }
 
 #[test]
+fn activates_extras_without_provides_extra() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        "Name: root\nVersion: 1\nRequires-Dist: optional; extra == 'test'\n",
+    );
+    site.write("optional-1.dist-info", "Name: optional\nVersion: 1\n");
+
+    let output = execute_in(&site, &["--packages", "root[test]", "--json"]);
+
+    assert_eq!(
+        (output.code, visible_names(&output)),
+        (0, vec!["optional".to_string(), "root".to_string()])
+    );
+}
+
+#[test]
 fn selects_missing_requirements_in_reverse_filters() {
     let site = PackageSite::new();
     site.write(

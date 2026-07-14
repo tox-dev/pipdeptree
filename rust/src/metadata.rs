@@ -99,6 +99,14 @@ impl Package {
         {
             return format!("({value})");
         }
+        // The License field predates License-Expression and stays valid metadata.
+        if let Some(value) = self
+            .metadata
+            .first("license")
+            .filter(|value| !value.is_empty() && !value.contains('\n'))
+        {
+            return format!("({value})");
+        }
         let licenses = self
             .metadata
             .get_all("classifier")
@@ -234,9 +242,7 @@ impl Package {
             .as_ref()
             .expect("resolved package sizes are initialized at construction");
         let record = metadata_dir.join("RECORD");
-        let root = metadata_dir
-            .parent()
-            .expect("discovered metadata has a search-path parent");
+        let root = metadata_dir.parent().unwrap_or(metadata_dir);
         let Ok(file) = fs::File::open(record) else {
             return 0;
         };
@@ -329,7 +335,11 @@ pub fn discover_selected(
             .iter()
             .any(|field| field.eq_ignore_ascii_case("license"))
     {
-        retained_fields.extend(["classifier".to_string(), "license-expression".to_string()]);
+        retained_fields.extend([
+            "classifier".to_string(),
+            "license".to_string(),
+            "license-expression".to_string(),
+        ]);
     }
     if summary {
         retained_fields.insert("requires-python".to_string());
@@ -366,8 +376,10 @@ fn discover_with_fields(
             }
             continue;
         };
+        // DirEntry::metadata does not traverse links; symlinked dist-info directories are a
+        // normal layout (Nix, Debian, symlink installs), so stat the target.
         for (entry, kind) in entries.filter_map(Result::ok).filter_map(|entry| {
-            let kind = entry.file_type().ok()?;
+            let kind = fs::metadata(entry.path()).ok()?.file_type();
             Some((entry, kind))
         }) {
             let metadata_dir = entry.path();
@@ -493,6 +505,7 @@ fn read_headers(path: &Path) -> Result<String, Error> {
     }
 }
 
+// PEP 503: collapse each separator run to '-' and lowercase, keeping boundary separators.
 pub fn canonicalize_name(name: &str) -> String {
     let mut result = String::with_capacity(name.len());
     let mut separator = false;
@@ -500,12 +513,15 @@ pub fn canonicalize_name(name: &str) -> String {
         if matches!(character, '-' | '_' | '.') {
             separator = true;
         } else {
-            if separator && !result.is_empty() {
+            if separator {
                 result.push('-');
+                separator = false;
             }
             result.push(character);
-            separator = false;
         }
+    }
+    if separator {
+        result.push('-');
     }
     result
 }

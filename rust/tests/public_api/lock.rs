@@ -83,3 +83,53 @@ fn freezes_resolved_packages() {
         (0, "locked==1\n", "")
     );
 }
+
+#[test]
+fn selects_lock_entries_by_marker() {
+    let directory = tempdir().unwrap();
+    let lock = directory.path().join("pylock.toml");
+    fs::write(
+        &lock,
+        concat!(
+            "lock-version = \"1.0\"\n",
+            "[[packages]]\nname = \"root\"\nversion = \"1\"\n",
+            "dependencies = [{name = \"beta\"}]\n",
+            "[[packages]]\nname = \"beta\"\nversion = \"2\"\n",
+            "marker = \"sys_platform == 'never-a-platform'\"\n",
+            "[[packages]]\nname = \"beta\"\nversion = \"3\"\n",
+        ),
+    )
+    .unwrap();
+
+    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+
+    assert_eq!(
+        (
+            output.code,
+            stdout(&output).contains("beta [candidate: 3]"),
+            stdout(&output).contains("beta==2"),
+        ),
+        (0, true, false)
+    );
+}
+
+#[test]
+fn rejects_unsupported_lock_versions() {
+    let directory = tempdir().unwrap();
+    let lock = directory.path().join("pylock.toml");
+    fs::write(
+        &lock,
+        "lock-version = \"2.0\"\n[[packages]]\nname = \"root\"\nversion = \"1\"\n",
+    )
+    .unwrap();
+
+    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+
+    assert_eq!(
+        (
+            output.code,
+            output.stderr.contains("unsupported lock-version")
+        ),
+        (1, true)
+    );
+}
