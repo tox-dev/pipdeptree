@@ -73,8 +73,8 @@ After a change that alters rendered output, refresh the pinned blocks in place a
 
     tox run -e docs-update
 
-Examples that still match keep their hand-written form; ``runs-online`` blocks are never rewritten, so refresh their
-snapshots manually when the resolve changes.
+Examples that still match keep their hand-written form. ``runs-online`` blocks stay untouched by default; append
+``-- --online`` on a network-connected machine to re-resolve and refresh their pinned snapshots too.
 
 Linting and formatting
 -----------------------

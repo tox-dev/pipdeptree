@@ -107,10 +107,22 @@ dependency_groups = [ "test" ]
 commands = [ [ "uv", "pip", "tree" ], [ "python", "-c", "import sys; print(sys.executable)" ] ]
 
 [env.docs-update]
-description = "refresh the documented CLI outputs in place"
+description = "refresh the documented CLI outputs in place; pass --online to also refresh index resolves"
 package = "wheel"
 dependency_groups = [ "test" ]
-commands = [ [ "python", "-m", "pytest", "tests{/}test_docs.py", "--update-docs", "-p", "no:cacheprovider", "-qq" ] ]
+commands = [
+  [
+    "python",
+    "-m",
+    "pytest",
+    "tests{/}test_docs.py",
+    "--update-docs",
+    "-p",
+    "no:cacheprovider",
+    "-qq",
+    { replace = "posargs", default = [  ], extend = true },
+  ],
+]
 
 [env."pypy-3.11"]
 skip_install = true

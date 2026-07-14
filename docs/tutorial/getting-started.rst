@@ -201,11 +201,9 @@ Ask what ``starlette`` brings along:
 .. code-block:: console
 
     $ pipdeptree from-index "starlette"
-    starlette==1.2.1
-    ├── anyio [candidate: 4.13.0]
-    │   ├── idna [candidate: 3.17]
-    │   └── typing-extensions [candidate: 4.15.0]
-    └── typing-extensions [candidate: 4.15.0]
+    starlette==1.3.1
+    └── anyio [candidate: 4.14.2]
+        └── idna [candidate: 3.18]
 
 Read this the same way as the tree from your environment. The top line is the requirement you asked for and the
 indented lines are its dependencies. Each edge shows the candidate version the resolver selected from PyPI:
@@ -223,15 +221,14 @@ pin or bound it. Bound ``fastapi`` and resolve it alongside ``starlette``; the r
     ├── pydantic [candidate: 2.13.4]
     │   ├── annotated-types [candidate: 0.7.0]
     │   ├── pydantic-core [candidate: 2.46.4]
-    │   │   └── typing-extensions [candidate: 4.15.0]
-    │   ├── typing-extensions [candidate: 4.15.0]
+    │   │   └── typing-extensions [candidate: 4.16.0]
+    │   ├── typing-extensions [candidate: 4.16.0]
     │   └── typing-inspection [candidate: 0.4.2]
-    │       └── typing-extensions [candidate: 4.15.0]
+    │       └── typing-extensions [candidate: 4.16.0]
     ├── starlette [candidate: 0.40.0]
-    │   └── anyio [candidate: 4.13.0]
-    │       ├── idna [candidate: 3.17]
-    │       └── typing-extensions [candidate: 4.15.0]
-    └── typing-extensions [candidate: 4.15.0]
+    │   └── anyio [candidate: 4.14.2]
+    │       └── idna [candidate: 3.18]
+    └── typing-extensions [candidate: 4.16.0]
 
 The resolver selects ``0.115.2`` for the top-level package and follows its dependencies. You can resolve a
 ``pyproject.toml`` with ``--pyproject`` or a requirements file with ``--requirements``. The resolver reads metadata

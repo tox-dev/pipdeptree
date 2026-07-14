@@ -15,7 +15,8 @@ if TYPE_CHECKING:
 
     EntryPoint = Callable[[Sequence[str] | None], int | None]
 
-_SKIP_MARKERS = frozenset({".. runs-online", ".. illustrative"})
+_ONLINE_MARKER = ".. runs-online"
+_ILLUSTRATIVE_MARKER = ".. illustrative"
 _CONFLICTING_MARKER = ".. conflicting-environment"
 _INDENT = "    "
 
@@ -25,7 +26,8 @@ def test_documented_cli_output(
     console_document: Path,
     documentation_path: Path,
     conflicting_documentation_path: Path,
-    update_docs: bool,  # pytest injects the flag fixture by name.
+    update_docs: bool,  # pytest injects the flag fixtures by name.
+    online: bool,
 ) -> None:
     failures = _check_document(
         console_document,
@@ -33,6 +35,7 @@ def test_documented_cli_output(
         documentation_path,
         conflicting_documentation_path,
         update=update_docs,
+        online=online,
     )
 
     joined = "\n\n".join(failures)
@@ -100,13 +103,30 @@ def test_documented_cli_output_reports_stale_examples(
         "    $ pipdeptree from-lock pylock.toml\n"
         "    stale==0\n"
         "    $ echo $?\n"
-        "    0\n",
+        "    0\n"
+        "\n"
+        ".. runs-online\n"
+        ".. code-block:: console\n"
+        "\n"
+        "    $ pipdeptree --packages pytest --depth 0\n"
+        "    stale==0\n",
         encoding="utf-8",
     )
 
-    failures = _check_document(document, entry_point, documentation_path, conflicting_documentation_path, update=False)
+    failures = _check_document(
+        document,
+        entry_point,
+        documentation_path,
+        conflicting_documentation_path,
+        update=False,
+        online=True,
+    )
 
-    assert [failure.splitlines()[0] for failure in failures] == ["$ pipdeptree from-lock pylock.toml"] * 2
+    assert [failure.splitlines()[0] for failure in failures] == [
+        "$ pipdeptree from-lock pylock.toml",
+        "$ pipdeptree from-lock pylock.toml",
+        "$ pipdeptree --packages pytest --depth 0",
+    ]
 
 
 @dataclass(frozen=True)
@@ -116,7 +136,8 @@ class _Example:
     output_lines: range
     exit_code: int | None
     exit_code_line: int | None
-    skipped: bool
+    online: bool
+    illustrative: bool
     conflicting: bool
     files: tuple[tuple[str, str], ...]
 
@@ -128,6 +149,7 @@ def _check_document(
     conflicting_documentation_path: Path,
     *,
     update: bool,
+    online: bool = False,
 ) -> list[str]:
     def execute(example: _Example) -> tuple[int, str]:
         argv = list(example.arguments)
@@ -154,7 +176,9 @@ def _check_document(
     runnable = [
         example
         for example in _console_examples(lines)
-        if not example.skipped and (example.expected or example.exit_code is not None)
+        if not example.illustrative
+        and (online or not example.online)
+        and (example.expected or example.exit_code is not None)
     ]
     checker = doctest.OutputChecker()
     failures = []
@@ -211,7 +235,8 @@ def _console_examples(lines: list[str]) -> Iterator[_Example]:
                 lines,
                 content_start,
                 stop,
-                skipped=bool(markers & _SKIP_MARKERS),
+                online=_ONLINE_MARKER in markers,
+                illustrative=_ILLUSTRATIVE_MARKER in markers,
                 conflicting=_CONFLICTING_MARKER in markers,
                 files=tuple(files.items()),
             )
@@ -222,7 +247,8 @@ def _block_examples(
     start: int,
     stop: int,
     *,
-    skipped: bool,
+    online: bool,
+    illustrative: bool,
     conflicting: bool,
     files: tuple[tuple[str, str], ...],
 ) -> Iterator[_Example]:
@@ -248,7 +274,8 @@ def _block_examples(
             output_lines=range(index + 1, output_stop),
             exit_code=exit_code,
             exit_code_line=exit_code_line,
-            skipped=skipped,
+            online=online,
+            illustrative=illustrative,
             conflicting=conflicting,
             files=files,
         )

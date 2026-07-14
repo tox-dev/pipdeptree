@@ -14,11 +14,17 @@ _ROOT: Final = Path(__file__).parents[1]
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption("--update-docs", action="store_true", help="rewrite documented console outputs in place")
+    parser.addoption("--online", action="store_true", help="also run console examples marked runs-online")
 
 
 @pytest.fixture
 def update_docs(request: pytest.FixtureRequest) -> bool:
     return bool(request.config.getoption("--update-docs"))
+
+
+@pytest.fixture
+def online(request: pytest.FixtureRequest) -> bool:
+    return bool(request.config.getoption("--online"))
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
