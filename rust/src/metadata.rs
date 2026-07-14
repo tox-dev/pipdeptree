@@ -465,9 +465,15 @@ fn read_headers(path: &Path) -> Result<String, Error> {
     let mut headers = String::new();
     loop {
         let start = headers.len();
-        if io::BufRead::read_line(&mut reader, &mut headers)? == 0 || &headers[start..] == "\n" {
+        if io::BufRead::read_line(&mut reader, &mut headers)? == 0
+            || matches!(&headers[start..], "\n" | "\r\n")
+        {
             headers.truncate(start);
             return Ok(headers);
+        }
+        if headers.ends_with("\r\n") {
+            headers.truncate(headers.len() - 2);
+            headers.push('\n');
         }
     }
 }

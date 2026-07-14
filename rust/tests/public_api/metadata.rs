@@ -161,6 +161,26 @@ fn reports_metadata_warnings(
 }
 
 #[test]
+fn stops_crlf_headers_at_the_body() {
+    let site = PackageSite::new();
+    site.write(
+        "windows-1.dist-info",
+        "Name: windows\r\nVersion: 1\r\n\r\nRequires-Dist: phantom\r\n",
+    );
+
+    let output = execute_in(&site, &["--json"]);
+
+    assert_eq!(
+        (
+            output.code,
+            stdout(&output).contains("\"package_name\": \"windows\""),
+            stdout(&output).contains("phantom"),
+        ),
+        (0, true, false)
+    );
+}
+
+#[test]
 fn keeps_packages_with_malformed_header_lines() {
     let site = PackageSite::new();
     site.write(
@@ -294,7 +314,7 @@ fn discovers_empty_runtime_path_from_current_directory() {
 )]
 #[case::vcs_revision(
     r#"{"url":"ssh://git@example.com/demo","vcs_info":{"vcs":"hg","requested_revision":"feature"}}"#,
-    "demo @ hg+ssh://example.com/demo@feature\n"
+    "demo @ hg+ssh://example.com/demo\n"
 )]
 #[case::vcs_full(
     concat!(
@@ -396,9 +416,6 @@ fn freezes_direct_urls(#[case] direct_url: &str, #[case] expected: &str) {
 #[case::non_string_vcs(r#"{"url":"https://example.com/demo","vcs_info":{"vcs":1}}"#)]
 #[case::non_string_commit(
     r#"{"url":"https://example.com/demo","vcs_info":{"vcs":"git","commit_id":1}}"#
-)]
-#[case::non_string_revision(
-    r#"{"url":"https://example.com/demo","vcs_info":{"vcs":"git","requested_revision":1}}"#
 )]
 #[case::invalid_hash(r#"{"url":"https://example.com/demo","archive_info":{"hash":"sha256"}}"#)]
 #[case::hash_without_algorithm(

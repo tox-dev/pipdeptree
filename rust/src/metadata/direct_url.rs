@@ -20,7 +20,6 @@ pub(super) enum DirectInfo {
 pub(super) struct VcsInfo {
     pub(super) vcs: String,
     pub(super) commit_id: Option<String>,
-    pub(super) requested_revision: Option<String>,
 }
 
 #[derive(Debug)]
@@ -79,9 +78,8 @@ impl DirectUrl {
 
 impl VcsInfo {
     pub(super) fn reference(&self) -> Option<&str> {
-        self.commit_id
-            .as_deref()
-            .or(self.requested_revision.as_deref())
+        // requested_revision may be a moving branch or tag; only the commit pins the install.
+        self.commit_id.as_deref()
     }
 }
 
@@ -99,8 +97,6 @@ fn parse_vcs(object: &Map<String, Value>) -> Result<VcsInfo, String> {
             .expect("required VCS was checked")
             .to_string(),
         commit_id: string_field(object, "commit_id", false)?.map(ToOwned::to_owned),
-        requested_revision: string_field(object, "requested_revision", false)?
-            .map(ToOwned::to_owned),
     })
 }
 
