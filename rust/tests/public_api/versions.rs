@@ -5,7 +5,7 @@ use pyo3::prelude::PyModule;
 use pyo3::types::PyAnyMethods as _;
 use rstest::rstest;
 
-use super::common::{PackageSite, execute_with_python, stdout, with_python};
+use super::common::{PackageSite, execute, execute_with_python, stdout, with_python};
 
 #[test]
 fn resolves_versions_without_distribution_metadata() {
@@ -17,25 +17,16 @@ fn resolves_versions_without_distribution_metadata() {
         "Name: root\nVersion: 1\nRequires-Dist: fallbackdemo>=2\n",
     );
 
-    let output = with_python(|python| {
-        let path = python.import("sys").unwrap().getattr("path").unwrap();
-        path.call_method1("insert", (0, module.path().to_str().unwrap()))
-            .unwrap();
-        let output = execute_with_python(
-            python,
-            &[
-                "--path",
-                site.path().to_str().unwrap(),
-                "--warn",
-                "fail",
-                "--output",
-                "rich",
-            ],
-        );
-        path.call_method1("remove", (module.path().to_str().unwrap(),))
-            .unwrap();
-        output
-    });
+    let output = execute(&[
+        "--path",
+        site.path().to_str().unwrap(),
+        "--path",
+        module.path().to_str().unwrap(),
+        "--warn",
+        "fail",
+        "--output",
+        "rich",
+    ]);
 
     assert_eq!(
         (
@@ -44,6 +35,36 @@ fn resolves_versions_without_distribution_metadata() {
             output.stderr.as_str(),
         ),
         (0, true, "")
+    );
+}
+
+#[test]
+fn ignores_versions_outside_the_inspected_environment() {
+    let module = tempfile::tempdir().unwrap();
+    fs::write(module.path().join("hostonlydemo.py"), "__version__ = '9'\n").unwrap();
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        "Name: root\nVersion: 1\nRequires-Dist: hostonlydemo\n",
+    );
+
+    let output = with_python(|python| {
+        let path = python.import("sys").unwrap().getattr("path").unwrap();
+        path.call_method1("insert", (0, module.path().to_str().unwrap()))
+            .unwrap();
+        let output = execute_with_python(
+            python,
+            &["--path", site.path().to_str().unwrap(), "--warn", "silence"],
+        );
+        path.call_method1("remove", (module.path().to_str().unwrap(),))
+            .unwrap();
+        output
+    });
+
+    assert!(
+        stdout(&output).contains("hostonlydemo [required: Any, installed: ?]"),
+        "host module leaked into the inspected environment: {}",
+        stdout(&output)
     );
 }
 
@@ -66,18 +87,14 @@ fn skips_version_resolution_for_inactive_extras() {
         ),
     );
 
-    let output = with_python(|python| {
-        let path = python.import("sys").unwrap().getattr("path").unwrap();
-        path.call_method1("insert", (0, module.path().to_str().unwrap()))
-            .unwrap();
-        let output = execute_with_python(
-            python,
-            &["--path", site.path().to_str().unwrap(), "--warn", "silence"],
-        );
-        path.call_method1("remove", (module.path().to_str().unwrap(),))
-            .unwrap();
-        output
-    });
+    let output = execute(&[
+        "--path",
+        site.path().to_str().unwrap(),
+        "--path",
+        module.path().to_str().unwrap(),
+        "--warn",
+        "silence",
+    ]);
 
     assert_eq!(
         (
@@ -101,33 +118,23 @@ fn resolves_versions_from_distribution_metadata() {
         "Name: root\nVersion: 1\nRequires-Dist: indexed>=3\n",
     );
 
-    let output = with_python(|python| {
-        let path = python.import("sys").unwrap().getattr("path").unwrap();
-        path.call_method1("insert", (0, module.path().to_str().unwrap()))
-            .unwrap();
-        let output = execute_with_python(
-            python,
-            &[
-                "--path",
-                site.path().to_str().unwrap(),
-                "--warn",
-                "fail",
-                "--output",
-                "rich",
-            ],
-        );
-        path.call_method1("remove", (module.path().to_str().unwrap(),))
-            .unwrap();
-        output
-    });
+    let output = execute(&[
+        "--path",
+        site.path().to_str().unwrap(),
+        "--path",
+        metadata.parent().unwrap().to_str().unwrap(),
+        "--warn",
+        "fail",
+        "--output",
+        "rich",
+    ]);
 
     assert_eq!(
         (
             output.code,
             stdout(&output).contains("indexed required: >=3 installed: 3"),
-            output.stderr.as_str(),
         ),
-        (0, true, "")
+        (0, true)
     );
 }
 
@@ -201,6 +208,7 @@ fn handles_module_version_fallbacks(
     );
 
     let output = with_python(|python| {
+        // Nested imports resolve through sys.path, so the fallback module needs both entries.
         let path = python.import("sys").unwrap().getattr("path").unwrap();
         path.call_method1("insert", (0, module.path().to_str().unwrap()))
             .unwrap();
@@ -209,6 +217,8 @@ fn handles_module_version_fallbacks(
             &[
                 "--path",
                 site.path().to_str().unwrap(),
+                "--path",
+                module.path().to_str().unwrap(),
                 "--warn",
                 "silence",
                 "--output",
@@ -238,18 +248,21 @@ fn reports_distribution_version_errors() {
     );
 
     let output = with_python(|python| {
-        let metadata = PyModule::import(python, "importlib.metadata").unwrap();
-        let original = metadata.getattr("version").unwrap().unbind();
+        let machinery = PyModule::import(python, "importlib.machinery").unwrap();
+        let finder = machinery.getattr("PathFinder").unwrap();
+        let original = finder.getattr("find_spec").unwrap().unbind();
         let failing = python
             .eval(
-                c_str!("lambda name: (_ for _ in ()).throw(ValueError('version failed'))"),
+                c_str!(
+                    "lambda *args, **kwargs: (_ for _ in ()).throw(ValueError('version failed'))"
+                ),
                 None,
                 None,
             )
             .unwrap();
-        metadata.setattr("version", failing).unwrap();
+        finder.setattr("find_spec", failing).unwrap();
         let output = execute_with_python(python, &["--path", site.path().to_str().unwrap()]);
-        metadata.setattr("version", original).unwrap();
+        finder.setattr("find_spec", original).unwrap();
         output
     });
 

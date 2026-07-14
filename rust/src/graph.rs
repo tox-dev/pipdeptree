@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::ops::Range;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::OnceLock;
 
@@ -9,7 +10,8 @@ use pep508_rs::pep440_rs::Version;
 use pep508_rs::{ExtraName, MarkerEnvironment, Requirement, VerbatimUrl, VersionOrUrl};
 use pyo3::exceptions::{PyAttributeError, PyImportError};
 use pyo3::prelude::{PyAnyMethods, PyModule};
-use pyo3::{PyResult, Python};
+use pyo3::types::PyList;
+use pyo3::{Bound, PyResult, Python};
 
 use crate::metadata::{Package, canonicalize_name};
 use crate::options::{ExtrasMode, Options};
@@ -178,7 +180,12 @@ impl Graph {
         let mut mandatory = Vec::new();
         let mut optional = BTreeMap::<String, Vec<Dependency>>::new();
         let requires = std::mem::take(&mut package.requires);
-        let provides_extras = std::mem::take(&mut package.provides_extras);
+        // Provides-Extra is descriptive and was optional before metadata 2.1, so an extra named
+        // only by a Requires-Dist marker still activates its dependency.
+        let mut provides_extras = std::mem::take(&mut package.provides_extras);
+        provides_extras.extend(requires.iter().filter_map(|raw| marker_extra(raw)));
+        provides_extras.sort_unstable();
+        provides_extras.dedup();
         for raw in requires {
             let Ok(requirement) = Requirement::<VerbatimUrl>::from_str(&raw) else {
                 warnings.push(format!(
@@ -242,9 +249,10 @@ impl Graph {
         }
     }
 
-    pub fn resolve_missing_versions(&mut self, py: Python<'_>) -> PyResult<()> {
-        let metadata = PyModule::import(py, "importlib.metadata")?;
-        let package_not_found = metadata.getattr("PackageNotFoundError")?;
+    pub fn resolve_missing_versions(&mut self, py: Python<'_>, paths: &[PathBuf]) -> PyResult<()> {
+        // The lookup is scoped to the inspected environment; consulting the host interpreter
+        // would report packages installed alongside pipdeptree as installed there.
+        let search = PyList::new(py, paths.iter().map(|path| path.to_string_lossy()))?;
         // Only dependencies that can render matter; resolving inactive extras would import
         // arbitrary modules (and run their side effects) for packages never shown.
         let names = (0..self.nodes.len())
@@ -253,16 +261,8 @@ impl Graph {
             .filter(|dependency| dependency.target.is_none())
             .map(|dependency| dependency.key().to_string())
             .collect::<BTreeSet<_>>();
-        let version_of = metadata.getattr("version")?;
         for name in names {
-            let version = match version_of.call1((&name,)) {
-                Ok(value) => Some(value.extract()?),
-                Err(error) if error.is_instance(py, &package_not_found) => {
-                    module_version(py, &name)?
-                }
-                Err(error) => return Err(error),
-            };
-            if let Some(version) = version {
+            if let Some(version) = module_version(py, &name, &search)? {
                 self.missing_versions.insert(name, version);
             }
         }
@@ -1037,12 +1037,28 @@ fn parse_packages(value: Option<&str>) -> (Vec<String>, HashMap<String, BTreeSet
     (names, extras)
 }
 
-fn module_version(py: Python<'_>, name: &str) -> PyResult<Option<String>> {
-    let module = match PyModule::import(py, name) {
-        Ok(module) => module,
+// A module found on the inspected paths may carry __version__ even without dist metadata; it is
+// loaded through PathFinder so the host's own copy of the module never answers.
+fn module_version(
+    py: Python<'_>,
+    name: &str,
+    search: &Bound<'_, PyList>,
+) -> PyResult<Option<String>> {
+    let finder = PyModule::import(py, "importlib.machinery")?.getattr("PathFinder")?;
+    let spec = finder.call_method1("find_spec", (name, search))?;
+    if spec.is_none() {
+        return Ok(None);
+    }
+    let module =
+        PyModule::import(py, "importlib.util")?.call_method1("module_from_spec", (&spec,))?;
+    match spec
+        .getattr("loader")?
+        .call_method1("exec_module", (&module,))
+    {
+        Ok(_) => {}
         Err(error) if error.is_instance_of::<PyImportError>(py) => return Ok(None),
         Err(error) => return Err(error),
-    };
+    }
     let value = match module.getattr("__version__") {
         Ok(value) => value,
         Err(error) if error.is_instance_of::<PyAttributeError>(py) => return Ok(None),
@@ -1051,14 +1067,22 @@ fn module_version(py: Python<'_>, name: &str) -> PyResult<Option<String>> {
     if let Ok(version) = value.extract() {
         return Ok(Some(version));
     }
-    let Ok(module) = value.cast::<PyModule>() else {
-        return Ok(None);
-    };
-    match module.getattr("__version__") {
+    match value.getattr("__version__") {
         Ok(value) => value.extract().map(Some),
         Err(error) if error.is_instance_of::<PyAttributeError>(py) => Ok(None),
         Err(error) => Err(error),
     }
+}
+
+fn marker_extra(raw: &str) -> Option<String> {
+    let (_, marker) = raw.split_once(';')?;
+    let (_, rest) = marker.split_once("extra")?;
+    let value = rest.trim_start().strip_prefix("==")?.trim();
+    let quote = value
+        .chars()
+        .next()
+        .filter(|quote| "'\"".contains(*quote))?;
+    value[1..].split(quote).next().map(ToOwned::to_owned)
 }
 
 fn matching_missing(

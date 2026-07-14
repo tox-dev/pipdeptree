@@ -222,7 +222,7 @@ fn execute(
             );
         }
     }
-    if let Err(error) = graph.resolve_missing_versions(py) {
+    if let Err(error) = graph.resolve_missing_versions(py, &runtime.paths) {
         return failure(1, format!("{stderr}{error}\n"));
     }
     if warning_mode != WarningMode::Silence {
@@ -343,7 +343,7 @@ fn packages(
 ) -> Result<(Vec<Package>, Vec<metadata::DiscoveryWarning>), Error> {
     match &options.command {
         None => metadata::discover_selected(&runtime.paths, &options.metadata, options.summary()),
-        Some(Command::FromLock { lock }) => Ok((lock::load(lock)?, Vec::new())),
+        Some(Command::FromLock { lock }) => Ok((lock::load(lock, &runtime.marker)?, Vec::new())),
         Some(Command::FromIndex {
             requirements,
             requirement_files,
