@@ -11,7 +11,7 @@ from typing import Final
 
 
 def main() -> None:
-    cargo, source, destination, artifact, features = sys.argv[1:]
+    cargo, source, destination, artifact, features, depfile = sys.argv[1:]
     output = Path(destination)
     target = output.parent / "cargo-target"
     environment = {**os.environ, "CARGO_TARGET_DIR": str(target)}
@@ -30,7 +30,16 @@ def main() -> None:
     if code != 0:
         msg = f"Cargo exited with status {code}"
         raise RuntimeError(msg)
-    shutil.copyfile(_artifact(target, artifact), output)
+    built = _artifact(target, artifact)
+    shutil.copyfile(built, output)
+    _write_depfile(built, output, Path(depfile))
+
+
+def _write_depfile(built: Path, output: Path, depfile: Path) -> None:
+    """Rewrite Cargo's dep-info so Meson tracks the Rust sources without enumerating them."""
+    dependencies = built.with_suffix(".d").read_text(encoding="utf-8")
+    _, _, sources = dependencies.partition(": ")
+    depfile.write_text(f"{output}: {sources}", encoding="utf-8")
 
 
 def _artifact(target: Path, name: str) -> Path:
