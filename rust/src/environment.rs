@@ -81,11 +81,10 @@ impl Runtime {
     ) -> Result<Self, Error> {
         let current = InterpreterInfo::current(py)?;
         if options.command.is_some() {
-            let paths = current.paths.clone();
-            return Self::from_info(&current, paths, options, None, false);
+            return Self::from_info(current, None, options, None, false);
         }
         if !options.path.is_empty() {
-            return Self::from_info(&current, options.path.clone(), options, None, false);
+            return Self::from_info(current, Some(options.path.clone()), options, None, false);
         }
 
         let (detected, auto_detected) = match options.python.as_deref() {
@@ -116,17 +115,17 @@ impl Runtime {
         } else {
             (current, false)
         };
-        let paths = info.paths.clone();
-        Self::from_info(&info, paths, options, resolved_message, queried)
+        Self::from_info(info, None, options, resolved_message, queried)
     }
 
     fn from_info(
-        info: &InterpreterInfo,
-        mut paths: Vec<PathBuf>,
+        mut info: InterpreterInfo,
+        paths: Option<Vec<PathBuf>>,
         options: &Options,
         resolved_message: Option<String>,
         queried: bool,
     ) -> Result<Self, Error> {
+        let mut paths = paths.unwrap_or_else(|| std::mem::take(&mut info.paths));
         // The old engine filtered a queried interpreter's sys.path by sys.prefix unconditionally;
         // only the running interpreter needs to be a venv for --local-only to act.
         if options.local_only() && (queried || info.prefix != info.base_prefix) {
