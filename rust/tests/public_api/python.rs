@@ -56,10 +56,10 @@ fn executes_through_python_extension() {
             .unwrap()
             .call((args,), Some(&kwargs))
             .unwrap()
-            .extract::<(i32, Vec<u8>, String)>()
+            .extract::<(i32, Vec<u8>, String, Option<String>)>()
             .unwrap();
 
-        assert_eq!(execution, (0, b"\n".to_vec(), String::new()));
+        assert_eq!(execution, (0, b"\n".to_vec(), String::new(), None));
     });
 }
 

@@ -18,11 +18,11 @@ def main(args: Sequence[str] | None = None) -> int | None:
     argv = list(sys.argv[1:] if args is None else args)
     if not any(value == "--encoding" or value.startswith("--encoding=") for value in argv):
         argv[:0] = ["--encoding", sys.stdout.encoding or "utf-8"]
-    code, stdout, stderr = execute(
-        argv,
-        color=sys.stdout.isatty() and os.environ.get("TERM") != "dumb" and "NO_COLOR" not in os.environ,
+    color = "NO_COLOR" not in os.environ and (
+        "FORCE_COLOR" in os.environ or (sys.stdout.isatty() and os.environ.get("TERM") != "dumb")
     )
-    _write(sys.stdout, stdout, graphviz_format=_graphviz_format(argv))
+    code, stdout, stderr, graphviz_format = execute(argv, color=color)
+    _write(sys.stdout, stdout, graphviz_format=graphviz_format)
     if stderr:
         sys.stderr.write(stderr)
     if code == 0 and any(value in {"-h", "--help", "-v", "--version"} for value in argv):
@@ -30,27 +30,15 @@ def main(args: Sequence[str] | None = None) -> int | None:
     return code
 
 
-def _graphviz_format(args: Sequence[str]) -> str | None:
-    arguments = iter(args)
-    for argument in arguments:
-        name, separator, value = argument.partition("=")
-        if name.startswith("-o") and not name.startswith("--") and name != "-o":
-            value = name[2:]
-            name = "-o"
-        if not separator and name in {"--graph-output", "--output", "-o"}:
-            value = value or next(arguments, "")
-        if name == "--graph-output":
-            return value
-        if name in {"--output", "-o"} and value.startswith("graphviz-"):
-            return value.removeprefix("graphviz-")
-    return None
-
-
 def _write(stream: TextIO, value: bytes, *, graphviz_format: str | None) -> None:
     if not value:
         return
-    if graphviz_format is None or graphviz_format == "dot":
-        stream.write(value.decode())
+    try:
+        text = value.decode()
+    except UnicodeDecodeError:
+        pass
+    else:
+        stream.write(text)
         return
     if not stream.isatty():
         stream.buffer.write(value)

@@ -7,9 +7,11 @@ import tempfile
 import webbrowser
 from functools import partial
 from typing import TYPE_CHECKING
-from unittest.mock import create_autospec
+from unittest.mock import MagicMock, create_autospec
 
 import pytest
+
+from pipdeptree import __version__
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -68,8 +70,6 @@ def test_cli_uses_sys_argv(
     [
         pytest.param("-h", "Usage:", id="short-help"),
         pytest.param("--help", "Usage:", id="help"),
-        pytest.param("-v", "pipdeptree ", id="short-version"),
-        pytest.param("--version", "pipdeptree ", id="version"),
     ],
 )
 def test_cli_informational_flags(
@@ -82,6 +82,18 @@ def test_cli_informational_flags(
         entry_point([flag])
 
     assert expected in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("flag", [pytest.param("-v", id="short"), pytest.param("--version", id="long")])
+def test_cli_bare_version(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    flag: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit, match="0"):
+        entry_point([flag])
+
+    assert capsys.readouterr().out == f"{__version__}\n"
 
 
 def test_cli_error(
@@ -112,6 +124,7 @@ def test_cli_missing_filter(
         pytest.param(["--output=graphviz-png"], b"\x89PNG", id="output-inline"),
         pytest.param(["-o", "graphviz-png"], b"\x89PNG", id="short-output"),
         pytest.param(["-ographviz-png"], b"\x89PNG", id="short-output-attached"),
+        pytest.param(["-ro", "graphviz-png"], b"\x89PNG", id="short-output-clustered"),
         pytest.param(["--graph-output", "pdf"], b"%PDF", id="pdf"),
         pytest.param(["--graph-output", "svg"], b"<?xml", id="svg"),
     ],
@@ -133,7 +146,6 @@ def test_cli_graphviz_binary(
     [
         pytest.param("png", True, False, b"\x89PNG", id="png-opened"),
         pytest.param("png", False, True, b"\x89PNG", id="png-not-opened"),
-        pytest.param("svg", True, False, b"<?xml", id="svg-opened"),
     ],
 )
 def test_cli_graphviz_binary_terminal(
@@ -167,6 +179,36 @@ def test_cli_graphviz_binary_terminal(
     ) == (0, b"", True, warned, (str(image),))
 
 
+@pytest.fixture
+def terminal_browser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    opener = create_autospec(webbrowser.open, return_value=True)
+    monkeypatch.setattr(webbrowser, "open", opener)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    return opener
+
+
+def test_cli_graphviz_text_terminal(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    package_path: Path,
+    terminal_browser: MagicMock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = entry_point(["--path", str(package_path), "--graph-output", "svg"])
+
+    assert (code, capsys.readouterr().out.startswith("<?xml"), terminal_browser.called) == (0, True, False)
+
+
+def test_cli_help_with_graphviz_format(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    terminal_browser: MagicMock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit, match="0"):
+        entry_point(["--graph-output", "png", "--help"])
+
+    assert ("Usage:" in capsys.readouterr().out, terminal_browser.called) == (True, False)
+
+
 def test_cli_lock(
     entry_point: Callable[[Sequence[str] | None], int | None],
     tmp_path: Path,
@@ -184,7 +226,7 @@ def test_module_entrypoint(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Captu
     with pytest.raises(SystemExit, match="0"):
         runpy.run_module("pipdeptree", run_name="__main__")
 
-    assert capsys.readouterr().out.strip().startswith("pipdeptree ")
+    assert capsys.readouterr().out == f"{__version__}\n"
 
 
 def test_cli_json_is_valid(
@@ -222,11 +264,14 @@ def test_cli_uses_implementation_version_marker(
 
 
 @pytest.mark.parametrize(
-    ("environment", "colored"),
+    ("environment", "tty", "colored"),
     [
-        pytest.param({}, True, id="terminal"),
-        pytest.param({"TERM": "dumb"}, False, id="dumb"),
-        pytest.param({"NO_COLOR": ""}, False, id="no-color"),
+        pytest.param({}, True, True, id="terminal"),
+        pytest.param({"TERM": "dumb"}, True, False, id="dumb"),
+        pytest.param({"NO_COLOR": ""}, True, False, id="no-color"),
+        pytest.param({}, False, False, id="pipe"),
+        pytest.param({"FORCE_COLOR": "1"}, False, True, id="force-color"),
+        pytest.param({"FORCE_COLOR": "1", "NO_COLOR": ""}, True, False, id="force-color-overridden"),
     ],
 )
 def test_cli_terminal_color(
@@ -236,14 +281,31 @@ def test_cli_terminal_color(
     capsys: pytest.CaptureFixture[str],
     environment: dict[str, str],
     *,
+    tty: bool,
     colored: bool,
+) -> None:
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: tty)
+    for name in ("TERM", "NO_COLOR", "FORCE_COLOR"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
+
+    code = entry_point(["--path", str(package_path), "--warn", "silence", "--output", "rich", "--depth", "0"])
+
+    assert (code, "\x1b[" in capsys.readouterr().out) == (0, colored)
+
+
+def test_cli_defaults_to_text_on_terminals(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    package_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     monkeypatch.delenv("TERM", raising=False)
     monkeypatch.delenv("NO_COLOR", raising=False)
-    for name, value in environment.items():
-        monkeypatch.setenv(name, value)
 
-    code = entry_point(["--path", str(package_path), "--warn", "silence", "--depth", "0"])
+    code = entry_point(["--path", str(package_path), "--warn", "silence"])
+    out = capsys.readouterr().out
 
-    assert (code, "\x1b[" in capsys.readouterr().out) == (0, colored)
+    assert (code, "\x1b[" in out, "└──" in out) == (0, False, True)

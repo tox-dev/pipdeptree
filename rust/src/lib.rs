@@ -31,6 +31,7 @@ pub struct Execution {
     pub code: i32,
     pub stdout: Vec<u8>,
     pub stderr: String,
+    pub graphviz_format: Option<String>,
 }
 
 pub struct Application<'a> {
@@ -78,13 +79,14 @@ fn execute_py(
     args: &Bound<'_, PyList>,
     color: bool,
     log_resolved: bool,
-) -> PyResult<(i32, Py<PyBytes>, String)> {
+) -> PyResult<(i32, Py<PyBytes>, String, Option<String>)> {
     let args: Vec<String> = args.extract()?;
     let output = run(py, &args, color, log_resolved);
     Ok((
         output.code,
         PyBytes::new(py, &output.stdout).unbind(),
         output.stderr,
+        output.graphviz_format,
     ))
 }
 
@@ -120,27 +122,23 @@ fn execute(
 ) -> Execution {
     let mut options = match Options::parse_args(args, color) {
         Ok(options) => options,
-        Err(error) => {
-            let code = if error.use_stderr() { 2 } else { 0 };
-            let message = if color {
-                error.render().ansi().to_string()
-            } else {
-                error.to_string()
-            };
-            return if code == 0 {
-                Execution {
-                    code,
-                    stdout: message.into_bytes(),
-                    stderr: String::new(),
-                }
-            } else {
-                failure(code, message)
-            };
-        }
+        Err(error) => return parse_failure(&error, color),
     };
+    if options.version() {
+        return Execution {
+            code: 0,
+            stdout: format!("{}\n", env!("PIPDEPTREE_VERSION")).into_bytes(),
+            stderr: String::new(),
+            graphviz_format: None,
+        };
+    }
     if let Err(error) = options.validate() {
         return failure(2, format!("pipdeptree: error: {error}\n"));
     }
+    let graphviz_format = options
+        .output_format
+        .strip_prefix("graphviz-")
+        .map(ToOwned::to_owned);
     let warning_mode = if text_output(&options) {
         options.warn
     } else {
@@ -188,6 +186,7 @@ fn execute(
                 code: 0,
                 stdout: Vec::new(),
                 stderr: String::new(),
+                graphviz_format,
             },
             FilterError::Unmatched(_) => {
                 if warning_mode != WarningMode::Silence {
@@ -198,6 +197,7 @@ fn execute(
                     code: i32::from(warning_mode == WarningMode::Fail && warned),
                     stdout: Vec::new(),
                     stderr,
+                    graphviz_format,
                 }
             }
             FilterError::Overlap => failure(1, format!("{stderr}{message}\n")),
@@ -212,6 +212,7 @@ fn execute(
         code,
         stdout: output,
         stderr,
+        graphviz_format,
     }
 }
 
@@ -221,11 +222,30 @@ enum Interface {
     Python,
 }
 
+fn parse_failure(error: &clap::Error, color: bool) -> Execution {
+    let message = if color {
+        error.render().ansi().to_string()
+    } else {
+        error.to_string()
+    };
+    if error.use_stderr() {
+        failure(2, message)
+    } else {
+        Execution {
+            code: 0,
+            stdout: message.into_bytes(),
+            stderr: String::new(),
+            graphviz_format: None,
+        }
+    }
+}
+
 const fn failure(code: i32, stderr: String) -> Execution {
     Execution {
         code,
         stdout: Vec::new(),
         stderr,
+        graphviz_format: None,
     }
 }
 

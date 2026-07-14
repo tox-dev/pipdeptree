@@ -51,7 +51,8 @@ pub struct Options {
     #[arg(
         short = 'v',
         long = "version",
-        action = ArgAction::Version
+        action = ArgAction::SetTrue,
+        help = "Print the version and exit"
     )]
     version: Option<bool>,
 
@@ -158,11 +159,10 @@ pub struct Options {
         short = 'o',
         long = "output",
         value_name = "FMT",
-        default_value = "text",
         global = true,
-        help = "Output format: text, rich, freeze, json, json-tree, mermaid, or graphviz-FMT"
+        help = "Output format: text (default), rich, freeze, json, json-tree, mermaid, or graphviz-FMT"
     )]
-    pub output_format: String,
+    output: Option<String>,
 
     #[arg(long, help = "Python interpreter whose environment to inspect")]
     pub python: Option<String>,
@@ -196,6 +196,9 @@ pub struct Options {
 
     #[command(subcommand)]
     pub command: Option<Command>,
+
+    #[arg(skip)]
+    pub output_format: String,
 }
 
 #[derive(Debug, Args)]
@@ -326,9 +329,6 @@ pub enum Command {
 impl Options {
     pub fn parse_args(args: &[String], color: bool) -> Result<Self, clap::Error> {
         let matches = Self::command()
-            .mut_arg("output_format", |argument| {
-                argument.default_value(if color { "rich" } else { "text" })
-            })
             .styles(cli_styles())
             .color(if color {
                 ColorChoice::Always
@@ -347,20 +347,22 @@ impl Options {
             + usize::from(self.legacy_formats.json_tree)
             + usize::from(self.additional_formats.mermaid)
             + usize::from(self.graphviz_format.is_some());
-        if legacy_formats > 1 {
+        if legacy_formats > 1 || (legacy_formats == 1 && self.output.is_some()) {
             return Err(Error::usage("render options are mutually exclusive"));
         }
-        if self.legacy_formats.freeze {
-            self.output_format = "freeze".to_string();
+        self.output_format = if self.legacy_formats.freeze {
+            "freeze".to_string()
         } else if self.legacy_formats.json {
-            self.output_format = "json".to_string();
+            "json".to_string()
         } else if self.legacy_formats.json_tree {
-            self.output_format = "json-tree".to_string();
+            "json-tree".to_string()
         } else if self.additional_formats.mermaid {
-            self.output_format = "mermaid".to_string();
+            "mermaid".to_string()
         } else if let Some(format) = &self.graphviz_format {
-            self.output_format = format!("graphviz-{format}");
-        }
+            format!("graphviz-{format}")
+        } else {
+            self.output.clone().unwrap_or_else(|| "text".to_string())
+        };
         if !matches!(
             self.output_format.as_str(),
             "freeze" | "json" | "json-tree" | "mermaid" | "rich" | "text"
@@ -418,6 +420,10 @@ impl Options {
             ));
         }
         Ok(())
+    }
+
+    pub const fn version(&self) -> bool {
+        matches!(self.version, Some(true))
     }
 
     pub const fn resolved(&self) -> bool {

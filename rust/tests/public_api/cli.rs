@@ -49,11 +49,20 @@ fn renders_cli_formats(package_site: PackageSite, #[case] args: &[&str], #[case]
 #[rstest]
 #[case::unknown_output(&["--output", "unknown"], "\"unknown\" is not a known output format")]
 #[case::conflicting_formats(&["--json", "--freeze"], "render options are mutually exclusive")]
+#[case::legacy_with_output(
+    &["--json", "--output", "mermaid"],
+    "render options are mutually exclusive"
+)]
+#[case::graph_output_with_output(
+    &["--graph-output", "png", "--output", "graphviz-dot"],
+    "render options are mutually exclusive"
+)]
 #[case::invalid_depth(&["--depth", "invalid"], "invalid value 'invalid'")]
 #[case::missing_python(
     &["--python", "/path/that/does/not/exist"],
     "Failed to query custom interpreter"
 )]
+#[case::empty_python(&["--python", ""], "Failed to query custom interpreter")]
 #[case::missing_lock(
     &["from-lock", "missing.pylock.toml"],
     "does not exist"
@@ -124,7 +133,6 @@ fn reports_cli_errors(#[case] args: &[&str], #[case] expected: &str) {
 
 #[rstest]
 #[case::help("--help", "Usage: pipdeptree")]
-#[case::version("--version", "pipdeptree 4.0.0\n")]
 fn renders_informational_flags(#[case] flag: &str, #[case] expected: &str) {
     let output = execute(&[flag]);
 
@@ -135,6 +143,18 @@ fn renders_informational_flags(#[case] flag: &str, #[case] expected: &str) {
             output.stderr.as_str(),
         ),
         (0, true, "")
+    );
+}
+
+#[rstest]
+#[case::short("-v")]
+#[case::long("--version")]
+fn prints_bare_version(#[case] flag: &str) {
+    let output = execute(&[flag]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, "4.0.0\n", "")
     );
 }
 
@@ -154,7 +174,7 @@ fn colors_help_for_terminals() {
                 output.code,
                 stdout(&output).contains(&format!("{heading}Usage:{heading:#}")),
                 stdout(&output).contains(&format!("{flag}--help{flag:#}")),
-                stdout(&output).contains("[default: rich]"),
+                stdout(&output).contains("text (default)"),
             ),
             (0, true, true, true)
         );
@@ -183,7 +203,7 @@ fn colors_terminal_errors_red() {
 }
 
 #[rstest]
-fn defaults_to_rich_for_terminals(package_site: PackageSite) {
+fn defaults_to_text_for_terminals(package_site: PackageSite) {
     with_python(|python| {
         let output = execute_with_runner(
             &_pipdeptree::SystemProcessRunner,
@@ -201,9 +221,9 @@ fn defaults_to_rich_for_terminals(package_site: PackageSite) {
             (
                 output.code,
                 stdout(&output).contains("\u{1b}["),
-                stdout(&output).contains("┗━━"),
+                stdout(&output).contains("└──"),
             ),
-            (0, true, true)
+            (0, false, true)
         );
     });
 }
