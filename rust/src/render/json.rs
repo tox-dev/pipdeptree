@@ -5,7 +5,7 @@ use serde_json::{Map, Value, json};
 use crate::graph::{Dependency, Graph};
 use crate::options::{ComputedField, Options};
 
-use super::shared::{format_size, unique_dependencies};
+use super::shared::format_size;
 
 pub(super) fn render(graph: &Graph, options: &Options) -> Vec<u8> {
     let mut output = Vec::new();
@@ -78,7 +78,7 @@ impl Serialize for JsonDependencies<'_> {
     where
         S: Serializer,
     {
-        let dependencies = self.graph.expanded_children(self.index);
+        let dependencies = self.graph.expanded_children(self.index).collect::<Vec<_>>();
         let mut sequence = serializer.serialize_seq(Some(dependencies.len()))?;
         for dependency in dependencies {
             sequence.serialize_element(&JsonDependency {
@@ -221,7 +221,7 @@ pub(super) fn computed_json(
     let unique = fields
         .iter()
         .any(|field| field.is_unique())
-        .then(|| unique_dependencies(graph, index));
+        .then(|| graph.unique_dependencies(index));
     fields
         .iter()
         .map(|field| match field {

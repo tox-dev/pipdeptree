@@ -27,6 +27,7 @@ pub struct Node {
     dependencies: Vec<Dependency>,
     mandatory: Range<usize>,
     optional: BTreeMap<String, Range<usize>>,
+    parsed_version: OnceLock<Option<Version>>,
 }
 
 #[derive(Debug)]
@@ -39,10 +40,10 @@ pub struct Graph {
     missing_versions: HashMap<String, String>,
     expanded: OnceLock<Vec<Vec<usize>>>,
     parent_counts: OnceLock<Vec<usize>>,
+    unique_dependencies: OnceLock<Vec<OnceLock<BTreeSet<usize>>>>,
     pub warnings: Vec<String>,
 }
 
-#[derive(Clone)]
 pub struct Children<'a> {
     graph: &'a Graph,
     node: usize,
@@ -96,7 +97,14 @@ impl Dependency {
         else {
             return false;
         };
-        Version::from_str(installed).map_or(true, |version| !specifiers.contains(&version))
+        self.target.map_or_else(
+            || Version::from_str(installed).map_or(true, |version| !specifiers.contains(&version)),
+            |target| {
+                graph
+                    .parsed_version(target)
+                    .is_none_or(|version| !specifiers.contains(version))
+            },
+        )
     }
 
     pub fn installed_version<'a>(&self, graph: &'a Graph) -> Option<&'a str> {
@@ -122,63 +130,7 @@ impl Graph {
         let mut warnings = Vec::new();
         let nodes = packages
             .into_iter()
-            .map(|mut package| {
-                let mut mandatory = Vec::new();
-                let mut optional = BTreeMap::<String, Vec<Dependency>>::new();
-                let requires = std::mem::take(&mut package.requires);
-                let provides_extras = std::mem::take(&mut package.provides_extras);
-                for raw in requires {
-                    let Ok(requirement) = Requirement::<VerbatimUrl>::from_str(&raw) else {
-                        warnings.push(format!("Invalid requirement found: {raw}"));
-                        continue;
-                    };
-                    let dependency = Dependency {
-                        target: index.get(requirement.name.as_ref()).copied(),
-                        requirement,
-                        activated_by: None,
-                    };
-                    if dependency.requirement.evaluate_markers(marker, &[]) {
-                        mandatory.push(dependency);
-                        continue;
-                    }
-                    for extra in &provides_extras {
-                        let Ok(extra_name) = ExtraName::from_str(extra) else {
-                            continue;
-                        };
-                        if dependency
-                            .requirement
-                            .evaluate_markers(marker, std::slice::from_ref(&extra_name))
-                        {
-                            let mut dependency = dependency.clone();
-                            let extra = extra_name.to_string();
-                            dependency.activated_by = Some(extra.clone());
-                            optional.entry(extra).or_default().push(dependency);
-                        }
-                    }
-                }
-                mandatory.sort_by(|left, right| left.key().cmp(right.key()));
-                mandatory.dedup_by(|left, right| left.requirement == right.requirement);
-                for dependencies in optional.values_mut() {
-                    dependencies.sort_by(|left, right| left.key().cmp(right.key()));
-                    dependencies.dedup_by(|left, right| left.requirement == right.requirement);
-                }
-                let mandatory_end = mandatory.len();
-                let mut dependencies = mandatory;
-                let optional = optional
-                    .into_iter()
-                    .map(|(extra, values)| {
-                        let start = dependencies.len();
-                        dependencies.extend(values);
-                        (extra, start..dependencies.len())
-                    })
-                    .collect();
-                Node {
-                    package,
-                    dependencies,
-                    mandatory: 0..mandatory_end,
-                    optional,
-                }
-            })
+            .map(|package| Self::build_node(package, marker, &index, &mut warnings))
             .collect::<Vec<_>>();
         let mut incoming = vec![Vec::new(); nodes.len()];
         for (parent, node) in nodes.iter().enumerate() {
@@ -203,6 +155,7 @@ impl Graph {
             missing_versions: HashMap::new(),
             expanded: OnceLock::new(),
             parent_counts: OnceLock::new(),
+            unique_dependencies: OnceLock::new(),
             warnings,
         };
         if extras_mode != ExtrasMode::None {
@@ -212,6 +165,70 @@ impl Graph {
             graph.activate_satisfied_extras();
         }
         graph
+    }
+
+    fn build_node(
+        mut package: Package,
+        marker: &MarkerEnvironment,
+        index: &HashMap<String, usize>,
+        warnings: &mut Vec<String>,
+    ) -> Node {
+        let mut mandatory = Vec::new();
+        let mut optional = BTreeMap::<String, Vec<Dependency>>::new();
+        let requires = std::mem::take(&mut package.requires);
+        let provides_extras = std::mem::take(&mut package.provides_extras);
+        for raw in requires {
+            let Ok(requirement) = Requirement::<VerbatimUrl>::from_str(&raw) else {
+                warnings.push(format!("Invalid requirement found: {raw}"));
+                continue;
+            };
+            let dependency = Dependency {
+                target: index.get(requirement.name.as_ref()).copied(),
+                requirement,
+                activated_by: None,
+            };
+            if dependency.requirement.evaluate_markers(marker, &[]) {
+                mandatory.push(dependency);
+                continue;
+            }
+            for extra in &provides_extras {
+                let Ok(extra_name) = ExtraName::from_str(extra) else {
+                    continue;
+                };
+                if dependency
+                    .requirement
+                    .evaluate_markers(marker, std::slice::from_ref(&extra_name))
+                {
+                    let mut dependency = dependency.clone();
+                    let extra = extra_name.to_string();
+                    dependency.activated_by = Some(extra.clone());
+                    optional.entry(extra).or_default().push(dependency);
+                }
+            }
+        }
+        mandatory.sort_by(|left, right| left.key().cmp(right.key()));
+        mandatory.dedup_by(|left, right| left.requirement == right.requirement);
+        for dependencies in optional.values_mut() {
+            dependencies.sort_by(|left, right| left.key().cmp(right.key()));
+            dependencies.dedup_by(|left, right| left.requirement == right.requirement);
+        }
+        let mandatory_end = mandatory.len();
+        let mut dependencies = mandatory;
+        let optional = optional
+            .into_iter()
+            .map(|(extra, values)| {
+                let start = dependencies.len();
+                dependencies.extend(values);
+                (extra, start..dependencies.len())
+            })
+            .collect();
+        Node {
+            package,
+            dependencies,
+            mandatory: 0..mandatory_end,
+            optional,
+            parsed_version: OnceLock::new(),
+        }
     }
 
     pub fn resolve_missing_versions(&mut self, py: Python<'_>) -> PyResult<()> {
@@ -270,6 +287,7 @@ impl Graph {
         self.propagate_requested_extras(pending);
         self.expanded.take();
         self.parent_counts.take();
+        self.unique_dependencies.take();
     }
 
     pub fn validate(&mut self) {
@@ -280,6 +298,7 @@ impl Graph {
         let (include, _) = parse_packages(options.packages.as_deref());
         self.expanded.take();
         self.parent_counts.take();
+        self.unique_dependencies.take();
         let exclude_patterns = options
             .exclude
             .as_deref()
@@ -450,6 +469,37 @@ impl Graph {
         }
         result.extend(missing.map(|(name, parents)| ReverseRoot::Missing { name, parents }));
         result
+    }
+
+    fn parsed_version(&self, index: usize) -> Option<&Version> {
+        self.nodes[index]
+            .parsed_version
+            .get_or_init(|| Version::from_str(&self.nodes[index].package.version).ok())
+            .as_ref()
+    }
+
+    pub(crate) fn unique_dependencies(&self, index: usize) -> &BTreeSet<usize> {
+        let cache = self
+            .unique_dependencies
+            .get_or_init(|| (0..self.nodes.len()).map(|_| OnceLock::new()).collect());
+        cache[index].get_or_init(|| {
+            let mut parent_counts = self.parent_counts().to_vec();
+            let mut removed = BTreeSet::from([index]);
+            let mut stack = vec![index];
+            while let Some(parent) = stack.pop() {
+                for child in self
+                    .expanded_children(parent)
+                    .filter_map(|dependency| dependency.target)
+                {
+                    parent_counts[child] = parent_counts[child].saturating_sub(1);
+                    if parent_counts[child] == 0 && removed.insert(child) {
+                        stack.push(child);
+                    }
+                }
+            }
+            removed.remove(&index);
+            removed
+        })
     }
 
     pub fn missing_version(&self, name: &str) -> &str {
@@ -846,12 +896,6 @@ impl<'a> Iterator for Children<'a> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (0, Some(self.indices.len() - self.position))
-    }
-}
-
-impl Children<'_> {
-    pub(super) fn len(&self) -> usize {
-        self.clone().count()
     }
 }
 

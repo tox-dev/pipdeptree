@@ -6,7 +6,7 @@ use crate::options::{ComputedField, Options};
 use crate::process::ProcessRunner;
 
 use super::rich_text::{self, DependencyLabel, Status};
-use super::shared::{format_size, unique_dependencies};
+use super::shared::format_size;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(super) enum TextStyle {
@@ -98,13 +98,10 @@ impl TreeRenderer<'_> {
             || self.graph.expanded_children(parent),
             |extras| self.graph.children(parent, extras),
         );
-        let unique = if self.style == TextStyle::Rich
-            && self.options.computed.iter().any(|field| field.is_unique())
-        {
-            unique_dependencies(self.graph, parent)
-        } else {
-            BTreeSet::new()
-        };
+        let unique = (self.style == TextStyle::Rich
+            && self.options.computed.iter().any(|field| field.is_unique()))
+        .then(|| self.graph.unique_dependencies(parent));
+        let children = children.collect::<Vec<_>>();
         let count = children.len();
         for (position, dependency) in children.into_iter().enumerate() {
             let last = position + 1 == count;
@@ -113,9 +110,9 @@ impl TreeRenderer<'_> {
                 tree_prefix(prefix, self.style, last, self.color, self.unicode),
                 self.dependency_label(
                     dependency,
-                    dependency
-                        .target
-                        .is_some_and(|target| unique.contains(&target)),
+                    dependency.target.is_some_and(|target| {
+                        unique.is_some_and(|unique| unique.contains(&target))
+                    }),
                 )
             ));
             let Some(child) = dependency.target else {
@@ -368,22 +365,22 @@ pub(super) fn node_suffix(
         .flat_map(|field| graph.nodes[index].package.metadata(field))
         .map(|value| value.split_whitespace().collect::<Vec<_>>().join(" "))
         .collect::<Vec<_>>();
-    let unique = if options.computed.iter().any(|field| field.is_unique()) {
-        unique_dependencies(graph, index)
-    } else {
-        BTreeSet::new()
-    };
+    let unique = options
+        .computed
+        .iter()
+        .any(|field| field.is_unique())
+        .then(|| graph.unique_dependencies(index));
     for field in &options.computed {
         match field {
             ComputedField::Size => parts.push(format_size(graph.nodes[index].package.size())),
             ComputedField::SizeRaw => parts.push(graph.nodes[index].package.size().to_string()),
             ComputedField::UniqueDepsCount => {
-                if !unique.is_empty() {
+                if let Some(unique) = unique.filter(|unique| !unique.is_empty()) {
                     parts.push(format!("{} unique deps", unique.len()));
                 }
             }
             ComputedField::UniqueDepsNames => {
-                if !unique.is_empty() {
+                if let Some(unique) = unique.filter(|unique| !unique.is_empty()) {
                     parts.push(format!(
                         "unique: {}",
                         unique
@@ -395,7 +392,7 @@ pub(super) fn node_suffix(
                 }
             }
             ComputedField::UniqueDepsSize => {
-                if !unique.is_empty() {
+                if let Some(unique) = unique.filter(|unique| !unique.is_empty()) {
                     parts.push(format!(
                         "unique size: {}",
                         format_size(

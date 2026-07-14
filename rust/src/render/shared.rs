@@ -1,25 +1,4 @@
-use std::collections::BTreeSet;
-
-use crate::graph::{Dependency, Graph};
-
-pub(super) fn unique_dependencies(graph: &Graph, index: usize) -> BTreeSet<usize> {
-    let mut parent_counts = graph.parent_counts().to_vec();
-    let mut removed = BTreeSet::from([index]);
-    let mut stack = vec![index];
-    while let Some(parent) = stack.pop() {
-        for child in graph
-            .expanded_children(parent)
-            .filter_map(|dependency| dependency.target)
-        {
-            parent_counts[child] = parent_counts[child].saturating_sub(1);
-            if parent_counts[child] == 0 && removed.insert(child) {
-                stack.push(child);
-            }
-        }
-    }
-    removed.remove(&index);
-    removed
-}
+use crate::graph::Dependency;
 
 pub(super) fn edge_label(dependency: &Dependency) -> String {
     let version = dependency
