@@ -592,10 +592,11 @@ fn strip_comment(line: &str) -> &str {
 }
 
 fn looks_like_source(requirement: &str) -> bool {
+    // A local source is spelled ./, ../, an absolute path, a file: URL or a VCS URL, matching
+    // what pip accepts; no filesystem probe is needed to recognize one.
     let requirement = requirement.trim();
     requirement.contains("://")
         || ["./", "../", "/", "file:", "git+"]
             .iter()
             .any(|prefix| requirement.starts_with(prefix))
-        || Path::new(requirement).join("pyproject.toml").is_file()
 }
