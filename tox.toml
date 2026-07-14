@@ -120,7 +120,7 @@ commands = [
     "-p",
     "no:cacheprovider",
     "-qq",
-    { replace = "posargs", default = [  ], extend = true },
+    { replace = "posargs", default = [], extend = true },
   ],
 ]
 
