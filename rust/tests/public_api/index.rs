@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use pyo3::ffi::c_str;
 use pyo3::types::{PyAnyMethods as _, PyDict, PyDictMethods as _};
 use rstest::rstest;
 use tempfile::tempdir;
@@ -142,6 +143,82 @@ fn inherits_constraint_flag_for_nested_requirement_files() {
         ),
         (0, "", true, true)
     );
+}
+
+#[test]
+fn maps_editable_vcs_requirements_to_sources() {
+    let directory = tempdir().unwrap();
+    let capture = directory.path().join("capture.txt");
+    let url = "git+https://example.com/repo.git@0123456789abcdef0123456789abcdef01234567#egg=edit-package";
+
+    let output = with_python(|python| {
+        install_resolver(python, &capture).unwrap();
+        fs::write(
+            directory.path().join("requirements.txt"),
+            format!("-e {url}\n"),
+        )
+        .unwrap();
+        execute_with_python(
+            python,
+            &[
+                "--warn",
+                "silence",
+                "from-index",
+                "--requirements",
+                directory.path().join("requirements.txt").to_str().unwrap(),
+            ],
+        )
+    });
+    let pyproject = fs::read_to_string(capture).unwrap();
+
+    assert_eq!(
+        (
+            output.code,
+            output.stderr.as_str(),
+            pyproject.contains("name = \"edit-package\""),
+        ),
+        (0, "", true)
+    );
+}
+
+#[test]
+fn reports_real_resolver_import_failures() {
+    with_python(|python| {
+        python
+            .run(
+                c_str!(
+                    r#"
+import importlib.abc
+import sys
+
+
+class _PipdeptreeBoom(importlib.abc.MetaPathFinder):
+    def find_spec(self, name, path=None, target=None):
+        if name == "nab_index.multi_index":
+            raise RuntimeError("resolver import exploded")
+
+
+sys.modules.pop("nab_index.multi_index", None)
+sys.meta_path.insert(0, _PipdeptreeBoom())
+"#
+                ),
+                None,
+                None,
+            )
+            .unwrap();
+        let output = execute_with_python(python, &["--warn", "silence", "from-index", "parent"]);
+        python
+            .run(c_str!("import sys\nsys.meta_path.pop(0)"), None, None)
+            .unwrap();
+
+        assert_eq!(
+            (
+                output.code,
+                output.stderr.contains("resolver import exploded"),
+            ),
+            (1, true)
+        );
+    });
 }
 
 #[test]

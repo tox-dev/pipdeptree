@@ -256,6 +256,11 @@ fn parse_requirements_line(
         return parse_requirements_file(&base.join(value), true, inputs, stack);
     }
     if let Some(value) = option_value(line, "-e", "--editable") {
+        // pip accepts editable VCS URLs; the resolver has no editable mode for them, so they
+        // map to plain VCS sources like the Python engine did.
+        if value.trim_start().starts_with("git+") {
+            return translate_source(value, base, inputs);
+        }
         return add_local_source(value, base, true, inputs);
     }
     if line.starts_with('-') {
@@ -463,8 +468,15 @@ fn resolve_pyproject<'py>(
 
 impl<'py> ResolverModules<'py> {
     fn import(py: Python<'py>) -> Result<Self, Error> {
-        let import =
-            |name| PyModule::import(py, name).map_err(|_| Error::message(RESOLVER_IMPORT_ERROR));
+        let import = |name| {
+            PyModule::import(py, name).map_err(|error| {
+                if error.is_instance_of::<pyo3::exceptions::PyModuleNotFoundError>(py) {
+                    Error::message(RESOLVER_IMPORT_ERROR)
+                } else {
+                    Error::message(error.to_string())
+                }
+            })
+        };
         Ok(Self {
             multi_index: import("nab_index.multi_index")?,
             transport: import("nab_index.urllib3_async_transport")?,
