@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write as _;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::OnceLock;
@@ -184,8 +185,7 @@ impl Package {
         metadata_file: &Path,
         retained_fields: Option<&HashSet<String>>,
     ) -> Result<Option<Self>, Error> {
-        let mut metadata =
-            Headers::parse_selected(&fs::read_to_string(metadata_file)?, retained_fields);
+        let mut metadata = Headers::parse_selected(&read_headers(metadata_file)?, retained_fields);
         let Some(name) = metadata.first("name").map(ToOwned::to_owned) else {
             return Ok(None);
         };
@@ -241,10 +241,8 @@ impl Headers {
     fn parse_selected(content: &str, retained_fields: Option<&HashSet<String>>) -> Self {
         let mut headers: Vec<Header> = Vec::new();
         let mut current: Option<(usize, usize)> = None;
+        // read_headers already stops at the body separator, so every line here is a header.
         for line in content.lines() {
-            if line.is_empty() {
-                break;
-            }
             if line.starts_with([' ', '\t']) {
                 if let Some((header, index)) = current {
                     let value = &mut headers[header].values[index];
@@ -458,6 +456,20 @@ fn path_warnings(
         });
     }
     warnings
+}
+
+fn read_headers(path: &Path) -> Result<String, Error> {
+    // METADATA bodies embed whole package descriptions; the headers end at the first blank
+    // line, so stop reading there instead of loading the full file.
+    let mut reader = io::BufReader::new(fs::File::open(path)?);
+    let mut headers = String::new();
+    loop {
+        let start = headers.len();
+        if io::BufRead::read_line(&mut reader, &mut headers)? == 0 || &headers[start..] == "\n" {
+            headers.truncate(start);
+            return Ok(headers);
+        }
+    }
 }
 
 pub fn canonicalize_name(name: &str) -> String {
