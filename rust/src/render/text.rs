@@ -29,6 +29,7 @@ pub(super) fn render(
         processes,
         style,
         color,
+        unicode: is_unicode(&options.encoding),
         path: HashSet::new(),
         lines: Vec::new(),
     };
@@ -53,6 +54,7 @@ struct TreeRenderer<'a> {
     processes: &'a dyn ProcessRunner,
     style: TextStyle,
     color: bool,
+    unicode: bool,
     path: HashSet<usize>,
     lines: Vec<String>,
 }
@@ -84,17 +86,12 @@ impl TreeRenderer<'_> {
             let last = position + 1 == count;
             self.lines.push(format!(
                 "{}{}",
-                tree_prefix(prefix, self.style, last, self.color),
-                dependency_label(
-                    self.processes,
-                    self.graph,
+                tree_prefix(prefix, self.style, last, self.color, self.unicode),
+                self.dependency_label(
                     dependency,
-                    self.style,
-                    self.options,
                     dependency
                         .target
                         .is_some_and(|target| unique.contains(&target)),
-                    self.color,
                 )
             ));
             let Some(child) = dependency.target else {
@@ -104,7 +101,7 @@ impl TreeRenderer<'_> {
                 continue;
             }
             let extras = dependency.requested_extras();
-            let next_prefix = format!("{}{}", prefix, continuation(self.style, last));
+            let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
             self.walk_forward(child, Some(&extras), &next_prefix, depth + 1);
             self.path.remove(&child);
         }
@@ -135,7 +132,7 @@ impl TreeRenderer<'_> {
             );
             self.lines.push(format!(
                 "{}{}",
-                tree_prefix(prefix, self.style, last, self.color),
+                tree_prefix(prefix, self.style, last, self.color, self.unicode),
                 label
             ));
             if !self.path.insert(parent) {
@@ -146,7 +143,7 @@ impl TreeRenderer<'_> {
                 .as_deref()
                 .filter(|extra| !self.graph.extra_is_global(parent, extra))
                 .map(ToOwned::to_owned);
-            let next_prefix = format!("{}{}", prefix, continuation(self.style, last));
+            let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
             self.walk_reverse(parent, required_extra.as_deref(), &next_prefix, depth + 1);
             self.path.remove(&parent);
         }
@@ -204,89 +201,84 @@ fn reverse_label(
     }
 }
 
-fn dependency_label(
-    processes: &dyn ProcessRunner,
-    graph: &Graph,
-    dependency: &Dependency,
-    style: TextStyle,
-    options: &Options,
-    unique: bool,
-    color: bool,
-) -> String {
-    if style == TextStyle::Frozen {
-        return dependency.target.map_or_else(
-            || dependency.key().to_string(),
-            |target| graph.nodes[target].package.frozen(processes),
+impl TreeRenderer<'_> {
+    fn dependency_label(&self, dependency: &Dependency, unique: bool) -> String {
+        if self.style == TextStyle::Frozen {
+            return dependency.target.map_or_else(
+                || dependency.key().to_string(),
+                |target| self.graph.nodes[target].package.frozen(self.processes),
+            );
+        }
+        let installed = dependency.installed_version(self.graph).unwrap_or("?");
+        let name = dependency.target.map_or_else(
+            || dependency.key(),
+            |target| self.graph.nodes[target].package.name.as_str(),
         );
-    }
-    let installed = dependency.installed_version(graph).unwrap_or("?");
-    let name = dependency.target.map_or_else(
-        || dependency.key(),
-        |target| graph.nodes[target].package.name.as_str(),
-    );
-    let extra = dependency
-        .activated_by
-        .as_ref()
-        .map_or_else(String::new, |extra| format!(", extra: {extra}"));
-    let detail = if options.resolved() {
-        if style == TextStyle::Rich {
-            format!("candidate: {installed}")
-        } else {
-            format!("candidate: {installed}{extra}")
-        }
-    } else {
-        let required = dependency
-            .version_spec()
-            .unwrap_or_else(|| "Any".to_string());
-        if style == TextStyle::Rich {
-            format!("required: {required} installed: {installed}")
-        } else {
-            format!("required: {required}, installed: {installed}{extra}")
-        }
-    };
-    let suffix = dependency.target.map_or_else(String::new, |target| {
-        node_suffix(graph, target, options, ", ")
-    });
-    if style == TextStyle::Rich {
-        let status = match (
-            dependency.installed_version(graph).is_none(),
-            dependency.is_conflicting(graph),
-            unique,
-        ) {
-            (true, _, _) => Status::Error,
-            (false, true, _) => Status::Warning,
-            (false, false, _) => Status::Success,
-        };
-        if color {
-            return rich_text::dependency(&DependencyLabel {
-                status,
-                unique,
-                name,
-                candidate: options.resolved().then_some(installed),
-                required: dependency.version_spec().as_deref().unwrap_or("Any"),
-                installed,
-                extra: dependency.activated_by.as_deref(),
-                suffix: &suffix,
-            });
-        }
-        let marker = match status {
-            Status::Success => "✓",
-            Status::Warning => "⚠",
-            Status::Error => "✗",
-        };
-        let star = if unique { " ⭐" } else { "" };
         let extra = dependency
             .activated_by
             .as_ref()
-            .map_or_else(String::new, |extra| format!(" [extra: {extra}]"));
-        format!("{marker}{star} {name} {detail}{extra}{suffix}")
-    } else {
-        format!("{name} [{detail}]{suffix}")
+            .map_or_else(String::new, |extra| format!(", extra: {extra}"));
+        let detail = if self.options.resolved() {
+            if self.style == TextStyle::Rich {
+                format!("candidate: {installed}")
+            } else {
+                format!("candidate: {installed}{extra}")
+            }
+        } else {
+            let required = dependency
+                .version_spec()
+                .unwrap_or_else(|| "Any".to_string());
+            if self.style == TextStyle::Rich {
+                format!("required: {required} installed: {installed}")
+            } else {
+                format!("required: {required}, installed: {installed}{extra}")
+            }
+        };
+        let suffix = dependency.target.map_or_else(String::new, |target| {
+            node_suffix(self.graph, target, self.options, ", ")
+        });
+        if self.style == TextStyle::Rich {
+            let status = match (
+                dependency.installed_version(self.graph).is_none(),
+                dependency.is_conflicting(self.graph),
+                unique,
+            ) {
+                (true, _, _) => Status::Error,
+                (false, true, _) => Status::Warning,
+                (false, false, _) => Status::Success,
+            };
+            if self.color {
+                return rich_text::dependency(&DependencyLabel {
+                    status,
+                    unique,
+                    unicode: self.unicode,
+                    name,
+                    candidate: self.options.resolved().then_some(installed),
+                    required: dependency.version_spec().as_deref().unwrap_or("Any"),
+                    installed,
+                    extra: dependency.activated_by.as_deref(),
+                    suffix: &suffix,
+                });
+            }
+            let marker = status_marker(status, self.unicode);
+            let star = if unique {
+                format!(" {}", star_marker(self.unicode))
+            } else {
+                String::new()
+            };
+            let extra = dependency
+                .activated_by
+                .as_ref()
+                .map_or_else(String::new, |extra| format!(" [extra: {extra}]"));
+            format!("{marker}{star} {name} {detail}{extra}{suffix}")
+        } else {
+            format!("{name} [{detail}]{suffix}")
+        }
     }
 }
 
-fn tree_prefix(prefix: &str, style: TextStyle, last: bool, color: bool) -> String {
-    let value = format!("{prefix}{}", branch(style, last));
+fn tree_prefix(prefix: &str, style: TextStyle, last: bool, color: bool, unicode: bool) -> String {
+    let value = format!("{prefix}{}", branch(style, last, unicode));
     if style == TextStyle::Rich && color {
         rich_text::tree_prefix(&value)
     } else {
@@ -294,23 +286,41 @@ fn tree_prefix(prefix: &str, style: TextStyle, last: bool, color: bool) -> Strin
     }
 }
 
-const fn branch(style: TextStyle, last: bool) -> &'static str {
-    match (style, last) {
-        (TextStyle::Frozen, _) => "  ",
-        (TextStyle::Plain, _) => "  - ",
-        (TextStyle::Unicode, true) => "└── ",
-        (TextStyle::Unicode, false) => "├── ",
-        (TextStyle::Rich, true) => "┗━━ ",
-        (TextStyle::Rich, false) => "┣━━ ",
+pub(super) const fn status_marker(status: Status, unicode: bool) -> &'static str {
+    match (status, unicode) {
+        (Status::Success, true) => "✓",
+        (Status::Success, false) => "v",
+        (Status::Warning, true) => "⚠",
+        (Status::Warning, false) => "!",
+        (Status::Error, true) => "✗",
+        (Status::Error, false) => "x",
     }
 }
 
-const fn continuation(style: TextStyle, last: bool) -> &'static str {
-    match (style, last) {
-        (TextStyle::Frozen | TextStyle::Plain, _) => "  ",
-        (TextStyle::Unicode | TextStyle::Rich, true) => "    ",
-        (TextStyle::Unicode, false) => "│   ",
-        (TextStyle::Rich, false) => "┃   ",
+pub(super) const fn star_marker(unicode: bool) -> &'static str {
+    if unicode { "⭐" } else { "*" }
+}
+
+const fn branch(style: TextStyle, last: bool, unicode: bool) -> &'static str {
+    match (style, last, unicode) {
+        (TextStyle::Frozen, ..) => "  ",
+        (TextStyle::Plain, ..) => "  - ",
+        (TextStyle::Unicode, true, _) => "└── ",
+        (TextStyle::Unicode, false, _) => "├── ",
+        (TextStyle::Rich, true, true) => "┗━━ ",
+        (TextStyle::Rich, false, true) => "┣━━ ",
+        (TextStyle::Rich, true, false) => "`-- ",
+        (TextStyle::Rich, false, false) => "+-- ",
+    }
+}
+
+const fn continuation(style: TextStyle, last: bool, unicode: bool) -> &'static str {
+    match (style, last, unicode) {
+        (TextStyle::Frozen | TextStyle::Plain, ..) => "  ",
+        (TextStyle::Unicode | TextStyle::Rich, true, _) => "    ",
+        (TextStyle::Unicode, false, _) => "│   ",
+        (TextStyle::Rich, false, true) => "┃   ",
+        (TextStyle::Rich, false, false) => "|   ",
     }
 }
 

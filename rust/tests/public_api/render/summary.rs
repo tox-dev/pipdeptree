@@ -49,6 +49,20 @@ fn renders_summary_tables(#[case] args: &[&str], #[case] color: bool, #[case] ex
 }
 
 #[test]
+fn renders_summary_rich_ascii_for_non_unicode_encodings() {
+    let site = render_site();
+    let output = execute(
+        &site,
+        &["--summary", "--output", "rich", "--encoding", "ascii"],
+    );
+
+    assert_eq!(
+        (text(&output).is_ascii(), text(&output).contains("+--")),
+        (true, true)
+    );
+}
+
+#[test]
 fn renders_empty_summary() {
     let site = PackageSite::new();
     let output = execute(&site, &["--summary"]);

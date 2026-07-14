@@ -9,6 +9,7 @@ use crate::graph::Graph;
 use crate::options::Options;
 
 use super::shared::format_size;
+use super::text::is_unicode;
 
 pub(super) fn render(graph: &Graph, options: &Options, color: bool) -> String {
     let summary = Summary::new(graph, options.resolved());
@@ -17,7 +18,12 @@ pub(super) fn render(graph: &Graph, options: &Options, color: bool) -> String {
     }
     let rows = summary.rows();
     if options.output_format == "rich" {
-        return rich_table("environment summary", &rows, color);
+        return rich_table(
+            "environment summary",
+            &rows,
+            color,
+            is_unicode(&options.encoding),
+        );
     }
     let width = rows.iter().map(|(label, _)| label.len()).max().unwrap_or(0);
     rows.into_iter()
@@ -160,7 +166,7 @@ impl Summary {
     }
 }
 
-fn rich_table(title: &str, rows: &[(String, String)], color: bool) -> String {
+fn rich_table(title: &str, rows: &[(String, String)], color: bool, unicode: bool) -> String {
     let first = rows
         .iter()
         .map(|(label, _)| label.chars().count())
@@ -171,11 +177,23 @@ fn rich_table(title: &str, rows: &[(String, String)], color: bool) -> String {
         .map(|(_, value)| value.chars().count())
         .max()
         .unwrap_or(0);
+    let first_bar = if unicode { "━" } else { "-" }.repeat(first + 2);
+    let second_bar = if unicode { "━" } else { "-" }.repeat(second + 2);
+    let (top, vertical, bottom) = if unicode {
+        (
+            format!("┏{first_bar}┳{second_bar}┓"),
+            "┃",
+            format!("┗{first_bar}┻{second_bar}┛"),
+        )
+    } else {
+        (
+            format!("+{first_bar}+{second_bar}+"),
+            "|",
+            format!("+{first_bar}+{second_bar}+"),
+        )
+    };
     let width = first + second + 5;
-    let mut lines = vec![
-        format!("{:^width$}", title, width = width + 2),
-        format!("┏{}┳{}┓", "━".repeat(first + 2), "━".repeat(second + 2)),
-    ];
+    let mut lines = vec![format!("{:^width$}", title, width = width + 2), top];
     for (label, value) in rows {
         let label = if color {
             let style = Style::new().bold();
@@ -183,13 +201,11 @@ fn rich_table(title: &str, rows: &[(String, String)], color: bool) -> String {
         } else {
             format!("{label:<first$}")
         };
-        lines.push(format!("┃ {label} ┃ {value:<second$} ┃"));
+        lines.push(format!(
+            "{vertical} {label} {vertical} {value:<second$} {vertical}"
+        ));
     }
-    lines.push(format!(
-        "┗{}┻{}┛",
-        "━".repeat(first + 2),
-        "━".repeat(second + 2)
-    ));
+    lines.push(bottom);
     lines.join("\n")
 }
 

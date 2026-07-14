@@ -28,6 +28,35 @@ fn renders_text_modes(#[case] args: &[&str], #[case] expected: &str) {
 }
 
 #[test]
+fn renders_rich_ascii_for_non_unicode_encodings() {
+    let site = render_site();
+    let output = execute(
+        &site,
+        &[
+            "--output",
+            "rich",
+            "--encoding",
+            "ascii",
+            "--computed",
+            "unique-deps-count",
+        ],
+    );
+    let rendered = text(&output);
+
+    assert_eq!(
+        (
+            rendered.is_ascii(),
+            rendered.contains("+-- "),
+            rendered.contains("`-- "),
+            rendered.contains("! child"),
+            rendered.contains("x missing"),
+            rendered.contains("v * unique"),
+        ),
+        (true, true, true, true, true, true)
+    );
+}
+
+#[test]
 fn renders_freeze_forward_and_reverse() {
     let site = render_site();
 

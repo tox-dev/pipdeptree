@@ -4,7 +4,7 @@ use crate::graph::Graph;
 use crate::options::Options;
 use crate::process::ProcessRunner;
 
-use super::text::{TextStyle, render as render_text};
+use super::text::{TextStyle, render as render_text, star_marker, status_marker};
 
 pub(super) fn render(
     processes: &dyn ProcessRunner,
@@ -36,13 +36,16 @@ pub(super) fn reverse(name: &str, version: &str, required: &str, suffix: &str) -
 }
 
 pub(super) fn dependency(label: &DependencyLabel<'_>) -> String {
-    let marker = match label.status {
-        Status::Success => paint("✓", AnsiColor::Green),
-        Status::Warning => paint("⚠", AnsiColor::Yellow),
-        Status::Error => paint("✗", AnsiColor::Red),
-    };
+    let marker = paint(
+        status_marker(label.status, label.unicode),
+        match label.status {
+            Status::Success => AnsiColor::Green,
+            Status::Warning => AnsiColor::Yellow,
+            Status::Error => AnsiColor::Red,
+        },
+    );
     let star = if label.unique {
-        format!(" {}", paint("⭐", AnsiColor::Magenta))
+        format!(" {}", paint(star_marker(label.unicode), AnsiColor::Magenta))
     } else {
         String::new()
     };
@@ -129,6 +132,7 @@ pub(super) enum Status {
 pub(super) struct DependencyLabel<'a> {
     pub(super) status: Status,
     pub(super) unique: bool,
+    pub(super) unicode: bool,
     pub(super) name: &'a str,
     pub(super) candidate: Option<&'a str>,
     pub(super) required: &'a str,

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     [
         pytest.param(["--encoding", "ascii"], "root==1", id="text"),
         pytest.param(["--output", "rich"], "root==1", id="rich"),
+        pytest.param(["--output", "rich", "--encoding", "ascii"], "`-- ", id="rich-ascii"),
         pytest.param(["--json"], '"package_name": "root"', id="json"),
         pytest.param(["--json-tree"], '"dependencies"', id="json-tree"),
         pytest.param(["--mermaid"], "flowchart TD", id="mermaid"),
