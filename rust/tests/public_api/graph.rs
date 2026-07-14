@@ -51,6 +51,39 @@ fn selects_extras(complex_site: PackageSite, #[case] args: &[&str], #[case] expe
 }
 
 #[test]
+fn reports_cycle_chains() {
+    let site = PackageSite::new();
+    site.write(
+        "aa-1.dist-info",
+        "Name: aa\nVersion: 1\nRequires-Dist: bb\n",
+    );
+    site.write(
+        "bb-1.dist-info",
+        "Name: bb\nVersion: 1\nRequires-Dist: cc\nRequires-Dist: dd\n",
+    );
+    site.write(
+        "cc-1.dist-info",
+        "Name: cc\nVersion: 1\nRequires-Dist: bb\n",
+    );
+    site.write(
+        "dd-1.dist-info",
+        "Name: dd\nVersion: 1\nRequires-Dist: aa\n",
+    );
+
+    let output = execute(&["--path", site.path().to_str().unwrap()]);
+
+    assert_eq!(
+        (
+            output.code,
+            output
+                .stderr
+                .contains("Cyclic dependencies found:\n  aa => bb => dd => aa"),
+        ),
+        (0, true)
+    );
+}
+
+#[test]
 fn keeps_duplicate_requirement_edges() {
     let site = PackageSite::new();
     site.write(

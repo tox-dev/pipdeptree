@@ -224,8 +224,9 @@ impl Graph {
             .filter(|dependency| dependency.target.is_none())
             .map(|dependency| dependency.key().to_string())
             .collect::<BTreeSet<_>>();
+        let version_of = metadata.getattr("version")?;
         for name in names {
-            let version = match metadata.getattr("version")?.call1((&name,)) {
+            let version = match version_of.call1((&name,)) {
                 Ok(value) => Some(value.extract()?),
                 Err(error) if error.is_instance(py, &package_not_found) => {
                     module_version(py, &name)?
@@ -511,6 +512,10 @@ impl Graph {
     }
 
     pub fn cycle_count(&self) -> usize {
+        self.cycles().iter().map(Vec::len).sum()
+    }
+
+    fn cycles(&self) -> Vec<Vec<usize>> {
         let mut outgoing = vec![Vec::new(); self.nodes.len()];
         let mut incoming = vec![Vec::new(); self.nodes.len()];
         for parent in self.visible_indices() {
@@ -548,7 +553,7 @@ impl Graph {
         }
 
         visited.fill(false);
-        let mut count = 0;
+        let mut result = Vec::new();
         while let Some(start) = order.pop() {
             if visited[start] {
                 continue;
@@ -566,10 +571,54 @@ impl Graph {
                 }
             }
             if component.len() > 1 || outgoing[start].contains(&start) {
-                count += component.len();
+                result.push(component);
             }
         }
-        count
+        result
+    }
+
+    fn cycle_chain(&self, component: &[usize]) -> String {
+        let members = component.iter().copied().collect::<HashSet<_>>();
+        let start = component
+            .iter()
+            .copied()
+            .min_by_key(|index| &self.nodes[*index].package.key)
+            .expect("cycle components are never empty");
+        let mut path = vec![start];
+        let mut visited = HashSet::from([start]);
+        self.extend_cycle(start, start, &members, &mut visited, &mut path);
+        path.push(start);
+        path.iter()
+            .map(|index| self.nodes[*index].package.key.as_str())
+            .collect::<Vec<_>>()
+            .join(" => ")
+    }
+
+    fn extend_cycle(
+        &self,
+        current: usize,
+        start: usize,
+        members: &HashSet<usize>,
+        visited: &mut HashSet<usize>,
+        path: &mut Vec<usize>,
+    ) -> bool {
+        for child in self
+            .expanded_children(current)
+            .filter_map(|dependency| dependency.target)
+            .filter(|child| members.contains(child))
+        {
+            if child == start {
+                return true;
+            }
+            if visited.insert(child) {
+                path.push(child);
+                if self.extend_cycle(child, start, members, visited, path) {
+                    return true;
+                }
+                path.pop();
+            }
+        }
+        false
     }
 
     fn matching(&self, pattern: &str) -> Vec<usize> {
@@ -764,8 +813,16 @@ impl Graph {
                 ));
             }
         }
-        if self.cycle_count() != 0 {
-            self.warnings.push("Cyclic dependencies found".to_string());
+        let cycles = self.cycles();
+        if !cycles.is_empty() {
+            let chains = cycles
+                .iter()
+                .map(|component| self.cycle_chain(component))
+                .collect::<Vec<_>>();
+            self.warnings.push(format!(
+                "Cyclic dependencies found:\n  {}",
+                chains.join("\n  ")
+            ));
         }
     }
 }
