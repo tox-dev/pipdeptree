@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use crate::process::ProcessRunner;
 
@@ -20,38 +22,28 @@ pub(super) fn root(processes: &dyn ProcessRunner, location: &Path) -> Option<Pat
     .map(PathBuf::from)
 }
 
+// Every editable in a monorepo shares the repository's remote and HEAD; resolve them once
+// per root instead of spawning identical git processes per package.
+type RootInfo = Result<(String, String), VcsError>;
+
+static ROOT_INFO: Mutex<Option<HashMap<PathBuf, RootInfo>>> = Mutex::new(None);
+
 pub(super) fn requirement(
     processes: &dyn ProcessRunner,
     location: &Path,
     package: &str,
     root: &Path,
 ) -> VcsResult {
-    let remote = match remote(processes, root) {
-        Ok(Some(remote)) => remote,
-        Ok(None) | Err(CommandError::Failed) => {
-            return VcsResult::error(Some("git"), VcsError::NoRemote);
-        }
-        Err(CommandError::NotFound) => {
-            return VcsResult::error(Some("git"), VcsError::CommandNotFound);
-        }
-    };
-    let commit = match command(
-        processes,
-        "git",
-        &["rev-parse", "HEAD"],
-        root,
-        ExitStatusPolicy::RequireSuccess,
-    ) {
-        Ok(commit) if !commit.is_empty() => commit,
-        Ok(_) | Err(CommandError::Failed) => {
-            return VcsResult::error(Some("git"), VcsError::NoRemote);
-        }
-        Err(CommandError::NotFound) => {
-            return VcsResult::error(Some("git"), VcsError::CommandNotFound);
-        }
-    };
-    let Some(remote) = normalize_remote(&remote, root) else {
-        return VcsResult::error(Some("git"), VcsError::InvalidRemote);
+    let info = ROOT_INFO
+        .lock()
+        .expect("git root cache lock")
+        .get_or_insert_default()
+        .entry(root.to_path_buf())
+        .or_insert_with(|| root_info(processes, root))
+        .clone();
+    let (remote, commit) = match info {
+        Ok(info) => info,
+        Err(error) => return VcsResult::error(Some("git"), error),
     };
     build_requirement(VcsRequirement {
         vcs: "git",
@@ -63,6 +55,28 @@ pub(super) fn requirement(
         always_prefix: true,
         include_subdirectory: true,
     })
+}
+
+fn root_info(processes: &dyn ProcessRunner, root: &Path) -> RootInfo {
+    let remote = match remote(processes, root) {
+        Ok(Some(remote)) => remote,
+        Ok(None) | Err(CommandError::Failed) => return Err(VcsError::NoRemote),
+        Err(CommandError::NotFound) => return Err(VcsError::CommandNotFound),
+    };
+    let commit = match command(
+        processes,
+        "git",
+        &["rev-parse", "HEAD"],
+        root,
+        ExitStatusPolicy::RequireSuccess,
+    ) {
+        Ok(commit) if !commit.is_empty() => commit,
+        Ok(_) | Err(CommandError::Failed) => return Err(VcsError::NoRemote),
+        Err(CommandError::NotFound) => return Err(VcsError::CommandNotFound),
+    };
+    normalize_remote(&remote, root)
+        .map(|remote| (remote, commit))
+        .ok_or(VcsError::InvalidRemote)
 }
 
 fn remote(processes: &dyn ProcessRunner, root: &Path) -> Result<Option<String>, CommandError> {

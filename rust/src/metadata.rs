@@ -30,6 +30,7 @@ pub struct Package {
     legacy_editable: Option<PathBuf>,
     size: OnceLock<u64>,
     frozen: OnceLock<String>,
+    license: OnceLock<String>,
 }
 
 #[derive(Debug)]
@@ -60,6 +61,7 @@ impl Package {
             legacy_editable: None,
             size: OnceLock::from(0),
             frozen: OnceLock::new(),
+            license: OnceLock::new(),
         }
     }
 
@@ -78,6 +80,10 @@ impl Package {
     }
 
     pub fn license(&self) -> String {
+        self.license.get_or_init(|| self.compute_license()).clone()
+    }
+
+    fn compute_license(&self) -> String {
         if let Some(value) = self
             .metadata
             .first("license-expression")
@@ -210,6 +216,7 @@ impl Package {
             legacy_editable: None,
             size: OnceLock::new(),
             frozen: OnceLock::new(),
+            license: OnceLock::new(),
         }))
     }
 
