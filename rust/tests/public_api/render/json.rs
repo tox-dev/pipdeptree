@@ -116,6 +116,51 @@ fn orders_json_tree_keys_by_insertion() {
 }
 
 #[test]
+fn lists_missing_packages_in_flat_reverse_json() {
+    let site = render_site();
+    let output = execute(&site, &["--json", "--reverse"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let entry = value
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["package"]["key"] == "missing")
+        .expect("missing package appears in reverse flat json");
+
+    assert_eq!(
+        (
+            &entry["package"]["installed_version"],
+            &entry["dependencies"][0]["package_name"],
+        ),
+        (&json!("?"), &json!("root"))
+    );
+}
+
+#[test]
+fn lists_missing_dependencies_in_forward_json_tree() {
+    let site = render_site();
+    let output = execute(&site, &["--json-tree"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let root = value
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["key"] == "root")
+        .unwrap();
+    let missing = root["dependencies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["key"] == "missing")
+        .expect("missing dependency appears under its dependent");
+
+    assert_eq!(
+        (&missing["installed_version"], &missing["dependencies"]),
+        (&json!("?"), &json!([]))
+    );
+}
+
+#[test]
 fn reverses_flat_json_dependencies() {
     let site = render_site();
     let output = execute(&site, &["--json", "--reverse"]);
@@ -185,6 +230,35 @@ fn stops_reverse_json_tree_cycles() {
             &value[0]["dependencies"][0]["dependencies"][0],
         ),
         (0, &json!("first"), &json!("second"), &Value::Null)
+    );
+}
+
+#[test]
+fn lists_missing_candidates_in_resolved_json() {
+    let (_directory, lock) = lock_file(concat!(
+        "lock-version = '1.0'\n",
+        "[[packages]]\nname = 'root'\nversion = '1'\n",
+        "dependencies = [{ name = 'ghost' }]\n",
+    ));
+
+    let forward = super::super::common::execute(&["--json-tree", "from-lock", path(&lock)]);
+    let reverse = super::super::common::execute(&["--json", "--reverse", "from-lock", path(&lock)]);
+    let forward_value: Value = serde_json::from_slice(&forward.stdout).unwrap();
+    let reverse_value: Value = serde_json::from_slice(&reverse.stdout).unwrap();
+    let entry = reverse_value
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["package"]["key"] == "ghost")
+        .expect("unresolved candidate appears in reverse flat json");
+
+    assert_eq!(
+        (
+            &forward_value[0]["dependencies"][0]["candidate_version"],
+            &entry["package"]["candidate_version"],
+            &entry["dependencies"][0]["package_name"],
+        ),
+        (&json!("?"), &json!("?"), &json!("root"))
     );
 }
 

@@ -17,6 +17,7 @@ mod vcs;
 
 use direct_url::{DirectInfo, DirectUrl};
 use editable::{EggLinks, file_url_to_path};
+pub use vcs::clear_root_cache;
 
 #[derive(Debug)]
 pub struct Package {
@@ -67,7 +68,14 @@ impl Package {
 
     pub fn metadata(&self, field: &str) -> Vec<String> {
         if field.eq_ignore_ascii_case("license") {
-            let value = self.license().trim_matches(['(', ')']).to_string();
+            // license() wraps its value in one pair of parentheses; a value of its own (such as
+            // "GPL v3 (GPLv3+)") keeps the parentheses it carries.
+            let license = self.license();
+            let value = license
+                .strip_prefix('(')
+                .and_then(|value| value.strip_suffix(')'))
+                .unwrap_or(&license)
+                .to_string();
             return vec![if value.to_ascii_lowercase().contains("license") {
                 value
             } else {

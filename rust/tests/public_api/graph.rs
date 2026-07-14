@@ -51,6 +51,69 @@ fn selects_extras(complex_site: PackageSite, #[case] args: &[&str], #[case] expe
 }
 
 #[test]
+fn selects_missing_requirements_in_reverse_filters() {
+    let site = PackageSite::new();
+    site.write(
+        "holder-1.dist-info",
+        "Name: holder\nVersion: 1\nRequires-Dist: ghost\n",
+    );
+    site.write("other-1.dist-info", "Name: other\nVersion: 1\n");
+
+    let output = execute_in(&site, &["--reverse", "--packages", "ghost"]);
+
+    assert_eq!(
+        (
+            output.code,
+            stdout(&output).contains("ghost==?"),
+            stdout(&output).contains("holder==1"),
+            stdout(&output).contains("other"),
+        ),
+        (0, true, true, false)
+    );
+}
+
+#[test]
+fn rejects_unbalanced_package_extras() {
+    let site = PackageSite::new();
+    site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+
+    let output = execute(&[
+        "--path",
+        site.path().to_str().unwrap(),
+        "--packages",
+        "demo[socks",
+    ]);
+
+    assert_eq!(
+        (
+            output.code,
+            output.stdout.is_empty(),
+            output.stderr.contains("No packages matched")
+        ),
+        (0, true, true)
+    );
+}
+
+#[test]
+fn names_the_distribution_with_an_invalid_requirement() {
+    let site = PackageSite::new();
+    site.write(
+        "broken-1.dist-info",
+        "Name: broken\nVersion: 1\nRequires-Dist: not a requirement !!!\n",
+    );
+
+    let output = execute(&["--path", site.path().to_str().unwrap()]);
+
+    assert!(
+        output
+            .stderr
+            .contains("Invalid requirement found in broken: not a requirement !!!"),
+        "unexpected warning: {}",
+        output.stderr
+    );
+}
+
+#[test]
 fn keeps_shared_dependencies_of_excluded_packages() {
     let site = PackageSite::new();
     site.write(
@@ -220,7 +283,7 @@ fn normalizes_extra_separators() {
 )]
 #[case::reverse(
     &["--packages", "child", "--reverse", "--json"],
-    &["child", "root", "top"]
+    &["child", "root", "top", "missing"]
 )]
 #[case::reverse_exclude(
     &["--exclude", "root", "--exclude-dependencies", "--reverse", "--json"],

@@ -6,7 +6,7 @@ use crate::options::Options;
 use crate::process::{ProcessRequest, ProcessRunner};
 
 use super::shared::edge_label;
-use super::text::node_suffix;
+use super::text::node_suffix_parts;
 
 pub(super) fn render(graph: &Graph, options: &Options) -> String {
     let reachable = reachable_with_depth(graph, options);
@@ -20,13 +20,16 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
         }
         let package = &graph.nodes[index].package;
         let package_id = dot_id(&package.key);
-        let suffix = node_suffix(graph, index, options, "\\n");
+        let mut label = vec![package.name.clone(), package.version.clone()];
+        label.extend(node_suffix_parts(graph, index, options));
         body.push(format!(
-            "\t{} [label=\"{}\\n{}{}\"]\n",
+            "\t{} [label=\"{}\"]\n",
             package_id,
-            dot_label_component(&package.name),
-            dot_label_component(&package.version),
-            dot_label_component(suffix.replace(" (", "\\n").trim_end_matches(')'))
+            label
+                .iter()
+                .map(|part| dot_label_component(part))
+                .collect::<Vec<_>>()
+                .join("\\n")
         ));
         if options.depth.is_some_and(|limit| {
             reachable
@@ -76,6 +79,22 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
                         dot_id(dependency.key())
                     ));
                 }
+            }
+        }
+    }
+    if options.reverse {
+        for (name, dependents) in graph.missing_dependents() {
+            body.push(format!(
+                "\t{} [label=\"{}\\n(missing)\" style=dashed]\n",
+                dot_id(name),
+                dot_label_component(name)
+            ));
+            for (parent, _) in dependents {
+                body.push(format!(
+                    "\t{} -> {} [style=dashed]\n",
+                    dot_id(name),
+                    dot_id(&graph.nodes[parent].package.key)
+                ));
             }
         }
     }

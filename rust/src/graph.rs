@@ -181,7 +181,10 @@ impl Graph {
         let provides_extras = std::mem::take(&mut package.provides_extras);
         for raw in requires {
             let Ok(requirement) = Requirement::<VerbatimUrl>::from_str(&raw) else {
-                warnings.push(format!("Invalid requirement found: {raw}"));
+                warnings.push(format!(
+                    "Invalid requirement found in {}: {raw}",
+                    package.name
+                ));
                 continue;
             };
             let dependency = Dependency {
@@ -332,11 +335,21 @@ impl Graph {
         {
             return Err(FilterError::Overlap);
         }
+        // Reverse mode renders uninstalled requirements as roots, so a pattern may legitimately
+        // name one; its dependents carry the subtree.
+        let missing_names = if options.reverse {
+            self.missing_dependents()
+        } else {
+            BTreeMap::new()
+        };
         let mut include_matches = HashSet::new();
         let unmatched = include
             .iter()
             .filter_map(|pattern| {
-                let matched = self.matching(pattern);
+                let mut matched = self.matching(pattern);
+                if let Some(parents) = matching_missing(&missing_names, pattern) {
+                    matched.extend(parents);
+                }
                 if matched.is_empty() {
                     Some(pattern.clone())
                 } else {
@@ -441,7 +454,9 @@ impl Graph {
         extras.contains(&canonicalize_name(extra))
     }
 
-    pub fn reverse_roots(&self, list_all: bool) -> Vec<ReverseRoot<'_>> {
+    // Uninstalled requirements have no node, yet every renderer must still show them and the
+    // packages that need them.
+    pub fn missing_dependents(&self) -> BTreeMap<&str, Vec<(usize, &Dependency)>> {
         let mut missing = BTreeMap::<&str, Vec<(usize, &Dependency)>>::new();
         for parent in self.visible_indices() {
             for dependency in self.expanded_children(parent) {
@@ -461,6 +476,11 @@ impl Graph {
                     .cmp(&self.nodes[*right].package.key)
             });
         }
+        missing
+    }
+
+    pub fn reverse_roots(&self, list_all: bool) -> Vec<ReverseRoot<'_>> {
+        let missing = self.missing_dependents();
         // A package shown beneath a missing root is a branch, not a root of its own.
         let missing_parents = missing
             .values()
@@ -967,6 +987,12 @@ fn parse_packages(value: Option<&str>) -> (Vec<String>, HashMap<String, BTreeSet
     let Some(value) = value else {
         return (Vec::new(), HashMap::new());
     };
+    // An unbalanced '[' would swallow the terminating sentinel and silently drop every pattern.
+    let value = if value.matches('[').count() == value.matches(']').count() {
+        value
+    } else {
+        return (vec![value.trim().to_string()], HashMap::new());
+    };
     let mut names = Vec::new();
     let mut extras = HashMap::<String, BTreeSet<String>>::new();
     let mut depth: usize = 0;
@@ -1033,6 +1059,19 @@ fn module_version(py: Python<'_>, name: &str) -> PyResult<Option<String>> {
         Err(error) if error.is_instance_of::<PyAttributeError>(py) => Ok(None),
         Err(error) => Err(error),
     }
+}
+
+fn matching_missing(
+    missing: &BTreeMap<&str, Vec<(usize, &Dependency)>>,
+    pattern: &str,
+) -> Option<Vec<usize>> {
+    let pattern = Pattern::new(&canonicalize_pattern(pattern)).ok()?;
+    let matched = missing
+        .iter()
+        .filter(|(name, _)| pattern.matches(&canonicalize_name(name)))
+        .flat_map(|(_, parents)| parents.iter().map(|(parent, _)| *parent))
+        .collect::<Vec<_>>();
+    (!matched.is_empty()).then_some(matched)
 }
 
 fn canonicalize_pattern(pattern: &str) -> String {

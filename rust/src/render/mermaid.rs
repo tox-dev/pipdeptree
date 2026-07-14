@@ -4,7 +4,7 @@ use crate::graph::Graph;
 use crate::options::Options;
 
 use super::shared::edge_label;
-use super::text::node_suffix;
+use super::text::node_suffix_parts;
 
 const RESERVED_IDS: [&str; 20] = [
     "C4Component",
@@ -36,13 +36,9 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
     for index in graph.visible_indices() {
         let package = &graph.nodes[index].package;
         let id = mermaid_id(&package.key, &mut ids);
-        let suffix = node_suffix(graph, index, options, "<br/>");
-        nodes.push(format!(
-            "{id}[\"{}<br/>{}{}\"]",
-            package.name,
-            package.version,
-            suffix.replace(" (", "<br/>").trim_end_matches(')')
-        ));
+        let mut label = vec![package.name.clone(), package.version.clone()];
+        label.extend(node_suffix_parts(graph, index, options));
+        nodes.push(format!("{id}[\"{}\"]", label.join("<br/>")));
         if options.reverse {
             for (parent, dependency) in graph.parents(index) {
                 let parent_id = mermaid_id(&graph.nodes[parent].package.key, &mut ids);
@@ -66,6 +62,16 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
                         edge_label(dependency)
                     ));
                 }
+            }
+        }
+    }
+    if options.reverse {
+        for (name, dependents) in graph.missing_dependents() {
+            let id = mermaid_id(name, &mut ids);
+            nodes.push(format!("{id}[\"{name}<br/>(missing)\"]:::missing"));
+            for (parent, _) in dependents {
+                let parent_id = mermaid_id(&graph.nodes[parent].package.key, &mut ids);
+                edges.push(format!("{id} -.-> {parent_id}"));
             }
         }
     }

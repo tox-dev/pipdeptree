@@ -143,3 +143,45 @@ fn pipes_graphviz_formats(
         (code, expected_stdout, expected_stderr)
     );
 }
+
+#[test]
+fn lists_missing_packages_in_reverse_graphs() {
+    let site = render_site();
+
+    let mermaid = execute(&site, &["--mermaid", "--reverse"]);
+    let dot = execute(&site, &["--graph-output", "dot", "--reverse"]);
+
+    assert_eq!(
+        (
+            text(&mermaid).contains("missing<br/>(missing)"),
+            text(&mermaid).contains("missing -.-> root"),
+            text(&dot).contains("(missing)"),
+            text(&dot).contains("missing -> root [style=dashed]"),
+        ),
+        (true, true, true, true)
+    );
+}
+
+#[test]
+fn keeps_parentheses_in_graph_labels() {
+    let site = super::PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        concat!(
+            "Name: demo\n",
+            "Version: 1\n",
+            "Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3+)\n",
+        ),
+    );
+
+    let mermaid = execute(&site, &["--mermaid", "--metadata", "license"]);
+    let dot = execute(&site, &["--graph-output", "dot", "--metadata", "license"]);
+
+    assert_eq!(
+        (
+            text(&mermaid).contains("GNU General Public License v3 (GPLv3+)\""),
+            text(&dot).contains("GNU General Public License v3 (GPLv3+)\""),
+        ),
+        (true, true)
+    );
+}

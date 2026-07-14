@@ -27,7 +27,13 @@ impl Serialize for JsonGraph<'_> {
     where
         S: Serializer,
     {
-        let mut sequence = serializer.serialize_seq(Some(self.graph.visible_indices().count()))?;
+        let missing = if self.options.reverse {
+            self.graph.missing_dependents()
+        } else {
+            std::collections::BTreeMap::new()
+        };
+        let mut sequence =
+            serializer.serialize_seq(Some(self.graph.visible_indices().count() + missing.len()))?;
         for index in self.graph.visible_indices() {
             sequence.serialize_element(&JsonEntry {
                 graph: self.graph,
@@ -35,7 +41,73 @@ impl Serialize for JsonGraph<'_> {
                 index,
             })?;
         }
+        for (name, dependents) in missing {
+            sequence.serialize_element(&JsonMissingEntry {
+                graph: self.graph,
+                options: self.options,
+                name,
+                dependents,
+            })?;
+        }
         sequence.end()
+    }
+}
+
+struct JsonMissingEntry<'a> {
+    graph: &'a Graph,
+    options: &'a Options,
+    name: &'a str,
+    dependents: Vec<(usize, &'a crate::graph::Dependency)>,
+}
+
+impl Serialize for JsonMissingEntry<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let package = MissingPackage {
+            graph: self.graph,
+            options: self.options,
+            name: self.name,
+        };
+        let mut object = serializer.serialize_map(Some(2))?;
+        object.serialize_entry("package", &package)?;
+        let dependents = self
+            .dependents
+            .iter()
+            .map(|(parent, dependency)| JsonDependent {
+                graph: self.graph,
+                options: self.options,
+                parent: *parent,
+                dependency,
+            })
+            .collect::<Vec<_>>();
+        object.serialize_entry("dependencies", &dependents)?;
+        object.end()
+    }
+}
+
+struct MissingPackage<'a> {
+    graph: &'a Graph,
+    options: &'a Options,
+    name: &'a str,
+}
+
+impl Serialize for MissingPackage<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut object = serializer.serialize_map(Some(3))?;
+        let version_key = if self.options.resolved() {
+            "candidate_version"
+        } else {
+            "installed_version"
+        };
+        object.serialize_entry("key", self.name)?;
+        object.serialize_entry("package_name", self.name)?;
+        object.serialize_entry(version_key, self.graph.missing_version(self.name))?;
+        object.end()
     }
 }
 

@@ -367,6 +367,15 @@ pub(super) fn node_suffix(
     options: &Options,
     separator: &str,
 ) -> String {
+    let parts = node_suffix_parts(graph, index, options);
+    if parts.is_empty() {
+        String::new()
+    } else {
+        format!(" ({})", parts.join(separator))
+    }
+}
+
+pub(super) fn node_suffix_parts(graph: &Graph, index: usize, options: &Options) -> Vec<String> {
     let mut parts = options
         .metadata
         .iter()
@@ -414,11 +423,7 @@ pub(super) fn node_suffix(
             }
         }
     }
-    if parts.is_empty() {
-        String::new()
-    } else {
-        format!(" ({})", parts.join(separator))
-    }
+    parts
 }
 
 pub(super) fn is_unicode(encoding: &str) -> bool {

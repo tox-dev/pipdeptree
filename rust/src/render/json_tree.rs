@@ -69,9 +69,11 @@ fn forward_tree_json(
         graph.children(index, extras)
     };
     let mut dependencies = Vec::new();
-    for (dependency, target) in
-        children.filter_map(|dependency| dependency.target.map(|target| (dependency, target)))
-    {
+    for dependency in children {
+        let Some(target) = dependency.target else {
+            dependencies.push(missing_dependency_json(graph, dependency, options));
+            continue;
+        };
         if !path.contains(&target) {
             dependencies.push(forward_tree_json(
                 graph,
@@ -129,6 +131,35 @@ fn reverse_tree_json(
     value["dependencies"] = Value::Array(dependencies);
     path.remove(&index);
     value
+}
+
+fn missing_dependency_json(graph: &Graph, dependency: &Dependency, options: &Options) -> Value {
+    let name = dependency.key();
+    let mut object = Map::from_iter([
+        ("key".to_string(), Value::String(name.to_string())),
+        ("package_name".to_string(), Value::String(name.to_string())),
+        (
+            if options.resolved() {
+                "candidate_version"
+            } else {
+                "installed_version"
+            }
+            .to_string(),
+            Value::String(graph.missing_version(name).to_string()),
+        ),
+    ]);
+    if !options.resolved() {
+        object.insert(
+            "required_version".to_string(),
+            Value::String(
+                dependency
+                    .version_spec()
+                    .unwrap_or_else(|| "Any".to_string()),
+            ),
+        );
+    }
+    object.insert("dependencies".to_string(), Value::Array(Vec::new()));
+    Value::Object(object)
 }
 
 fn missing_reverse_json(
