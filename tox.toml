@@ -79,12 +79,6 @@ commands = [
   ],
 ]
 
-[env.docs-update]
-description = "refresh the documented CLI outputs in place"
-package = "wheel"
-dependency_groups = [ "test" ]
-commands = [ [ "python", "-m", "pytest", "tests{/}test_docs.py", "--update-docs", "-p", "no:cacheprovider", "-qq" ] ]
-
 [env.fix]
 description = "format the code base and report remaining style violations"
 skip_install = true
@@ -111,6 +105,12 @@ description = "generate a DEV environment"
 package = "editable"
 dependency_groups = [ "test" ]
 commands = [ [ "uv", "pip", "tree" ], [ "python", "-c", "import sys; print(sys.executable)" ] ]
+
+[env.docs-update]
+description = "refresh the documented CLI outputs in place"
+package = "wheel"
+dependency_groups = [ "test" ]
+commands = [ [ "python", "-m", "pytest", "tests{/}test_docs.py", "--update-docs", "-p", "no:cacheprovider", "-qq" ] ]
 
 [env."pypy-3.11"]
 skip_install = true
