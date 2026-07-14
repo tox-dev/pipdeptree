@@ -13,6 +13,7 @@ from math import inf
 from typing import TYPE_CHECKING, Final
 
 from pipdeptree._rust import render as _render
+from pipdeptree._rust import render_with_mermaid as _render_with_mermaid
 
 from .version import __version__
 
@@ -87,12 +88,15 @@ def render(  # noqa: PLR0913  # The public keyword API predates the Rust impleme
             warn=warn,
         )
     )
-    text = _render(args)
     if summary:
+        text = _render(args)
         return _SummaryResult(text, html=_summary_html(text)) if output_format == "text" else text
     if output_format != "text":
-        return text
-    return _RenderResult(text, args=args)
+        return _render(args)
+    # One engine run yields both representations; a notebook's mermaid display would otherwise
+    # rediscover the whole environment through a second call.
+    text, mermaid = _render_with_mermaid(args)
+    return _RenderResult(text, mermaid=mermaid)
 
 
 def _render_args(options: _RenderOptions) -> list[str]:
@@ -160,15 +164,13 @@ class _RenderOptions:
 
 
 class _RenderResult(str):  # noqa: FURB189  # Notebook results must retain concrete str behavior.
-    __slots__ = ("_args", "_mermaid")
+    __slots__ = ("_mermaid",)
 
-    _args: tuple[str, ...]
-    _mermaid: str | None
+    _mermaid: str
 
-    def __new__(cls, text: str, *, args: list[str]) -> Self:
+    def __new__(cls, text: str, *, mermaid: str) -> Self:
         self = super().__new__(cls, text)
-        self._args = tuple(args)
-        self._mermaid = None
+        self._mermaid = mermaid
         return self
 
     def _repr_mimebundle_(
@@ -176,12 +178,11 @@ class _RenderResult(str):  # noqa: FURB189  # Notebook results must retain concr
         include: Container[str] | None = None,
         exclude: Container[str] | None = None,
     ) -> dict[str, str]:
-        bundle = {"text/html": f"<pre>{escape(str(self))}</pre>", "text/plain": str(self)}
-        mermaid_type = "text/vnd.mermaid"
-        if (include is None or mermaid_type in include) and (exclude is None or mermaid_type not in exclude):
-            if self._mermaid is None:
-                self._mermaid = _render([*self._args, "--mermaid"])
-            bundle[mermaid_type] = self._mermaid
+        bundle = {
+            "text/html": f"<pre>{escape(str(self))}</pre>",
+            "text/plain": str(self),
+            "text/vnd.mermaid": self._mermaid,
+        }
         return _filter_bundle(bundle, include, exclude)
 
 
@@ -213,4 +214,7 @@ def _filter_bundle(
     return bundle if exclude is None else {key: value for key, value in bundle.items() if key not in exclude}
 
 
-__all__ = ["__version__", "render"]
+__all__ = [
+    "__version__",
+    "render",
+]

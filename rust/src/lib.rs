@@ -32,6 +32,7 @@ pub struct Execution {
     pub stdout: Vec<u8>,
     pub stderr: String,
     pub graphviz_format: Option<String>,
+    pub mermaid: Option<Vec<u8>>,
 }
 
 pub struct Application<'a> {
@@ -59,6 +60,7 @@ impl<'a> Application<'a> {
             color,
             log_resolved,
             Interface::Cli,
+            false,
         )
     }
 }
@@ -100,6 +102,7 @@ fn render_py(py: Python<'_>, args: &Bound<'_, PyList>) -> PyResult<String> {
         false,
         false,
         Interface::Python,
+        false,
     );
     // warn=fail sets a nonzero code while still rendering; the API contract raises only when
     // nothing could be rendered (invalid options, discovery failures).
@@ -111,6 +114,30 @@ fn render_py(py: Python<'_>, args: &Bound<'_, PyList>) -> PyResult<String> {
             "binary graphviz output cannot be returned as a string; use the dot format",
         )
     })
+}
+
+#[pyfunction(name = "render_with_mermaid", signature = (args))]
+fn render_with_mermaid_py(py: Python<'_>, args: &Bound<'_, PyList>) -> PyResult<(String, String)> {
+    let args: Vec<String> = args.extract()?;
+    let output = execute(
+        &SystemProcessRunner,
+        py,
+        &args,
+        false,
+        false,
+        Interface::Python,
+        true,
+    );
+    if output.code != 0 && output.stdout.is_empty() {
+        return Err(PyValueError::new_err(output.stderr.trim().to_string()));
+    }
+    Ok((
+        String::from_utf8(output.stdout).expect("text output is UTF-8"),
+        output
+            .mermaid
+            .map(|mermaid| String::from_utf8(mermaid).expect("mermaid output is UTF-8"))
+            .unwrap_or_default(),
+    ))
 }
 
 #[must_use]
@@ -125,6 +152,7 @@ fn execute(
     color: bool,
     log_resolved: bool,
     interface: Interface,
+    with_mermaid: bool,
 ) -> Execution {
     let mut options = match Options::parse_args(args, color) {
         Ok(options) => options,
@@ -136,6 +164,7 @@ fn execute(
             stdout: format!("{}\n", env!("PIPDEPTREE_VERSION")).into_bytes(),
             stderr: String::new(),
             graphviz_format: None,
+            mermaid: None,
         };
     }
     if let Err(error) = options.validate(color) {
@@ -171,6 +200,21 @@ fn execute(
     };
     let mut graph = Graph::new(packages, &runtime.marker, options.extras);
     graph.apply_global_extras(&options);
+    // Warnings cover the whole environment, so filters wait for them; with warnings silenced,
+    // filtering first keeps version resolution (and its module-import fallback) away from
+    // packages that never render.
+    if warning_mode == WarningMode::Silence {
+        if let Err(error) = graph.apply_filters(&options) {
+            return filter_failure(
+                &error,
+                interface,
+                warning_mode,
+                stderr,
+                warned,
+                graphviz_format,
+            );
+        }
+    }
     if let Err(error) = graph.resolve_missing_versions(py) {
         return failure(1, format!("{stderr}{error}\n"));
     }
@@ -185,41 +229,68 @@ fn execute(
             stderr.push('\n');
             warned = true;
         }
-    }
-    if let Err(error) = graph.apply_filters(&options) {
-        let message = error.to_string();
-        return match error {
-            FilterError::Unmatched(_) if interface == Interface::Python => Execution {
-                code: 0,
-                stdout: Vec::new(),
-                stderr: String::new(),
+        if let Err(error) = graph.apply_filters(&options) {
+            return filter_failure(
+                &error,
+                interface,
+                warning_mode,
+                stderr,
+                warned,
                 graphviz_format,
-            },
-            FilterError::Unmatched(_) => {
-                if warning_mode != WarningMode::Silence {
-                    writeln!(stderr, "{message}").expect("writing to a string cannot fail");
-                    warned = true;
-                }
-                Execution {
-                    code: i32::from(warning_mode == WarningMode::Fail && warned),
-                    stdout: Vec::new(),
-                    stderr,
-                    graphviz_format,
-                }
-            }
-            FilterError::Overlap => failure(1, format!("{stderr}{message}\n")),
-        };
+            );
+        }
     }
     let output = match render::render(processes, &graph, &options, color) {
         Ok(output) => output,
         Err(error) => return failure(1, format!("{stderr}{error}\n")),
     };
+    let mermaid = with_mermaid.then(|| {
+        options.output_format = "mermaid".to_string();
+        render::render(processes, &graph, &options, color).expect("mermaid rendering cannot fail")
+    });
     let code = i32::from(warning_mode == WarningMode::Fail && warned);
     Execution {
         code,
         stdout: output,
         stderr,
         graphviz_format,
+        mermaid,
+    }
+}
+
+fn filter_failure(
+    error: &FilterError,
+    interface: Interface,
+    warning_mode: WarningMode,
+    mut stderr: String,
+    warned: bool,
+    graphviz_format: Option<String>,
+) -> Execution {
+    let message = error.to_string();
+    match error {
+        FilterError::Unmatched(_) if interface == Interface::Python => Execution {
+            code: 0,
+            stdout: Vec::new(),
+            stderr: String::new(),
+            graphviz_format,
+            mermaid: None,
+        },
+        FilterError::Unmatched(_) => {
+            let warned = if warning_mode == WarningMode::Silence {
+                warned
+            } else {
+                writeln!(stderr, "{message}").expect("writing to a string cannot fail");
+                true
+            };
+            Execution {
+                code: i32::from(warning_mode == WarningMode::Fail && warned),
+                stdout: Vec::new(),
+                stderr,
+                graphviz_format,
+                mermaid: None,
+            }
+        }
+        FilterError::Overlap => failure(1, format!("{stderr}{message}\n")),
     }
 }
 
@@ -243,6 +314,7 @@ fn parse_failure(error: &clap::Error, color: bool) -> Execution {
             stdout: message.into_bytes(),
             stderr: String::new(),
             graphviz_format: None,
+            mermaid: None,
         }
     }
 }
@@ -253,6 +325,7 @@ const fn failure(code: i32, stderr: String) -> Execution {
         stdout: Vec::new(),
         stderr,
         graphviz_format: None,
+        mermaid: None,
     }
 }
 
@@ -306,5 +379,6 @@ pub fn install_python_module(extension: &Bound<'_, PyModule>) -> PyResult<()> {
     extension.add_function(wrap_pyfunction!(version, extension)?)?;
     extension.add_function(wrap_pyfunction!(execute_py, extension)?)?;
     extension.add_function(wrap_pyfunction!(render_py, extension)?)?;
+    extension.add_function(wrap_pyfunction!(render_with_mermaid_py, extension)?)?;
     Ok(())
 }

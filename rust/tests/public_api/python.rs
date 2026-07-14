@@ -120,6 +120,57 @@ fn returns_python_render_output_despite_fail_warnings() {
 }
 
 #[test]
+fn renders_text_and_mermaid_in_one_run() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        "Name: root\nVersion: 1\nRequires-Dist: child\n",
+    );
+    site.write("child-1.dist-info", "Name: child\nVersion: 1\n");
+
+    with_python(|python| {
+        let module = extension(python);
+        let render = module.getattr("render_with_mermaid").unwrap();
+        let args = PyList::new(
+            python,
+            ["--path", site.path().to_str().unwrap(), "--warn", "silence"],
+        )
+        .unwrap();
+        let (text, mermaid) = render
+            .call1((args,))
+            .unwrap()
+            .extract::<(String, String)>()
+            .unwrap();
+        let unmatched_args = PyList::new(
+            python,
+            [
+                "--path",
+                site.path().to_str().unwrap(),
+                "--packages",
+                "nope",
+            ],
+        )
+        .unwrap();
+        let unmatched = render
+            .call1((unmatched_args,))
+            .unwrap()
+            .extract::<(String, String)>()
+            .unwrap();
+        let invalid = PyList::new(python, ["--output", "invalid"]).unwrap();
+
+        assert_eq!(
+            (
+                text.contains("root==1"),
+                mermaid.contains("flowchart TD"),
+                unmatched,
+                render.call1((invalid,)).is_err(),
+            ),
+            (true, true, (String::new(), String::new()), true)
+        );
+    });
+}
+
+#[test]
 fn rejects_binary_python_render_output() {
     let site = PackageSite::new();
     site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");

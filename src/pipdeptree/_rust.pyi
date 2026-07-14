@@ -1,8 +1,15 @@
-__all__ = ["engine", "execute", "render", "version"]
+__all__ = [
+    "engine",
+    "execute",
+    "render",
+    "render_with_mermaid",
+    "version",
+]
 
 def engine() -> str: ...
 def execute(
     args: list[str], *, color: bool = False, log_resolved: bool = True
 ) -> tuple[int, bytes, str, str | None]: ...
 def render(args: list[str]) -> str: ...
+def render_with_mermaid(args: list[str]) -> tuple[str, str]: ...
 def version() -> str: ...
