@@ -149,10 +149,20 @@ pub fn resolve(
 }
 
 fn resolve_indexes(index_url: Option<&str>, extra_index_urls: &[String]) -> Option<Vec<Index>> {
+    // Empty values fall through so `PIP_INDEX_URL=` keeps the PyPI default, like pip's or-chain.
     let primary = index_url
         .map(ToOwned::to_owned)
-        .or_else(|| env::var("PIP_INDEX_URL").ok())
-        .or_else(|| env::var("UV_INDEX_URL").ok());
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            env::var("PIP_INDEX_URL")
+                .ok()
+                .filter(|value| !value.is_empty())
+        })
+        .or_else(|| {
+            env::var("UV_INDEX_URL")
+                .ok()
+                .filter(|value| !value.is_empty())
+        });
     let extras = if extra_index_urls.is_empty() {
         env::var("PIP_EXTRA_INDEX_URL")
             .or_else(|_| env::var("UV_EXTRA_INDEX_URL"))
@@ -238,8 +248,9 @@ fn parse_requirements_line(
     stack: &mut Vec<PathBuf>,
 ) -> Result<(), Error> {
     let base = source.parent().expect("canonical source file has a parent");
+    // pip treats -r inside a constraints file as another constraints file.
     if let Some(value) = option_value(line, "-r", "--requirement") {
-        return parse_requirements_file(&base.join(value), false, inputs, stack);
+        return parse_requirements_file(&base.join(value), constraint, inputs, stack);
     }
     if let Some(value) = option_value(line, "-c", "--constraint") {
         return parse_requirements_file(&base.join(value), true, inputs, stack);
@@ -295,11 +306,27 @@ fn parse_requirement(
 fn translate_source(raw: &str, base: &Path, inputs: &mut Inputs) -> Result<(), Error> {
     let raw = raw.trim();
     if raw.starts_with("git+") {
+        if let Some(name) = egg_fragment_name(raw) {
+            validate_vcs_pin(raw)?;
+            inputs.vcs_sources.push(VcsSource {
+                name: name.to_string(),
+                url: raw.to_string(),
+            });
+            return Ok(());
+        }
         return Err(Error::message(format!(
-            "VCS requirement needs an explicit name (use 'name @ git+...'): {raw}"
+            "VCS requirement needs an explicit name (use 'name @ git+...' or '#egg=name'): {raw}"
         )));
     }
     add_local_source(raw, base, false, inputs)
+}
+
+fn egg_fragment_name(url: &str) -> Option<&str> {
+    let (_, fragment) = url.split_once('#')?;
+    fragment
+        .split('&')
+        .find_map(|parameter| parameter.strip_prefix("egg="))
+        .filter(|name| !name.is_empty())
 }
 
 fn translate_url(name: String, url: &VerbatimUrl, inputs: &mut Inputs) -> Result<(), Error> {

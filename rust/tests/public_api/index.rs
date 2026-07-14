@@ -106,6 +106,82 @@ fn parses_requirement_sources() {
     );
 }
 
+#[test]
+fn inherits_constraint_flag_for_nested_requirement_files() {
+    let directory = tempdir().unwrap();
+    fs::write(directory.path().join("nested.txt"), "pinned<3\n").unwrap();
+    fs::write(directory.path().join("constraints.txt"), "-r nested.txt\n").unwrap();
+    fs::write(
+        directory.path().join("requirements.txt"),
+        "-c constraints.txt\nparent\n",
+    )
+    .unwrap();
+    let capture = directory.path().join("capture.txt");
+
+    let output = with_python(|python| {
+        install_resolver(python, &capture).unwrap();
+        execute_with_python(
+            python,
+            &[
+                "--warn",
+                "silence",
+                "from-index",
+                "--requirements",
+                directory.path().join("requirements.txt").to_str().unwrap(),
+            ],
+        )
+    });
+    let pyproject = fs::read_to_string(capture).unwrap();
+
+    assert_eq!(
+        (
+            output.code,
+            output.stderr.as_str(),
+            pyproject.contains("dependencies = [\"parent\"]"),
+            pyproject.contains("constraints = [\"pinned<3\"]"),
+        ),
+        (0, "", true, true)
+    );
+}
+
+#[test]
+fn accepts_egg_fragment_vcs_requirements() {
+    let directory = tempdir().unwrap();
+    let capture = directory.path().join("capture.txt");
+    let url =
+        "git+https://example.com/repo.git@0123456789abcdef0123456789abcdef01234567#egg=egg-package";
+
+    let output = with_python(|python| {
+        install_resolver(python, &capture).unwrap();
+        fs::write(
+            directory.path().join("requirements.txt"),
+            format!("{url}\n"),
+        )
+        .unwrap();
+        execute_with_python(
+            python,
+            &[
+                "--warn",
+                "silence",
+                "from-index",
+                "--requirements",
+                directory.path().join("requirements.txt").to_str().unwrap(),
+            ],
+        )
+    });
+    let pyproject = fs::read_to_string(capture).unwrap();
+
+    assert_eq!(
+        (
+            output.code,
+            output.stderr.as_str(),
+            pyproject.contains("name = \"egg-package\""),
+            pyproject.contains(&format!("url = \"{url}\"")),
+        ),
+        (0, "", true, true)
+    );
+}
+
 #[rstest]
 #[case::own(
     "[[tool.nab.indexes]]\nname = \"own\"\nurl = \"https://own.example/simple\"\n",
@@ -207,6 +283,11 @@ fn resolves_pyproject_indexes(
     &["--index-url", "https://flag.example/simple"],
     &[("PIP_INDEX_URL", Some("https://pip.example/simple"))],
     "[('primary', 'https://flag.example/simple')]"
+)]
+#[case::empty_environment_falls_back(
+    &[],
+    &[("PIP_INDEX_URL", Some(""))],
+    "[('pypi', 'https://pypi.org/simple/')]"
 )]
 #[case::pip_extras(
     &[],
