@@ -49,6 +49,28 @@ fn renders_summary_tables(#[case] args: &[&str], #[case] color: bool, #[case] ex
 }
 
 #[test]
+fn measures_depth_of_a_deep_chain() {
+    let site = PackageSite::new();
+    let depth: u64 = 400;
+    for level in 0..depth {
+        let requires = if level + 1 < depth {
+            format!("Requires-Dist: pkg{:04}\n", level + 1)
+        } else {
+            String::new()
+        };
+        site.write(
+            &format!("pkg{level:04}-1.dist-info"),
+            &format!("Name: pkg{level:04}\nVersion: 1\n{requires}"),
+        );
+    }
+
+    let output = execute(&site, &["--summary", "--output", "json"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(value["max_depth"].as_u64(), Some(depth));
+}
+
+#[test]
 fn measures_depth_through_reachable_cycles() {
     let site = PackageSite::new();
     site.write(
