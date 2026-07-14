@@ -14,11 +14,23 @@ use pyo3::{PyResult, Python};
 use crate::metadata::{Package, canonicalize_name};
 use crate::options::{ExtrasMode, Options};
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Dependency {
     pub requirement: Requirement<VerbatimUrl>,
     pub target: Option<usize>,
     pub activated_by: Option<String>,
+    version_spec: OnceLock<Option<String>>,
+}
+
+impl Clone for Dependency {
+    fn clone(&self) -> Self {
+        Self {
+            requirement: self.requirement.clone(),
+            target: self.target,
+            activated_by: self.activated_by.clone(),
+            version_spec: OnceLock::new(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -36,9 +48,10 @@ pub struct Graph {
     pub visible: Vec<bool>,
     pub global_extras: HashMap<usize, BTreeSet<String>>,
     requested_extras: HashMap<usize, BTreeSet<String>>,
-    incoming: Vec<Vec<usize>>,
     missing_versions: HashMap<String, String>,
     expanded: OnceLock<Vec<Vec<usize>>>,
+    reverse_edges: OnceLock<Vec<Vec<(usize, usize)>>>,
+    cycles: OnceLock<Vec<Vec<usize>>>,
     unique_dependencies: OnceLock<UniqueDependencyCache>,
     pub warnings: Vec<String>,
 }
@@ -74,12 +87,14 @@ impl Dependency {
     }
 
     pub fn version_spec(&self) -> Option<String> {
-        match &self.requirement.version_or_url {
-            Some(VersionOrUrl::VersionSpecifier(specifiers)) if !specifiers.is_empty() => {
-                Some(specifiers.to_string().replace(", ", ","))
-            }
-            _ => None,
-        }
+        self.version_spec
+            .get_or_init(|| match &self.requirement.version_or_url {
+                Some(VersionOrUrl::VersionSpecifier(specifiers)) if !specifiers.is_empty() => {
+                    Some(specifiers.to_string().replace(", ", ","))
+                }
+                _ => None,
+            })
+            .clone()
     }
 
     pub fn requested_extras(&self) -> BTreeSet<String> {
@@ -133,28 +148,15 @@ impl Graph {
             .into_iter()
             .map(|package| Self::build_node(package, marker, &index, &mut warnings))
             .collect::<Vec<_>>();
-        let mut incoming = vec![Vec::new(); nodes.len()];
-        for (parent, node) in nodes.iter().enumerate() {
-            for target in node
-                .dependencies
-                .iter()
-                .filter_map(|dependency| dependency.target)
-            {
-                incoming[target].push(parent);
-            }
-        }
-        for parents in &mut incoming {
-            parents.sort_unstable();
-            parents.dedup();
-        }
         let mut graph = Self {
             visible: vec![true; nodes.len()],
             nodes,
             global_extras: HashMap::new(),
             requested_extras: HashMap::new(),
-            incoming,
             missing_versions: HashMap::new(),
             expanded: OnceLock::new(),
+            reverse_edges: OnceLock::new(),
+            cycles: OnceLock::new(),
             unique_dependencies: OnceLock::new(),
             warnings,
         };
@@ -186,9 +188,15 @@ impl Graph {
                 target: index.get(requirement.name.as_ref()).copied(),
                 requirement,
                 activated_by: None,
+                version_spec: OnceLock::new(),
             };
             if dependency.requirement.evaluate_markers(marker, &[]) {
                 mandatory.push(dependency);
+                continue;
+            }
+            // Only a marker naming an extra can activate on one; skip the per-extra scan for
+            // requirements gated on plain environment markers.
+            if !raw.contains("extra") {
                 continue;
             }
             for extra in &provides_extras {
@@ -237,6 +245,7 @@ impl Graph {
         // Only dependencies that can render matter; resolving inactive extras would import
         // arbitrary modules (and run their side effects) for packages never shown.
         let names = (0..self.nodes.len())
+            .filter(|index| self.visible[*index])
             .flat_map(|index| self.expanded_children(index))
             .filter(|dependency| dependency.target.is_none())
             .map(|dependency| dependency.key().to_string())
@@ -286,6 +295,8 @@ impl Graph {
         }
         self.propagate_requested_extras(pending);
         self.expanded.take();
+        self.reverse_edges.take();
+        self.cycles.take();
         self.unique_dependencies.take();
     }
 
@@ -295,8 +306,9 @@ impl Graph {
 
     pub fn apply_filters(&mut self, options: &Options) -> Result<(), FilterError> {
         let (include, _) = parse_packages(options.packages.as_deref());
-        self.expanded.take();
-        self.unique_dependencies.take();
+        // The expanded, reverse-edge and unique caches depend on extras, not visibility; only
+        // the cycle components change when filters hide nodes.
+        self.cycles.take();
         let exclude_patterns = options
             .exclude
             .as_deref()
@@ -387,30 +399,39 @@ impl Graph {
         child: usize,
         required_extra: Option<&str>,
     ) -> Vec<(usize, &Dependency)> {
+        let required = required_extra.map(canonicalize_name);
         let mut result = Vec::new();
-        for &parent in &self.incoming[child] {
-            if !self.visible[parent] {
+        // Nodes sort by key at construction, so ascending parent indices are already key order.
+        for (parent, slot) in &self.reverse_edges()[child] {
+            if !self.visible[*parent] {
                 continue;
             }
-            for dependency in self.expanded_children(parent) {
-                if dependency.target == Some(child)
-                    && required_extra.is_none_or(|extra| {
-                        dependency
-                            .requested_extras()
-                            .contains(&canonicalize_name(extra))
-                    })
-                {
-                    result.push((parent, dependency));
-                }
+            let dependency = &self.nodes[*parent].dependencies[*slot];
+            if required.as_ref().is_none_or(|extra| {
+                dependency
+                    .requirement
+                    .extras
+                    .iter()
+                    .any(|candidate| candidate.as_ref() == extra)
+            }) {
+                result.push((*parent, dependency));
             }
         }
-        result.sort_by(|(left, _), (right, _)| {
-            self.nodes[*left]
-                .package
-                .key
-                .cmp(&self.nodes[*right].package.key)
-        });
         result
+    }
+
+    fn reverse_edges(&self) -> &[Vec<(usize, usize)>] {
+        self.reverse_edges.get_or_init(|| {
+            let mut edges = vec![Vec::new(); self.nodes.len()];
+            for parent in 0..self.nodes.len() {
+                for slot in &self.expanded_children_cache()[parent] {
+                    if let Some(target) = self.nodes[parent].dependencies[*slot].target {
+                        edges[target].push((parent, *slot));
+                    }
+                }
+            }
+            edges
+        })
     }
 
     pub fn extra_is_global(&self, index: usize, extra: &str) -> bool {
@@ -571,7 +592,11 @@ impl Graph {
         self.cycles().iter().map(Vec::len).sum()
     }
 
-    fn cycles(&self) -> Vec<Vec<usize>> {
+    fn cycles(&self) -> &[Vec<usize>] {
+        self.cycles.get_or_init(|| self.compute_cycles())
+    }
+
+    fn compute_cycles(&self) -> Vec<Vec<usize>> {
         let mut outgoing = vec![Vec::new(); self.nodes.len()];
         let mut incoming = vec![Vec::new(); self.nodes.len()];
         for parent in self.visible_indices() {
