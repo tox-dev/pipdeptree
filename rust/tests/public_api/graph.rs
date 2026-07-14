@@ -29,7 +29,7 @@ use super::common::{PackageSite, execute, execute_in, execute_with_runner, stdou
     &["child", "leaf", "nested", "plain", "root"]
 )]
 #[case::wildcard(
-    &["--packages", "to_*", "--extras", "explicit", "--json"],
+    &["--packages", "to*", "--extras", "explicit", "--json"],
     &["child", "leaf", "nested", "plain", "root", "top"]
 )]
 #[case::unknown_extra(
@@ -47,6 +47,79 @@ fn selects_extras(complex_site: PackageSite, #[case] args: &[&str], #[case] expe
     assert_eq!(
         (output.code, visible_names(&output), output.stderr.as_str()),
         (0, expected, "")
+    );
+}
+
+#[test]
+fn keeps_shared_dependencies_of_excluded_packages() {
+    let site = PackageSite::new();
+    site.write(
+        "doomed-1.dist-info",
+        "Name: doomed\nVersion: 1\nRequires-Dist: shared\nRequires-Dist: lonely\n",
+    );
+    site.write(
+        "keeper-1.dist-info",
+        "Name: keeper\nVersion: 1\nRequires-Dist: shared\n",
+    );
+    site.write("shared-1.dist-info", "Name: shared\nVersion: 1\n");
+    site.write("lonely-1.dist-info", "Name: lonely\nVersion: 1\n");
+
+    let output = execute_in(
+        &site,
+        &["--exclude", "doomed", "--exclude-dependencies", "--json"],
+    );
+
+    assert_eq!(
+        (output.code, visible_names(&output), output.stderr.as_str()),
+        (0, vec!["keeper".to_string(), "shared".to_string()], "")
+    );
+}
+
+#[test]
+fn keeps_separator_boundaries_in_patterns() {
+    let site = PackageSite::new();
+    site.write("pytest-1.dist-info", "Name: pytest\nVersion: 1\n");
+    site.write("py-demo-1.dist-info", "Name: py.demo\nVersion: 1\n");
+
+    let output = execute_in(&site, &["--packages", "py.*", "--exclude", "x_", "--json"]);
+
+    assert_eq!(
+        (output.code, visible_names(&output), output.stderr.as_str()),
+        (0, vec!["py.demo".to_string()], "")
+    );
+}
+
+#[test]
+fn judges_unique_dependencies_on_the_full_environment() {
+    let site = PackageSite::new();
+    site.write(
+        "foo-1.dist-info",
+        "Name: foo\nVersion: 1\nRequires-Dist: shared\n",
+    );
+    site.write(
+        "boto-1.dist-info",
+        "Name: boto\nVersion: 1\nRequires-Dist: shared\n",
+    );
+    site.write("shared-1.dist-info", "Name: shared\nVersion: 1\n");
+
+    let output = execute_in(
+        &site,
+        &[
+            "--packages",
+            "foo",
+            "--computed",
+            "unique-deps-count",
+            "--json",
+        ],
+    );
+
+    assert_eq!(
+        (
+            output.code,
+            stdout(&output).contains("\"unique_deps_count\": 0"),
+            stdout(&output).contains("\"unique_deps_count\": 1"),
+        ),
+        (0, true, false)
     );
 }
 

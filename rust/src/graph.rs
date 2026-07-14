@@ -39,8 +39,7 @@ pub struct Graph {
     incoming: Vec<Vec<usize>>,
     missing_versions: HashMap<String, String>,
     expanded: OnceLock<Vec<Vec<usize>>>,
-    parent_counts: OnceLock<Vec<usize>>,
-    unique_dependencies: OnceLock<Vec<OnceLock<BTreeSet<usize>>>>,
+    unique_dependencies: OnceLock<UniqueDependencyCache>,
     pub warnings: Vec<String>,
 }
 
@@ -58,6 +57,8 @@ pub enum ReverseRoot<'a> {
         parents: Vec<(usize, &'a Dependency)>,
     },
 }
+
+type UniqueDependencyCache = (Vec<usize>, Vec<OnceLock<BTreeSet<usize>>>);
 
 #[derive(Debug, thiserror::Error)]
 pub enum FilterError {
@@ -154,7 +155,6 @@ impl Graph {
             incoming,
             missing_versions: HashMap::new(),
             expanded: OnceLock::new(),
-            parent_counts: OnceLock::new(),
             unique_dependencies: OnceLock::new(),
             warnings,
         };
@@ -286,7 +286,6 @@ impl Graph {
         }
         self.propagate_requested_extras(pending);
         self.expanded.take();
-        self.parent_counts.take();
         self.unique_dependencies.take();
     }
 
@@ -297,7 +296,6 @@ impl Graph {
     pub fn apply_filters(&mut self, options: &Options) -> Result<(), FilterError> {
         let (include, _) = parse_packages(options.packages.as_deref());
         self.expanded.take();
-        self.parent_counts.take();
         self.unique_dependencies.take();
         let exclude_patterns = options
             .exclude
@@ -346,7 +344,7 @@ impl Graph {
         }
         if options.exclude_dependencies {
             let mut excluded = vec![false; self.nodes.len()];
-            self.mark_into(&exclude_matches, options.reverse, &mut excluded);
+            self.mark_excluded_dependencies(&exclude_matches, options.reverse, &mut excluded);
             for (visible, excluded) in self.visible.iter_mut().zip(excluded) {
                 *visible &= !excluded;
             }
@@ -378,21 +376,6 @@ impl Graph {
             indices: Cow::Borrowed(&self.expanded_children_cache()[index]),
             position: 0,
         }
-    }
-
-    pub(super) fn parent_counts(&self) -> &[usize] {
-        self.parent_counts.get_or_init(|| {
-            let mut counts = vec![0; self.nodes.len()];
-            for parent in self.visible_indices() {
-                for child in self
-                    .expanded_children(parent)
-                    .filter_map(|dependency| dependency.target)
-                {
-                    counts[child] += 1;
-                }
-            }
-            counts
-        })
     }
 
     pub fn parents(&self, child: usize) -> Vec<(usize, &Dependency)> {
@@ -457,9 +440,18 @@ impl Graph {
                     .cmp(&self.nodes[*right].package.key)
             });
         }
+        // A package shown beneath a missing root is a branch, not a root of its own.
+        let missing_parents = missing
+            .values()
+            .flat_map(|parents| parents.iter().map(|(parent, _)| *parent))
+            .collect::<HashSet<_>>();
         let mut missing = missing.into_iter().peekable();
         let mut result = Vec::new();
-        for index in self.roots(true, list_all) {
+        for index in self
+            .roots(true, list_all)
+            .into_iter()
+            .filter(|index| list_all || !missing_parents.contains(index))
+        {
             let key = self.nodes[index].package.key.as_str();
             while missing.peek().is_some_and(|(name, _)| *name < key) {
                 let (name, parents) = missing.next().expect("peek confirmed a next entry");
@@ -478,19 +470,27 @@ impl Graph {
             .as_ref()
     }
 
+    // Uniqueness is judged against the full environment, not the filtered view: a package
+    // still needed by a hidden dependent is not removable.
     pub(crate) fn unique_dependencies(&self, index: usize) -> &BTreeSet<usize> {
-        let cache = self
-            .unique_dependencies
-            .get_or_init(|| (0..self.nodes.len()).map(|_| OnceLock::new()).collect());
+        let (full_counts, cache) = self.unique_dependencies.get_or_init(|| {
+            let mut counts = vec![0_usize; self.nodes.len()];
+            for parent in 0..self.nodes.len() {
+                for target in self.active_targets(parent) {
+                    counts[target] += 1;
+                }
+            }
+            (
+                counts,
+                (0..self.nodes.len()).map(|_| OnceLock::new()).collect(),
+            )
+        });
         cache[index].get_or_init(|| {
-            let mut parent_counts = self.parent_counts().to_vec();
+            let mut parent_counts = full_counts.clone();
             let mut removed = BTreeSet::from([index]);
             let mut stack = vec![index];
             while let Some(parent) = stack.pop() {
-                for child in self
-                    .expanded_children(parent)
-                    .filter_map(|dependency| dependency.target)
-                {
+                for child in self.active_targets(parent) {
                     parent_counts[child] = parent_counts[child].saturating_sub(1);
                     if parent_counts[child] == 0 && removed.insert(child) {
                         stack.push(child);
@@ -500,6 +500,12 @@ impl Graph {
             removed.remove(&index);
             removed
         })
+    }
+
+    fn active_targets(&self, index: usize) -> impl Iterator<Item = usize> + '_ {
+        self.expanded_children_cache()[index]
+            .iter()
+            .filter_map(move |slot| self.nodes[index].dependencies[*slot].target)
     }
 
     pub fn missing_version(&self, name: &str) -> &str {
@@ -734,6 +740,39 @@ impl Graph {
             .iter()
             .flat_map(|pattern| self.matching(pattern))
             .collect()
+    }
+
+    // A dependency leaves the tree only when every package needing it is itself excluded.
+    fn mark_excluded_dependencies(
+        &self,
+        seeds: &HashSet<usize>,
+        reverse: bool,
+        marked: &mut [bool],
+    ) {
+        let mut forward = vec![Vec::new(); self.nodes.len()];
+        let mut backward = vec![Vec::new(); self.nodes.len()];
+        for (parent, edges) in forward.iter_mut().enumerate() {
+            for target in self.active_targets(parent) {
+                edges.push(target);
+                backward[target].push(parent);
+            }
+        }
+        if reverse {
+            std::mem::swap(&mut forward, &mut backward);
+        }
+        for seed in seeds {
+            marked[*seed] = true;
+        }
+        let mut queue = seeds.iter().copied().collect::<VecDeque<_>>();
+        while let Some(index) = queue.pop_front() {
+            for candidate in &forward[index] {
+                if !marked[*candidate] && backward[*candidate].iter().all(|holder| marked[*holder])
+                {
+                    marked[*candidate] = true;
+                    queue.push_back(*candidate);
+                }
+            }
+        }
     }
 
     fn mark_into(&self, seeds: &HashSet<usize>, reverse: bool, marked: &mut [bool]) {
@@ -972,12 +1011,23 @@ fn module_version(py: Python<'_>, name: &str) -> PyResult<Option<String>> {
 }
 
 fn canonicalize_pattern(pattern: &str) -> String {
+    // Unlike canonicalize_name, boundary separators stay: 'py.*' means 'py-*', not 'py*'.
     let mut result = String::new();
-    for (index, part) in pattern.split('*').enumerate() {
-        if index != 0 {
-            result.push('*');
+    let mut separator = false;
+    for character in pattern.chars().flat_map(char::to_lowercase) {
+        match character {
+            '-' | '_' | '.' => separator = true,
+            _ => {
+                if separator {
+                    result.push('-');
+                    separator = false;
+                }
+                result.push(character);
+            }
         }
-        result.push_str(&canonicalize_name(part));
+    }
+    if separator {
+        result.push('-');
     }
     result
 }
