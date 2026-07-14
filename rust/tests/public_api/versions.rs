@@ -48,6 +48,48 @@ fn resolves_versions_without_distribution_metadata() {
 }
 
 #[test]
+fn skips_version_resolution_for_inactive_extras() {
+    let module = tempfile::tempdir().unwrap();
+    fs::write(
+        module.path().join("sideeffectdemo.py"),
+        "raise RuntimeError('imported')\n",
+    )
+    .unwrap();
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        concat!(
+            "Name: root\n",
+            "Version: 1\n",
+            "Requires-Dist: sideeffectdemo; extra == 'feature'\n",
+            "Provides-Extra: feature\n",
+        ),
+    );
+
+    let output = with_python(|python| {
+        let path = python.import("sys").unwrap().getattr("path").unwrap();
+        path.call_method1("insert", (0, module.path().to_str().unwrap()))
+            .unwrap();
+        let output = execute_with_python(
+            python,
+            &["--path", site.path().to_str().unwrap(), "--warn", "silence"],
+        );
+        path.call_method1("remove", (module.path().to_str().unwrap(),))
+            .unwrap();
+        output
+    });
+
+    assert_eq!(
+        (
+            output.code,
+            stdout(&output).contains("sideeffectdemo"),
+            output.stderr.as_str(),
+        ),
+        (0, false, "")
+    );
+}
+
+#[test]
 fn resolves_versions_from_distribution_metadata() {
     let module = tempfile::tempdir().unwrap();
     let metadata = module.path().join("indexed-3.dist-info");

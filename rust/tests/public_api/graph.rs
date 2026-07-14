@@ -18,15 +18,15 @@ use super::common::{PackageSite, execute, execute_in, execute_with_runner, stdou
 )]
 #[case::command_line(
     &["--packages", "root[feature]", "--extras", "none", "--json"],
-    &["child", "nested", "plain", "root"]
+    &["child", "leaf", "nested", "plain", "root"]
 )]
 #[case::normalized_extra(
     &["--packages", "root[FEATURE]", "--extras", "none", "--json"],
-    &["child", "nested", "plain", "root"]
+    &["child", "leaf", "nested", "plain", "root"]
 )]
 #[case::multiple(
     &["--packages", "root[feature,broken]", "--extras", "none", "--json"],
-    &["child", "nested", "plain", "root"]
+    &["child", "leaf", "nested", "plain", "root"]
 )]
 #[case::wildcard(
     &["--packages", "to_*", "--extras", "explicit", "--json"],
@@ -47,6 +47,27 @@ fn selects_extras(complex_site: PackageSite, #[case] args: &[&str], #[case] expe
     assert_eq!(
         (output.code, visible_names(&output), output.stderr.as_str()),
         (0, expected, "")
+    );
+}
+
+#[test]
+fn keeps_duplicate_requirement_edges() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        "Name: root\nVersion: 1\nRequires-Dist: child==0.5\nRequires-Dist: child>=2\n",
+    );
+    site.write("child-1.dist-info", "Name: child\nVersion: 1\n");
+
+    let output = execute(&["--path", site.path().to_str().unwrap(), "--warn", "fail"]);
+
+    assert_eq!(
+        (
+            output.code,
+            stdout(&output).contains("child [required: ==0.5, installed: 1]"),
+            stdout(&output).contains("child [required: >=2, installed: 1]"),
+        ),
+        (1, true, true)
     );
 }
 
@@ -336,7 +357,7 @@ fn reports_cycles_in_summary(complex_site: PackageSite) {
             summary["conflicting_dependencies"]["edges"].as_u64(),
             output.stderr.as_str(),
         ),
-        (0, Some(2), Some(1), Some(1), Some(2), "")
+        (0, Some(2), Some(1), Some(1), Some(3), "")
     );
 }
 

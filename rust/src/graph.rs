@@ -149,10 +149,10 @@ impl Graph {
                     }
                 }
                 mandatory.sort_by(|left, right| left.key().cmp(right.key()));
-                mandatory.dedup_by(|left, right| left.key() == right.key());
+                mandatory.dedup_by(|left, right| left.requirement == right.requirement);
                 for dependencies in optional.values_mut() {
                     dependencies.sort_by(|left, right| left.key().cmp(right.key()));
-                    dependencies.dedup_by(|left, right| left.key() == right.key());
+                    dependencies.dedup_by(|left, right| left.requirement == right.requirement);
                 }
                 let mandatory_end = mandatory.len();
                 let mut dependencies = mandatory;
@@ -209,26 +209,58 @@ impl Graph {
     pub fn resolve_missing_versions(&mut self, py: Python<'_>) -> PyResult<()> {
         let metadata = PyModule::import(py, "importlib.metadata")?;
         let package_not_found = metadata.getattr("PackageNotFoundError")?;
-        let names = self
-            .nodes
-            .iter()
-            .flat_map(|node| &node.dependencies)
+        // Only dependencies that can render matter; resolving inactive extras would import
+        // arbitrary modules (and run their side effects) for packages never shown.
+        let names = (0..self.nodes.len())
+            .flat_map(|index| self.expanded_children(index))
             .filter(|dependency| dependency.target.is_none())
-            .map(Dependency::key)
+            .map(|dependency| dependency.key().to_string())
             .collect::<BTreeSet<_>>();
         for name in names {
-            let version = match metadata.getattr("version")?.call1((name,)) {
+            let version = match metadata.getattr("version")?.call1((&name,)) {
                 Ok(value) => Some(value.extract()?),
                 Err(error) if error.is_instance(py, &package_not_found) => {
-                    module_version(py, name)?
+                    module_version(py, &name)?
                 }
                 Err(error) => return Err(error),
             };
             if let Some(version) = version {
-                self.missing_versions.insert(name.to_string(), version);
+                self.missing_versions.insert(name, version);
             }
         }
         Ok(())
+    }
+
+    pub fn apply_global_extras(&mut self, options: &Options) {
+        let (_, extras) = parse_packages(options.packages.as_deref());
+        if extras.is_empty() {
+            return;
+        }
+        let mut pending = VecDeque::new();
+        for (pattern, values) in extras {
+            for index in self.matching(&pattern) {
+                self.global_extras
+                    .entry(index)
+                    .or_default()
+                    .extend(values.iter().cloned());
+                let node = &self.nodes[index];
+                for dependency in values
+                    .iter()
+                    .filter_map(|extra| node.optional.get(extra))
+                    .flat_map(|range| &node.dependencies[range.clone()])
+                {
+                    if let Some(target) = dependency.target {
+                        let nested = dependency.requested_extras();
+                        if !nested.is_empty() {
+                            pending.push_back((target, nested));
+                        }
+                    }
+                }
+            }
+        }
+        self.propagate_requested_extras(pending);
+        self.expanded.take();
+        self.parent_counts.take();
     }
 
     pub fn validate(&mut self) {
@@ -236,15 +268,7 @@ impl Graph {
     }
 
     pub fn apply_filters(&mut self, options: &Options) -> Result<(), FilterError> {
-        let (include, extras) = parse_packages(options.packages.as_deref());
-        for (pattern, values) in extras {
-            for index in self.matching(&pattern) {
-                self.global_extras
-                    .entry(index)
-                    .or_default()
-                    .extend(values.iter().cloned());
-            }
-        }
+        let (include, _) = parse_packages(options.packages.as_deref());
         self.expanded.take();
         self.parent_counts.take();
         let exclude_patterns = options
@@ -542,7 +566,7 @@ impl Graph {
         result.dedup_by(|left, right| {
             let left = &node.dependencies[*left];
             let right = &node.dependencies[*right];
-            left.key() == right.key() && left.activated_by == right.activated_by
+            left.requirement == right.requirement && left.activated_by == right.activated_by
         });
         result
     }
@@ -598,6 +622,10 @@ impl Graph {
                 }
             }
         }
+        self.propagate_requested_extras(pending);
+    }
+
+    fn propagate_requested_extras(&mut self, mut pending: VecDeque<(usize, BTreeSet<String>)>) {
         while let Some((index, extras)) = pending.pop_front() {
             let entry = self.requested_extras.entry(index).or_default();
             let new = extras.difference(entry).cloned().collect::<BTreeSet<_>>();

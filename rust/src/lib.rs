@@ -164,6 +164,7 @@ fn execute(
         Err(error) => return failure(1, format!("{stderr}{error}\n")),
     };
     let mut graph = Graph::new(packages, &runtime.marker, options.extras);
+    graph.apply_global_extras(&options);
     if let Err(error) = graph.resolve_missing_versions(py) {
         return failure(1, format!("{stderr}{error}\n"));
     }
