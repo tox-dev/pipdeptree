@@ -192,7 +192,9 @@ fn same_file(left: &Path, right: &Path) -> bool {
 }
 
 fn comparable_path(path: &Path) -> PathBuf {
-    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+    // Not canonicalize(): a venv's bin/python symlinks to the base interpreter yet exposes a
+    // different sys.path, so resolving symlinks would skip querying the venv.
+    std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
 fn detect_interpreter(processes: &dyn ProcessRunner, implementation: &str) -> Option<PathBuf> {

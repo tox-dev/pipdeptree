@@ -54,6 +54,55 @@ fn queries_selected_interpreters() {
     });
 }
 
+#[cfg(unix)]
+#[test]
+fn queries_interpreters_reached_through_symlinks() {
+    let site = PackageSite::new();
+    site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+    let interpreter = site.path().join("python");
+    let info = interpreter_info(
+        &[site.path()],
+        &interpreter,
+        site.path(),
+        site.path(),
+        site.path(),
+    );
+    let mut processes = MockProcesses::new();
+    let program = interpreter.clone();
+    processes
+        .expect_run()
+        .withf(move |request| request.program == program.as_os_str())
+        .times(1)
+        .return_once(move |_| Ok(process_output(info)));
+
+    with_python(|python| {
+        let executable: String = python
+            .import("sys")
+            .unwrap()
+            .getattr("executable")
+            .unwrap()
+            .extract()
+            .unwrap();
+        std::os::unix::fs::symlink(executable, &interpreter).unwrap();
+
+        let output = execute_with_runner(
+            &processes,
+            python,
+            &["--python", interpreter.to_str().unwrap(), "--json"],
+            false,
+        );
+
+        assert_eq!(
+            (
+                output.code,
+                stdout(&output).contains("\"package_name\": \"demo\""),
+                output.stderr.as_str(),
+            ),
+            (0, true, "")
+        );
+    });
+}
+
 #[test]
 fn reports_invalid_current_interpreter_data() {
     with_python(|python| {
