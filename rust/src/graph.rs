@@ -6,8 +6,9 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 
 use glob::Pattern;
+use pep508_rs::marker::{MarkerExpression, MarkerValueExtra};
 use pep508_rs::pep440_rs::Version;
-use pep508_rs::{ExtraName, MarkerEnvironment, Requirement, VerbatimUrl, VersionOrUrl};
+use pep508_rs::{ExtraName, MarkerEnvironment, MarkerTree, Requirement, VerbatimUrl, VersionOrUrl};
 use pyo3::exceptions::{PyAttributeError, PyImportError};
 use pyo3::prelude::{PyAnyMethods, PyModule};
 use pyo3::types::PyList;
@@ -180,12 +181,6 @@ impl Graph {
         let mut mandatory = Vec::new();
         let mut optional = BTreeMap::<String, Vec<Dependency>>::new();
         let requires = std::mem::take(&mut package.requires);
-        // Provides-Extra is descriptive and was optional before metadata 2.1, so an extra named
-        // only by a Requires-Dist marker still activates its dependency.
-        let mut provides_extras = std::mem::take(&mut package.provides_extras);
-        provides_extras.extend(requires.iter().filter_map(|raw| marker_extra(raw)));
-        provides_extras.sort_unstable();
-        provides_extras.dedup();
         for raw in requires {
             let Ok(requirement) = Requirement::<VerbatimUrl>::from_str(&raw) else {
                 warnings.push(format!(
@@ -204,15 +199,9 @@ impl Graph {
                 mandatory.push(dependency);
                 continue;
             }
-            // Only a marker naming an extra can activate on one; skip the per-extra scan for
-            // requirements gated on plain environment markers.
-            if !raw.contains("extra") {
-                continue;
-            }
-            for extra in &provides_extras {
-                let Ok(extra_name) = ExtraName::from_str(extra) else {
-                    continue;
-                };
+            // The requirement's own marker names the extras that can activate it; an extra
+            // referenced only here still counts, since Provides-Extra is descriptive metadata.
+            for extra_name in marker_extras(&dependency.requirement.marker) {
                 if dependency
                     .requirement
                     .evaluate_markers(marker, std::slice::from_ref(&extra_name))
@@ -695,6 +684,8 @@ impl Graph {
             .join(" => ")
     }
 
+    // Recursion depth is a dependency cycle's length, which is tiny in practice; the backtracking
+    // return keeps the walk cheap when a branch dead-ends before reaching start.
     fn extend_cycle(
         &self,
         current: usize,
@@ -1074,15 +1065,19 @@ fn module_version(
     }
 }
 
-fn marker_extra(raw: &str) -> Option<String> {
-    let (_, marker) = raw.split_once(';')?;
-    let (_, rest) = marker.split_once("extra")?;
-    let value = rest.trim_start().strip_prefix("==")?.trim();
-    let quote = value
-        .chars()
-        .next()
-        .filter(|quote| "'\"".contains(*quote))?;
-    value[1..].split(quote).next().map(ToOwned::to_owned)
+fn marker_extras(marker: &MarkerTree) -> BTreeSet<ExtraName> {
+    marker
+        .to_dnf()
+        .into_iter()
+        .flatten()
+        .filter_map(|expression| match expression {
+            MarkerExpression::Extra {
+                name: MarkerValueExtra::Extra(name),
+                ..
+            } => Some(name),
+            _ => None,
+        })
+        .collect()
 }
 
 fn matching_missing(

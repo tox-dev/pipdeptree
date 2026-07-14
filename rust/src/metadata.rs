@@ -25,7 +25,6 @@ pub struct Package {
     pub key: String,
     pub version: String,
     pub requires: Vec<String>,
-    pub provides_extras: Vec<String>,
     metadata: Headers,
     metadata_dir: Option<PathBuf>,
     legacy_editable: Option<PathBuf>,
@@ -56,7 +55,6 @@ impl Package {
             name,
             version,
             requires,
-            provides_extras: Vec::new(),
             metadata: Headers::default(),
             metadata_dir: None,
             legacy_editable: None,
@@ -82,8 +80,10 @@ impl Package {
                 format!("{value} License")
             }];
         }
+        // The stored header names are lowercased at parse time; lowercase the caller's field once
+        // so the lookup compares bytes directly rather than case-insensitively per header.
         self.metadata
-            .get_all(field)
+            .get_all(&field.to_ascii_lowercase())
             .map_or_else(|| vec!["N/A".to_string()], ToOwned::to_owned)
     }
 
@@ -215,9 +215,6 @@ impl Package {
         let requires = metadata
             .get_all("requires-dist")
             .map_or_else(Vec::new, <[String]>::to_vec);
-        let provides_extras = metadata
-            .get_all("provides-extra")
-            .map_or_else(Vec::new, <[String]>::to_vec);
         if let Some(retained_fields) = retained_fields {
             metadata.retain(retained_fields);
         }
@@ -226,7 +223,6 @@ impl Package {
             name,
             version,
             requires,
-            provides_extras,
             metadata,
             metadata_dir: Some(metadata_dir),
             legacy_editable: None,
@@ -311,7 +307,7 @@ impl Headers {
     fn get_all(&self, field: &str) -> Option<&[String]> {
         self.0
             .iter()
-            .find(|header| header.name.eq_ignore_ascii_case(field))
+            .find(|header| header.name == field)
             .map(|header| header.values.as_slice())
     }
 
