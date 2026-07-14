@@ -523,14 +523,14 @@ fn unescapes_subversion_info() {
         &["info", "--xml"],
         Ok(process_output(concat!(
             "<info><entry><url>",
-            "https://example.com/a&amp;b&lt;c&gt;d&quot;e&apos;f",
+            "https://example.com/a&amp;b&lt;c&gt;d&quot;e&apos;f&amp;lt;g",
             "</url></entry></info>",
         ))),
     );
 
     assert_eq!(
         freeze(&site, &processes),
-        "-e svn+https://example.com/a&b<c>d\"e'f@#egg=demo\n"
+        "-e svn+https://example.com/a&b<c>d\"e'f&lt;g@#egg=demo\n"
     );
 }
 

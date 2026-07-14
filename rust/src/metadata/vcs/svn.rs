@@ -72,12 +72,13 @@ fn attribute(element: &str, name: &str) -> Option<String> {
 }
 
 fn xml_unescape(value: &str) -> String {
+    // &amp; goes last so a double-escaped entity like &amp;lt; decodes once, to &lt;.
     value
-        .replace("&amp;", "&")
         .replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
         .replace("&apos;", "'")
+        .replace("&amp;", "&")
 }
 
 fn parse_entries(content: &str) -> Option<(String, String)> {
