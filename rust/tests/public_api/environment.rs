@@ -466,6 +466,51 @@ fn filters_interpreter_paths(#[case] flag: &str, #[case] included: &str, #[case]
     });
 }
 
+#[test]
+fn filters_non_venv_interpreter_paths() {
+    let directory = tempfile::tempdir().unwrap();
+    let local = directory.path().join("local");
+    let user = directory.path().join("user");
+    for (path, name) in [(&local, "local"), (&user, "user")] {
+        fs::create_dir(path).unwrap();
+        write_package(path, name);
+    }
+    let interpreter = directory.path().join("python");
+    let info = interpreter_info(
+        &[local.as_path(), user.as_path()],
+        &interpreter,
+        &local,
+        &local,
+        &user,
+    );
+    let mut processes = MockProcesses::new();
+    processes
+        .expect_run()
+        .return_once(move |_| Ok(process_output(info)));
+
+    with_python(|python| {
+        let output = execute_with_runner(
+            &processes,
+            python,
+            &[
+                "--python",
+                interpreter.to_str().unwrap(),
+                "--local-only",
+                "--freeze",
+            ],
+            false,
+        );
+
+        assert_eq!(
+            (
+                stdout(&output).contains("local==1"),
+                stdout(&output).contains("user==1"),
+            ),
+            (true, false)
+        );
+    });
+}
+
 fn write_package(path: &Path, name: &str) {
     let metadata = path.join(format!("{name}-1.dist-info"));
     fs::create_dir(metadata).unwrap();
