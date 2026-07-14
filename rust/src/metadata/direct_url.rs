@@ -174,13 +174,20 @@ fn redact_url(url: &str, preserve_git: bool) -> String {
     {
         return url.to_string();
     }
-    let Some((credentials, location)) = rest.split_once('@') else {
+    // Credentials live in the authority; an @ later in the URL is path or fragment data.
+    let (authority, path) = rest
+        .split_once('/')
+        .map_or((rest, None), |(authority, path)| (authority, Some(path)));
+    let Some((credentials, host)) = authority.split_once('@') else {
         return url.to_string();
     };
     if (preserve_git && credentials == "git") || environment_credentials(credentials) {
         return url.to_string();
     }
-    format!("{scheme}://{location}")
+    path.map_or_else(
+        || format!("{scheme}://{host}"),
+        |path| format!("{scheme}://{host}/{path}"),
+    )
 }
 
 fn environment_credentials(value: &str) -> bool {

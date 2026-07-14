@@ -307,6 +307,14 @@ fn discovers_empty_runtime_path_from_current_directory() {
     r#"{"url":"https://user:token@example.com/demo.whl","archive_info":{"hash":"sha256=abc"}}"#,
     "demo @ https://example.com/demo.whl#sha256=abc\n"
 )]
+#[case::at_sign_in_path(
+    r#"{"url":"https://example.com/releases@v1/demo.whl","archive_info":{}}"#,
+    "demo @ https://example.com/releases@v1/demo.whl\n"
+)]
+#[case::credentials_without_path(
+    r#"{"url":"https://user:token@example.com","archive_info":{}}"#,
+    "demo @ https://example.com\n"
+)]
 #[case::archive_hashes(
     concat!(
         r#"{"url":"https://example.com/demo.whl","archive_info":{"hashes":{"sha512":"def","sha256":"abc"}},"#,
