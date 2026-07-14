@@ -49,6 +49,34 @@ fn renders_summary_tables(#[case] args: &[&str], #[case] color: bool, #[case] ex
 }
 
 #[test]
+fn measures_depth_through_reachable_cycles() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        "Name: root\nVersion: 1\nRequires-Dist: loop-a\n",
+    );
+    site.write(
+        "loop-a-1.dist-info",
+        "Name: loop-a\nVersion: 1\nRequires-Dist: loop-b\n",
+    );
+    site.write(
+        "loop-b-1.dist-info",
+        "Name: loop-b\nVersion: 1\nRequires-Dist: loop-a\n",
+    );
+
+    let output = execute(&site, &["--summary", "--output", "json"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(
+        (
+            value["max_depth"].as_u64(),
+            value["cyclic_dependencies"].as_u64()
+        ),
+        (Some(3), Some(2))
+    );
+}
+
+#[test]
 fn renders_summary_rich_ascii_for_non_unicode_encodings() {
     let site = render_site();
     let output = execute(

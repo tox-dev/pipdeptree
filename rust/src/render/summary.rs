@@ -210,10 +210,12 @@ fn rich_table(title: &str, rows: &[(String, String)], color: bool, unicode: bool
 }
 
 fn max_depth(graph: &Graph) -> usize {
+    let mut memo = vec![None; graph.nodes.len()];
+    let mut on_path = vec![false; graph.nodes.len()];
     graph
         .roots(false, false)
         .into_iter()
-        .map(|root| longest(graph, root, &mut HashSet::new()))
+        .map(|root| longest(graph, root, &mut on_path, &mut memo).0)
         .max()
         .unwrap_or(0)
 }
@@ -228,19 +230,37 @@ fn direct_dependencies(graph: &Graph) -> usize {
     graph.visible_indices().count() - transitive
 }
 
-fn longest(graph: &Graph, index: usize, path: &mut HashSet<usize>) -> usize {
-    path.insert(index);
+fn longest(
+    graph: &Graph,
+    index: usize,
+    on_path: &mut [bool],
+    memo: &mut [Option<usize>],
+) -> (usize, bool) {
+    if let Some(depth) = memo[index] {
+        return (depth, true);
+    }
+    on_path[index] = true;
     let mut depth = 0;
+    // A depth computed while a cycle member sat on the path depends on that path, so only
+    // cycle-free subtrees memoize; diamonds stay linear either way.
+    let mut cacheable = true;
     for child in graph
         .expanded_children(index)
         .filter_map(|dependency| dependency.target)
     {
-        if !path.contains(&child) {
-            depth = depth.max(longest(graph, child, path));
+        if on_path[child] {
+            cacheable = false;
+            continue;
         }
+        let (child_depth, child_cacheable) = longest(graph, child, on_path, memo);
+        depth = depth.max(child_depth);
+        cacheable &= child_cacheable;
     }
-    path.remove(&index);
-    depth + 1
+    on_path[index] = false;
+    if cacheable {
+        memo[index] = Some(depth + 1);
+    }
+    (depth + 1, cacheable)
 }
 
 fn license_breakdown(graph: &Graph) -> BTreeMap<String, usize> {

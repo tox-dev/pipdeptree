@@ -68,23 +68,23 @@ fn forward_tree_json(
     } else {
         graph.children(index, extras)
     };
-    let dependencies = children
-        .into_iter()
-        .filter_map(|dependency| dependency.target.map(|target| (dependency, target)))
-        .filter(|(_, target)| !path.contains(target))
-        .map(|(dependency, target)| {
-            let mut next = path.clone();
-            forward_tree_json(
+    let mut dependencies = Vec::new();
+    for (dependency, target) in
+        children.filter_map(|dependency| dependency.target.map(|target| (dependency, target)))
+    {
+        if !path.contains(&target) {
+            dependencies.push(forward_tree_json(
                 graph,
                 target,
                 Some(dependency),
                 &dependency.requested_extras(),
-                &mut next,
+                path,
                 options,
-            )
-        })
-        .collect::<Vec<_>>();
+            ));
+        }
+    }
     value["dependencies"] = Value::Array(dependencies);
+    path.remove(&index);
     value
 }
 
@@ -109,27 +109,25 @@ fn reverse_tree_json(
     } else if !options.resolved() {
         value["required_version"] = Value::String(graph.nodes[index].package.version.clone());
     }
-    let dependencies = graph
-        .parents_for(index, required_extra)
-        .into_iter()
-        .filter(|(parent, _)| !path.contains(parent))
-        .map(|(parent, dependency)| {
-            let mut next = path.clone();
+    let mut dependencies = Vec::new();
+    for (parent, dependency) in graph.parents_for(index, required_extra) {
+        if !path.contains(&parent) {
             let required_extra = dependency
                 .activated_by
                 .as_deref()
                 .filter(|extra| !graph.extra_is_global(parent, extra));
-            reverse_tree_json(
+            dependencies.push(reverse_tree_json(
                 graph,
                 parent,
                 Some(dependency),
                 required_extra,
-                &mut next,
+                path,
                 options,
-            )
-        })
-        .collect::<Vec<_>>();
+            ));
+        }
+    }
     value["dependencies"] = Value::Array(dependencies);
+    path.remove(&index);
     value
 }
 
