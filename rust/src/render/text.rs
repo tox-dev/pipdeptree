@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, HashSet};
 use std::fmt::Write as _;
 
-use crate::graph::{Dependency, Graph};
+use crate::graph::{Dependency, Graph, ReverseRoot};
 use crate::options::{ComputedField, Options};
 use crate::process::ProcessRunner;
 
@@ -33,6 +33,30 @@ pub(super) fn render(
         path: HashSet::new(),
         lines: Vec::new(),
     };
+    if options.reverse && style != TextStyle::Frozen {
+        for root in graph.reverse_roots(options.all) {
+            renderer.path.clear();
+            match root {
+                ReverseRoot::Installed(index) => {
+                    renderer
+                        .lines
+                        .push(root_label(processes, graph, index, style, options, color));
+                    renderer.path.insert(index);
+                    renderer.walk_reverse(index, None, "", 0);
+                }
+                ReverseRoot::Missing { name, parents } => {
+                    let version = graph.missing_version(name);
+                    renderer.lines.push(if style == TextStyle::Rich && color {
+                        rich_text::root(name, version, "")
+                    } else {
+                        format!("{name}=={version}")
+                    });
+                    renderer.walk_reverse_parents(parents, "", 0);
+                }
+            }
+        }
+        return renderer.lines.join("\n");
+    }
     for root in graph.roots(options.reverse, options.all) {
         renderer
             .lines
@@ -114,10 +138,18 @@ impl TreeRenderer<'_> {
         prefix: &str,
         depth: usize,
     ) {
+        self.walk_reverse_parents(self.graph.parents_for(child, required_extra), prefix, depth);
+    }
+
+    fn walk_reverse_parents(
+        &mut self,
+        parents: Vec<(usize, &Dependency)>,
+        prefix: &str,
+        depth: usize,
+    ) {
         if self.options.depth.is_some_and(|limit| depth >= limit) {
             return;
         }
-        let parents = self.graph.parents_for(child, required_extra);
         let count = parents.len();
         for (position, (parent, dependency)) in parents.into_iter().enumerate() {
             let last = position + 1 == count;

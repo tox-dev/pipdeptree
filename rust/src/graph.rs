@@ -50,6 +50,14 @@ pub struct Children<'a> {
     position: usize,
 }
 
+pub enum ReverseRoot<'a> {
+    Installed(usize),
+    Missing {
+        name: &'a str,
+        parents: Vec<(usize, &'a Dependency)>,
+    },
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum FilterError {
     #[error("No packages matched using the following patterns: {}", .0.join(", "))]
@@ -407,6 +415,44 @@ impl Graph {
             return false;
         };
         extras.contains(&canonicalize_name(extra))
+    }
+
+    pub fn reverse_roots(&self, list_all: bool) -> Vec<ReverseRoot<'_>> {
+        let mut missing = BTreeMap::<&str, Vec<(usize, &Dependency)>>::new();
+        for parent in self.visible_indices() {
+            for dependency in self.expanded_children(parent) {
+                if dependency.target.is_none() {
+                    missing
+                        .entry(dependency.key())
+                        .or_default()
+                        .push((parent, dependency));
+                }
+            }
+        }
+        for parents in missing.values_mut() {
+            parents.sort_by(|(left, _), (right, _)| {
+                self.nodes[*left]
+                    .package
+                    .key
+                    .cmp(&self.nodes[*right].package.key)
+            });
+        }
+        let mut missing = missing.into_iter().peekable();
+        let mut result = Vec::new();
+        for index in self.roots(true, list_all) {
+            let key = self.nodes[index].package.key.as_str();
+            while missing.peek().is_some_and(|(name, _)| *name < key) {
+                let (name, parents) = missing.next().expect("peek confirmed a next entry");
+                result.push(ReverseRoot::Missing { name, parents });
+            }
+            result.push(ReverseRoot::Installed(index));
+        }
+        result.extend(missing.map(|(name, parents)| ReverseRoot::Missing { name, parents }));
+        result
+    }
+
+    pub fn missing_version(&self, name: &str) -> &str {
+        self.missing_versions.get(name).map_or("?", String::as_str)
     }
 
     pub fn roots(&self, reverse: bool, list_all: bool) -> Vec<usize> {

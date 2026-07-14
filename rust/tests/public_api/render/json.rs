@@ -99,6 +99,56 @@ fn renders_json_trees(#[case] args: &[&str]) {
 }
 
 #[test]
+fn lists_missing_packages_in_reverse_json_tree() {
+    let site = render_site();
+    let output = execute(&site, &["--json-tree", "--reverse"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let entry = value
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["key"] == "missing")
+        .expect("missing package renders as a reverse root");
+
+    assert_eq!(
+        (
+            &entry["installed_version"],
+            &entry["dependencies"][0]["package_name"],
+            &entry["dependencies"][0]["required_version"],
+        ),
+        (&json!("?"), &json!("root"), &json!("Any"))
+    );
+}
+
+#[test]
+fn lists_missing_candidates_in_resolved_reverse_json_tree() {
+    let (_directory, lock) = lock_file(concat!(
+        "lock-version = '1.0'\n",
+        "[[packages]]\nname = 'root'\nversion = '1'\n",
+        "dependencies = [{ name = 'ghost' }]\n",
+    ));
+
+    let output =
+        super::super::common::execute(&["--json-tree", "--reverse", "from-lock", path(&lock)]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let entry = value
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["key"] == "ghost")
+        .expect("unresolved candidate renders as a reverse root");
+
+    assert_eq!(
+        (
+            &entry["candidate_version"],
+            &entry["required_version"],
+            &entry["dependencies"][0]["package_name"],
+        ),
+        (&json!("?"), &Value::Null, &json!("root"))
+    );
+}
+
+#[test]
 fn renders_resolved_json_fields() {
     let (_directory, lock) = lock_file(concat!(
         "lock-version = '1.0'\n",

@@ -13,7 +13,8 @@ use super::{execute, lock_file, path, render_site, text};
     &["--reverse", "--depth", "1"],
     concat!(
         "child==1\n├── other==1 [requires: child]\n└── root==1 [requires: child>=2]\n",
-        "graph==1\nleaf==1\n└── unique==1 [requires: leaf, extra: feature]\n"
+        "graph==1\nleaf==1\n└── unique==1 [requires: leaf, extra: feature]\n",
+        "missing==?\n└── root==1 [requires: missing]\n"
     )
 )]
 fn renders_text_modes(#[case] args: &[&str], #[case] expected: &str) {
@@ -25,6 +26,32 @@ fn renders_text_modes(#[case] args: &[&str], #[case] expected: &str) {
     } else {
         assert!(text(&output).contains(expected));
     }
+}
+
+#[test]
+fn interleaves_missing_reverse_roots_alphabetically() {
+    let site = super::PackageSite::new();
+    site.write(
+        "alpha-1.dist-info",
+        "Name: alpha\nVersion: 1\nRequires-Dist: aa-missing\n",
+    );
+    site.write(
+        "beta-1.dist-info",
+        "Name: beta\nVersion: 1\nRequires-Dist: aa-missing\n",
+    );
+
+    let output = execute(&site, &["--reverse"]);
+
+    assert_eq!(
+        text(&output),
+        concat!(
+            "aa-missing==?\n",
+            "├── alpha==1 [requires: aa-missing]\n",
+            "└── beta==1 [requires: aa-missing]\n",
+            "alpha==1\n",
+            "beta==1\n",
+        )
+    );
 }
 
 #[test]

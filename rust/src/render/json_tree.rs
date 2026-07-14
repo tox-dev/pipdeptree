@@ -3,19 +3,30 @@ use std::collections::{BTreeSet, HashSet};
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 
-use crate::graph::{Dependency, Graph};
+use crate::graph::{Dependency, Graph, ReverseRoot};
 use crate::options::Options;
 
 use super::json::computed_json;
 
 pub(super) fn render(graph: &Graph, options: &Options) -> String {
-    let entries = graph
-        .roots(options.reverse, false)
-        .into_iter()
-        .map(|root| {
-            if options.reverse {
-                reverse_tree_json(graph, root, None, None, &mut HashSet::new(), options)
-            } else {
+    let entries = if options.reverse {
+        graph
+            .reverse_roots(false)
+            .into_iter()
+            .map(|root| match root {
+                ReverseRoot::Installed(index) => {
+                    reverse_tree_json(graph, index, None, None, &mut HashSet::new(), options)
+                }
+                ReverseRoot::Missing { name, parents } => {
+                    missing_reverse_json(graph, name, &parents, options)
+                }
+            })
+            .collect::<Vec<_>>()
+    } else {
+        graph
+            .roots(false, false)
+            .into_iter()
+            .map(|root| {
                 forward_tree_json(
                     graph,
                     root,
@@ -24,9 +35,9 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
                     &mut HashSet::new(),
                     options,
                 )
-            }
-        })
-        .collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>()
+    };
     let mut output = Vec::new();
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
     let mut serializer = serde_json::Serializer::with_formatter(&mut output, formatter);
@@ -120,6 +131,50 @@ fn reverse_tree_json(
         .collect::<Vec<_>>();
     value["dependencies"] = Value::Array(dependencies);
     value
+}
+
+fn missing_reverse_json(
+    graph: &Graph,
+    name: &str,
+    parents: &[(usize, &Dependency)],
+    options: &Options,
+) -> Value {
+    let mut object = Map::from_iter([
+        ("key".to_string(), Value::String(name.to_string())),
+        ("package_name".to_string(), Value::String(name.to_string())),
+        (
+            if options.resolved() {
+                "candidate_version"
+            } else {
+                "installed_version"
+            }
+            .to_string(),
+            Value::String(graph.missing_version(name).to_string()),
+        ),
+    ]);
+    if !options.resolved() {
+        object.insert(
+            "required_version".to_string(),
+            Value::String(graph.missing_version(name).to_string()),
+        );
+    }
+    // Optional dependencies without an installed target never render, so missing reverse
+    // roots always arrive through mandatory edges and carry no activating extra.
+    let dependencies = parents
+        .iter()
+        .map(|(parent, dependency)| {
+            reverse_tree_json(
+                graph,
+                *parent,
+                Some(dependency),
+                None,
+                &mut HashSet::new(),
+                options,
+            )
+        })
+        .collect::<Vec<_>>();
+    object.insert("dependencies".to_string(), Value::Array(dependencies));
+    Value::Object(object)
 }
 
 fn package_json(graph: &Graph, index: usize, options: &Options) -> Value {
