@@ -1,6 +1,6 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 
 use crate::process::ProcessRunner;
 
@@ -22,11 +22,18 @@ pub(super) fn root(processes: &dyn ProcessRunner, location: &Path) -> Option<Pat
     .map(PathBuf::from)
 }
 
-// Every editable in a monorepo shares the repository's remote and HEAD; resolve them once
-// per root instead of spawning identical git processes per package.
+// Every editable in a monorepo shares the repository's remote and HEAD; resolve them once per
+// root. The cache is thread-local and cleared per run, so a long-lived host process (a notebook
+// kernel calling the engine repeatedly) never serves a stale commit.
 type RootInfo = Result<(String, String), VcsError>;
 
-static ROOT_INFO: Mutex<Option<HashMap<PathBuf, RootInfo>>> = Mutex::new(None);
+thread_local! {
+    static ROOT_INFO: RefCell<HashMap<PathBuf, RootInfo>> = RefCell::new(HashMap::new());
+}
+
+pub fn clear_root_cache() {
+    ROOT_INFO.with_borrow_mut(HashMap::clear);
+}
 
 pub(super) fn requirement(
     processes: &dyn ProcessRunner,
@@ -34,13 +41,12 @@ pub(super) fn requirement(
     package: &str,
     root: &Path,
 ) -> VcsResult {
-    let info = ROOT_INFO
-        .lock()
-        .expect("git root cache lock")
-        .get_or_insert_default()
-        .entry(root.to_path_buf())
-        .or_insert_with(|| root_info(processes, root))
-        .clone();
+    let info = ROOT_INFO.with_borrow_mut(|cache| {
+        cache
+            .entry(root.to_path_buf())
+            .or_insert_with(|| root_info(processes, root))
+            .clone()
+    });
     let (remote, commit) = match info {
         Ok(info) => info,
         Err(error) => return VcsResult::error(Some("git"), error),

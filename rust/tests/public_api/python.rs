@@ -80,14 +80,17 @@ fn renders_through_python_extension() {
             ],
         )
         .unwrap();
-        let rendered = module
+        let (rendered, warnings, code) = module
             .getattr("render")
             .unwrap()
             .call1((args,))
             .unwrap()
-            .extract::<String>()
+            .extract::<(String, String, i32)>()
             .unwrap();
-        assert_eq!(rendered, "\n");
+        assert_eq!(
+            (rendered, warnings, code),
+            ("\n".to_string(), String::new(), 0)
+        );
     });
 }
 
@@ -107,15 +110,22 @@ fn returns_python_render_output_despite_fail_warnings() {
             ["--path", site.path().to_str().unwrap(), "--warn", "fail"],
         )
         .unwrap();
-        let rendered = module
+        let (rendered, warnings, code) = module
             .getattr("render")
             .unwrap()
             .call1((args,))
             .unwrap()
-            .extract::<String>()
+            .extract::<(String, String, i32)>()
             .unwrap();
 
-        assert!(rendered.contains("child [required: >=2, installed: 1]"));
+        assert_eq!(
+            (
+                rendered.contains("child [required: >=2, installed: 1]"),
+                warnings.contains("dependency problems found"),
+                code,
+            ),
+            (true, true, 1)
+        );
     });
 }
 
@@ -136,10 +146,10 @@ fn renders_text_and_mermaid_in_one_run() {
             ["--path", site.path().to_str().unwrap(), "--warn", "silence"],
         )
         .unwrap();
-        let (text, mermaid) = render
+        let (text, mermaid, _, _) = render
             .call1((args,))
             .unwrap()
-            .extract::<(String, String)>()
+            .extract::<(String, String, String, i32)>()
             .unwrap();
         let unmatched_args = PyList::new(
             python,
@@ -154,7 +164,7 @@ fn renders_text_and_mermaid_in_one_run() {
         let unmatched = render
             .call1((unmatched_args,))
             .unwrap()
-            .extract::<(String, String)>()
+            .extract::<(String, String, String, i32)>()
             .unwrap();
         let invalid = PyList::new(python, ["--output", "invalid"]).unwrap();
 
@@ -165,7 +175,12 @@ fn renders_text_and_mermaid_in_one_run() {
                 unmatched,
                 render.call1((invalid,)).is_err(),
             ),
-            (true, true, (String::new(), String::new()), true)
+            (
+                true,
+                true,
+                (String::new(), String::new(), String::new(), 0),
+                true
+            )
         );
     });
 }
@@ -237,9 +252,9 @@ fn returns_empty_python_render_for_unmatched_packages() {
                 .unwrap()
                 .call1((args,))
                 .unwrap()
-                .extract::<String>()
+                .extract::<(String, String, i32)>()
                 .unwrap(),
-            ""
+            (String::new(), String::new(), 0)
         );
     });
 }

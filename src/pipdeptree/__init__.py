@@ -7,6 +7,7 @@ the notebook rich-display protocol while retaining normal :class:`str` behavior.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from html import escape
 from math import inf
@@ -64,8 +65,10 @@ def render(  # noqa: PLR0913  # The public keyword API predates the Rust impleme
     :param user_only: Include only packages installed in the user site.
     :param python: Python interpreter whose environment to inspect.
     :param encoding: Encoding used to select text tree characters.
-    :param warn: Warning mode: ``silence``, ``suppress`` or ``fail``.
-    :raises ValueError: If an option is invalid or a binary Graphviz format is requested.
+    :param warn: Warning mode: ``silence``, ``suppress`` or ``fail``. ``suppress`` writes warnings to
+        :data:`sys.stderr`; ``fail`` raises :exc:`ValueError` when pipdeptree finds a problem.
+    :raises ValueError: If an option is invalid, a binary Graphviz format is requested, or ``warn="fail"``
+        and the environment has dependency problems.
     :return: The rendered output. Text and text-summary results also provide notebook display hooks.
     """
     if summary and output_format not in _SUMMARY_FORMATS:
@@ -88,15 +91,23 @@ def render(  # noqa: PLR0913  # The public keyword API predates the Rust impleme
             warn=warn,
         )
     )
-    if summary:
-        text = _render(args)
+    if summary or output_format != "text":
+        text = _report(*_render(args))
+        if not summary:
+            return text
         return _SummaryResult(text, html=_summary_html(text)) if output_format == "text" else text
-    if output_format != "text":
-        return _render(args)
     # One engine run yields both representations; a notebook's mermaid display would otherwise
     # rediscover the whole environment through a second call.
-    text, mermaid = _render_with_mermaid(args)
-    return _RenderResult(text, mermaid=mermaid)
+    text, mermaid, warnings, code = _render_with_mermaid(args)
+    return _RenderResult(_report(text, warnings, code), mermaid=mermaid)
+
+
+def _report(text: str, warnings: str, code: int) -> str:
+    if code != 0:
+        raise ValueError(warnings.strip())
+    if warnings:
+        sys.stderr.write(warnings)
+    return text
 
 
 def _render_args(options: _RenderOptions) -> list[str]:
@@ -113,8 +124,10 @@ def _render_args(options: _RenderOptions) -> list[str]:
             args += [flag, value]
     if options.depth != inf:
         args += ["--depth", str(int(options.depth))]
-    if options.extras:
-        args += ["--extras", options.extras if isinstance(options.extras, str) else "explicit"]
+    args += [
+        "--extras",
+        options.extras if isinstance(options.extras, str) else ("explicit" if options.extras else "none"),
+    ]
     for flag, enabled in (
         ("--reverse", options.reverse),
         ("--local-only", options.local_only),

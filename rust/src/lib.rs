@@ -93,7 +93,7 @@ fn execute_py(
 }
 
 #[pyfunction(name = "render", signature = (args))]
-fn render_py(py: Python<'_>, args: &Bound<'_, PyList>) -> PyResult<String> {
+fn render_py(py: Python<'_>, args: &Bound<'_, PyList>) -> PyResult<(String, String, i32)> {
     let args: Vec<String> = args.extract()?;
     let output = execute(
         &SystemProcessRunner,
@@ -109,15 +109,19 @@ fn render_py(py: Python<'_>, args: &Bound<'_, PyList>) -> PyResult<String> {
     if output.code != 0 && output.stdout.is_empty() {
         return Err(PyValueError::new_err(output.stderr.trim().to_string()));
     }
-    String::from_utf8(output.stdout).map_err(|_| {
+    let rendered = String::from_utf8(output.stdout).map_err(|_| {
         PyValueError::new_err(
             "binary graphviz output cannot be returned as a string; use the dot format",
         )
-    })
+    })?;
+    Ok((rendered, output.stderr, output.code))
 }
 
 #[pyfunction(name = "render_with_mermaid", signature = (args))]
-fn render_with_mermaid_py(py: Python<'_>, args: &Bound<'_, PyList>) -> PyResult<(String, String)> {
+fn render_with_mermaid_py(
+    py: Python<'_>,
+    args: &Bound<'_, PyList>,
+) -> PyResult<(String, String, String, i32)> {
     let args: Vec<String> = args.extract()?;
     let output = execute(
         &SystemProcessRunner,
@@ -137,6 +141,8 @@ fn render_with_mermaid_py(py: Python<'_>, args: &Bound<'_, PyList>) -> PyResult<
             .mermaid
             .map(|mermaid| String::from_utf8(mermaid).expect("mermaid output is UTF-8"))
             .unwrap_or_default(),
+        output.stderr,
+        output.code,
     ))
 }
 
@@ -180,6 +186,7 @@ fn execute(
         WarningMode::Silence
     };
 
+    metadata::clear_root_cache();
     let runtime = match Runtime::resolve(processes, py, &options, log_resolved) {
         Ok(runtime) => runtime,
         Err(error) => return failure(1, format!("{error}\n")),

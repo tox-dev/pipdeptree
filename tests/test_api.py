@@ -104,13 +104,14 @@ def test_render_summary_notebook_bundle_respects_exclude() -> None:
 @pytest.mark.parametrize("extras", [pytest.param(True, id="bool"), pytest.param("explicit", id="named")])
 def test_render_explicit_extras(extras: bool | str) -> None:
     result = pipdeptree.render(
-        packages="pipdeptree[test]",
+        packages="pluggy[testing]",
         depth=1,
         extras=extras,
         encoding="ascii",
     )
 
-    assert "\n  - covdefaults" in result
+    assert "\n  - coverage [required: Any, installed: " in result
+    assert "extra: testing]" in result
 
 
 def test_render_reverse() -> None:
@@ -146,6 +147,31 @@ def test_render_empty_filter_with_graph_warning(tmp_path: Path, monkeypatch: pyt
     monkeypatch.setattr(sys, "path", [str(tmp_path)])
 
     assert not pipdeptree.render(packages="package-that-does-not-exist", warn="suppress")
+
+
+def test_render_suppress_writes_warnings(
+    conflicting_documentation_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(sys, "path", [str(conflicting_documentation_path)])
+
+    rendered = pipdeptree.render(warn="suppress")
+
+    assert ("Jinja2==2.11.2" in rendered, "dependency problems found" in capsys.readouterr().err) == (True, True)
+
+
+def test_render_fail_raises_on_problems(conflicting_documentation_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "path", [str(conflicting_documentation_path)])
+
+    with pytest.raises(ValueError, match="dependency problems found"):
+        pipdeptree.render(warn="fail")
+
+
+def test_render_extras_disabled_by_default(package_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "path", [str(package_path)])
+
+    assert ("optional" in pipdeptree.render(packages="root", extras=False)) is False
 
 
 @pytest.mark.parametrize(

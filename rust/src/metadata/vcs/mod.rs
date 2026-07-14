@@ -12,6 +12,8 @@ use shared::{VcsError, VcsResult};
 
 type Backend = fn(&dyn ProcessRunner, &Path, &str, &Path) -> VcsResult;
 
+pub use git::clear_root_cache;
+
 pub(super) fn editable_requirement(
     processes: &dyn ProcessRunner,
     location: &Path,
