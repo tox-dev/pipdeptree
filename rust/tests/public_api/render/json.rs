@@ -99,6 +99,23 @@ fn renders_json_trees(#[case] args: &[&str]) {
 }
 
 #[test]
+fn orders_json_tree_keys_by_insertion() {
+    let site = render_site();
+    let output = execute(&site, &["--json-tree"]);
+    let rendered = text(&output);
+    let positions = [
+        "\"key\"",
+        "\"package_name\"",
+        "\"installed_version\"",
+        "\"required_version\"",
+        "\"dependencies\"",
+    ]
+    .map(|field| rendered.find(field).unwrap());
+
+    assert!(positions.is_sorted(), "unexpected key order: {rendered}");
+}
+
+#[test]
 fn lists_missing_packages_in_reverse_json_tree() {
     let site = render_site();
     let output = execute(&site, &["--json-tree", "--reverse"]);

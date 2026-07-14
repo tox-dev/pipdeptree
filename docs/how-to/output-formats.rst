@@ -183,40 +183,40 @@ json-tree
     >>> print(run_pipdeptree("--packages", "pytest", "-o", "json-tree"), end="")
     [
         {
-            "dependencies": [
-                {
-                    "dependencies": [],
-                    "installed_version": "2.3.0",
-                    "key": "iniconfig",
-                    "package_name": "iniconfig",
-                    "required_version": ">=1.0.1"
-                },
-                {
-                    "dependencies": [],
-                    "installed_version": "26.2",
-                    "key": "packaging",
-                    "package_name": "packaging",
-                    "required_version": ">=22"
-                },
-                {
-                    "dependencies": [],
-                    "installed_version": "1.6.0",
-                    "key": "pluggy",
-                    "package_name": "pluggy",
-                    "required_version": ">=1.5,<2"
-                },
-                {
-                    "dependencies": [],
-                    "installed_version": "2.20.0",
-                    "key": "pygments",
-                    "package_name": "Pygments",
-                    "required_version": ">=2.7.2"
-                }
-            ],
-            "installed_version": "9.1.1",
             "key": "pytest",
             "package_name": "pytest",
-            "required_version": "9.1.1"
+            "installed_version": "9.1.1",
+            "required_version": "9.1.1",
+            "dependencies": [
+                {
+                    "key": "iniconfig",
+                    "package_name": "iniconfig",
+                    "installed_version": "2.3.0",
+                    "required_version": ">=1.0.1",
+                    "dependencies": []
+                },
+                {
+                    "key": "packaging",
+                    "package_name": "packaging",
+                    "installed_version": "26.2",
+                    "required_version": ">=22",
+                    "dependencies": []
+                },
+                {
+                    "key": "pluggy",
+                    "package_name": "pluggy",
+                    "installed_version": "1.6.0",
+                    "required_version": ">=1.5,<2",
+                    "dependencies": []
+                },
+                {
+                    "key": "pygments",
+                    "package_name": "Pygments",
+                    "installed_version": "2.20.0",
+                    "required_version": ">=2.7.2",
+                    "dependencies": []
+                }
+            ]
         }
     ]
 
@@ -320,26 +320,26 @@ a machine-readable object:
 
     >>> print(run_pipdeptree("--packages", "pytest", "--summary", "-o", "json"), end="")
     {
-      "conflicting_dependencies": {
-        "edges": 0,
-        "packages": 0
-      },
-      "cyclic_dependencies": 0,
+      "total_packages": 5,
       "direct_dependencies": 1,
+      "transitive_dependencies": 4,
+      "max_depth": 2,
+      "cyclic_dependencies": 0,
+      "missing_dependencies": 0,
+      "conflicting_dependencies": {
+        "packages": 0,
+        "edges": 0
+      },
       "licenses": {
         "breakdown": {
           "(N/A)": 5
         },
-        "copyleft": false,
-        "unknown": 5
+        "unknown": 5,
+        "copyleft": false
       },
-      "max_depth": 2,
       "min_requires_python": "n/a",
-      "missing_dependencies": 0,
-      "total_packages": 5,
       "total_size": "0 B",
-      "total_size_raw": 0,
-      "transitive_dependencies": 4
+      "total_size_raw": 0
     }
 
 ``pipdeptree from-lock pylock.toml --summary`` and ``pipdeptree from-index 'flask' --summary`` summarize resolved
