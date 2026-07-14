@@ -134,8 +134,8 @@ Find the packages that require a dependency with a reverse tree:
 
     $ pipdeptree --reverse --packages pygments
     Pygments==2.20.0
-    ├── diff_cover==10.3.0 [requires: pygments>=2.19.1,<3.0.0]
-    └── pytest==9.1.1 [requires: pygments>=2.7.2]
+    ├── diff_cover==10.3.0 [requires: Pygments>=2.19.1,<3.0.0]
+    └── pytest==9.1.1 [requires: Pygments>=2.7.2]
         └── pytest-cov==7.1.0 [requires: pytest>=7]
 
 Limit the tree depth:

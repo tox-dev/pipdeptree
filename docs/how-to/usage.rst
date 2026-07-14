@@ -695,12 +695,14 @@ Use ``--exclude-dependencies`` to hide their transitive dependencies:
     ├── pluggy [required: >=1.2, installed: 1.6.0]
     └── pytest [required: >=7, installed: 9.1.1]
         ├── iniconfig [required: >=1.0.1, installed: 2.3.0]
+        ├── packaging [required: >=22, installed: 26.2]
         ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
         └── Pygments [required: >=2.7.2, installed: 2.20.0]
     requests==2.32.3
     ├── certifi [required: >=2017.4.17, installed: 2024.8.30]
     ├── charset_normalizer [required: >=2,<4, installed: 3.4.0]
-    └── idna [required: >=2.5,<4, installed: 3.10]
+    ├── idna [required: >=2.5,<4, installed: 3.10]
+    └── urllib3 [required: >=1.21.1,<3, installed: 2.7.0]
 
 ``packaging`` no longer appears under ``pytest`` because the command excluded it as a transitive dependency of
 ``pipdeptree``.
@@ -714,8 +716,8 @@ Use ``--reverse`` (``-r``) with ``--packages`` to find the packages that require
 
     $ pipdeptree --reverse --packages pygments
     Pygments==2.20.0
-    ├── diff_cover==10.3.0 [requires: pygments>=2.19.1,<3.0.0]
-    └── pytest==9.1.1 [requires: pygments>=2.7.2]
+    ├── diff_cover==10.3.0 [requires: Pygments>=2.19.1,<3.0.0]
+    └── pytest==9.1.1 [requires: Pygments>=2.7.2]
         └── pytest-cov==7.1.0 [requires: pytest>=7]
 
 Writing requirements files
@@ -884,7 +886,7 @@ with a ⭐ icon (alongside ✗ or ⚠ if applicable).
 .. code-block:: console
 
     $ pipdeptree --computed unique-deps-count,unique-deps-names,unique-deps-size --packages pipdeptree --depth 0
-    pipdeptree==4.0.0 (12 unique deps, unique: build | installer | nab-index | nab-python | nab-resolver | packaging | pyproject-hooks | tomli | tomli-w | truststore | typing-extensions | urllib3, unique size: 0 B)
+    pipdeptree==4.0.0 (10 unique deps, unique: build | installer | nab-index | nab-python | nab-resolver | pyproject-hooks | tomli | tomli-w | truststore | typing-extensions, unique size: 0 B)
 
 Both ``--metadata`` and ``--computed`` work with each output format. You can combine them. In JSON output, ``size_raw``
 and ``unique_deps_count`` are native integers, while ``unique_deps_names`` is a list of strings.
