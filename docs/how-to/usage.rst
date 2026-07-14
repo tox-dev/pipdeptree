@@ -50,6 +50,7 @@ Resolve inline requirements
 
 A single requirement resolves to its full tree:
 
+.. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index "starlette"
@@ -61,6 +62,7 @@ A single requirement resolves to its full tree:
 
 Several requirements resolve together into one graph, and a version specifier bounds the pick:
 
+.. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index "fastapi<=0.115.2" starlette
@@ -81,6 +83,7 @@ Several requirements resolve together into one graph, and a version specifier bo
 Request extras with the ``name[extra]`` syntax. The resolver pulls the extra's dependencies into the tree. They appear
 as children, such as ``pysocks`` below, with the pinned version from the resolve and no extra label:
 
+.. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index "requests[socks]"
@@ -94,6 +97,7 @@ as children, such as ``pysocks`` below, with the pinned version from the resolve
 An environment marker gates a requirement on the interpreter that the resolve targets. A matching marker includes the
 requirement; a non-matching marker drops it. Quote the argument so the shell keeps the marker attached:
 
+.. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index 'idna; python_version >= "3.10"'
@@ -185,6 +189,7 @@ Apply render flags
 
 The graph and render flags behave as they do for the default command. Emit JSON for tooling:
 
+.. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index "starlette" -o json
@@ -247,6 +252,7 @@ The graph and render flags behave as they do for the default command. Emit JSON 
 
 Trace why the resolver pulled a package in with ``--reverse`` (``-r``):
 
+.. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index "fastapi<=0.115.2" --reverse --packages anyio
@@ -301,6 +307,11 @@ requirement strings. Use the file flags for paths:
 
 A bare wheel/sdist archive URL or a non-git VCS scheme (``hg+``/``bzr+``/``svn+``) has no index mapping:
 
+.. code-block:: text
+    :caption: requirements.txt
+
+    foo @ https://h/foo-1.0-py3-none-any.whl
+
 .. code-block:: console
 
     $ pipdeptree from-index --requirements requirements.txt
@@ -314,6 +325,7 @@ The installed-environment display options inspect on-disk files, so ``from-index
 
     $ pipdeptree from-index "starlette" --metadata license
     error: unexpected argument '--metadata' found
+    ...
 
 The same holds for ``--computed`` (``-c``), ``--license`` and the environment-inspection options (``--python``,
 ``--path``, ``-l``/``-u``). ``from-index`` has neither package files nor an environment to read. No source is an error:
@@ -321,7 +333,6 @@ The same holds for ``--computed`` (``-c``), ``--license`` and the environment-in
 .. code-block:: console
 
     $ pipdeptree from-index
-    ...
     pipdeptree: error: from-index needs at least one REQUIREMENT, --requirements FILE, or --pyproject FILE
 
 from-lock (render a PEP 751 lock)
@@ -330,7 +341,25 @@ from-lock (render a PEP 751 lock)
 The ``from-lock`` subcommand reads a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock file
 (``pylock.toml``) and renders its dependency tree. A lock records the pinned packages, their versions and the edges
 between them. ``from-lock`` runs **offline** with no package index or network on Python 3.10 through 3.14. The native
-extension parses TOML with Rust's ``toml`` crate.
+extension parses TOML with Rust's ``toml`` crate. Take this lock:
+
+.. code-block:: toml
+    :caption: pylock.toml
+
+    lock-version = "1.0"
+
+    [[packages]]
+    name = "build"
+    version = "1.5.0"
+    dependencies = [{ name = "packaging" }, { name = "pyproject-hooks" }]
+
+    [[packages]]
+    name = "packaging"
+    version = "26.2"
+
+    [[packages]]
+    name = "pyproject-hooks"
+    version = "1.2.0"
 
 .. code-block:: console
 
@@ -442,6 +471,23 @@ Locks without edges
 A valid PEP 751 lock may pin packages without recording the edges between them. ``from-lock`` then renders a flat
 list of pinned packages, each with no children:
 
+.. code-block:: toml
+    :caption: pylock.toml
+
+    lock-version = "1.0"
+
+    [[packages]]
+    name = "build"
+    version = "1.5.0"
+
+    [[packages]]
+    name = "packaging"
+    version = "26.2"
+
+    [[packages]]
+    name = "pyproject-hooks"
+    version = "1.2.0"
+
 .. code-block:: console
 
     $ pipdeptree from-lock pylock.toml
@@ -459,8 +505,10 @@ subcommand omits them:
 
     $ pipdeptree from-lock pylock.toml --metadata license
     error: unexpected argument '--metadata' found
+    ...
     $ pipdeptree from-lock pylock.toml --license
     error: unexpected argument '--license' found
+    ...
 
 The same holds for ``--computed`` (``-c``) and the environment-inspection options (``--python``, ``--path``,
 ``-l``/``-u``): a lock has no ``METADATA`` file, no on-disk sizes and no environment to point at.
@@ -476,12 +524,25 @@ A missing lock file stops the command with a message and exit code 1:
 
 Malformed TOML returns exit code 1. ``from-lock`` also rejects a TOML file with no ``packages`` array:
 
+.. code-block:: toml
+    :caption: pylock.toml
+
+    lock-version = "1.0"
+
 .. code-block:: console
 
     $ pipdeptree from-lock pylock.toml
     missing 'packages' array
 
 pipdeptree reports the parse error for an invalid package entry:
+
+.. code-block:: toml
+    :caption: pylock.toml
+
+    lock-version = "1.0"
+
+    [[packages]]
+    version = "1"
 
 .. code-block:: console
 
@@ -493,17 +554,19 @@ Filtering packages
 
 By default, pipdeptree shows the full dependency tree of your environment:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree(), end="")
+    $ pipdeptree
     covdefaults==2.3.0
     └── coverage [required: >=6.0.2, installed: 7.15.1]
+    cryptography==2.7
     diff_cover==10.3.0
     ├── chardet [required: >=3.0.0, installed: 7.4.3]
     ├── Jinja2 [required: >=2.7.1, installed: 3.1.6]
     │   └── MarkupSafe [required: >=2.0, installed: 3.0.3]
     ├── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
     └── Pygments [required: >=2.19.1,<3.0.0, installed: 2.20.0]
+    oauthlib==3.0.0
     pipdeptree==4.0.0
     ├── nab-index [required: >=0.0.8, installed: 0.0.8]
     │   ├── packaging [required: >=24.0, installed: 26.2]
@@ -526,6 +589,8 @@ By default, pipdeptree shows the full dependency tree of your environment:
         ├── tomli [required: >=2.0, installed: 2.4.1]
         ├── tomli_w [required: >=1.2, installed: 1.2.0]
         └── typing_extensions [required: >=4.6, installed: 4.16.0]
+    pyjwt==1.7.1
+    PySocks==1.7.1
     pytest-cov==7.1.0
     ├── coverage [required: >=7.10.6, installed: 7.15.1]
     ├── pluggy [required: >=1.2, installed: 1.6.0]
@@ -534,12 +599,17 @@ By default, pipdeptree shows the full dependency tree of your environment:
         ├── packaging [required: >=22, installed: 26.2]
         ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
         └── Pygments [required: >=2.7.2, installed: 2.20.0]
+    requests==2.32.3
+    ├── certifi [required: >=2017.4.17, installed: 2024.8.30]
+    ├── charset_normalizer [required: >=2,<4, installed: 3.4.0]
+    ├── idna [required: >=2.5,<4, installed: 3.10]
+    └── urllib3 [required: >=1.21.1,<3, installed: 2.7.0]
 
 Show selected packages with ``--packages`` (``-p``):
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest"), end="")
+    $ pipdeptree --packages pytest
     pytest==9.1.1
     ├── iniconfig [required: >=1.0.1, installed: 2.3.0]
     ├── packaging [required: >=22, installed: 26.2]
@@ -548,9 +618,9 @@ Show selected packages with ``--packages`` (``-p``):
 
 Separate multiple packages with commas. You can use wildcards:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest*"), end="")
+    $ pipdeptree --packages 'pytest*'
     pytest-cov==7.1.0
     ├── coverage [required: >=7.10.6, installed: 7.15.1]
     ├── pluggy [required: >=1.2, installed: 1.6.0]
@@ -569,21 +639,22 @@ pipdeptree includes an extra requested through ``--packages`` even with ``--extr
     $ pipdeptree --packages "requests[socks]" --extras none
     requests==2.32.3
     ├── certifi [required: >=2017.4.17, installed: 2024.8.30]
-    ├── charset-normalizer [required: >=2,<4, installed: 3.4.0]
+    ├── charset_normalizer [required: >=2,<4, installed: 3.4.0]
     ├── idna [required: >=2.5,<4, installed: 3.10]
-    ├── urllib3 [required: >=1.21.1,<3, installed: 2.2.3]
-    └── PySocks [required: >=1.5.6,!=1.5.7, installed: 1.7.1, extra: socks]
+    ├── PySocks [required: >=1.5.6,!=1.5.7, installed: 1.7.1, extra: socks]
+    └── urllib3 [required: >=1.21.1,<3, installed: 2.7.0]
 
 Excluding packages
 ------------------
 
 Use ``--exclude`` (``-e``) to hide specific packages:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--exclude", "pip,pipdeptree,setuptools,wheel"), end="")
+    $ pipdeptree --exclude pip,pipdeptree,setuptools,wheel
     covdefaults==2.3.0
     └── coverage [required: >=6.0.2, installed: 7.15.1]
+    cryptography==2.7
     diff_cover==10.3.0
     ├── chardet [required: >=3.0.0, installed: 7.4.3]
     ├── Jinja2 [required: >=2.7.1, installed: 3.1.6]
@@ -606,6 +677,9 @@ Use ``--exclude`` (``-e``) to hide specific packages:
     ├── tomli [required: >=2.0, installed: 2.4.1]
     ├── tomli_w [required: >=1.2, installed: 1.2.0]
     └── typing_extensions [required: >=4.6, installed: 4.16.0]
+    oauthlib==3.0.0
+    pyjwt==1.7.1
+    PySocks==1.7.1
     pytest-cov==7.1.0
     ├── coverage [required: >=7.10.6, installed: 7.15.1]
     ├── pluggy [required: >=1.2, installed: 1.6.0]
@@ -614,20 +688,29 @@ Use ``--exclude`` (``-e``) to hide specific packages:
         ├── packaging [required: >=22, installed: 26.2]
         ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
         └── Pygments [required: >=2.7.2, installed: 2.20.0]
+    requests==2.32.3
+    ├── certifi [required: >=2017.4.17, installed: 2024.8.30]
+    ├── charset_normalizer [required: >=2,<4, installed: 3.4.0]
+    ├── idna [required: >=2.5,<4, installed: 3.10]
+    └── urllib3 [required: >=1.21.1,<3, installed: 2.7.0]
 
 Use ``--exclude-dependencies`` to hide their transitive dependencies:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--exclude", "pipdeptree", "--exclude-dependencies"), end="")
+    $ pipdeptree --exclude pipdeptree --exclude-dependencies
     covdefaults==2.3.0
     └── coverage [required: >=6.0.2, installed: 7.15.1]
+    cryptography==2.7
     diff_cover==10.3.0
     ├── chardet [required: >=3.0.0, installed: 7.4.3]
     ├── Jinja2 [required: >=2.7.1, installed: 3.1.6]
     │   └── MarkupSafe [required: >=2.0, installed: 3.0.3]
     ├── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
     └── Pygments [required: >=2.19.1,<3.0.0, installed: 2.20.0]
+    oauthlib==3.0.0
+    pyjwt==1.7.1
+    PySocks==1.7.1
     pytest-cov==7.1.0
     ├── coverage [required: >=7.10.6, installed: 7.15.1]
     ├── pluggy [required: >=1.2, installed: 1.6.0]
@@ -635,6 +718,10 @@ Use ``--exclude-dependencies`` to hide their transitive dependencies:
         ├── iniconfig [required: >=1.0.1, installed: 2.3.0]
         ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
         └── Pygments [required: >=2.7.2, installed: 2.20.0]
+    requests==2.32.3
+    ├── certifi [required: >=2017.4.17, installed: 2024.8.30]
+    ├── charset_normalizer [required: >=2,<4, installed: 3.4.0]
+    └── idna [required: >=2.5,<4, installed: 3.10]
 
 ``packaging`` no longer appears under ``pytest`` because the command excluded it as a transitive dependency of
 ``pipdeptree``.
@@ -644,9 +731,9 @@ Reverse dependency lookup
 
 Use ``--reverse`` (``-r``) with ``--packages`` to find the packages that require a dependency:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--reverse", "--packages", "pygments"), end="")
+    $ pipdeptree --reverse --packages pygments
     Pygments==2.20.0
     ├── diff_cover==10.3.0 [requires: pygments>=2.19.1,<3.0.0]
     └── pytest==9.1.1 [requires: pygments>=2.7.2]
@@ -657,13 +744,18 @@ Writing requirements files
 
 Extract top-level packages with a zero-depth tree:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--depth", "0"), end="")
+    $ pipdeptree --depth 0
     covdefaults==2.3.0
+    cryptography==2.7
     diff_cover==10.3.0
+    oauthlib==3.0.0
     pipdeptree==4.0.0
+    pyjwt==1.7.1
+    PySocks==1.7.1
     pytest-cov==7.1.0
+    requests==2.32.3
 
 Use freeze format for pip-compatible output:
 
@@ -673,9 +765,9 @@ Use freeze format for pip-compatible output:
 
 Freeze output is a human-readable lock file with indented dependencies:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest", "-o", "freeze"), end="")
+    $ pipdeptree --packages pytest -o freeze
     pytest==9.1.1
       iniconfig==2.3.0
       packaging==26.2
@@ -699,12 +791,16 @@ pipdeptree warns about conflicting and circular dependencies on stderr. Control 
 
 A conflict adds warnings and a non-zero exit code:
 
+.. conflicting-environment
 .. code-block:: console
 
     $ pipdeptree -w fail
+    Jinja2==2.11.2
+    └── MarkupSafe [required: >=0.23, installed: 0.22]
     Warning: dependency problems found:
     * Jinja2==2.11.2
-     - MarkupSafe [required: >=0.23, installed: 0.22]
+      - markupsafe [required: >=0.23, installed: 0.22]
+    ------------------------------------------------------------------------
     $ echo $?
     1
 
@@ -741,9 +837,9 @@ Depth limiting
 
 Limit how deep the tree renders with ``-d``:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("-d", "1", "--packages", "pytest-cov,pipdeptree"), end="")
+    $ pipdeptree -d 1 --packages pytest-cov,pipdeptree
     pipdeptree==4.0.0
     ├── nab-index [required: >=0.0.8, installed: 0.0.8]
     └── nab-python [required: >=0.0.8, installed: 0.0.8]
@@ -754,9 +850,9 @@ Limit how deep the tree renders with ``-d``:
 
 Use ``-d 0`` to show top-level packages without dependencies:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("-d", "0", "--packages", "pytest-cov,pipdeptree"), end="")
+    $ pipdeptree -d 0 --packages pytest-cov,pipdeptree
     pipdeptree==4.0.0
     pytest-cov==7.1.0
 
@@ -766,16 +862,16 @@ Package metadata
 Display metadata fields from the package's ``METADATA`` file with ``--metadata`` (``-m``). Pass a comma-separated list
 of field names. The renderer appends metadata to each package in parentheses:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--metadata", "license", "--packages", "pipdeptree", "--depth", "0"), end="")
+    $ pipdeptree --metadata license --packages pipdeptree --depth 0
     pipdeptree==4.0.0 (MIT License)
 
 Combine multiple fields:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--metadata", "license,summary", "--packages", "pipdeptree", "--depth", "0"), end="")
+    $ pipdeptree --metadata license,summary --packages pipdeptree --depth 0
     pipdeptree==4.0.0 (MIT License, Display installed Python package dependencies as a tree)
 
 Common metadata fields: ``license``, ``summary``, ``author``, ``author-email``, ``home-page``, ``requires-python``.
@@ -801,20 +897,14 @@ Unique dependencies are transitive: if removing a package would orphan a depende
 would in turn orphan its own dependencies, the renderer counts all of them. Rich output marks unique dependencies
 with a ⭐ icon (alongside ✗ or ⚠ if applicable).
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--computed", "size", "--packages", "pipdeptree", "--depth", "0"), end="")
+    $ pipdeptree --computed size --packages pipdeptree --depth 0
     pipdeptree==4.0.0 (0 B)
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(
-    ...     run_pipdeptree(
-    ...         "--computed", "unique-deps-count,unique-deps-names,unique-deps-size",
-    ...         "--packages", "pipdeptree", "--depth", "0",
-    ...     ),
-    ...     end="",
-    ... )
+    $ pipdeptree --computed unique-deps-count,unique-deps-names,unique-deps-size --packages pipdeptree --depth 0
     pipdeptree==4.0.0 (12 unique deps, unique: build | installer | nab-index | nab-python | nab-resolver | packaging | pyproject-hooks | tomli | tomli-w | truststore | typing-extensions | urllib3, unique size: 0 B)
 
 Both ``--metadata`` and ``--computed`` work with each output format. You can combine them. In JSON output, ``size_raw``

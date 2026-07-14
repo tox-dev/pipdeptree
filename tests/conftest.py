@@ -12,12 +12,23 @@ if TYPE_CHECKING:
 _ROOT: Final = Path(__file__).parents[1]
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption("--update-docs", action="store_true", help="rewrite documented console outputs in place")
+
+
+@pytest.fixture
+def update_docs(request: pytest.FixtureRequest) -> bool:
+    return bool(request.config.getoption("--update-docs"))
+
+
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
-    if "doctest_document" not in metafunc.fixturenames:
+    if "console_document" not in metafunc.fixturenames:
         return
-    documents = sorted(path for path in (_ROOT / "docs").rglob("*.rst") if ">>>" in path.read_text(encoding="utf-8"))
+    documents = sorted(
+        path for path in (_ROOT / "docs").rglob("*.rst") if "$ pipdeptree" in path.read_text(encoding="utf-8")
+    )
     metafunc.parametrize(
-        "doctest_document",
+        "console_document",
         documents,
         ids=[str(path.relative_to(_ROOT)) for path in documents],
     )
@@ -49,9 +60,30 @@ def package_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def conflicting_documentation_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    root = tmp_path_factory.mktemp("conflicting")
+    packages: Final = {
+        "Jinja2-2.11.2.dist-info": "Name: Jinja2\nVersion: 2.11.2\nRequires-Dist: MarkupSafe>=0.23\n",
+        "MarkupSafe-0.22.dist-info": "Name: MarkupSafe\nVersion: 0.22\n",
+    }
+    for directory, metadata_text in packages.items():
+        path = root / directory
+        path.mkdir()
+        (path / "METADATA").write_text(metadata_text)
+    return root
+
+
+@pytest.fixture
 def documentation_path(tmp_path: Path) -> Path:
     package_metadata: Final = {
         "pipdeptree": ("License-Expression: MIT\nSummary: Display installed Python package dependencies as a tree\n"),
+        "pytest": "License-Expression: MIT\nRequires-Python: >=3.10\n",
+        "iniconfig": "License-Expression: MIT\n",
+        "pluggy": "License: MIT License\n",
+        "packaging": "License-Expression: Apache-2.0 OR BSD-2-Clause\n",
+        "Pygments": "License-Expression: BSD-2-Clause\n",
+        "requests": "Provides-Extra: socks\n",
+        "oauthlib": "Provides-Extra: signedtoken\n",
     }
     distributions = {
         "build": ("1.5.1", ("packaging>=24.0", "pyproject_hooks")),
@@ -62,10 +94,30 @@ def documentation_path(tmp_path: Path) -> Path:
             "10.3.0",
             ("chardet>=3.0.0", "Jinja2>=2.7.1", "pluggy>=0.13.1,<2", "Pygments>=2.19.1,<3.0.0"),
         ),
+        "certifi": ("2024.8.30", ()),
+        "charset_normalizer": ("3.4.0", ()),
+        "cryptography": ("2.7", ()),
+        "idna": ("3.10", ()),
         "iniconfig": ("2.3.0", ()),
         "installer": ("1.0.1", ()),
         "Jinja2": ("3.1.6", ("MarkupSafe>=2.0",)),
         "MarkupSafe": ("3.0.3", ()),
+        "oauthlib": (
+            "3.0.0",
+            ("cryptography; extra == 'signedtoken'", "pyjwt>=1.0.0; extra == 'signedtoken'"),
+        ),
+        "pyjwt": ("1.7.1", ()),
+        "PySocks": ("1.7.1", ()),
+        "requests": (
+            "2.32.3",
+            (
+                "certifi>=2017.4.17",
+                "charset_normalizer>=2,<4",
+                "idna>=2.5,<4",
+                "urllib3>=1.21.1,<3",
+                "PySocks>=1.5.6,!=1.5.7; extra == 'socks'",
+            ),
+        ),
         "nab-index": (
             "0.0.8",
             ("packaging>=24.0", "truststore>=0.10", "typing_extensions>=4.6", "urllib3>=2.0"),

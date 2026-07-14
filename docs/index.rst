@@ -35,6 +35,7 @@ packages installed in the global site or inside a virtualenv.
 ``pip freeze`` shows all installed packages as a flat list, making it hard to tell which are top-level packages and
 which are transitive dependencies. ``pipdeptree`` solves this by rendering the full dependency graph as a tree:
 
+.. illustrative
 .. code-block:: console
 
     $ pip freeze

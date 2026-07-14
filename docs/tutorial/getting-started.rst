@@ -29,17 +29,19 @@ First run
 
 Run ``pipdeptree`` with no arguments to see the full dependency tree of your environment:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree(), end="")
+    $ pipdeptree
     covdefaults==2.3.0
     └── coverage [required: >=6.0.2, installed: 7.15.1]
+    cryptography==2.7
     diff_cover==10.3.0
     ├── chardet [required: >=3.0.0, installed: 7.4.3]
     ├── Jinja2 [required: >=2.7.1, installed: 3.1.6]
     │   └── MarkupSafe [required: >=2.0, installed: 3.0.3]
     ├── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
     └── Pygments [required: >=2.19.1,<3.0.0, installed: 2.20.0]
+    oauthlib==3.0.0
     pipdeptree==4.0.0
     ├── nab-index [required: >=0.0.8, installed: 0.0.8]
     │   ├── packaging [required: >=24.0, installed: 26.2]
@@ -62,6 +64,8 @@ Run ``pipdeptree`` with no arguments to see the full dependency tree of your env
         ├── tomli [required: >=2.0, installed: 2.4.1]
         ├── tomli_w [required: >=1.2, installed: 1.2.0]
         └── typing_extensions [required: >=4.6, installed: 4.16.0]
+    pyjwt==1.7.1
+    PySocks==1.7.1
     pytest-cov==7.1.0
     ├── coverage [required: >=7.10.6, installed: 7.15.1]
     ├── pluggy [required: >=1.2, installed: 1.6.0]
@@ -70,6 +74,11 @@ Run ``pipdeptree`` with no arguments to see the full dependency tree of your env
         ├── packaging [required: >=22, installed: 26.2]
         ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
         └── Pygments [required: >=2.7.2, installed: 2.20.0]
+    requests==2.32.3
+    ├── certifi [required: >=2017.4.17, installed: 2024.8.30]
+    ├── charset_normalizer [required: >=2,<4, installed: 3.4.0]
+    ├── idna [required: >=2.5,<4, installed: 3.10]
+    └── urllib3 [required: >=1.21.1,<3, installed: 2.7.0]
 
 Each top-level entry is a package with no parent depending on it. Indented lines show dependencies, with the required
 version range and the installed version.
@@ -110,9 +119,9 @@ Common operations
 
 Filter to a specific package:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest"), end="")
+    $ pipdeptree --packages pytest
     pytest==9.1.1
     ├── iniconfig [required: >=1.0.1, installed: 2.3.0]
     ├── packaging [required: >=22, installed: 26.2]
@@ -121,9 +130,9 @@ Filter to a specific package:
 
 Find the packages that require a dependency with a reverse tree:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--reverse", "--packages", "pygments"), end="")
+    $ pipdeptree --reverse --packages pygments
     Pygments==2.20.0
     ├── diff_cover==10.3.0 [requires: pygments>=2.19.1,<3.0.0]
     └── pytest==9.1.1 [requires: pygments>=2.7.2]
@@ -131,23 +140,32 @@ Find the packages that require a dependency with a reverse tree:
 
 Limit the tree depth:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--depth", "1"), end="")
+    $ pipdeptree --depth 1
     covdefaults==2.3.0
     └── coverage [required: >=6.0.2, installed: 7.15.1]
+    cryptography==2.7
     diff_cover==10.3.0
     ├── chardet [required: >=3.0.0, installed: 7.4.3]
     ├── Jinja2 [required: >=2.7.1, installed: 3.1.6]
     ├── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
     └── Pygments [required: >=2.19.1,<3.0.0, installed: 2.20.0]
+    oauthlib==3.0.0
     pipdeptree==4.0.0
     ├── nab-index [required: >=0.0.8, installed: 0.0.8]
     └── nab-python [required: >=0.0.8, installed: 0.0.8]
+    pyjwt==1.7.1
+    PySocks==1.7.1
     pytest-cov==7.1.0
     ├── coverage [required: >=7.10.6, installed: 7.15.1]
     ├── pluggy [required: >=1.2, installed: 1.6.0]
     └── pytest [required: >=7, installed: 9.1.1]
+    requests==2.32.3
+    ├── certifi [required: >=2017.4.17, installed: 2024.8.30]
+    ├── charset_normalizer [required: >=2,<4, installed: 3.4.0]
+    ├── idna [required: >=2.5,<4, installed: 3.10]
+    └── urllib3 [required: >=1.21.1,<3, installed: 2.7.0]
 
 Report environment health with ``--summary``:
 
@@ -161,11 +179,11 @@ Report environment health with ``--summary``:
     cyclic dependencies:      0
     missing dependencies:     0
     conflicting dependencies: 0 (0 edges)
-    licenses:                 (Apache-2.0 OR BSD-2-Clause): 1, (BSD-2-Clause): 1, (MIT License): 1, (MIT): 2
-    unknown licenses:         0
+    licenses:                 (Apache-2.0 OR BSD-2-Clause): 1, (BSD-2-Clause): 1, (MIT): 2, (N/A): 1
+    unknown licenses:         1
     copyleft licenses:        no
     min requires-python:      3.10
-    total size:               6.0 MB
+    total size:               0 B
 
 Drop ``--packages`` to report on the whole environment. Add ``-o rich`` for a styled table, or ``-o json`` for a
 machine-readable version to gate CI on. The programmatic ``pipdeptree.render(summary=True)`` returns the same report
@@ -179,6 +197,7 @@ environment.
 
 Ask what ``starlette`` brings along:
 
+.. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index "starlette"
@@ -196,6 +215,7 @@ read ``[candidate: <version>]`` instead of the ``[required: ..., installed: ...]
 The positional argument is a PEP 508 requirement, the same string you would pass to ``pip install``, so you can
 pin or bound it. Bound ``fastapi`` and resolve it alongside ``starlette``; the resolver selects the upper bound:
 
+.. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index "fastapi<=0.115.2" starlette
@@ -223,6 +243,24 @@ Render a lock file
 
 For an existing `PEP 751 <https://peps.python.org/pep-0751/>`_ lock file (a ``pylock.toml``, such as the one :pypi:`uv`
 exports), point ``from-lock`` at it to read its tree:
+
+.. code-block:: toml
+    :caption: pylock.toml
+
+    lock-version = "1.0"
+
+    [[packages]]
+    name = "build"
+    version = "1.5.0"
+    dependencies = [{ name = "packaging" }, { name = "pyproject-hooks" }]
+
+    [[packages]]
+    name = "packaging"
+    version = "26.2"
+
+    [[packages]]
+    name = "pyproject-hooks"
+    version = "1.2.0"
 
 .. code-block:: console
 

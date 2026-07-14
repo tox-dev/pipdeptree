@@ -54,8 +54,27 @@ Running tests
 
 The Rust suite calls production code through ``Application`` and its public process boundary. Disabling
 extension-module linking lets the test executable link to Python. The Python suite tests the packaged API and CLI.
-Pytest discovers RST doctests and evaluates the documented commands against a synthetic package directory. You can
-substitute a supported Python version from 3.10 through 3.14.
+You can substitute a supported Python version from 3.10 through 3.14.
+
+Documentation examples
+-----------------------
+
+Pytest executes every ``$ pipdeptree`` command inside the documentation's ``code-block:: console`` blocks against a
+synthetic package directory and compares the documented output (``...`` elides, a ``$ echo $?`` line checks the exit
+code). A ``code-block`` with a ``:caption:`` defines the file that later commands in the same document read, so lock
+and requirements examples stay self-contained. Two comment markers placed directly above a console block change how
+it runs: ``.. runs-online`` skips it (its output is a pinned snapshot of a live index resolve),
+``.. illustrative`` skips a narrative example that no fixture reproduces, and ``.. conflicting-environment`` runs it
+against a fixture with a version conflict. Blocks that show a command without output also stay unchecked.
+
+After a change that alters rendered output, refresh the pinned blocks in place and review the diff:
+
+.. code-block:: bash
+
+    tox run -e docs-update
+
+Examples that still match keep their hand-written form; ``runs-online`` blocks are never rewritten, so refresh their
+snapshots manually when the resolve changes.
 
 Linting and formatting
 -----------------------

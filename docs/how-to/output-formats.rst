@@ -10,9 +10,9 @@ text
 
 Unicode box-drawing tree:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest", "-o", "text"), end="")
+    $ pipdeptree --packages pytest -o text
     pytest==9.1.1
     ├── iniconfig [required: >=1.0.1, installed: 2.3.0]
     ├── packaging [required: >=22, installed: 26.2]
@@ -44,9 +44,9 @@ Rich output uses the terminal palette to separate fields. Warning colors do not 
     * - Errors
       - Red
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest", "-o", "rich"), end="")
+    $ pipdeptree --packages pytest -o rich
     pytest==9.1.1
     ┣━━ ✓ iniconfig required: >=1.0.1 installed: 2.3.0
     ┣━━ ✓ packaging required: >=22 installed: 26.2
@@ -58,9 +58,9 @@ freeze
 
 Freeze emits pip-compatible requirements with indentation for the hierarchy:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest", "-o", "freeze"), end="")
+    $ pipdeptree --packages pytest -o freeze
     pytest==9.1.1
       iniconfig==2.3.0
       packaging==26.2
@@ -72,9 +72,9 @@ json
 
 JSON emits a flat array of package and dependency objects:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest", "-o", "json"), end="")
+    $ pipdeptree --packages pytest -o json
     [
         {
             "package": {
@@ -145,15 +145,9 @@ JSON emits a flat array of package and dependency objects:
 
 With ``--metadata`` or ``--computed``, package dictionaries include extra fields:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(
-    ...     run_pipdeptree(
-    ...         "--packages", "iniconfig", "-o", "json", "--metadata", "license", "--computed",
-    ...         "size,unique-deps-count,unique-deps-names",
-    ...     ),
-    ...     end="",
-    ... )
+    $ pipdeptree --packages iniconfig -o json --metadata license --computed size,unique-deps-count,unique-deps-names
     [
         {
             "package": {
@@ -161,7 +155,7 @@ With ``--metadata`` or ``--computed``, package dictionaries include extra fields
                 "package_name": "iniconfig",
                 "installed_version": "2.3.0",
                 "metadata": {
-                    "license": "N/A License"
+                    "license": "MIT License"
                 },
                 "computed": {
                     "size": "0 B",
@@ -178,9 +172,9 @@ json-tree
 
 ``json-tree`` nests package objects to match the text tree:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest", "-o", "json-tree"), end="")
+    $ pipdeptree --packages pytest -o json-tree
     [
         {
             "key": "pytest",
@@ -225,9 +219,9 @@ mermaid
 
 `Mermaid <https://mermaid.js.org>`_ flowchart diagram:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest", "-o", "mermaid"), end="")
+    $ pipdeptree --packages pytest -o mermaid
     flowchart TD
         classDef missing stroke-dasharray: 5
         iniconfig["iniconfig<br/>2.3.0"]
@@ -239,7 +233,7 @@ mermaid
         pytest -- ">=1.5,<2" --> pluggy
         pytest -- ">=2.7.2" --> pygments
         pytest -- ">=22" --> packaging
-    <BLANKLINE>
+
 
 This renders as:
 
@@ -262,9 +256,9 @@ graphviz
 
 The Graphviz renderer supports DOT source and binary formats such as PDF and SVG. DOT source needs no external program:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest", "-o", "graphviz-dot").expandtabs(4), end="")
+    $ pipdeptree --packages pytest -o graphviz-dot
     digraph {
         iniconfig [label="iniconfig\n2.3.0"]
         packaging [label="packaging\n26.2"]
@@ -276,7 +270,7 @@ The Graphviz renderer supports DOT source and binary formats such as PDF and SVG
         pytest -> pygments [label=">=2.7.2"]
         pytest [label="pytest\n9.1.1"]
     }
-    <BLANKLINE>
+
 
 Binary formats require the Graphviz ``dot`` executable from the operating system. pipdeptree sends its DOT source to
 that executable:
@@ -297,9 +291,9 @@ summary
 metrics; ``-o`` selects ``text``, ``rich`` or ``json`` presentation. pipdeptree rejects tree formats such as Mermaid
 for a summary. Run it over the environment or scope it with ``--packages``:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest", "--summary", "-o", "text"), end="")
+    $ pipdeptree --packages pytest --summary -o text
     total packages:           5
     direct dependencies:      1
     transitive dependencies:  4
@@ -307,18 +301,18 @@ for a summary. Run it over the environment or scope it with ``--packages``:
     cyclic dependencies:      0
     missing dependencies:     0
     conflicting dependencies: 0 (0 edges)
-    licenses:                 (N/A): 5
-    unknown licenses:         5
+    licenses:                 (Apache-2.0 OR BSD-2-Clause): 1, (BSD-2-Clause): 1, (MIT): 2, (N/A): 1
+    unknown licenses:         1
     copyleft licenses:        no
-    min requires-python:      n/a
+    min requires-python:      3.10
     total size:               0 B
 
 For terminals, ``--summary -o rich`` prints the same metrics as a styled table. For automation, ``-o json`` emits
 a machine-readable object:
 
-.. doctest::
+.. code-block:: console
 
-    >>> print(run_pipdeptree("--packages", "pytest", "--summary", "-o", "json"), end="")
+    $ pipdeptree --packages pytest --summary -o json
     {
       "total_packages": 5,
       "direct_dependencies": 1,
@@ -332,12 +326,15 @@ a machine-readable object:
       },
       "licenses": {
         "breakdown": {
-          "(N/A)": 5
+          "(Apache-2.0 OR BSD-2-Clause)": 1,
+          "(BSD-2-Clause)": 1,
+          "(MIT)": 2,
+          "(N/A)": 1
         },
-        "unknown": 5,
+        "unknown": 1,
         "copyleft": false
       },
-      "min_requires_python": "n/a",
+      "min_requires_python": "3.10",
       "total_size": "0 B",
       "total_size_raw": 0
     }
