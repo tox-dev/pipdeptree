@@ -1,7 +1,6 @@
 name: Report a bug
 description: File a bug report to help improve pipdeptree
 labels: ["bug", "tobeconfirmed"]
-
 body:
   - type: input
     attributes:
@@ -9,7 +8,6 @@ body:
       description: This can be fetched using `pipdeptree --version`.
     validations:
       required: true
-
   - type: dropdown
     attributes:
       label: Are you running pipdeptree in a virtual environment?
@@ -19,7 +17,6 @@ body:
       default: 1
     validations:
       required: true
-
   - type: textarea
     attributes:
       label: Describe the problem
@@ -29,7 +26,6 @@ body:
         If possible, provide a set of steps to reproduce the error.
     validations:
       required: true
-
   - type: markdown
     attributes:
       value: |

@@ -2,13 +2,10 @@ name: Release to PyPI
 on:
   push:
     tags: ["*"]
-
 permissions:
   contents: read
-
 env:
   dists-artifact-name: python-package-distributions
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,7 +27,6 @@ jobs:
         with:
           name: ${{ env.dists-artifact-name }}
           path: dist/*
-
   release:
     needs:
       - build

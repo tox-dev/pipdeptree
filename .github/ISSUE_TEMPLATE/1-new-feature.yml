@@ -1,7 +1,6 @@
 name: Make a feature request
 description: Suggest an enhancement for pipdeptree
 labels: ["enhancement", "tobeconfirmed"]
-
 body:
   - type: textarea
     attributes:
@@ -9,7 +8,6 @@ body:
       description: What's the problem that this feature will solve?
     validations:
       required: true
-
   - type: markdown
     attributes:
       value: |
