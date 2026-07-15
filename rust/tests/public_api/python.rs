@@ -1,6 +1,6 @@
 use _pipdeptree::install_python_module;
 use pyo3::types::{PyAnyMethods as _, PyDict, PyDictMethods as _, PyList, PyModule};
-use pyo3::{Bound, Python};
+use pyo3::{Bound, PyResult, Python};
 
 use super::common::{PackageSite, with_python};
 
@@ -271,6 +271,55 @@ fn rejects_non_string_python_arguments() {
                 .unwrap()
                 .call1((wrong_type,))
                 .is_err()
+        );
+    });
+}
+
+#[test]
+fn format_flags_translate_render_output_formats() {
+    with_python(|python| {
+        let module = extension(python);
+        let flags = module.getattr("format_flags").unwrap();
+        let call = |fmt: &str, summary: bool| -> PyResult<Vec<String>> {
+            flags
+                .call1((fmt, summary))
+                .and_then(|value| value.extract::<Vec<String>>())
+        };
+
+        assert_eq!(call("text", false).unwrap(), Vec::<String>::new());
+        assert_eq!(call("json", false).unwrap(), ["--json"]);
+        assert_eq!(call("json-tree", false).unwrap(), ["--json-tree"]);
+        assert_eq!(call("mermaid", false).unwrap(), ["--mermaid"]);
+        assert_eq!(call("dot", false).unwrap(), ["--graph-output", "dot"]);
+        assert_eq!(
+            call("rich", true).unwrap(),
+            ["--summary", "--output", "rich"]
+        );
+        assert_eq!(
+            call("json", true).unwrap(),
+            ["--summary", "--output", "json"]
+        );
+        assert_eq!(
+            call("text", true).unwrap(),
+            ["--summary", "--output", "text"]
+        );
+        assert!(
+            call("png", false)
+                .unwrap_err()
+                .to_string()
+                .contains("binary Graphviz formats")
+        );
+        assert!(
+            call("xml", false)
+                .unwrap_err()
+                .to_string()
+                .contains("unknown output_format")
+        );
+        assert!(
+            call("mermaid", true)
+                .unwrap_err()
+                .to_string()
+                .contains("summary output_format")
         );
     });
 }

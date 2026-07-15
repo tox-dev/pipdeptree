@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tempfile::tempdir;
 
 use crate::Error;
-use crate::metadata::Package;
+use crate::metadata::{Discovered, Package};
 
 const RESOLVER_IMPORT_ERROR: &str = "The from-index subcommand requires nab-index and nab-python";
 const PYPI_NAME: &str = "pypi";
@@ -116,7 +116,7 @@ pub fn resolve(
     pyproject_files: &[PathBuf],
     index_url: Option<&str>,
     extra_index_urls: &[String],
-) -> Result<Vec<Package>, Error> {
+) -> Result<Discovered, Error> {
     let indexes = resolve_indexes(index_url, extra_index_urls);
     let result =
         if requirements.is_empty() && requirement_files.is_empty() && pyproject_files.len() == 1 {
@@ -145,7 +145,7 @@ pub fn resolve(
             fs::write(&path, render_pyproject(&inputs))?;
             resolve_pyproject(py, &path, None)?
         };
-    adapt_result(&result)
+    adapt_result(&result).map(Discovered::new)
 }
 
 fn resolve_indexes(index_url: Option<&str>, extra_index_urls: &[String]) -> Option<Vec<Index>> {

@@ -7,6 +7,7 @@ use crate::graph::{Dependency, Graph, ReverseRoot};
 use crate::options::Options;
 
 use super::json::computed_json;
+use super::shared::{required_version, reverse_required_extra};
 
 pub(super) fn render(graph: &Graph, options: &Options) -> String {
     let entries = if options.reverse {
@@ -102,11 +103,7 @@ fn reverse_tree_json(
     let mut value = package_json(graph, index, options);
     if let Some(dependency) = incoming {
         if !options.resolved() {
-            value["required_version"] = Value::String(
-                dependency
-                    .version_spec()
-                    .unwrap_or_else(|| "Any".to_string()),
-            );
+            value["required_version"] = Value::String(required_version(dependency));
         }
     } else if !options.resolved() {
         value["required_version"] = Value::String(graph.nodes[index].package.version.clone());
@@ -114,10 +111,7 @@ fn reverse_tree_json(
     let mut dependencies = Vec::new();
     for (parent, dependency) in graph.parents_for(index, required_extra) {
         if !path.contains(&parent) {
-            let required_extra = dependency
-                .activated_by
-                .as_deref()
-                .filter(|extra| !graph.extra_is_global(parent, extra));
+            let required_extra = reverse_required_extra(graph, parent, dependency);
             dependencies.push(reverse_tree_json(
                 graph,
                 parent,
@@ -151,11 +145,7 @@ fn missing_dependency_json(graph: &Graph, dependency: &Dependency, options: &Opt
     if !options.resolved() {
         object.insert(
             "required_version".to_string(),
-            Value::String(
-                dependency
-                    .version_spec()
-                    .unwrap_or_else(|| "Any".to_string()),
-            ),
+            Value::String(required_version(dependency)),
         );
     }
     object.insert("dependencies".to_string(), Value::Array(Vec::new()));
@@ -248,11 +238,7 @@ fn dependency_json(graph: &Graph, dependency: &Dependency, options: &Options) ->
         object.insert("installed_version".to_string(), Value::String(version));
         object.insert(
             "required_version".to_string(),
-            Value::String(
-                dependency
-                    .version_spec()
-                    .unwrap_or_else(|| "Any".to_string()),
-            ),
+            Value::String(required_version(dependency)),
         );
     }
     if let Some(extra) = &dependency.activated_by {

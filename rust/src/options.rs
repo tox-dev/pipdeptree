@@ -39,6 +39,48 @@ impl ComputedField {
     }
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub enum Format {
+    #[default]
+    Text,
+    Rich,
+    Freeze,
+    Json,
+    JsonTree,
+    Mermaid,
+    Graphviz(String),
+}
+
+impl Format {
+    fn parse(raw: &str) -> Option<Self> {
+        Some(match raw {
+            "text" => Self::Text,
+            "rich" => Self::Rich,
+            "freeze" => Self::Freeze,
+            "json" => Self::Json,
+            "json-tree" => Self::JsonTree,
+            "mermaid" => Self::Mermaid,
+            other => Self::Graphviz(other.strip_prefix("graphviz-")?.to_string()),
+        })
+    }
+
+    // Text-like trees stream dependency warnings to stderr; structured and graph formats stay silent.
+    pub const fn emits_text_warnings(&self) -> bool {
+        matches!(self, Self::Text | Self::Rich | Self::Freeze)
+    }
+
+    pub const fn summary_compatible(&self) -> bool {
+        matches!(self, Self::Json | Self::Rich | Self::Text)
+    }
+
+    pub fn graphviz_target(&self) -> Option<&str> {
+        match self {
+            Self::Graphviz(target) => Some(target),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Parser)]
 #[command(
     name = "pipdeptree",
@@ -199,7 +241,7 @@ pub struct Options {
     pub command: Option<Command>,
 
     #[arg(skip)]
-    pub output_format: String,
+    pub output_format: Format,
 }
 
 #[derive(Debug, Args)]
@@ -351,7 +393,7 @@ impl Options {
         if legacy_formats > 1 || (legacy_formats == 1 && self.output.is_some()) {
             return Err(Error::usage("render options are mutually exclusive"));
         }
-        self.output_format = if self.legacy_formats.freeze {
+        let raw = if self.legacy_formats.freeze {
             "freeze".to_string()
         } else if self.legacy_formats.json {
             "json".to_string()
@@ -366,20 +408,17 @@ impl Options {
                 .clone()
                 .unwrap_or_else(|| if color { "rich" } else { "text" }.to_string())
         };
-        if !matches!(
-            self.output_format.as_str(),
-            "freeze" | "json" | "json-tree" | "mermaid" | "rich" | "text"
-        ) && !self.output_format.starts_with("graphviz-")
-        {
+        self.output_format = match Format::parse(&raw) {
+            Some(format) => format,
+            None => {
+                return Err(Error::usage(format!(
+                    "\"{raw}\" is not a known output format"
+                )));
+            }
+        };
+        if self.summary() && !self.output_format.summary_compatible() {
             return Err(Error::usage(format!(
-                "\"{}\" is not a known output format",
-                self.output_format
-            )));
-        }
-        if self.summary() && !matches!(self.output_format.as_str(), "json" | "rich" | "text") {
-            return Err(Error::usage(format!(
-                "--summary supports only -o json, rich, text (got {})",
-                self.output_format
+                "--summary supports only -o json, rich, text (got {raw})"
             )));
         }
         if self.exclude_dependencies && self.exclude.is_none() {

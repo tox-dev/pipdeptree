@@ -7,9 +7,9 @@ use pyo3::types::{PyAnyMethods as _, PyBytes, PyList};
 use pyo3::{Bound, Py, PyResult, Python, pyfunction, pymodule, wrap_pyfunction};
 
 use crate::environment::Runtime;
-use crate::graph::{FilterError, Graph};
-use crate::metadata::Package;
-use crate::options::{Command, Options, WarningMode};
+use crate::graph::{FilterError, FilterSpec, Graph};
+use crate::metadata::Discovered;
+use crate::options::{Command, Format, Options, WarningMode};
 
 mod environment;
 mod error;
@@ -146,6 +146,49 @@ fn render_with_mermaid_py(
     ))
 }
 
+// Binary Graphviz targets that the string-returning render() API cannot hand back; kept here so the
+// output-format vocabulary lives on the Rust side of the boundary rather than in the Python shim.
+const BINARY_GRAPHVIZ: &[&str] = &["png", "svg", "pdf", "jpeg", "jpg", "gif", "bmp", "ps"];
+const RENDER_FORMATS: &[&str] = &["text", "json", "json-tree", "mermaid", "dot"];
+
+// Translate a render() output_format into the CLI arguments the engine expects, or raise the same
+// ValueError the Python shim used to raise. Summary and tree formats have distinct vocabularies.
+#[pyfunction(name = "format_flags", signature = (output_format, summary))]
+fn format_flags_py(output_format: &str, summary: bool) -> PyResult<Vec<String>> {
+    if summary {
+        if !matches!(output_format, "json" | "rich" | "text") {
+            return Err(PyValueError::new_err(format!(
+                "summary output_format must be one of json, rich, text; got '{output_format}'"
+            )));
+        }
+        return Ok(vec![
+            "--summary".to_string(),
+            "--output".to_string(),
+            output_format.to_string(),
+        ]);
+    }
+    let flags: &[&str] = match output_format {
+        "text" => &[],
+        "json" => &["--json"],
+        "json-tree" => &["--json-tree"],
+        "mermaid" => &["--mermaid"],
+        "dot" => &["--graph-output", "dot"],
+        _ if BINARY_GRAPHVIZ.contains(&output_format) => {
+            return Err(PyValueError::new_err(
+                "binary Graphviz formats cannot be returned as a string; use output_format='dot' \
+                 for the Graphviz source, or run the pipdeptree CLI for binary output",
+            ));
+        }
+        _ => {
+            return Err(PyValueError::new_err(format!(
+                "unknown output_format '{output_format}'; expected one of {}",
+                RENDER_FORMATS.join(", ")
+            )));
+        }
+    };
+    Ok(flags.iter().map(ToString::to_string).collect())
+}
+
 #[must_use]
 pub fn run(py: Python<'_>, args: &[String], color: bool, log_resolved: bool) -> Execution {
     Application::new(&SystemProcessRunner).run(py, args, color, log_resolved)
@@ -165,135 +208,153 @@ fn execute(
         Err(error) => return parse_failure(&error, color),
     };
     if options.version() {
-        return Execution {
-            code: 0,
-            stdout: format!("{}\n", env!("PIPDEPTREE_VERSION")).into_bytes(),
-            stderr: String::new(),
-            graphviz_format: None,
-            mermaid: None,
-        };
+        return success(format!("{}\n", env!("PIPDEPTREE_VERSION")).into_bytes());
     }
     if let Err(error) = options.validate(color) {
         return failure(2, format!("pipdeptree: error: {error}\n"));
     }
-    let graphviz_format = options
-        .output_format
-        .strip_prefix("graphviz-")
-        .map(ToOwned::to_owned);
-    let warning_mode = if text_output(&options) {
-        options.warn
-    } else {
-        WarningMode::Silence
+    let ctx = RenderContext {
+        color,
+        interface,
+        warning_mode: if options.output_format.emits_text_warnings() {
+            options.warn
+        } else {
+            WarningMode::Silence
+        },
+        graphviz_format: options
+            .output_format
+            .graphviz_target()
+            .map(ToOwned::to_owned),
     };
+    let Prepared {
+        graph,
+        stderr,
+        warned,
+    } = match prepare_graph(processes, py, &options, log_resolved, &ctx) {
+        Ok(prepared) => prepared,
+        Err(execution) => return execution,
+    };
+    let output = match render::render(processes, &graph, &options, color) {
+        Ok(output) => output,
+        Err(error) => return failure(1, format!("{stderr}{error}\n")),
+    };
+    let mermaid = with_mermaid.then(|| {
+        options.output_format = Format::Mermaid;
+        render::render(processes, &graph, &options, color).expect("mermaid rendering cannot fail")
+    });
+    let code = i32::from(ctx.warning_mode == WarningMode::Fail && warned);
+    Execution {
+        code,
+        stdout: output,
+        stderr,
+        graphviz_format: ctx.graphviz_format,
+        mermaid,
+    }
+}
 
-    metadata::clear_root_cache();
-    let runtime = match Runtime::resolve(processes, py, &options, log_resolved) {
-        Ok(runtime) => runtime,
-        Err(error) => return failure(1, format!("{error}\n")),
-    };
+// Cross-cutting presentation state shared by graph preparation and every failure path, so filter
+// outcomes render consistently without threading four separate values through the pipeline.
+struct RenderContext {
+    color: bool,
+    interface: Interface,
+    warning_mode: WarningMode,
+    graphviz_format: Option<String>,
+}
+
+struct Prepared {
+    graph: Graph,
+    stderr: String,
+    warned: bool,
+}
+
+fn prepare_graph(
+    processes: &dyn ProcessRunner,
+    py: Python<'_>,
+    options: &Options,
+    log_resolved: bool,
+    ctx: &RenderContext,
+) -> Result<Prepared, Execution> {
+    metadata::reset_vcs_caches();
+    let runtime = Runtime::resolve(processes, py, options, log_resolved)
+        .map_err(|error| failure(1, format!("{error}\n")))?;
     let mut stderr = runtime.resolved_message.clone().unwrap_or_default();
     let mut warned = false;
-    let packages = match packages(py, &options, &runtime) {
-        Ok((packages, discovery_warnings)) => {
-            if warning_mode != WarningMode::Silence {
-                for warning in discovery_warnings {
-                    stderr.push_str(&style_warning(&warning.message, color));
+    let packages = match packages(py, options, &runtime) {
+        Ok(discovered) => {
+            if ctx.warning_mode != WarningMode::Silence {
+                for warning in discovered.warnings {
+                    stderr.push_str(&style_warning(&warning.message, ctx.color));
                     warned |= warning.failure;
                 }
             }
-            packages
+            discovered.packages
         }
-        Err(error) => return failure(1, format!("{stderr}{error}\n")),
+        Err(error) => return Err(failure(1, format!("{stderr}{error}\n"))),
     };
     let mut graph = Graph::new(packages, &runtime.marker, options.extras);
-    graph.apply_global_extras(&options);
+    let (filter_spec, requested_extras) = FilterSpec::from_options(options);
+    graph.apply_global_extras(&requested_extras);
+    let filtered = |graph: &mut Graph, stderr: String, warned: bool| {
+        graph
+            .apply_filters(&filter_spec)
+            .map_err(|error| filter_failure(&error, ctx, stderr, warned))
+    };
     // Warnings cover the whole environment, so filters wait for them; with warnings silenced,
     // filtering first keeps version resolution (and its module-import fallback) away from
     // packages that never render.
-    if warning_mode == WarningMode::Silence {
-        if let Err(error) = graph.apply_filters(&options) {
-            return filter_failure(
-                &error,
-                interface,
-                warning_mode,
-                stderr,
-                warned,
-                graphviz_format,
-            );
-        }
+    if ctx.warning_mode == WarningMode::Silence {
+        filtered(&mut graph, stderr.clone(), warned)?;
     }
-    if let Err(error) = graph.resolve_missing_versions(py, &runtime.paths) {
-        return failure(1, format!("{stderr}{error}\n"));
-    }
-    if warning_mode != WarningMode::Silence {
+    graph
+        .resolve_missing_versions(py, &runtime.paths)
+        .map_err(|error| failure(1, format!("{stderr}{error}\n")))?;
+    if ctx.warning_mode != WarningMode::Silence {
         graph.validate();
         for warning in &graph.warnings {
             let warning = format!(
                 "Warning: dependency problems found:\n* {warning}\n{}\n",
                 "-".repeat(72)
             );
-            stderr.push_str(&style_warning(&warning, color));
+            stderr.push_str(&style_warning(&warning, ctx.color));
             stderr.push('\n');
             warned = true;
         }
-        if let Err(error) = graph.apply_filters(&options) {
-            return filter_failure(
-                &error,
-                interface,
-                warning_mode,
-                stderr,
-                warned,
-                graphviz_format,
-            );
-        }
+        filtered(&mut graph, stderr.clone(), warned)?;
     }
-    let output = match render::render(processes, &graph, &options, color) {
-        Ok(output) => output,
-        Err(error) => return failure(1, format!("{stderr}{error}\n")),
-    };
-    let mermaid = with_mermaid.then(|| {
-        options.output_format = "mermaid".to_string();
-        render::render(processes, &graph, &options, color).expect("mermaid rendering cannot fail")
-    });
-    let code = i32::from(warning_mode == WarningMode::Fail && warned);
-    Execution {
-        code,
-        stdout: output,
+    Ok(Prepared {
+        graph,
         stderr,
-        graphviz_format,
-        mermaid,
-    }
+        warned,
+    })
 }
 
 fn filter_failure(
     error: &FilterError,
-    interface: Interface,
-    warning_mode: WarningMode,
+    ctx: &RenderContext,
     mut stderr: String,
     warned: bool,
-    graphviz_format: Option<String>,
 ) -> Execution {
     let message = error.to_string();
     match error {
-        FilterError::Unmatched(_) if interface == Interface::Python => Execution {
+        FilterError::Unmatched(_) if ctx.interface == Interface::Python => Execution {
             code: 0,
             stdout: Vec::new(),
             stderr: String::new(),
-            graphviz_format,
+            graphviz_format: ctx.graphviz_format.clone(),
             mermaid: None,
         },
         FilterError::Unmatched(_) => {
-            let warned = if warning_mode == WarningMode::Silence {
+            let warned = if ctx.warning_mode == WarningMode::Silence {
                 warned
             } else {
                 writeln!(stderr, "{message}").expect("writing to a string cannot fail");
                 true
             };
             Execution {
-                code: i32::from(warning_mode == WarningMode::Fail && warned),
+                code: i32::from(ctx.warning_mode == WarningMode::Fail && warned),
                 stdout: Vec::new(),
                 stderr,
-                graphviz_format,
+                graphviz_format: ctx.graphviz_format.clone(),
                 mermaid: None,
             }
         }
@@ -316,13 +377,17 @@ fn parse_failure(error: &clap::Error, color: bool) -> Execution {
     if error.use_stderr() {
         failure(2, message)
     } else {
-        Execution {
-            code: 0,
-            stdout: message.into_bytes(),
-            stderr: String::new(),
-            graphviz_format: None,
-            mermaid: None,
-        }
+        success(message.into_bytes())
+    }
+}
+
+const fn success(stdout: Vec<u8>) -> Execution {
+    Execution {
+        code: 0,
+        stdout,
+        stderr: String::new(),
+        graphviz_format: None,
+        mermaid: None,
     }
 }
 
@@ -336,36 +401,25 @@ const fn failure(code: i32, stderr: String) -> Execution {
     }
 }
 
-fn packages(
-    py: Python<'_>,
-    options: &Options,
-    runtime: &Runtime,
-) -> Result<(Vec<Package>, Vec<metadata::DiscoveryWarning>), Error> {
+fn packages(py: Python<'_>, options: &Options, runtime: &Runtime) -> Result<Discovered, Error> {
     match &options.command {
         None => metadata::discover_selected(&runtime.paths, &options.metadata, options.summary()),
-        Some(Command::FromLock { lock }) => Ok((lock::load(lock, &runtime.marker)?, Vec::new())),
+        Some(Command::FromLock { lock }) => lock::load(lock, &runtime.marker),
         Some(Command::FromIndex {
             requirements,
             requirement_files,
             pyproject_files,
             index_url,
             extra_index_url,
-        }) => Ok((
-            index::resolve(
-                py,
-                requirements,
-                requirement_files,
-                pyproject_files,
-                index_url.as_deref(),
-                extra_index_url,
-            )?,
-            Vec::new(),
-        )),
+        }) => index::resolve(
+            py,
+            requirements,
+            requirement_files,
+            pyproject_files,
+            index_url.as_deref(),
+            extra_index_url,
+        ),
     }
-}
-
-fn text_output(options: &Options) -> bool {
-    matches!(options.output_format.as_str(), "freeze" | "rich" | "text")
 }
 
 fn style_warning(message: &str, color: bool) -> String {
@@ -387,5 +441,6 @@ pub fn install_python_module(extension: &Bound<'_, PyModule>) -> PyResult<()> {
     extension.add_function(wrap_pyfunction!(execute_py, extension)?)?;
     extension.add_function(wrap_pyfunction!(render_py, extension)?)?;
     extension.add_function(wrap_pyfunction!(render_with_mermaid_py, extension)?)?;
+    extension.add_function(wrap_pyfunction!(format_flags_py, extension)?)?;
     Ok(())
 }

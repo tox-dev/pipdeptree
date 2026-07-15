@@ -143,6 +143,16 @@ pub(super) fn canonical_or_original(path: &str) -> PathBuf {
     canonical
 }
 
+// hg and bzr both report on-disk remotes as bare paths; turn those into canonical file URLs while
+// leaving already-remote URLs untouched.
+pub(super) fn normalize_local_remote(remote: String) -> String {
+    if local_path(&remote) {
+        path_url(&canonical_or_original(&remote)).unwrap_or(remote)
+    } else {
+        remote
+    }
+}
+
 fn project_subdirectory(location: &Path, root: &Path) -> Option<String> {
     let mut current = location.canonicalize().ok()?;
     let root = root.canonicalize().ok()?;

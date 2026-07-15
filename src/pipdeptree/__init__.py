@@ -11,8 +11,9 @@ import sys
 from dataclasses import dataclass
 from html import escape
 from math import inf
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING
 
+from pipdeptree._rust import format_flags as _format_flags
 from pipdeptree._rust import render as _render
 from pipdeptree._rust import render_with_mermaid as _render_with_mermaid
 
@@ -22,16 +23,6 @@ if TYPE_CHECKING:
     from collections.abc import Container
 
     from typing_extensions import Self
-
-_BINARY_GRAPHVIZ_FORMATS: Final[frozenset[str]] = frozenset({"png", "svg", "pdf", "jpeg", "jpg", "gif", "bmp", "ps"})
-_FORMAT_FLAGS: Final[dict[str, list[str]]] = {
-    "text": [],
-    "json": ["--json"],
-    "json-tree": ["--json-tree"],
-    "mermaid": ["--mermaid"],
-    "dot": ["--graph-output", "dot"],
-}
-_SUMMARY_FORMATS: Final[frozenset[str]] = frozenset({"json", "rich", "text"})
 
 
 def render(  # noqa: PLR0913  # The public keyword API predates the Rust implementation.
@@ -71,10 +62,6 @@ def render(  # noqa: PLR0913  # The public keyword API predates the Rust impleme
         and the environment has dependency problems.
     :return: The rendered output. Text and text-summary results also provide notebook display hooks.
     """
-    if summary and output_format not in _SUMMARY_FORMATS:
-        msg = f"summary output_format must be one of {', '.join(sorted(_SUMMARY_FORMATS))}; got {output_format!r}"
-        raise ValueError(msg)
-
     args = _render_args(
         _RenderOptions(
             packages=packages,
@@ -111,9 +98,7 @@ def _report(text: str, warnings: str, code: int) -> str:
 
 
 def _render_args(options: _RenderOptions) -> list[str]:
-    format_args = (
-        ["--summary", "--output", options.output_format] if options.summary else _format_args(options.output_format)
-    )
+    format_args = _format_flags(options.output_format, options.summary)
     args = ["--warn", options.warn, "--encoding", options.encoding, *format_args]
     for flag, value in (
         ("--packages", options.packages),
@@ -136,19 +121,6 @@ def _render_args(options: _RenderOptions) -> list[str]:
         if enabled:
             args.append(flag)
     return args
-
-
-def _format_args(output_format: str) -> list[str]:
-    if output_format in _FORMAT_FLAGS:
-        return _FORMAT_FLAGS[output_format]
-    if output_format in _BINARY_GRAPHVIZ_FORMATS:
-        msg = (
-            "binary Graphviz formats cannot be returned as a string; use output_format='dot' for the Graphviz source, "
-            "or run the pipdeptree CLI for binary output"
-        )
-        raise ValueError(msg)
-    msg = f"unknown output_format {output_format!r}; expected one of {', '.join(_FORMAT_FLAGS)}"
-    raise ValueError(msg)
 
 
 def _summary_html(text: str) -> str:

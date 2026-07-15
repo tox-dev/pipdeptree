@@ -6,18 +6,18 @@ use pep508_rs::pep440_rs::{Version, VersionSpecifiers};
 use serde_json::json;
 
 use crate::graph::Graph;
-use crate::options::Options;
+use crate::options::{Format, Options};
 
 use super::shared::format_size;
 use super::text::is_unicode;
 
 pub(super) fn render(graph: &Graph, options: &Options, color: bool) -> String {
     let summary = Summary::new(graph, options.resolved());
-    if options.output_format == "json" {
+    if options.output_format == Format::Json {
         return summary.json();
     }
     let rows = summary.rows();
-    if options.output_format == "rich" {
+    if options.output_format == Format::Rich {
         return rich_table(
             "environment summary",
             &rows,

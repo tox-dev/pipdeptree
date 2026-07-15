@@ -1,21 +1,21 @@
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::ops::Range;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::OnceLock;
 
-use glob::Pattern;
 use pep508_rs::marker::{MarkerExpression, MarkerValueExtra};
 use pep508_rs::pep440_rs::Version;
 use pep508_rs::{ExtraName, MarkerEnvironment, MarkerTree, Requirement, VerbatimUrl, VersionOrUrl};
-use pyo3::exceptions::{PyAttributeError, PyImportError};
-use pyo3::prelude::{PyAnyMethods, PyModule};
-use pyo3::types::PyList;
-use pyo3::{Bound, PyResult, Python};
 
 use crate::metadata::{Package, canonicalize_name};
-use crate::options::{ExtrasMode, Options};
+use crate::options::ExtrasMode;
+
+mod extras;
+mod filter;
+mod version;
+
+pub use filter::FilterSpec;
 
 #[derive(Debug)]
 pub struct Dependency {
@@ -238,136 +238,8 @@ impl Graph {
         }
     }
 
-    pub fn resolve_missing_versions(&mut self, py: Python<'_>, paths: &[PathBuf]) -> PyResult<()> {
-        // The lookup is scoped to the inspected environment; consulting the host interpreter
-        // would report packages installed alongside pipdeptree as installed there.
-        let search = PyList::new(py, paths.iter().map(|path| path.to_string_lossy()))?;
-        // Only dependencies that can render matter; resolving inactive extras would import
-        // arbitrary modules (and run their side effects) for packages never shown.
-        let names = (0..self.nodes.len())
-            .filter(|index| self.visible[*index])
-            .flat_map(|index| self.expanded_children(index))
-            .filter(|dependency| dependency.target.is_none())
-            .map(|dependency| dependency.key().to_string())
-            .collect::<BTreeSet<_>>();
-        for name in names {
-            if let Some(version) = module_version(py, &name, &search)? {
-                self.missing_versions.insert(name, version);
-            }
-        }
-        Ok(())
-    }
-
-    pub fn apply_global_extras(&mut self, options: &Options) {
-        let (_, extras) = parse_packages(options.packages.as_deref());
-        if extras.is_empty() {
-            return;
-        }
-        let mut pending = VecDeque::new();
-        for (pattern, values) in extras {
-            for index in self.matching(&pattern) {
-                self.global_extras
-                    .entry(index)
-                    .or_default()
-                    .extend(values.iter().cloned());
-                let node = &self.nodes[index];
-                for dependency in values
-                    .iter()
-                    .filter_map(|extra| node.optional.get(extra))
-                    .flat_map(|range| &node.dependencies[range.clone()])
-                {
-                    if let Some(target) = dependency.target {
-                        let nested = dependency.requested_extras();
-                        if !nested.is_empty() {
-                            pending.push_back((target, nested));
-                        }
-                    }
-                }
-            }
-        }
-        self.propagate_requested_extras(pending);
-        self.expanded.take();
-        self.reverse_edges.take();
-        self.cycles.take();
-        self.unique_dependencies.take();
-    }
-
     pub fn validate(&mut self) {
         self.collect_validation_warnings();
-    }
-
-    pub fn apply_filters(&mut self, options: &Options) -> Result<(), FilterError> {
-        let (include, _) = parse_packages(options.packages.as_deref());
-        // The expanded, reverse-edge and unique caches depend on extras, not visibility; only
-        // the cycle components change when filters hide nodes.
-        self.cycles.take();
-        let exclude_patterns = options
-            .exclude
-            .as_deref()
-            .map(|value| {
-                value
-                    .split(',')
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty())
-                    .map(ToOwned::to_owned)
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        let canonical_excludes = exclude_patterns
-            .iter()
-            .map(|pattern| canonicalize_pattern(pattern))
-            .collect::<HashSet<_>>();
-        if include
-            .iter()
-            .map(|pattern| canonicalize_pattern(pattern))
-            .any(|pattern| canonical_excludes.contains(&pattern))
-        {
-            return Err(FilterError::Overlap);
-        }
-        // Reverse mode renders uninstalled requirements as roots, so a pattern may legitimately
-        // name one; its dependents carry the subtree.
-        let missing_names = if options.reverse {
-            self.missing_dependents()
-        } else {
-            BTreeMap::new()
-        };
-        let mut include_matches = HashSet::new();
-        let unmatched = include
-            .iter()
-            .filter_map(|pattern| {
-                let mut matched = self.matching(pattern);
-                if let Some(parents) = matching_missing(&missing_names, pattern) {
-                    matched.extend(parents);
-                }
-                if matched.is_empty() {
-                    Some(pattern.clone())
-                } else {
-                    include_matches.extend(matched);
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        if !unmatched.is_empty() {
-            return Err(FilterError::Unmatched(unmatched));
-        }
-        let exclude_matches = self.matching_many(&exclude_patterns);
-        if !include.is_empty() {
-            let mut included = vec![false; self.nodes.len()];
-            self.mark_into(&include_matches, options.reverse, &mut included);
-            self.visible = included;
-        }
-        if options.exclude_dependencies {
-            let mut excluded = vec![false; self.nodes.len()];
-            self.mark_excluded_dependencies(&exclude_matches, options.reverse, &mut excluded);
-            for (visible, excluded) in self.visible.iter_mut().zip(excluded) {
-                *visible &= !excluded;
-            }
-        } else {
-            for index in exclude_matches {
-                self.visible[index] = false;
-            }
-        }
-        Ok(())
     }
 
     pub(super) fn children<'a>(
@@ -713,18 +585,6 @@ impl Graph {
         false
     }
 
-    fn matching(&self, pattern: &str) -> Vec<usize> {
-        let pattern = canonicalize_pattern(pattern);
-        let Ok(pattern) = Pattern::new(&pattern) else {
-            return Vec::new();
-        };
-        self.nodes
-            .iter()
-            .enumerate()
-            .filter_map(|(index, node)| pattern.matches(&node.package.key).then_some(index))
-            .collect()
-    }
-
     fn selected_children(&self, index: usize, incoming_extras: &BTreeSet<String>) -> Vec<usize> {
         let node = &self.nodes[index];
         let global = self.global_extras.get(&index);
@@ -769,148 +629,6 @@ impl Graph {
                 })
                 .collect()
         })
-    }
-
-    fn matching_many(&self, patterns: &[String]) -> HashSet<usize> {
-        patterns
-            .iter()
-            .flat_map(|pattern| self.matching(pattern))
-            .collect()
-    }
-
-    // A dependency leaves the tree only when every package needing it is itself excluded.
-    fn mark_excluded_dependencies(
-        &self,
-        seeds: &HashSet<usize>,
-        reverse: bool,
-        marked: &mut [bool],
-    ) {
-        let mut forward = vec![Vec::new(); self.nodes.len()];
-        let mut backward = vec![Vec::new(); self.nodes.len()];
-        for (parent, edges) in forward.iter_mut().enumerate() {
-            for target in self.active_targets(parent) {
-                edges.push(target);
-                backward[target].push(parent);
-            }
-        }
-        if reverse {
-            std::mem::swap(&mut forward, &mut backward);
-        }
-        for seed in seeds {
-            marked[*seed] = true;
-        }
-        let mut queue = seeds.iter().copied().collect::<VecDeque<_>>();
-        while let Some(index) = queue.pop_front() {
-            for candidate in &forward[index] {
-                if !marked[*candidate] && backward[*candidate].iter().all(|holder| marked[*holder])
-                {
-                    marked[*candidate] = true;
-                    queue.push_back(*candidate);
-                }
-            }
-        }
-    }
-
-    fn mark_into(&self, seeds: &HashSet<usize>, reverse: bool, marked: &mut [bool]) {
-        let mut queue = seeds.iter().copied().collect::<VecDeque<_>>();
-        while let Some(index) = queue.pop_front() {
-            if marked[index] {
-                continue;
-            }
-            marked[index] = true;
-            if reverse {
-                queue.extend(self.parents(index).into_iter().map(|(parent, _)| parent));
-            } else {
-                queue.extend(
-                    self.expanded_children(index)
-                        .filter_map(|dependency| dependency.target),
-                );
-            }
-        }
-    }
-
-    fn collect_requested_extras(&mut self) {
-        let mut pending = VecDeque::new();
-        for index in 0..self.nodes.len() {
-            let node = &self.nodes[index];
-            for dependency in &node.dependencies[node.mandatory.clone()] {
-                if let Some(target) = dependency.target {
-                    let extras = dependency.requested_extras();
-                    if !extras.is_empty() {
-                        pending.push_back((target, extras));
-                    }
-                }
-            }
-        }
-        self.propagate_requested_extras(pending);
-    }
-
-    fn propagate_requested_extras(&mut self, mut pending: VecDeque<(usize, BTreeSet<String>)>) {
-        while let Some((index, extras)) = pending.pop_front() {
-            let entry = self.requested_extras.entry(index).or_default();
-            let new = extras.difference(entry).cloned().collect::<BTreeSet<_>>();
-            if new.is_empty() {
-                continue;
-            }
-            entry.extend(new.iter().cloned());
-            for extra in new {
-                let node = &self.nodes[index];
-                for dependency in node
-                    .optional
-                    .get(&extra)
-                    .into_iter()
-                    .flat_map(|range| &node.dependencies[range.clone()])
-                {
-                    if let Some(target) = dependency.target {
-                        let nested = dependency.requested_extras();
-                        if !nested.is_empty() {
-                            pending.push_back((target, nested));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn activate_satisfied_extras(&mut self) {
-        let mut satisfied = self
-            .nodes
-            .iter()
-            .enumerate()
-            .flat_map(|(index, node)| {
-                node.optional
-                    .keys()
-                    .cloned()
-                    .map(move |extra| (index, extra))
-            })
-            .collect::<HashSet<_>>();
-        let mut dependents = HashMap::<(usize, String), Vec<(usize, String)>>::new();
-        let mut unsatisfied = VecDeque::new();
-        for pair in &satisfied {
-            let node = &self.nodes[pair.0];
-            for dependency in &node.dependencies[node.optional[&pair.1].clone()] {
-                let Some(target) = dependency.target else {
-                    unsatisfied.push_back(pair.clone());
-                    continue;
-                };
-                for extra in dependency.requested_extras() {
-                    let required = (target, extra);
-                    if satisfied.contains(&required) {
-                        dependents.entry(required).or_default().push(pair.clone());
-                    } else {
-                        unsatisfied.push_back(pair.clone());
-                    }
-                }
-            }
-        }
-        while let Some(pair) = unsatisfied.pop_front() {
-            if satisfied.remove(&pair) {
-                unsatisfied.extend(dependents.remove(&pair).into_iter().flatten());
-            }
-        }
-        for (index, extra) in satisfied {
-            self.global_extras.entry(index).or_default().insert(extra);
-        }
     }
 
     fn collect_validation_warnings(&mut self) {
@@ -974,97 +692,6 @@ impl<'a> Iterator for Children<'a> {
     }
 }
 
-fn parse_packages(value: Option<&str>) -> (Vec<String>, HashMap<String, BTreeSet<String>>) {
-    let Some(value) = value else {
-        return (Vec::new(), HashMap::new());
-    };
-    // An unbalanced '[' would swallow the terminating sentinel and silently drop every pattern.
-    let value = if value.matches('[').count() == value.matches(']').count() {
-        value
-    } else {
-        return (vec![value.trim().to_string()], HashMap::new());
-    };
-    let mut names = Vec::new();
-    let mut extras = HashMap::<String, BTreeSet<String>>::new();
-    let mut depth: usize = 0;
-    let mut start = 0;
-    for (index, character) in value
-        .char_indices()
-        .chain(std::iter::once((value.len(), ',')))
-    {
-        match character {
-            '[' => depth += 1,
-            ']' => depth = depth.saturating_sub(1),
-            ',' if depth == 0 => {
-                let entry = value[start..index].trim();
-                start = index + 1;
-                if entry.is_empty() {
-                    continue;
-                }
-                if let Some((name, raw_extras)) = entry
-                    .strip_suffix(']')
-                    .and_then(|entry| entry.split_once('['))
-                {
-                    names.push(name.to_string());
-                    let requested = raw_extras
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|extra| !extra.is_empty())
-                        .map(canonicalize_name)
-                        .collect::<BTreeSet<_>>();
-                    if !requested.is_empty() {
-                        extras
-                            .entry(name.to_string())
-                            .or_default()
-                            .extend(requested);
-                    }
-                } else {
-                    names.push(entry.to_string());
-                }
-            }
-            _ => {}
-        }
-    }
-    (names, extras)
-}
-
-// A module found on the inspected paths may carry __version__ even without dist metadata; it is
-// loaded through PathFinder so the host's own copy of the module never answers.
-fn module_version(
-    py: Python<'_>,
-    name: &str,
-    search: &Bound<'_, PyList>,
-) -> PyResult<Option<String>> {
-    let finder = PyModule::import(py, "importlib.machinery")?.getattr("PathFinder")?;
-    let spec = finder.call_method1("find_spec", (name, search))?;
-    if spec.is_none() {
-        return Ok(None);
-    }
-    let module =
-        PyModule::import(py, "importlib.util")?.call_method1("module_from_spec", (&spec,))?;
-    match spec
-        .getattr("loader")?
-        .call_method1("exec_module", (&module,))
-    {
-        Ok(_) => {}
-        Err(error) if error.is_instance_of::<PyImportError>(py) => return Ok(None),
-        Err(error) => return Err(error),
-    }
-    let value = match module.getattr("__version__") {
-        Ok(value) => value,
-        Err(error) if error.is_instance_of::<PyAttributeError>(py) => return Ok(None),
-        Err(error) => return Err(error),
-    };
-    if let Ok(version) = value.extract() {
-        return Ok(Some(version));
-    }
-    match value.getattr("__version__") {
-        Ok(value) => value.extract().map(Some),
-        Err(error) if error.is_instance_of::<PyAttributeError>(py) => Ok(None),
-        Err(error) => Err(error),
-    }
-}
-
 fn marker_extras(marker: &MarkerTree) -> BTreeSet<ExtraName> {
     marker
         .to_dnf()
@@ -1078,39 +705,4 @@ fn marker_extras(marker: &MarkerTree) -> BTreeSet<ExtraName> {
             _ => None,
         })
         .collect()
-}
-
-fn matching_missing(
-    missing: &BTreeMap<&str, Vec<(usize, &Dependency)>>,
-    pattern: &str,
-) -> Option<Vec<usize>> {
-    let pattern = Pattern::new(&canonicalize_pattern(pattern)).ok()?;
-    let matched = missing
-        .iter()
-        .filter(|(name, _)| pattern.matches(&canonicalize_name(name)))
-        .flat_map(|(_, parents)| parents.iter().map(|(parent, _)| *parent))
-        .collect::<Vec<_>>();
-    (!matched.is_empty()).then_some(matched)
-}
-
-fn canonicalize_pattern(pattern: &str) -> String {
-    // Unlike canonicalize_name, boundary separators stay: 'py.*' means 'py-*', not 'py*'.
-    let mut result = String::new();
-    let mut separator = false;
-    for character in pattern.chars().flat_map(char::to_lowercase) {
-        match character {
-            '-' | '_' | '.' => separator = true,
-            _ => {
-                if separator {
-                    result.push('-');
-                    separator = false;
-                }
-                result.push(character);
-            }
-        }
-    }
-    if separator {
-        result.push('-');
-    }
-    result
 }

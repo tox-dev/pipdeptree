@@ -5,16 +5,16 @@ use serde_json::{Map, Value, json};
 use crate::graph::{Dependency, Graph};
 use crate::options::{ComputedField, Options};
 
-use super::shared::format_size;
+use super::shared::{format_size, required_version};
 
-pub(super) fn render(graph: &Graph, options: &Options) -> Vec<u8> {
+pub(super) fn render(graph: &Graph, options: &Options) -> String {
     let mut output = Vec::new();
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
     let mut serializer = serde_json::Serializer::with_formatter(&mut output, formatter);
     JsonGraph { graph, options }
         .serialize(&mut serializer)
         .expect("serializing dependency graph cannot fail");
-    output
+    String::from_utf8(output).expect("serde_json output is UTF-8")
 }
 
 struct JsonGraph<'a> {
@@ -316,11 +316,7 @@ impl Serialize for JsonDependency<'_> {
             object.serialize_entry("candidate_version", version)?;
         } else {
             object.serialize_entry("installed_version", version)?;
-            let required = self
-                .dependency
-                .version_spec()
-                .unwrap_or_else(|| "Any".to_string());
-            object.serialize_entry("required_version", &required)?;
+            object.serialize_entry("required_version", &required_version(self.dependency))?;
         }
         if let Some(extra) = &self.dependency.activated_by {
             object.serialize_entry("extra", extra)?;

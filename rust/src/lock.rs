@@ -7,7 +7,7 @@ use pep508_rs::{MarkerEnvironment, MarkerTree};
 use serde::Deserialize;
 
 use crate::Error;
-use crate::metadata::{Package, canonicalize_name};
+use crate::metadata::{Discovered, Package, canonicalize_name};
 
 #[derive(Debug, Deserialize)]
 struct Lock {
@@ -31,7 +31,7 @@ struct LockDependency {
     name: String,
 }
 
-pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Vec<Package>, Error> {
+pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error> {
     if !path.is_file() {
         return Err(Error::message(format!(
             "lock file does not exist: {}",
@@ -97,11 +97,12 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Vec<Package>, Err
                 .collect();
             Ok(Package::synthetic(name, package.version, requires))
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
+        .map(Discovered::new)
 }
 
 fn applies(marker: Option<&str>, environment: &MarkerEnvironment) -> bool {
-    // An unparseable marker cannot be shown to exclude the package, so the entry stays.
+    // An unparsable marker cannot be shown to exclude the package, so the entry stays.
     marker.is_none_or(|marker| {
         MarkerTree::from_str(marker).map_or(true, |tree| tree.evaluate(environment, &[]))
     })

@@ -8,45 +8,50 @@ use super::shared::{
     command, marker_root,
 };
 
-pub(super) fn root(location: &Path) -> Option<std::path::PathBuf> {
-    marker_root(location, ".svn", true)
-}
+pub(super) struct Svn;
 
-pub(super) fn requirement(
-    processes: &dyn ProcessRunner,
-    location: &Path,
-    package: &str,
-    root: &Path,
-) -> VcsResult {
-    let mut info = match command(
-        processes,
-        "svn",
-        &["info", "--xml"],
-        location,
-        ExitStatusPolicy::RequireSuccess,
-    ) {
-        Ok(output) => parse_info(&output),
-        Err(CommandError::Failed) => None,
-        Err(CommandError::NotFound) => {
-            return VcsResult::error(Some("svn"), VcsError::CommandNotFound);
-        }
-    };
-    if info.is_none() {
-        info = legacy_info(location);
+impl super::Vcs for Svn {
+    fn root(&self, _processes: &dyn ProcessRunner, location: &Path) -> Option<std::path::PathBuf> {
+        marker_root(location, ".svn", true)
     }
-    let Some((remote, revision)) = info else {
-        return VcsResult::error(Some("svn"), VcsError::NoRemote);
-    };
-    build_requirement(VcsRequirement {
-        vcs: "svn",
-        remote: &remote,
-        commit: &revision,
-        package,
-        location,
-        root,
-        always_prefix: true,
-        include_subdirectory: false,
-    })
+
+    fn requirement(
+        &self,
+        processes: &dyn ProcessRunner,
+        location: &Path,
+        package: &str,
+        root: &Path,
+    ) -> VcsResult {
+        let mut info = match command(
+            processes,
+            "svn",
+            &["info", "--xml"],
+            location,
+            ExitStatusPolicy::RequireSuccess,
+        ) {
+            Ok(output) => parse_info(&output),
+            Err(CommandError::Failed) => None,
+            Err(CommandError::NotFound) => {
+                return VcsResult::error(Some("svn"), VcsError::CommandNotFound);
+            }
+        };
+        if info.is_none() {
+            info = legacy_info(location);
+        }
+        let Some((remote, revision)) = info else {
+            return VcsResult::error(Some("svn"), VcsError::NoRemote);
+        };
+        build_requirement(VcsRequirement {
+            vcs: "svn",
+            remote: &remote,
+            commit: &revision,
+            package,
+            location,
+            root,
+            always_prefix: true,
+            include_subdirectory: false,
+        })
+    }
 }
 
 fn legacy_info(location: &Path) -> Option<(String, String)> {

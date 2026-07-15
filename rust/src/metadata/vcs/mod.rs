@@ -10,9 +10,28 @@ mod svn;
 
 use shared::{VcsError, VcsResult};
 
-type Backend = fn(&dyn ProcessRunner, &Path, &str, &Path) -> VcsResult;
+// One backend per supported VCS. Adding a system means adding its module and one entry here; the
+// dispatch, cache reset, and innermost-root selection all iterate this slice.
+trait Vcs {
+    fn root(&self, processes: &dyn ProcessRunner, location: &Path) -> Option<PathBuf>;
+    fn requirement(
+        &self,
+        processes: &dyn ProcessRunner,
+        location: &Path,
+        package: &str,
+        root: &Path,
+    ) -> VcsResult;
+    // Per-run caches keyed by repository root; only backends that resolve shared state override it.
+    fn reset_cache(&self) {}
+}
 
-pub use git::clear_root_cache;
+const BACKENDS: &[&dyn Vcs] = &[&git::Git, &hg::Hg, &svn::Svn, &bzr::Bzr];
+
+pub fn reset_caches() {
+    for backend in BACKENDS {
+        backend.reset_cache();
+    }
+}
 
 pub(super) fn editable_requirement(
     processes: &dyn ProcessRunner,
@@ -20,19 +39,10 @@ pub(super) fn editable_requirement(
     package: &str,
     version: &str,
 ) -> String {
-    let mut roots: Vec<(PathBuf, Backend)> = Vec::new();
-    if let Some(root) = git::root(processes, location) {
-        roots.push((root, git::requirement));
-    }
-    if let Some(root) = hg::root(location) {
-        roots.push((root, hg::requirement));
-    }
-    if let Some(root) = svn::root(location) {
-        roots.push((root, svn::requirement));
-    }
-    if let Some(root) = bzr::root(location) {
-        roots.push((root, bzr::requirement));
-    }
+    let roots = BACKENDS
+        .iter()
+        .filter_map(|backend| Some((backend.root(processes, location)?, *backend)))
+        .collect::<Vec<_>>();
     let Some((root, backend)) = innermost(roots) else {
         return format!(
             "# Editable install with no version control ({package}=={version})\n-e {}",
@@ -43,7 +53,7 @@ pub(super) fn editable_requirement(
         location,
         package,
         version,
-        backend(processes, location, package, &root),
+        backend.requirement(processes, location, package, &root),
     )
 }
 
@@ -68,7 +78,7 @@ fn format_result(location: &Path, package: &str, version: &str, result: VcsResul
     )
 }
 
-fn innermost(roots: Vec<(PathBuf, Backend)>) -> Option<(PathBuf, Backend)> {
+fn innermost(roots: Vec<(PathBuf, &dyn Vcs)>) -> Option<(PathBuf, &dyn Vcs)> {
     roots
         .into_iter()
         .max_by_key(|(root, _)| root.as_os_str().len())

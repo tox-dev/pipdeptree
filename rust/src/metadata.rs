@@ -17,7 +17,7 @@ mod vcs;
 
 use direct_url::{DirectInfo, DirectUrl};
 use editable::{EggLinks, file_url_to_path};
-pub use vcs::clear_root_cache;
+pub use vcs::reset_caches as reset_vcs_caches;
 
 #[derive(Debug)]
 pub struct Package {
@@ -39,6 +39,23 @@ pub struct DiscoveryWarning {
     pub failure: bool,
 }
 
+// The common currency of every package source (installed environment, lock file, index resolve):
+// the packages to render plus any environment-level warnings gathered while finding them.
+#[derive(Debug)]
+pub struct Discovered {
+    pub packages: Vec<Package>,
+    pub warnings: Vec<DiscoveryWarning>,
+}
+
+impl Discovered {
+    pub const fn new(packages: Vec<Package>) -> Self {
+        Self {
+            packages,
+            warnings: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Header {
     name: String,
@@ -49,6 +66,9 @@ struct Header {
 struct Headers(Vec<Header>);
 
 impl Package {
+    // A package resolved from a lock file or index has no on-disk dist-info: metadata() and
+    // license() therefore report N/A, and size is seeded to 0 (rather than left lazy) because
+    // compute_size has no metadata_dir to read and callers never ask a resolved package for it.
     pub fn synthetic(name: String, version: String, requires: Vec<String>) -> Self {
         Self {
             key: canonicalize_name(&name),
@@ -320,7 +340,7 @@ pub fn discover_selected(
     paths: &[PathBuf],
     metadata_fields: &[String],
     summary: bool,
-) -> Result<(Vec<Package>, Vec<DiscoveryWarning>), Error> {
+) -> Result<Discovered, Error> {
     let mut retained_fields = metadata_fields
         .iter()
         .filter(|field| !field.eq_ignore_ascii_case("license"))
@@ -346,7 +366,7 @@ pub fn discover_selected(
 fn discover_with_fields(
     paths: &[PathBuf],
     retained_fields: Option<&HashSet<String>>,
-) -> Result<(Vec<Package>, Vec<DiscoveryWarning>), Error> {
+) -> Result<Discovered, Error> {
     let search_paths = paths
         .iter()
         .map(|path| {
@@ -417,10 +437,10 @@ fn discover_with_fields(
     for package in &mut packages {
         package.legacy_editable = legacy_editables.find(&package.name).cloned();
     }
-    Ok((
+    Ok(Discovered {
         packages,
-        path_warnings(&archive_paths, &invalid_paths, duplicates),
-    ))
+        warnings: path_warnings(&archive_paths, &invalid_paths, duplicates),
+    })
 }
 
 fn path_warnings(

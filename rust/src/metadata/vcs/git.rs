@@ -9,18 +9,7 @@ use super::shared::{
     command, local_path, path_url,
 };
 
-pub(super) fn root(processes: &dyn ProcessRunner, location: &Path) -> Option<PathBuf> {
-    command(
-        processes,
-        "git",
-        &["rev-parse", "--show-toplevel"],
-        location,
-        ExitStatusPolicy::RequireSuccess,
-    )
-    .ok()
-    .filter(|value| !value.is_empty())
-    .map(PathBuf::from)
-}
+pub(super) struct Git;
 
 // Every editable in a monorepo shares the repository's remote and HEAD; resolve them once per
 // root. The cache is thread-local and cleared per run, so a long-lived host process (a notebook
@@ -31,36 +20,52 @@ thread_local! {
     static ROOT_INFO: RefCell<HashMap<PathBuf, RootInfo>> = RefCell::new(HashMap::new());
 }
 
-pub fn clear_root_cache() {
-    ROOT_INFO.with_borrow_mut(HashMap::clear);
-}
+impl super::Vcs for Git {
+    fn root(&self, processes: &dyn ProcessRunner, location: &Path) -> Option<PathBuf> {
+        command(
+            processes,
+            "git",
+            &["rev-parse", "--show-toplevel"],
+            location,
+            ExitStatusPolicy::RequireSuccess,
+        )
+        .ok()
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+    }
 
-pub(super) fn requirement(
-    processes: &dyn ProcessRunner,
-    location: &Path,
-    package: &str,
-    root: &Path,
-) -> VcsResult {
-    let info = ROOT_INFO.with_borrow_mut(|cache| {
-        cache
-            .entry(root.to_path_buf())
-            .or_insert_with(|| root_info(processes, root))
-            .clone()
-    });
-    let (remote, commit) = match info {
-        Ok(info) => info,
-        Err(error) => return VcsResult::error(Some("git"), error),
-    };
-    build_requirement(VcsRequirement {
-        vcs: "git",
-        remote: &remote,
-        commit: &commit,
-        package,
-        location,
-        root,
-        always_prefix: true,
-        include_subdirectory: true,
-    })
+    fn requirement(
+        &self,
+        processes: &dyn ProcessRunner,
+        location: &Path,
+        package: &str,
+        root: &Path,
+    ) -> VcsResult {
+        let info = ROOT_INFO.with_borrow_mut(|cache| {
+            cache
+                .entry(root.to_path_buf())
+                .or_insert_with(|| root_info(processes, root))
+                .clone()
+        });
+        let (remote, commit) = match info {
+            Ok(info) => info,
+            Err(error) => return VcsResult::error(Some("git"), error),
+        };
+        build_requirement(VcsRequirement {
+            vcs: "git",
+            remote: &remote,
+            commit: &commit,
+            package,
+            location,
+            root,
+            always_prefix: true,
+            include_subdirectory: true,
+        })
+    }
+
+    fn reset_cache(&self) {
+        ROOT_INFO.with_borrow_mut(HashMap::clear);
+    }
 }
 
 fn root_info(processes: &dyn ProcessRunner, root: &Path) -> RootInfo {

@@ -6,7 +6,7 @@ use crate::options::{ComputedField, Options};
 use crate::process::ProcessRunner;
 
 use super::rich_text::{self, DependencyLabel, Status};
-use super::shared::format_size;
+use super::shared::{format_size, required_version, reverse_required_extra};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(super) enum TextStyle {
@@ -172,11 +172,8 @@ impl TreeRenderer<'_> {
                 label
             ));
             self.path.insert(parent);
-            let required_extra = dependency
-                .activated_by
-                .as_deref()
-                .filter(|extra| !self.graph.extra_is_global(parent, extra))
-                .map(ToOwned::to_owned);
+            let required_extra =
+                reverse_required_extra(self.graph, parent, dependency).map(ToOwned::to_owned);
             let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
             self.walk_reverse(parent, required_extra.as_deref(), &next_prefix, depth + 1);
             self.path.remove(&parent);
@@ -262,9 +259,7 @@ impl TreeRenderer<'_> {
                 format!("candidate: {installed}{extra}")
             }
         } else {
-            let required = dependency
-                .version_spec()
-                .unwrap_or_else(|| "Any".to_string());
+            let required = required_version(dependency);
             if self.style == TextStyle::Rich {
                 format!("required: {required} installed: {installed}")
             } else {
