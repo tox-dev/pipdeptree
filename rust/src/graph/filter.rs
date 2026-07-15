@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use glob::Pattern;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::metadata::canonicalize_name;
 use crate::options::Options;
@@ -66,7 +67,7 @@ impl Graph {
         } else {
             BTreeMap::new()
         };
-        let mut include_matches = HashSet::new();
+        let mut include_matches = HashSet::default();
         let unmatched = spec
             .include
             .iter()
@@ -179,16 +180,16 @@ impl Graph {
 
 fn parse_packages(value: Option<&str>) -> (Vec<String>, HashMap<String, BTreeSet<String>>) {
     let Some(value) = value else {
-        return (Vec::new(), HashMap::new());
+        return (Vec::new(), HashMap::default());
     };
     // An unbalanced '[' would swallow the terminating sentinel and silently drop every pattern.
     let value = if value.matches('[').count() == value.matches(']').count() {
         value
     } else {
-        return (vec![value.trim().to_string()], HashMap::new());
+        return (vec![value.trim().to_string()], HashMap::default());
     };
     let mut names = Vec::new();
-    let mut extras = HashMap::<String, BTreeSet<String>>::new();
+    let mut extras = HashMap::<String, BTreeSet<String>>::default();
     let mut depth: usize = 0;
     let mut start = 0;
     for (index, character) in value

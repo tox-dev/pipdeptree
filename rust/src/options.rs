@@ -37,6 +37,10 @@ impl ComputedField {
             Self::UniqueDepsCount | Self::UniqueDepsNames | Self::UniqueDepsSize
         )
     }
+
+    const fn needs_size(self) -> bool {
+        matches!(self, Self::Size | Self::SizeRaw | Self::UniqueDepsSize)
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -474,6 +478,12 @@ impl Options {
 
     pub const fn summary(&self) -> bool {
         self.additional_formats.summary
+    }
+
+    // Whether the rendered output reads installed sizes, so the size sweep is worth warming in
+    // parallel: a summary totals them, and the size and unique-size computed fields report them.
+    pub fn needs_sizes(&self) -> bool {
+        (self.summary() && !self.resolved()) || self.computed.iter().any(|field| field.needs_size())
     }
 
     pub const fn local_only(&self) -> bool {

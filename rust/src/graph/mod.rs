@@ -1,8 +1,11 @@
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 use std::str::FromStr;
 use std::sync::OnceLock;
+
+use rayon::prelude::*;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use pep508_rs::marker::{MarkerExpression, MarkerValueExtra};
 use pep508_rs::pep440_rs::Version;
@@ -154,9 +157,9 @@ impl Graph {
         let mut graph = Self {
             visible: vec![true; nodes.len()],
             nodes,
-            global_extras: HashMap::new(),
-            requested_extras: HashMap::new(),
-            missing_versions: HashMap::new(),
+            global_extras: HashMap::default(),
+            requested_extras: HashMap::default(),
+            missing_versions: HashMap::default(),
             expanded: OnceLock::new(),
             reverse_edges: OnceLock::new(),
             cycles: OnceLock::new(),
@@ -262,6 +265,17 @@ impl Graph {
             indices: Cow::Borrowed(&self.expanded_children_cache()[index]),
             position: 0,
         }
+    }
+
+    // Installed sizes read each package's RECORD and stat every file, so warm the per-package
+    // caches across cores before a size-consuming render walks them one at a time.
+    pub fn warm_sizes(&self) {
+        self.visible_indices()
+            .collect::<Vec<_>>()
+            .par_iter()
+            .for_each(|&index| {
+                self.nodes[index].package.size();
+            });
     }
 
     pub fn parents(&self, child: usize) -> Vec<(usize, &Dependency)> {
@@ -456,7 +470,7 @@ impl Graph {
     }
 
     pub fn conflicts(&self) -> (usize, usize) {
-        let mut packages = HashSet::new();
+        let mut packages = HashSet::default();
         let mut edges = 0;
         for parent in self.visible_indices() {
             for dependency in self.expanded_children(parent) {
@@ -547,7 +561,8 @@ impl Graph {
             .min_by_key(|index| &self.nodes[*index].package.key)
             .expect("cycle components are never empty");
         let mut path = vec![start];
-        let mut visited = HashSet::from([start]);
+        let mut visited = HashSet::default();
+        visited.insert(start);
         self.extend_cycle(start, start, &members, &mut visited, &mut path);
         path.push(start);
         path.iter()

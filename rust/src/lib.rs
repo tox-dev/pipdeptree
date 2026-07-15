@@ -234,6 +234,9 @@ fn execute(
         Ok(prepared) => prepared,
         Err(execution) => return execution,
     };
+    if options.needs_sizes() {
+        graph.warm_sizes();
+    }
     let output = match render::render(processes, &graph, &options, color) {
         Ok(output) => output,
         Err(error) => return failure(1, format!("{stderr}{error}\n")),

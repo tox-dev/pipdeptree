@@ -1,4 +1,5 @@
-use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::collections::{BTreeSet, VecDeque};
 
 use super::Graph;
 
@@ -91,7 +92,7 @@ impl Graph {
                     .map(move |extra| (index, extra))
             })
             .collect::<HashSet<_>>();
-        let mut dependents = HashMap::<(usize, String), Vec<(usize, String)>>::new();
+        let mut dependents = HashMap::<(usize, String), Vec<(usize, String)>>::default();
         let mut unsatisfied = VecDeque::new();
         for pair in &satisfied {
             let node = &self.nodes[pair.0];

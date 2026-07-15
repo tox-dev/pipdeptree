@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
+
+use rayon::prelude::*;
+use rustc_hash::FxHashSet as HashSet;
 use std::fmt::Write as _;
 use std::fs;
 use std::io;
@@ -377,12 +380,15 @@ fn discover_with_fields(
             }
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let mut packages = Vec::new();
     let mut legacy_editables = EggLinks::new(search_paths.len());
     let mut invalid_paths = BTreeSet::new();
     let mut duplicates = BTreeMap::<PathBuf, Vec<(String, String, String, PathBuf)>>::new();
     let mut seen = BTreeMap::<String, (String, PathBuf)>::new();
     let mut archive_paths = BTreeSet::new();
+    // Walking directories is cheap; reading and parsing each METADATA dominates discovery. Collect
+    // the entries sequentially (preserving search-path and directory order for a deterministic
+    // dedup), parse them across cores, then fold the results back in the same order.
+    let mut candidates = Vec::new();
     for (search, path) in search_paths.iter().enumerate() {
         let Ok(entries) = fs::read_dir(path) else {
             // Nonexistent sys.path entries are routine; a file (zipped egg, zipapp) held
@@ -392,45 +398,33 @@ fn discover_with_fields(
             }
             continue;
         };
-        // DirEntry::metadata does not traverse links; symlinked dist-info directories are a
-        // normal layout (Nix, Debian, symlink installs), so stat the target.
-        for (entry, kind) in entries.filter_map(Result::ok).filter_map(|entry| {
-            let kind = fs::metadata(entry.path()).ok()?.file_type();
-            Some((entry, kind))
-        }) {
-            let metadata_dir = entry.path();
-            let name = entry.file_name();
-            let name = name.to_string_lossy();
-            if kind.is_file() && name.ends_with(".egg-link") {
-                legacy_editables.insert(search, &metadata_dir);
-                continue;
+        for entry in entries.filter_map(Result::ok) {
+            candidates.push((search, path.clone(), entry.path()));
+        }
+    }
+    let found = candidates
+        .par_iter()
+        .filter_map(|(search, path, entry)| classify(*search, path, entry, retained_fields))
+        .collect::<Vec<_>>();
+    let mut packages = Vec::new();
+    for entry in found {
+        match entry {
+            Found::EggLink(search, path) => legacy_editables.insert(search, &path),
+            Found::Invalid(path) => {
+                invalid_paths.insert(path);
             }
-            let (metadata_file, package_metadata_dir) =
-                if kind.is_dir() && name.ends_with(".dist-info") {
-                    (metadata_dir.join("METADATA"), metadata_dir)
-                } else if kind.is_dir() && name.ends_with(".egg-info") {
-                    (metadata_dir.join("PKG-INFO"), metadata_dir)
-                } else if kind.is_file() && name.ends_with(".egg-info") {
-                    (metadata_dir, path.clone())
+            Found::Package(package, path) => {
+                if let Some((version, first_path)) = seen.get(&package.key) {
+                    duplicates.entry(path).or_default().push((
+                        package.name,
+                        package.version,
+                        version.clone(),
+                        first_path.clone(),
+                    ));
                 } else {
-                    continue;
-                };
-            let Ok(Some(package)) =
-                Package::from_metadata(package_metadata_dir, &metadata_file, retained_fields)
-            else {
-                invalid_paths.insert(path.clone());
-                continue;
-            };
-            if let Some((version, first_path)) = seen.get(&package.key) {
-                duplicates.entry(path.clone()).or_default().push((
-                    package.name,
-                    package.version,
-                    version.clone(),
-                    first_path.clone(),
-                ));
-            } else {
-                seen.insert(package.key.clone(), (package.version.clone(), path.clone()));
-                packages.push(package);
+                    seen.insert(package.key.clone(), (package.version.clone(), path.clone()));
+                    packages.push(*package);
+                }
             }
         }
     }
@@ -441,6 +435,44 @@ fn discover_with_fields(
         packages,
         warnings: path_warnings(&archive_paths, &invalid_paths, duplicates),
     })
+}
+
+enum Found {
+    EggLink(usize, PathBuf),
+    Package(Box<Package>, PathBuf),
+    Invalid(PathBuf),
+}
+
+// Stat and parse one directory entry off the main thread. The path carried alongside a package is
+// its search-path root, which the caller uses for duplicate and invalid-metadata reporting.
+fn classify(
+    search: usize,
+    path: &Path,
+    entry: &Path,
+    retained_fields: Option<&HashSet<String>>,
+) -> Option<Found> {
+    // DirEntry::metadata does not traverse links; symlinked dist-info directories are a normal
+    // layout (Nix, Debian, symlink installs), so stat the target.
+    let kind = fs::metadata(entry).ok()?.file_type();
+    let name = entry.file_name()?.to_string_lossy();
+    if kind.is_file() && name.ends_with(".egg-link") {
+        return Some(Found::EggLink(search, entry.to_path_buf()));
+    }
+    let (metadata_file, package_metadata_dir) = if kind.is_dir() && name.ends_with(".dist-info") {
+        (entry.join("METADATA"), entry.to_path_buf())
+    } else if kind.is_dir() && name.ends_with(".egg-info") {
+        (entry.join("PKG-INFO"), entry.to_path_buf())
+    } else if kind.is_file() && name.ends_with(".egg-info") {
+        (entry.to_path_buf(), path.to_path_buf())
+    } else {
+        return None;
+    };
+    Some(
+        match Package::from_metadata(package_metadata_dir, &metadata_file, retained_fields) {
+            Ok(Some(package)) => Found::Package(Box::new(package), path.to_path_buf()),
+            _ => Found::Invalid(path.to_path_buf()),
+        },
+    )
 }
 
 fn path_warnings(
