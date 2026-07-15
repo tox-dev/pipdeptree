@@ -7,8 +7,9 @@
 [![PyPI - License](https://img.shields.io/pypi/l/pipdeptree?style=flat-square)](https://opensource.org/licenses/MIT)
 [![check](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yaml/badge.svg)](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yaml)
 
-pipdeptree displays installed Python packages as a dependency tree. `pip freeze` shows a flat list; `pipdeptree` adds
-parent-child relationships and reports dependency conflicts or cycles.
+pipdeptree displays installed Python packages as a dependency tree.
+[`pip freeze`](https://pip.pypa.io/en/stable/cli/pip_freeze/) shows a flat list; `pipdeptree` adds parent-child
+relationships and reports dependency conflicts or cycles.
 
 ## Quick start
 
@@ -31,7 +32,7 @@ Find packages that require a dependency:
 pipdeptree --reverse --packages markupsafe
 ```
 
-Output as JSON, Mermaid, or Graphviz:
+Output as [JSON](https://www.json.org/), [Mermaid](https://mermaid.js.org/), or [Graphviz](https://graphviz.org/):
 
 ```bash
 pipdeptree -o json
