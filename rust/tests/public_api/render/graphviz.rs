@@ -1,8 +1,7 @@
-use _pipdeptree::{ProcessError, ProcessOutput};
-use rstest::rstest;
-
 use super::super::common::MockProcesses;
 use super::{execute, execute_with, render_site, text};
+use _pipdeptree::{ProcessError, ProcessOutput};
+use rstest::rstest;
 
 #[rstest]
 #[case::forward(&["--graph-output", "dot"] as &[&str], "root -> missing [style=dashed]")]
@@ -48,32 +47,6 @@ fn limits_graphviz_to_roots_at_depth_zero() {
             text(&output).contains(" -> "),
         ),
         (true, false)
-    );
-}
-
-#[rstest]
-#[case::forward(&["--mermaid"] as &[&str], "root -.-> missing")]
-#[case::reverse(&["--mermaid", "--reverse"], "child -- \"any\" --> other")]
-#[case::metadata(
-    &["--mermaid", "--metadata", "license"],
-    "GPL-3.0 License"
-)]
-#[case::reverse_metadata(
-    &["--mermaid", "--reverse", "--metadata", "license"],
-    "GPL-3.0 License"
-)]
-fn renders_mermaid(#[case] args: &[&str], #[case] expected: &str) {
-    let site = render_site();
-    let output = execute(&site, args);
-
-    assert_eq!(
-        (
-            text(&output).starts_with("flowchart TD\n"),
-            text(&output).contains(expected),
-            text(&output).contains("graph_0"),
-            text(&output).ends_with("\n\n"),
-        ),
-        (true, true, true, true)
     );
 }
 

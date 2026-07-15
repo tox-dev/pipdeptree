@@ -8,5 +8,3 @@ mod metadata;
 mod process;
 mod python;
 mod render;
-mod vcs;
-mod versions;

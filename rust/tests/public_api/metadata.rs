@@ -5,6 +5,8 @@ use serde_json::{Value, json};
 
 use super::common::{PackageSite, execute, execute_in, execute_with_python, stdout, with_python};
 
+mod vcs;
+
 #[test]
 fn renders_selected_metadata_and_size() {
     let site = PackageSite::new();

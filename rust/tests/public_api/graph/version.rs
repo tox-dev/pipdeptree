@@ -5,7 +5,7 @@ use pyo3::prelude::PyModule;
 use pyo3::types::PyAnyMethods as _;
 use rstest::rstest;
 
-use super::common::{PackageSite, execute, execute_with_python, stdout, with_python};
+use super::super::common::{PackageSite, execute, execute_with_python, stdout, with_python};
 
 #[test]
 fn resolves_versions_without_distribution_metadata() {

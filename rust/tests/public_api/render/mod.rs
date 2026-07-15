@@ -5,8 +5,12 @@ use _pipdeptree::{Execution, ProcessRunner, SystemProcessRunner};
 
 use super::common::{PackageSite, execute_with_runner, with_python};
 
-mod graphs;
+mod freeze;
+mod graphviz;
 mod json;
+mod json_tree;
+mod mermaid;
+mod rich_text;
 mod summary;
 mod text;
 
