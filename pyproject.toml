@@ -57,16 +57,6 @@ optional-dependencies.index = [
 optional-dependencies.rich = [
   "rich>=14.3.3",
 ]
-optional-dependencies.test = [
-  "covdefaults>=2.3",
-  "diff-cover>=9.7.1",
-  "pipdeptree[index]",
-  "pytest>=8.4.2",
-  "pytest-cov>=7",
-  "pytest-mock>=3.15.1",
-  "pytest-subprocess>=1.5",
-  "virtualenv<21,>=20.34",
-]
 urls.Changelog = "https://github.com/tox-dev/pipdeptree/releases"
 urls.Documentation = "https://pipdeptree.readthedocs.io"
 urls.Homepage = "https://github.com/tox-dev/pipdeptree"
@@ -82,6 +72,16 @@ docs = [
   "sphinx-copybutton>=0.5.2",
   "sphinx-inline-tabs>=2023.4.21",
   "sphinxcontrib-mermaid>=2",
+]
+test = [
+  "covdefaults>=2.3",
+  "diff-cover>=9.7.1",
+  "pipdeptree[index]",
+  "pytest>=8.4.2",
+  "pytest-cov>=7",
+  "pytest-mock>=3.15.1",
+  "pytest-subprocess>=1.5",
+  "virtualenv<21,>=20.34",
 ]
 
 [tool.hatch]
