@@ -57,7 +57,15 @@ optional-dependencies.index = [
 optional-dependencies.rich = [
   "rich>=14.3.3",
 ]
-optional-dependencies.test = [
+urls.Changelog = "https://github.com/tox-dev/pipdeptree/releases"
+urls.Documentation = "https://pipdeptree.readthedocs.io"
+urls.Homepage = "https://github.com/tox-dev/pipdeptree"
+urls.Source = "https://github.com/tox-dev/pipdeptree"
+urls.Tracker = "https://github.com/tox-dev/pipdeptree/issues"
+scripts.pipdeptree = "pipdeptree.__main__:main"
+
+[dependency-groups]
+test = [
   "covdefaults>=2.3",
   "diff-cover>=9.7.1",
   "pipdeptree[index]",
@@ -67,14 +75,6 @@ optional-dependencies.test = [
   "pytest-subprocess>=1.5",
   "virtualenv<21,>=20.34",
 ]
-urls.Changelog = "https://github.com/tox-dev/pipdeptree/releases"
-urls.Documentation = "https://pipdeptree.readthedocs.io"
-urls.Homepage = "https://github.com/tox-dev/pipdeptree"
-urls.Source = "https://github.com/tox-dev/pipdeptree"
-urls.Tracker = "https://github.com/tox-dev/pipdeptree/issues"
-scripts.pipdeptree = "pipdeptree.__main__:main"
-
-[dependency-groups]
 docs = [
   "furo>=2024.8.6",
   "sphinx>=7.4",
