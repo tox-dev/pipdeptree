@@ -7,6 +7,7 @@ permissions:
 jobs:
   wheels:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -34,6 +35,7 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: >-
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
           CIBW_BUILD: cp310-* pp311-*
+          CIBW_ENABLE: pypy
           CIBW_ENVIRONMENT_LINUX: PATH=$HOME/.cargo/bin:$PATH
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=10.15
           CIBW_TEST_COMMAND: pipdeptree --version
