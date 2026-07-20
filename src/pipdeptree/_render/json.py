@@ -42,7 +42,7 @@ def render_json(
         [{"package": _package_dict(k), "dependencies": [v.as_dict(mode=mode) for v in vs]} for k, vs in tree.items()],
         indent=4,
     )
-    print(output)  # noqa: T201
+    print(output)  # ruff:ignore[print]
 
 
 __all__ = [

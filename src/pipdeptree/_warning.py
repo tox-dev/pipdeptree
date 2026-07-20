@@ -45,9 +45,9 @@ class WarningPrinter:
 
     def print_single_line(self, line: str) -> None:
         self._has_warned = True
-        print(line, file=sys.stderr)  # noqa: T201
+        print(line, file=sys.stderr)  # ruff:ignore[print]
 
-    def print_multi_line(self, summary: str, print_func: Callable[[], None], ignore_fail: bool = False) -> None:  # noqa: FBT001, FBT002
+    def print_multi_line(self, summary: str, print_func: Callable[[], None], ignore_fail: bool = False) -> None:  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         """
         Print a multi-line warning, delegating most of the printing logic to the caller.
 
@@ -55,13 +55,13 @@ class WarningPrinter:
         :param print_func: a callback that the caller passes that performs most of the multi-line printing
         :param ignore_fail: if True, this warning won't be a fail when `self.warning_type == WarningType.FAIL`
         """
-        print(f"Warning!!! {summary}:", file=sys.stderr)  # noqa: T201
+        print(f"Warning!!! {summary}:", file=sys.stderr)  # ruff:ignore[print]
         print_func()
         if ignore_fail:
-            print("NOTE: This warning isn't a failure warning.", file=sys.stderr)  # noqa: T201
+            print("NOTE: This warning isn't a failure warning.", file=sys.stderr)  # ruff:ignore[print]
         else:
             self._has_warned = True
-        print("-" * 72, file=sys.stderr)  # noqa: T201
+        print("-" * 72, file=sys.stderr)  # ruff:ignore[print]
 
 
 _shared_warning_printer = WarningPrinter()

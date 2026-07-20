@@ -35,7 +35,7 @@ def render_graphviz(
 def dump_graphviz(
     tree: PackageDAG,
     output_format: str = "dot",
-    is_reverse: bool = False,  # noqa: FBT001, FBT002
+    is_reverse: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     max_depth: float = math.inf,
     context: RenderContext | None = None,
 ) -> str | bytes:
@@ -51,21 +51,21 @@ def dump_graphviz(
     :rtype: str or binary representation depending on the output format
     """
     try:
-        from graphviz import Digraph  # noqa: PLC0415
+        from graphviz import Digraph  # ruff:ignore[import-outside-top-level]
     except ImportError as exc:
-        print(  # noqa: T201
+        print(  # ruff:ignore[print]
             "graphviz is not available, but necessary for the output option. Please install it.",
             file=sys.stderr,
         )
         raise SystemExit(1) from exc
 
-    from graphviz import parameters  # noqa: PLC0415
+    from graphviz import parameters  # ruff:ignore[import-outside-top-level]
 
     valid_formats = parameters.FORMATS
 
     if output_format not in valid_formats:
-        print(f"{output_format} is not a supported output format.", file=sys.stderr)  # noqa: T201
-        print(f"Supported formats are: {', '.join(sorted(valid_formats))}", file=sys.stderr)  # noqa: T201
+        print(f"{output_format} is not a supported output format.", file=sys.stderr)  # ruff:ignore[print]
+        print(f"Supported formats are: {', '.join(sorted(valid_formats))}", file=sys.stderr)  # ruff:ignore[print]
         raise SystemExit(1)
 
     graph = Digraph(format=output_format)
@@ -81,7 +81,7 @@ def dump_graphviz(
         # Fixes https://github.com/tox-dev/pipdeptree/issues/188
         # That way we can guarantee the output of the dot format is deterministic
         # and stable.
-        return "".join([next(iter(graph)), *sorted(graph.body), graph._tail])  # noqa: SLF001
+        return "".join([next(iter(graph)), *sorted(graph.body), graph._tail])  # ruff:ignore[private-member-access]
 
     # As it's unknown if the selected output format is binary or not, try to
     # decode it as UTF8 and only print it out in binary if that's not possible.
@@ -107,14 +107,14 @@ def print_graphviz(dump_output: str | bytes, *, output_format: str = "dot") -> N
             temp_file.write(dump_output)
             temp_path = temp_file.name
 
-        print(f"Binary output file written to: {temp_path}", file=sys.stderr)  # noqa: T201
-        print("Opening file with default application...", file=sys.stderr)  # noqa: T201
+        print(f"Binary output file written to: {temp_path}", file=sys.stderr)  # ruff:ignore[print]
+        print("Opening file with default application...", file=sys.stderr)  # ruff:ignore[print]
         if not webbrowser.open(temp_path):
-            print("Could not open file with default application. Please open it manually.", file=sys.stderr)  # noqa: T201
+            print("Could not open file with default application. Please open it manually.", file=sys.stderr)  # ruff:ignore[print]
         return
 
     if isinstance(dump_output, str):
-        print(dump_output)  # noqa: T201
+        print(dump_output)  # ruff:ignore[print]
     else:
         with os.fdopen(sys.stdout.fileno(), "wb") as bytestream:
             bytestream.write(dump_output)

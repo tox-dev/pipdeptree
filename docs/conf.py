@@ -10,7 +10,7 @@ company = "tox-dev"
 name = "pipdeptree"
 version = ".".join(__version__.split(".")[:2])
 release = __version__
-copyright = f"2014-{datetime.now(tz=timezone.utc).year}, {company}"  # noqa: A001
+copyright = f"2014-{datetime.now(tz=timezone.utc).year}, {company}"  # ruff:ignore[builtin-variable-shadowing]
 
 extensions = [
     "sphinx.ext.autosectionlabel",

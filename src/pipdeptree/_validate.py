@@ -53,10 +53,10 @@ def render_conflicts_text(conflicts: dict[DistPackage, list[ReqPackage]]) -> Non
     pkgs = sorted(conflicts.keys())
     for p in pkgs:
         pkg = p.render_as_root(frozen=False)
-        print(f"* {pkg}", file=sys.stderr)  # noqa: T201
+        print(f"* {pkg}", file=sys.stderr)  # ruff:ignore[print]
         for req in conflicts[p]:
             req_str = req.render_as_branch(frozen=False)
-            print(f" - {req_str}", file=sys.stderr)  # noqa: T201
+            print(f" - {req_str}", file=sys.stderr)  # ruff:ignore[print]
 
 
 def cyclic_deps(tree: PackageDAG) -> list[list[Package]]:
@@ -104,7 +104,7 @@ def render_cycles_text(cycles: list[list[Package]]) -> None:
     # List in alphabetical order the dependency that caused the cycle (i.e. the second-to-last Package element)
     cycles = sorted(cycles, key=lambda c: c[-2].key)
     for cycle in cycles:
-        print("*", end=" ", file=sys.stderr)  # noqa: T201
+        print("*", end=" ", file=sys.stderr)  # ruff:ignore[print]
 
         size = len(cycle) - 1
         for idx, pkg in enumerate(cycle):
@@ -112,10 +112,10 @@ def render_cycles_text(cycles: list[list[Package]]) -> None:
             if isinstance(pkg, ReqPackage) and pkg.extra:
                 name += f" [extra: {pkg.extra}]"
             if idx == size:
-                print(name, end="", file=sys.stderr)  # noqa: T201
+                print(name, end="", file=sys.stderr)  # ruff:ignore[print]
             else:
-                print(f"{name} =>", end=" ", file=sys.stderr)  # noqa: T201
-        print(file=sys.stderr)  # noqa: T201
+                print(f"{name} =>", end=" ", file=sys.stderr)  # ruff:ignore[print]
+        print(file=sys.stderr)  # ruff:ignore[print]
 
 
 __all__ = [

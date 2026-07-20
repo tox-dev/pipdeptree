@@ -39,7 +39,7 @@ def t_fnmatch(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> PackageDAG:
 
 
 def dag_to_dict(g: PackageDAG) -> dict[str, list[str]]:
-    return {k.key: [v.key for v in vs] for k, vs in g._obj.items()}  # noqa: SLF001
+    return {k.key: [v.key for v in vs] for k, vs in g._obj.items()}  # ruff:ignore[private-member-access]
 
 
 def test_package_dag_filter_fnmatch_include_a(t_fnmatch: PackageDAG) -> None:

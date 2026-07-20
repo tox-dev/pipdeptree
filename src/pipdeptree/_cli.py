@@ -81,7 +81,9 @@ class RenderContext:
         return separator.join(parts)
 
     def get_computed_values(self, key: str, tree: PackageDAG) -> ComputedValues:
-        from pipdeptree._computed import ComputedValues  # noqa: PLC0415  # Computed fields are optional.
+        from pipdeptree._computed import (
+            ComputedValues,  # Computed fields are optional.
+        )
 
         cache_key = (id(tree), id(self.full_tree), key)
         if (computed := self._computed_cache.get(cache_key)) is None:

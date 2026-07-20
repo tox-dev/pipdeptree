@@ -22,7 +22,7 @@ class VcsResult:
     error: VcsError = VcsError.NONE
 
 
-def build_vcs_result(  # noqa: PLR0913, PLR0917
+def build_vcs_result(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
     vcs_name: str,
     remote_url: str,
     commit_id: str,

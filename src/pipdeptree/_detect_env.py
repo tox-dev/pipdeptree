@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import platform
-import subprocess  # noqa: S404
+import subprocess  # ruff:ignore[suspicious-subprocess-import]
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -20,7 +20,7 @@ def detect_active_interpreter() -> str:
     if path := find_active_interpreter():
         return path
 
-    print("Unable to detect virtual environment.", file=sys.stderr)  # noqa: T201
+    print("Unable to detect virtual environment.", file=sys.stderr)  # ruff:ignore[print]
     raise SystemExit(1)
 
 
@@ -84,13 +84,13 @@ def detect_poetry_env_interpreter() -> Path | None:
     # See https://python-poetry.org/docs/managing-environments/#displaying-the-environment-information.
     try:
         result = subprocess.run(
-            ("poetry", "env", "info", "--executable"),  # noqa: S607
+            ("poetry", "env", "info", "--executable"),  # ruff:ignore[start-process-with-partial-path]
             check=True,
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:  # ruff:ignore[blind-except]
         return None
 
     return Path(result.stdout.strip())

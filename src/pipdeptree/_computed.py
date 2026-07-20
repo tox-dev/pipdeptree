@@ -59,7 +59,9 @@ class ComputedValues:
             return size_cache[self.key]
         dist = distribution(self.key)
         if record := dist.read_text("RECORD"):
-            from csv import reader  # noqa: PLC0415  # Other computed fields do not read package file lists.
+            from csv import (
+                reader,  # Other computed fields do not read package file lists.
+            )
 
             files = (row[0] for row in reader(record.splitlines()))
         else:

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from pipdeptree._models.package import RenderMode
 
 
-def render_text(  # noqa: PLR0913
+def render_text(  # ruff:ignore[too-many-arguments]
     tree: PackageDAG,
     *,
     max_depth: float,
@@ -65,16 +65,16 @@ def _render_text_with_unicode(
     *,
     mode: RenderMode = "default",
 ) -> None:
-    def aux(  # noqa: PLR0913, PLR0917
+    def aux(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
         node: DistPackage | ReqPackage,
         parent: DistPackage | ReqPackage | None = None,
         indent: int = 0,
         cur_chain: set[str] | None = None,
         prefix: str = "",
         depth: int = 0,
-        has_grand_parent: bool = False,  # noqa: FBT001, FBT002
-        is_last_child: bool = False,  # noqa: FBT001, FBT002
-        parent_is_last_child: bool = False,  # noqa: FBT001, FBT002
+        has_grand_parent: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+        is_last_child: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+        parent_is_last_child: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ) -> Iterator[str]:
         cur_chain = cur_chain or set()
         node_str = node.render(parent, frozen=False, mode=mode)
@@ -119,10 +119,10 @@ def _render_text_with_unicode(
             cur_chain.remove(child.project_name)
 
     lines = chain.from_iterable(aux(node) for node in nodes)
-    print("\n".join(lines))  # noqa: T201
+    print("\n".join(lines))  # ruff:ignore[print]
 
 
-def _render_text_simple(  # noqa: PLR0913
+def _render_text_simple(  # ruff:ignore[too-many-arguments]
     tree: PackageDAG,
     nodes: list[DistPackage],
     max_depth: float,
@@ -154,7 +154,7 @@ def _render_text_simple(  # noqa: PLR0913
             cur_chain.remove(child.project_name)
 
     lines = chain.from_iterable(aux(node) for node in nodes)
-    print("\n".join(lines))  # noqa: T201
+    print("\n".join(lines))  # ruff:ignore[print]
 
 
 def _build_suffix(

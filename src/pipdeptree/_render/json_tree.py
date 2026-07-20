@@ -69,7 +69,7 @@ def render_json_tree(
 
         return d
 
-    print(json.dumps([aux(p) for p in nodes], indent=4))  # noqa: T201
+    print(json.dumps([aux(p) for p in nodes], indent=4))  # ruff:ignore[print]
 
 
 __all__ = [

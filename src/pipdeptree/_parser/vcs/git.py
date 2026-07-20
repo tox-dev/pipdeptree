@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import re
-import subprocess  # noqa: S404
+import subprocess  # ruff:ignore[suspicious-subprocess-import]
 from pathlib import Path
 from typing import Final
 
@@ -26,7 +26,7 @@ def get_git_repo_root(location: str) -> str | None:
     """Find git repository root from any subdirectory."""
     try:
         repo_root = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],  # noqa: S607
+            ["git", "rev-parse", "--show-toplevel"],  # ruff:ignore[start-process-with-partial-path]
             cwd=location,
             capture_output=True,
             text=True,
@@ -69,7 +69,7 @@ def _get_git_remote_url(repo_root: str) -> str | None:
     """Get git remote URL, preferring origin."""
     try:
         remotes_output = subprocess.run(
-            ["git", "config", "--get-regexp", r"remote\..*\.url"],  # noqa: S607
+            ["git", "config", "--get-regexp", r"remote\..*\.url"],  # ruff:ignore[start-process-with-partial-path]
             cwd=repo_root,
             capture_output=True,
             text=True,
@@ -91,7 +91,7 @@ def _get_git_commit_id(repo_root: str) -> str | None:
     """Get current git commit ID."""
     try:
         commit_id = subprocess.run(
-            ["git", "rev-parse", "HEAD"],  # noqa: S607
+            ["git", "rev-parse", "HEAD"],  # ruff:ignore[start-process-with-partial-path]
             cwd=repo_root,
             capture_output=True,
             text=True,

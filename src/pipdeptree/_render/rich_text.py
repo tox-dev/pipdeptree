@@ -34,10 +34,10 @@ def render_rich_text(
     :returns: None
     """
     try:
-        from rich.console import Console  # noqa: PLC0415
-        from rich.tree import Tree  # noqa: PLC0415
+        from rich.console import Console  # ruff:ignore[import-outside-top-level]
+        from rich.tree import Tree  # ruff:ignore[import-outside-top-level]
     except ImportError as exc:
-        print(  # noqa: T201
+        print(  # ruff:ignore[print]
             "rich is not available, but necessary for the output option. Please install it.",
             file=sys.stderr,
         )
@@ -54,7 +54,7 @@ def render_rich_text(
         console.print(rich_tree)
 
 
-def _build_tree(  # noqa: PLR0913
+def _build_tree(  # ruff:ignore[too-many-arguments]
     tree: PackageDAG,
     node: DistPackage | ReqPackage,
     rich_tree: Tree,

@@ -66,11 +66,11 @@ def render_summary(tree: PackageDAG, *, mode: RenderMode = "default", style: str
     """
     summary = _collect(tree, resolved=mode == "resolved")
     if style == "json":
-        print(_as_json(summary))  # noqa: T201
+        print(_as_json(summary))  # ruff:ignore[print]
     elif style == "rich":
         _as_rich(summary)
     else:
-        print(_as_text(summary))  # noqa: T201
+        print(_as_text(summary))  # ruff:ignore[print]
 
 
 def summary_html(tree: PackageDAG, *, mode: RenderMode = "default") -> str:
@@ -185,10 +185,10 @@ def _as_text(summary: _Summary) -> str:
 
 def _as_rich(summary: _Summary) -> None:
     try:
-        from rich.console import Console  # noqa: PLC0415
-        from rich.table import Table  # noqa: PLC0415
+        from rich.console import Console  # ruff:ignore[import-outside-top-level]
+        from rich.table import Table  # ruff:ignore[import-outside-top-level]
     except ImportError as exc:
-        print(  # noqa: T201
+        print(  # ruff:ignore[print]
             "rich is not available, but necessary for the output option. Please install it.",
             file=sys.stderr,
         )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import subprocess  # noqa: S404
-import xml.etree.ElementTree as ET  # noqa: S405
+import subprocess  # ruff:ignore[suspicious-subprocess-import]
+import xml.etree.ElementTree as ET  # ruff:ignore[suspicious-xml-etree-import]
 from pathlib import Path
 
 from .shared import VcsError, VcsResult, build_vcs_result
@@ -35,7 +35,7 @@ def _get_svn_info(location: str) -> tuple[str, str] | None:
     """Parse svn info --xml to extract URL and revision."""
     try:
         xml_output = subprocess.run(
-            ["svn", "info", "--xml"],  # noqa: S607
+            ["svn", "info", "--xml"],  # ruff:ignore[start-process-with-partial-path]
             cwd=location,
             capture_output=True,
             text=True,
@@ -45,7 +45,7 @@ def _get_svn_info(location: str) -> tuple[str, str] | None:
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     try:
-        root = ET.fromstring(xml_output)  # noqa: S314
+        root = ET.fromstring(xml_output)  # ruff:ignore[suspicious-xml-element-tree-usage]
     except ET.ParseError:
         return None
     entry = root.find(".//entry")

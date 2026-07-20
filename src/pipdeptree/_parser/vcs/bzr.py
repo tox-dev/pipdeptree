@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import subprocess  # noqa: S404
+import subprocess  # ruff:ignore[suspicious-subprocess-import]
 from pathlib import Path
 
 from .shared import VcsError, VcsResult, build_vcs_result, is_local_path
@@ -33,7 +33,7 @@ def _get_bzr_remote_url(repo_root: str) -> str | None:
     """Parse `bzr info` output for checkout/parent branch URL."""
     try:
         output = subprocess.run(
-            ["bzr", "info"],  # noqa: S607
+            ["bzr", "info"],  # ruff:ignore[start-process-with-partial-path]
             cwd=repo_root,
             capture_output=True,
             text=True,
@@ -53,7 +53,7 @@ def _get_bzr_remote_url(repo_root: str) -> str | None:
 def _get_bzr_revision(repo_root: str) -> str | None:
     try:
         output = subprocess.run(
-            ["bzr", "revno"],  # noqa: S607
+            ["bzr", "revno"],  # ruff:ignore[start-process-with-partial-path]
             cwd=repo_root,
             capture_output=True,
             text=True,

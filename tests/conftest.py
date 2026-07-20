@@ -60,13 +60,13 @@ def randomized_example_dag(example_dag: PackageDAG) -> PackageDAG:
     """Returns a copy of the package tree fixture with dependencies in randomized order."""
     # Extract the dependency graph from the package tree and randomize it.
     randomized_graph = {}
-    randomized_nodes = list(example_dag._obj.keys())  # noqa: SLF001
+    randomized_nodes = list(example_dag._obj.keys())  # ruff:ignore[private-member-access]
     shuffle(randomized_nodes)
     for node in randomized_nodes:
-        edges = example_dag._obj[node].copy()  # noqa: SLF001
+        edges = example_dag._obj[node].copy()  # ruff:ignore[private-member-access]
         shuffle(edges)
         randomized_graph[node] = edges
-    assert set(randomized_graph) == set(example_dag._obj)  # noqa: SLF001
+    assert set(randomized_graph) == set(example_dag._obj)  # ruff:ignore[private-member-access]
 
     # Create a randomized package tree.
     randomized_dag = PackageDAG(randomized_graph)

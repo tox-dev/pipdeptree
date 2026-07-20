@@ -169,11 +169,11 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
             if any(isinstance(c, ReqPackage) and c.scoped_extra for c in children)
         )
 
-    def filter_nodes(  # noqa: C901, PLR0912
+    def filter_nodes(  # ruff:ignore[complex-structure, too-many-branches]
         self,
         include: list[str] | None,
         exclude: set[str] | None,
-        exclude_deps: bool = False,  # noqa: FBT001, FBT002
+        exclude_deps: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ) -> PackageDAG:
         """
         Filter nodes in a graph by given parameters.
@@ -362,10 +362,10 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
 
 def render_invalid_reqs_text(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:
     for dist_name, invalid_reqs in dist_name_to_invalid_reqs_dict.items():
-        print(dist_name, file=sys.stderr)  # noqa: T201
+        print(dist_name, file=sys.stderr)  # ruff:ignore[print]
 
         for invalid_req in invalid_reqs:
-            print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # noqa: T201
+            print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # ruff:ignore[print]
 
 
 class ReversedPackageDAG(PackageDAG):
@@ -531,8 +531,8 @@ def _collect_explicit_extras(pkg_deps: dict[DistPackage, list[ReqPackage]]) -> d
     extras_needed: dict[str, set[str]] = {}
     for deps in pkg_deps.values():
         for dep in deps:
-            if dep._obj.extras:  # noqa: SLF001
-                extras_needed.setdefault(dep.key, set()).update(dep._obj.extras)  # noqa: SLF001
+            if dep._obj.extras:  # ruff:ignore[private-member-access]
+                extras_needed.setdefault(dep.key, set()).update(dep._obj.extras)  # ruff:ignore[private-member-access]
     return extras_needed
 
 

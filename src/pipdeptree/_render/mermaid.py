@@ -62,7 +62,7 @@ def render_mermaid(
         *sorted(nodes),
         *sorted(edges),
     ]
-    print("".join(f"{'    ' if i else ''}{line}\n" for i, line in enumerate(lines)))  # noqa: T201
+    print("".join(f"{'    ' if i else ''}{line}\n" for i, line in enumerate(lines)))  # ruff:ignore[print]
 
 
 def _build_reversed_mermaid(

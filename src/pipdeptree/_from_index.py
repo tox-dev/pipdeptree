@@ -150,7 +150,7 @@ def _resolve_indexes(index_url: str | None, extra_index_url: list[str] | None) -
     if primary is None and not extras:
         return None
 
-    from nab_python.fetch import (  # noqa: PLC0415
+    from nab_python.fetch import (  # ruff:ignore[import-outside-top-level]
         DEFAULT_INDEX_NAME,
         DEFAULT_INDEX_URL,
     )
@@ -182,7 +182,7 @@ def _parse_requirements_file(path: Path, inputs: _ParsedInputs) -> None:
     mapping (bare archive URLs, non-git VCS) and constraints bearing extras are rejected.
     """
     # pip-requirements-parser ships in the optional 'index' extra, so it is guarded like nab below.
-    from pip_requirements_parser import RequirementsFile  # noqa: PLC0415
+    from pip_requirements_parser import RequirementsFile  # ruff:ignore[import-outside-top-level]
 
     parsed = RequirementsFile.from_file(str(path), include_nested=True)
     for entry in parsed.requirements:
@@ -217,7 +217,7 @@ def _parse_inline_requirements(requirements: list[str], inputs: _ParsedInputs) -
     inputs.requirements.extend(req for req in requirements if not _looks_like_source(req))
     if not translatable:
         return
-    from pip_requirements_parser import RequirementsFile  # noqa: PLC0415
+    from pip_requirements_parser import RequirementsFile  # ruff:ignore[import-outside-top-level]
 
     # The parser has no working per-line API (its from_string is broken), so route the lines through a temp file;
     # relative paths in a positional argument resolve against the current working directory.
@@ -283,7 +283,7 @@ def _to_local_source(entry: Any, base_dir: Path, location: str) -> _LocalSource:
         msg = f"editable/local source must be a directory with a pyproject.toml: {location}"
         raise FromIndexInputError(msg)
     if (name := _read_pyproject_name(directory)) is None:
-        msg = f"cannot determine package name for editable/local source {directory}: its pyproject.toml has no [project].name"  # noqa: E501
+        msg = f"cannot determine package name for editable/local source {directory}: its pyproject.toml has no [project].name"  # ruff:ignore[line-too-long]
         raise FromIndexInputError(msg)
     return _LocalSource(name=name, path=str(directory), editable=bool(entry.is_editable))
 
@@ -291,7 +291,7 @@ def _to_local_source(entry: Any, base_dir: Path, location: str) -> _LocalSource:
 def _read_pyproject_name(directory: Path) -> str | None:
     # read_pyproject_name lives in nab_python, guarded like the resolver imports below.
     try:
-        from nab_python.requirements_file import read_pyproject_name  # noqa: PLC0415
+        from nab_python.requirements_file import read_pyproject_name  # ruff:ignore[import-outside-top-level]
     except ImportError as exc:
         raise FromIndexUnavailableError(_INSTALL_HINT) from exc
     return read_pyproject_name(directory / "pyproject.toml")
@@ -313,12 +313,12 @@ def _adapt(result: Any) -> list[Distribution]:
 def _read_pyproject_dependencies(path: Path) -> list[str]:
     # Reading TOML only happens on the mixed-sources path, which already requires nab installed; nab-python
     # depends on tomli, so it is available on 3.10 where stdlib tomllib does not yet exist.
-    import sys  # noqa: PLC0415
+    import sys  # ruff:ignore[import-outside-top-level]
 
     if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
-        import tomllib  # noqa: PLC0415
+        import tomllib  # ruff:ignore[import-outside-top-level]
     else:  # pragma: <3.11 cover
-        import tomli as tomllib  # noqa: PLC0415
+        import tomli as tomllib  # ruff:ignore[import-outside-top-level]
 
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     dependencies = data.get("project", {}).get("dependencies", [])
@@ -339,12 +339,12 @@ def _resolve_pyproject_path(pyproject: Path, indexes: list[tuple[str, str]] | No
     # mirrors how the graphviz renderer guards its import (see _render/graphviz.py).
     try:
         # nab is an optional dependency, absent from a minimal (non-index) install.
-        from nab_index.multi_index import IndexConfig  # noqa: PLC0415
-        from nab_index.urllib3_async_transport import (  # noqa: PLC0415
+        from nab_index.multi_index import IndexConfig  # ruff:ignore[import-outside-top-level]
+        from nab_index.urllib3_async_transport import (  # ruff:ignore[import-outside-top-level]
             Urllib3AsyncTransport,
         )
-        from nab_python.config import read_pyproject_config  # noqa: PLC0415
-        from nab_python.resolve import resolve_pyproject  # noqa: PLC0415
+        from nab_python.config import read_pyproject_config  # ruff:ignore[import-outside-top-level]
+        from nab_python.resolve import resolve_pyproject  # ruff:ignore[import-outside-top-level]
     except ImportError as exc:
         raise FromIndexUnavailableError(_INSTALL_HINT) from exc
 

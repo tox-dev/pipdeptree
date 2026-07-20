@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from importlib import metadata
-from subprocess import CompletedProcess, check_call  # noqa: S404
+from subprocess import CompletedProcess, check_call  # ruff:ignore[suspicious-subprocess-import]
 from typing import TYPE_CHECKING
 
 import pytest
@@ -22,7 +22,7 @@ def test_main() -> None:
 def test_console_script() -> None:
     try:
         dist = metadata.distribution("pipdeptree")
-    except Exception as e:  # noqa: BLE001 # pragma: no cover
+    except Exception as e:  # ruff:ignore[blind-except] # pragma: no cover
         pytest.fail(f"Unexpected error when retrieving pipdeptree metadata: {e}")
 
     entry_points = dist.entry_points
@@ -35,7 +35,7 @@ def test_console_script() -> None:
 
     try:
         pipdeptree = entry_point.load()
-    except Exception as e:  # noqa: BLE001 # pragma: no cover
+    except Exception as e:  # ruff:ignore[blind-except] # pragma: no cover
         pytest.fail(f"Unexpected error: {e}")
 
     with pytest.raises(SystemExit, match="0"):

@@ -82,7 +82,7 @@ def test_dist_package_as_parent_of() -> None:
     bar_req.name = "bar"
     rp = ReqPackage(bar_req, dist=bar)
     dp1 = dp.as_parent_of(rp)
-    assert dp1._obj == dp._obj  # noqa: SLF001
+    assert dp1._obj == dp._obj  # ruff:ignore[private-member-access]
     assert dp1.req is rp
 
     dp2 = dp.as_parent_of(None)

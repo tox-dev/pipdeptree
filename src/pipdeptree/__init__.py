@@ -44,7 +44,7 @@ _FORMAT_FLAGS: Final[dict[str, list[str]]] = {
 }
 
 
-def render(  # noqa: PLR0913
+def render(  # ruff:ignore[too-many-arguments]
     *,
     packages: str | None = None,
     exclude: str | None = None,
@@ -88,9 +88,15 @@ def render(  # noqa: PLR0913
     ``json-tree``, ``mermaid``, ``dot``) return a plain :class:`str` with no rich display, so their source/JSON shows
     as-is.
     """
-    from pipdeptree.__main__ import _FilterError, build_tree  # noqa: PLC0415  # Keep package import lightweight.
-    from pipdeptree._cli import SUMMARY_RENDER_FORMATS, get_options  # noqa: PLC0415  # Keep package import lightweight.
-    from pipdeptree._warning import (  # noqa: PLC0415  # Keep package import lightweight.
+    from pipdeptree.__main__ import (  # ruff:ignore[import-outside-top-level]  # Keep package import lightweight.
+        _FilterError,
+        build_tree,
+    )
+    from pipdeptree._cli import (  # ruff:ignore[import-outside-top-level]  # Keep package import lightweight.
+        SUMMARY_RENDER_FORMATS,
+        get_options,
+    )
+    from pipdeptree._warning import (  # ruff:ignore[import-outside-top-level]  # Keep package import lightweight.
         WarningType,
         get_warning_printer,
     )
@@ -135,7 +141,9 @@ def render(  # noqa: PLR0913
 def _finalize(text: str, *, argv: list[str], tree: PackageDAG, output_format: str, summary: bool) -> str:
     if summary:
         # The aggregate report has no tree diagram; the text style instead displays as an HTML table in a notebook.
-        from pipdeptree._render.summary import summary_html  # noqa: PLC0415  # Summary is optional.
+        from pipdeptree._render.summary import (
+            summary_html,  # Summary is optional.
+        )
 
         return _SummaryResult(text, html=summary_html(tree)) if output_format == "text" else text
     if output_format != "text":
@@ -144,7 +152,9 @@ def _finalize(text: str, *, argv: list[str], tree: PackageDAG, output_format: st
         return text
 
     # Reuse the already-discovered tree to also produce a Mermaid diagram for the rich notebook display.
-    from pipdeptree._cli import get_options  # noqa: PLC0415  # Programmatic rendering is optional.
+    from pipdeptree._cli import (
+        get_options,  # Programmatic rendering is optional.
+    )
 
     mermaid_options = get_options([*argv, "--mermaid"])
     mermaid = _render_to_str(mermaid_options, tree)
@@ -152,7 +162,7 @@ def _finalize(text: str, *, argv: list[str], tree: PackageDAG, output_format: st
 
 
 def _render_to_str(options: Options, tree: PackageDAG) -> str:
-    from pipdeptree import _render  # noqa: PLC0415  # Programmatic rendering is optional.
+    from pipdeptree import _render  # ruff:ignore[import-outside-top-level]  # Programmatic rendering is optional.
 
     buffer = io.StringIO()
     with redirect_stdout(buffer):
@@ -160,22 +170,22 @@ def _render_to_str(options: Options, tree: PackageDAG) -> str:
     return buffer.getvalue()
 
 
-class _RenderResult(str):  # noqa: FURB189  # Must stay a real ``str`` so isinstance/print/slicing keep working.
+class _RenderResult(str):  # ruff:ignore[subclass-builtin]  # Must stay a real ``str`` so isinstance/print/slicing keep working.
     """A ``str`` whose value is the text tree but that also renders as a Mermaid diagram in a notebook cell."""
 
     __slots__ = ("_mermaid",)
 
     _mermaid: str
 
-    def __new__(cls, text: str, *, mermaid: str) -> _RenderResult:  # noqa: PYI034  # str subclass, concrete type is fine.
+    def __new__(cls, text: str, *, mermaid: str) -> _RenderResult:  # ruff:ignore[non-self-return-type]  # str subclass, concrete type is fine.
         self = super().__new__(cls, text)
         self._mermaid = mermaid
         return self
 
-    def _repr_mimebundle_(  # noqa: PLW3201  # Jupyter rich-display protocol method, not a Python dunder.
+    def _repr_mimebundle_(  # ruff:ignore[bad-dunder-method-name]  # Jupyter rich-display protocol method, not a Python dunder.
         self,
         include: Container[str] | None = None,
-        exclude: Container[str] | None = None,  # noqa: ARG002
+        exclude: Container[str] | None = None,  # ruff:ignore[unused-method-argument]
     ) -> dict[str, str]:
         bundle = {
             "text/vnd.mermaid": self._mermaid,
@@ -187,22 +197,22 @@ class _RenderResult(str):  # noqa: FURB189  # Must stay a real ``str`` so isinst
         return bundle
 
 
-class _SummaryResult(str):  # noqa: FURB189  # Must stay a real ``str`` so isinstance/print/slicing keep working.
+class _SummaryResult(str):  # ruff:ignore[subclass-builtin]  # Must stay a real ``str`` so isinstance/print/slicing keep working.
     """A ``str`` whose value is the text summary but that also renders as an HTML table in a notebook cell."""
 
     __slots__ = ("_html",)
 
     _html: str
 
-    def __new__(cls, text: str, *, html: str) -> _SummaryResult:  # noqa: PYI034  # str subclass, concrete type is fine.
+    def __new__(cls, text: str, *, html: str) -> _SummaryResult:  # ruff:ignore[non-self-return-type]  # str subclass, concrete type is fine.
         self = super().__new__(cls, text)
         self._html = html
         return self
 
-    def _repr_mimebundle_(  # noqa: PLW3201  # Jupyter rich-display protocol method, not a Python dunder.
+    def _repr_mimebundle_(  # ruff:ignore[bad-dunder-method-name]  # Jupyter rich-display protocol method, not a Python dunder.
         self,
         include: Container[str] | None = None,
-        exclude: Container[str] | None = None,  # noqa: ARG002
+        exclude: Container[str] | None = None,  # ruff:ignore[unused-method-argument]
     ) -> dict[str, str]:
         bundle = {"text/html": self._html, "text/plain": str(self)}
         if include is not None:

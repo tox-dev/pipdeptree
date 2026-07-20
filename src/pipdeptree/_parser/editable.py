@@ -58,7 +58,7 @@ def url_to_path(url: str) -> str:
         raise ValueError(msg)
     path = url2pathname(netloc + path)
     if (
-        os.name == "nt"  # noqa: PLR0916
+        os.name == "nt"  # ruff:ignore[too-many-boolean-expressions]
         and not netloc
         and len(path) >= 3
         and path[0] == "/"

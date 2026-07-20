@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from subprocess import TimeoutExpired  # noqa: S404
+from subprocess import TimeoutExpired  # ruff:ignore[suspicious-subprocess-import]
 
 
 def raise_timeout(_process: object) -> None:

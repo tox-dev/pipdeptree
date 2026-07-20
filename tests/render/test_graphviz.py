@@ -59,7 +59,7 @@ def test_render_dot(
 def test_render_pdf(tmp_path: Path, mocker: MockerFixture, example_dag: PackageDAG) -> None:
     output = dump_graphviz(example_dag, output_format="pdf")
     res = tmp_path / "file"
-    with pytest.raises(OSError, match="Bad file"):  # noqa: PT012, SIM117 # because we reopen the file
+    with pytest.raises(OSError, match="Bad file"):  # ruff:ignore[pytest-raises-with-multiple-statements, multiple-with-statements] # because we reopen the file
         with res.open("wb") as buf:
             mocker.patch.object(sys, "stdout", buf)
             print_graphviz(output)
@@ -150,7 +150,7 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
     class MockTempFile:
         def __init__(self, *_args: object, **_kwargs: object) -> None:
             self._content = b""
-            self._name = "/tmp/pipdeptree_test_output.pdf"  # noqa: S108  # Mock path for testing
+            self._name = "/tmp/pipdeptree_test_output.pdf"  # ruff:ignore[hardcoded-temp-file]  # Mock path for testing
             self._closed = False
 
         def write(self, data: bytes) -> None:
@@ -160,7 +160,7 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
         def name(self) -> str:
             return self._name
 
-        def __enter__(self) -> "MockTempFile":  # noqa: PYI034, UP037
+        def __enter__(self) -> "MockTempFile":  # ruff:ignore[non-self-return-type, quoted-annotation]
             return self
 
         def __exit__(self, *_args: object) -> None:
@@ -171,7 +171,7 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
     print_graphviz(output, output_format="pdf")
 
     # Verify that webbrowser.open was called with the temp file path
-    mock_open.assert_called_once_with("/tmp/pipdeptree_test_output.pdf")  # noqa: S108  # Mock path for testing
+    mock_open.assert_called_once_with("/tmp/pipdeptree_test_output.pdf")  # ruff:ignore[hardcoded-temp-file]  # Mock path for testing
 
 
 def test_print_graphviz_binary_non_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:

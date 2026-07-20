@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 import site
-import subprocess  # noqa: S404
+import subprocess  # ruff:ignore[suspicious-subprocess-import]
 import sys
 from importlib.metadata import Distribution, distributions
 from pathlib import Path
@@ -25,8 +25,8 @@ class InterpreterQueryError(Exception):
 def get_installed_distributions(
     interpreter: str = sys.executable or "",
     supplied_paths: list[str] | None = None,
-    local_only: bool = False,  # noqa: FBT001, FBT002
-    user_only: bool = False,  # noqa: FBT001, FBT002
+    local_only: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    user_only: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     distribution_info: dict[int, DistributionInfo] | None = None,
 ) -> list[Distribution]:
     """
@@ -67,7 +67,7 @@ def query_interpreter_for_paths(interpreter: str, *, local_only: bool = False) -
 
     args = [interpreter, "-c", cmd]
     try:
-        result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True, text=True)  # noqa: S603
+        result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True, text=True)  # ruff:ignore[subprocess-without-shell-equals-true]
         return ast.literal_eval(result.stdout)
     except Exception as e:
         raise InterpreterQueryError(str(e)) from e
@@ -141,7 +141,7 @@ def has_valid_metadata(dist: Distribution) -> bool:
 
 def render_invalid_metadata_text(site_dirs_with_invalid_metadata: set[str]) -> None:
     for site_dir in site_dirs_with_invalid_metadata:
-        print(site_dir, file=sys.stderr)  # noqa: T201
+        print(site_dir, file=sys.stderr)  # ruff:ignore[print]
 
 
 FirstSeenWithDistsPair = tuple[Distribution, Distribution]
@@ -158,9 +158,9 @@ def render_duplicated_dist_metadata_text(
             dist_list.append((first_seen, dist))
 
     for entry, pairs in entries_to_pairs_dict.items():
-        print(f'"{entry}"', file=sys.stderr)  # noqa: T201
+        print(f'"{entry}"', file=sys.stderr)  # ruff:ignore[print]
         for first_seen, dist in pairs:
-            print(  # noqa: T201
+            print(  # ruff:ignore[print]
                 (
                     f"  {dist.metadata['Name']:<32} {dist.version:<16} (using {first_seen.version},"
                     f' "{first_seen.locate_file("")}")'

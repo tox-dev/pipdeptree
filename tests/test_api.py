@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def patched_env_no_size(patched_env: None, mocker: MockerFixture) -> None:  # noqa: ARG001
+def patched_env_no_size(patched_env: None, mocker: MockerFixture) -> None:  # ruff:ignore[unused-function-argument]
     # Summary reads on-disk size via ComputedValues, which would look the mocked packages up in the real
     # environment; pin it so the summary metrics stay deterministic.
     mocker.patch.object(ComputedValues, "size_raw", 0)

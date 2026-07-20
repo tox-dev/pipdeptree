@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import subprocess  # noqa: S404
+import subprocess  # ruff:ignore[suspicious-subprocess-import]
 from pathlib import Path
 
 from .shared import VcsError, VcsResult, build_vcs_result, is_local_path
@@ -31,7 +31,7 @@ def get_hg_requirement(location: str, package_name: str, repo_root: str) -> VcsR
 def _get_hg_remote_url(repo_root: str) -> str | None:
     try:
         url = subprocess.run(
-            ["hg", "showconfig", "paths.default"],  # noqa: S607
+            ["hg", "showconfig", "paths.default"],  # ruff:ignore[start-process-with-partial-path]
             cwd=repo_root,
             capture_output=True,
             text=True,
@@ -47,7 +47,7 @@ def _get_hg_remote_url(repo_root: str) -> str | None:
 def _get_hg_commit_id(repo_root: str) -> str | None:
     try:
         commit_id = subprocess.run(
-            ["hg", "parents", "--template={node}"],  # noqa: S607
+            ["hg", "parents", "--template={node}"],  # ruff:ignore[start-process-with-partial-path]
             cwd=repo_root,
             capture_output=True,
             text=True,

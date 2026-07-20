@@ -39,10 +39,10 @@ class SyntheticDistribution(Distribution):
     def version(self) -> str:
         return self._metadata["Version"]
 
-    def read_text(self, filename: str) -> str | None:  # noqa: ARG002, PLR6301
+    def read_text(self, filename: str) -> str | None:  # ruff:ignore[unused-method-argument, no-self-use]
         return None
 
-    def locate_file(self, path: str | os.PathLike[str]) -> Path:  # noqa: PLR6301
+    def locate_file(self, path: str | os.PathLike[str]) -> Path:  # ruff:ignore[no-self-use]
         return Path(path)
 
 

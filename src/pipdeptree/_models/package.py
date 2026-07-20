@@ -254,7 +254,7 @@ class DistPackage(Package):
     def render_as_root(self, *, frozen: bool) -> str:
         return self._frozen_repr if frozen else f"{self.project_name}=={self.version}"
 
-    def render_as_branch(self, *, frozen: bool, mode: RenderMode = "default") -> str:  # noqa: ARG002
+    def render_as_branch(self, *, frozen: bool, mode: RenderMode = "default") -> str:  # ruff:ignore[unused-method-argument]
         # resolved mode only relabels ReqPackage branches; a DistPackage branch appears in reverse mode
         # where the "[requires: parent]" label describes the parent edge, so it is left unchanged.
         assert self.req is not None

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from subprocess import CompletedProcess  # noqa: S404
+from subprocess import CompletedProcess  # ruff:ignore[suspicious-subprocess-import]
 from typing import TYPE_CHECKING
 
 import pytest
