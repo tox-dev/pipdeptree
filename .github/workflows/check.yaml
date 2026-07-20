@@ -28,7 +28,7 @@ jobs:
         with:
           enable-cache: false
       - name: Install resolver dependencies
-        run: uv pip install --target .python-packages 'nab-index>=0.0.8' 'nab-python>=0.0.8'
+        run: uv pip install --target .python-packages 'nab-index>=0.0.11' 'nab-python>=0.0.11'
       - name: Check formatting
         run: cargo fmt --all --check
       - name: Check lints

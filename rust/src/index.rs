@@ -516,13 +516,17 @@ impl<'py> ResolverModules<'py> {
         kwargs.set_item("config", config)?;
         let transport = self.transport.getattr("Urllib3AsyncTransport")?.call0()?;
         self.resolve
-            .getattr("resolve_pyproject")?
+            .getattr("resolve_for_targets")?
             .call((&py_path, transport), Some(&kwargs))
     }
 }
 
 fn adapt_result(result: &pyo3::Bound<'_, pyo3::PyAny>) -> Result<Vec<Package>, Error> {
-    let pins = result.getattr("pins")?;
+    // A target that cannot be resolved is reported rather than raised, so ask for the failure.
+    // What is left is one result per planned target, and the generated project plans just the one.
+    result.call_method0("raise_for_failure")?;
+    let target = result.getattr("target_results")?.get_item(0)?;
+    let pins = target.getattr("pins")?;
     let mut versions = HashMap::new();
     for item in pins.call_method0("items")?.try_iter()? {
         let item = item?;
@@ -530,8 +534,8 @@ fn adapt_result(result: &pyo3::Bound<'_, pyo3::PyAny>) -> Result<Vec<Package>, E
         let version = item.get_item(1)?.str()?.to_string_lossy().into_owned();
         versions.insert(name, version);
     }
-    let dependencies = result
-        .getattr("lock_input")?
+    let dependencies = target
+        .getattr("lock")?
         .getattr("dependencies")?
         .extract::<HashMap<String, Vec<String>>>()?;
     Ok(versions

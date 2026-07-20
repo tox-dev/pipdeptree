@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Mutex, MutexGuard, Once, PoisonError};
 
 use _pipdeptree::{
     Application, Execution, ProcessError, ProcessOutput, ProcessRequest, ProcessRunner,
@@ -14,6 +14,7 @@ use rstest::fixture;
 use tempfile::{TempDir, tempdir};
 
 static PYTHON_LOCK: Mutex<()> = Mutex::new(());
+static RESOLVER: Once = Once::new();
 
 mockall::mock! {
     pub Processes {}
@@ -111,8 +112,21 @@ pub fn execute_with_runner(
 }
 
 pub fn install_resolver(python: Python<'_>, capture: &Path) -> PyResult<()> {
+    // create_autospec has to see the real function, so the patch happens once per process; each
+    // test then re-points the capture file the stub writes the generated project to.
+    let mut installed = Ok(());
+    RESOLVER.call_once(|| installed = patch_resolver(python));
+    installed?;
     let locals = PyDict::new(python);
     locals.set_item("capture", capture)?;
+    python.run(
+        c_str!("import nab_python.resolve\nnab_python.resolve.capture = capture\n"),
+        Some(&locals),
+        Some(&locals),
+    )
+}
+
+fn patch_resolver(python: Python<'_>) -> PyResult<()> {
     python.run(
         c_str!(
             r#"
@@ -120,29 +134,40 @@ from pathlib import Path
 from unittest.mock import create_autospec
 
 from packaging.version import Version
-from nab_python.lockfile import LockInput
-from nab_python.resolve import ResolutionResult
+from nab_python.config import NabProjectConfig, plan_targets
+from nab_python.lockfile import TargetLock
+from nab_python.resolve import ResolveResult, TargetResult
 import nab_python.resolve as resolve_module
-
-if not hasattr(resolve_module, "_pipdeptree_resolve"):
-    resolve_module._pipdeptree_resolve = resolve_module.resolve_pyproject
 
 def resolved(path, transport, *, config):
     indexes = [(index.name, index.url) for index in config.indexes]
-    Path(capture).write_text(path.read_text() + "\n--- indexes ---\n" + repr(indexes))
-    return ResolutionResult(
-        {"parent": Version("1"), "child": Version("2")},
-        LockInput(dependencies={"parent": ["child", "external"]}),
+    text = path.read_text() + "\n--- indexes ---\n" + repr(indexes)
+    Path(resolve_module.capture).write_text(text)
+    target = plan_targets(NabProjectConfig())[0]
+    return ResolveResult(
+        targets=(target,),
+        target_results=[
+            TargetResult(
+                target=target,
+                success=True,
+                pins={"parent": Version("1"), "child": Version("2")},
+                lock=TargetLock(
+                    target=target,
+                    pins={},
+                    dependencies={"parent": ("child", "external")},
+                ),
+            )
+        ],
     )
 
-resolve_module.resolve_pyproject = create_autospec(
-    resolve_module._pipdeptree_resolve,
+resolve_module.resolve_for_targets = create_autospec(
+    resolve_module.resolve_for_targets,
     side_effect=resolved,
 )
 "#
         ),
-        Some(&locals),
-        Some(&locals),
+        None,
+        None,
     )
 }
 

@@ -3,5 +3,6 @@
 *.profraw
 dist/
 .tox/
+/.python-packages/
 /src/pipdeptree/_rust*.so
 /target

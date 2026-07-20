@@ -547,22 +547,22 @@ By default, pipdeptree shows the full dependency tree of your environment:
     └── Pygments [required: >=2.19.1,<3.0.0, installed: 2.20.0]
     oauthlib==3.0.0
     pipdeptree==4.0.0
-    ├── nab-index [required: >=0.0.8, installed: 0.0.8]
+    ├── nab-index [required: >=0.0.11, installed: 0.0.11]
     │   ├── packaging [required: >=24.0, installed: 26.2]
     │   ├── truststore [required: >=0.10, installed: 0.10.4]
     │   ├── typing_extensions [required: >=4.6, installed: 4.16.0]
     │   └── urllib3 [required: >=2.0, installed: 2.7.0]
-    └── nab-python [required: >=0.0.8, installed: 0.0.8]
+    └── nab-python [required: >=0.0.11, installed: 0.0.11]
         ├── build [required: >=1.2, installed: 1.5.1]
         │   ├── packaging [required: >=24.0, installed: 26.2]
         │   └── pyproject_hooks [required: Any, installed: 1.2.0]
         ├── installer [required: >=0.7, installed: 1.0.1]
-        ├── nab-index [required: ==0.0.8, installed: 0.0.8]
+        ├── nab-index [required: ==0.0.11, installed: 0.0.11]
         │   ├── packaging [required: >=24.0, installed: 26.2]
         │   ├── truststore [required: >=0.10, installed: 0.10.4]
         │   ├── typing_extensions [required: >=4.6, installed: 4.16.0]
         │   └── urllib3 [required: >=2.0, installed: 2.7.0]
-        ├── nab-resolver [required: ==0.0.8, installed: 0.0.8]
+        ├── nab-resolver [required: ==0.0.11, installed: 0.0.11]
         │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
         ├── pyproject_hooks [required: >=1.2, installed: 1.2.0]
         ├── tomli [required: >=2.0, installed: 2.4.1]
@@ -640,17 +640,17 @@ Use ``--exclude`` (``-e``) to hide specific packages:
     │   └── MarkupSafe [required: >=2.0, installed: 3.0.3]
     ├── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
     └── Pygments [required: >=2.19.1,<3.0.0, installed: 2.20.0]
-    nab-python==0.0.8
+    nab-python==0.0.11
     ├── build [required: >=1.2, installed: 1.5.1]
     │   ├── packaging [required: >=24.0, installed: 26.2]
     │   └── pyproject_hooks [required: Any, installed: 1.2.0]
     ├── installer [required: >=0.7, installed: 1.0.1]
-    ├── nab-index [required: ==0.0.8, installed: 0.0.8]
+    ├── nab-index [required: ==0.0.11, installed: 0.0.11]
     │   ├── packaging [required: >=24.0, installed: 26.2]
     │   ├── truststore [required: >=0.10, installed: 0.10.4]
     │   ├── typing_extensions [required: >=4.6, installed: 4.16.0]
     │   └── urllib3 [required: >=2.0, installed: 2.7.0]
-    ├── nab-resolver [required: ==0.0.8, installed: 0.0.8]
+    ├── nab-resolver [required: ==0.0.11, installed: 0.0.11]
     │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
     ├── pyproject_hooks [required: >=1.2, installed: 1.2.0]
     ├── tomli [required: >=2.0, installed: 2.4.1]
@@ -822,8 +822,8 @@ Limit how deep the tree renders with ``-d``:
 
     $ pipdeptree -d 1 --packages pytest-cov,pipdeptree
     pipdeptree==4.0.0
-    ├── nab-index [required: >=0.0.8, installed: 0.0.8]
-    └── nab-python [required: >=0.0.8, installed: 0.0.8]
+    ├── nab-index [required: >=0.0.11, installed: 0.0.11]
+    └── nab-python [required: >=0.0.11, installed: 0.0.11]
     pytest-cov==7.1.0
     ├── coverage [required: >=7.10.6, installed: 7.15.1]
     ├── pluggy [required: >=1.2, installed: 1.6.0]

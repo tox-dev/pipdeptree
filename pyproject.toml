@@ -44,8 +44,8 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "nab-index>=0.0.8",
-  "nab-python>=0.0.8",
+  "nab-index>=0.0.11",
+  "nab-python>=0.0.11",
 ]
 urls.Changelog = "https://github.com/tox-dev/pipdeptree/releases"
 urls.Documentation = "https://pipdeptree.readthedocs.io"
@@ -82,31 +82,31 @@ lint.select = [
   "ALL",
 ]
 lint.ignore = [
-  "A005",    # Allow builtin module shadowing
-  "ANN401",  # Expressions typed as typing.Any are disallowed in
-  "COM812",  # Conflict with formatter
+  "stdlib-module-shadowing",    # Allow builtin module shadowing
+  "any-type",  # Expressions typed as typing.Any are disallowed in
+  "missing-trailing-comma",  # Conflict with formatter
   "CPY",     # No copyright statements
-  "D104",    # Missing docstring in public package
-  "D203",    # `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible
-  "D212",    # `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible
-  "DOC201",  # Blocked by Ruff's incomplete Sphinx-style docstring support (astral-sh/ruff#12434)
-  "DOC402",  # Blocked by Ruff's incomplete Sphinx-style docstring support (astral-sh/ruff#12434)
-  "DOC501",  # Blocked by Ruff's incomplete Sphinx-style docstring support (astral-sh/ruff#12434)
-  "INP001",  # no implicit namespace
-  "ISC001",  # Conflict with formatter
-  "PLR2004", # Magic value used in comparison
-  "RUF067",  # `__init__` module should only contain docstrings and re-exports
-  "S101",    # asserts allowed
-  "S104",    # Possible binding to all interface
+  "undocumented-public-package",    # Missing docstring in public package
+  "incorrect-blank-line-before-class",    # `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible
+  "multi-line-summary-first-line",    # `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible
+  "docstring-missing-returns",  # Blocked by Ruff's incomplete Sphinx-style docstring support (astral-sh/ruff#12434)
+  "docstring-missing-yields",  # Blocked by Ruff's incomplete Sphinx-style docstring support (astral-sh/ruff#12434)
+  "docstring-missing-exception",  # Blocked by Ruff's incomplete Sphinx-style docstring support (astral-sh/ruff#12434)
+  "implicit-namespace-package",  # no implicit namespace
+  "single-line-implicit-string-concatenation",  # Conflict with formatter
+  "magic-value-comparison", # Magic value used in comparison
+  "non-empty-init-module",  # `__init__` module should only contain docstrings and re-exports
+  "assert",    # asserts allowed
+  "hardcoded-bind-all-interfaces",    # Possible binding to all interface
 ]
 lint.per-file-ignores."tests/**/*.py" = [
   "D",       # Documentation rules do not apply to tests
   "FBT",     # Boolean positional arguments keep parameterized tests compact
-  "PLC2701", # Private import in tests
-  "PLR0913", # any number of arguments in tests
-  "PLR0917", # any number of arguments in tests
-  "PLR2004", # Magic value used in comparison, consider replacing with a constant variable
-  "S603",    # `subprocess` call: check for execution of untrusted input
+  "import-private-name", # Private import in tests
+  "too-many-arguments", # any number of arguments in tests
+  "too-many-positional-arguments", # any number of arguments in tests
+  "magic-value-comparison", # Magic value used in comparison, consider replacing with a constant variable
+  "subprocess-without-shell-equals-true",    # `subprocess` call: check for execution of untrusted input
 ]
 lint.isort = { known-first-party = [
   "pipdeptree",
