@@ -4,16 +4,16 @@ How pipdeptree works
 Package discovery
 -----------------
 
-pipdeptree uses Python's standard library (``importlib.metadata``) to discover installed packages and their metadata.
-This approach makes it lightweight and stable across different Python and pip versions without depending on pip's
-internal APIs.
+The native extension scans the selected interpreter's package paths and reads ``METADATA``, ``PKG-INFO``,
+``direct_url.json``, ``RECORD`` and legacy ``.egg-link`` files. It does not import pip or packaging. The Python layer
+starts the extension, writes its byte output and implements notebook display hooks.
 
 .. mermaid::
 
     flowchart TD
-        A["📁 site-packages/"] --> B["importlib.metadata"]
-        B --> C["Package metadata<br/>(name, version, requires)"]
-        C --> D["Build dependency graph"]
+        A["site-packages/"] --> B["Rust metadata scanner"]
+        B --> C["PEP 508 requirements<br/>and package metadata"]
+        C --> D["Rust dependency graph"]
         D --> E["Render output"]
         E --> F["text / rich"]
         E --> G["json / json-tree"]
@@ -32,17 +32,18 @@ internal APIs.
 Standards compliance
 --------------------
 
-For generating freeze-format output and resolving package information, pipdeptree implements:
+Rust crates implement the relevant standards:
 
-- **PEP 440** -- Version specifiers and direct reference syntax (``package @ url``).
-- **PEP 503** -- Package name normalization for consistent key generation.
-- **PEP 610** -- ``direct_url.json`` metadata parsing for VCS, archive, and editable installs.
+- **PEP 440:** versions and version specifiers.
+- **PEP 508:** requirements, environment markers and direct references (``package @ url``).
+- **PEP 503:** package name normalization for consistent keys.
+- **PEP 610:** ``direct_url.json`` metadata for VCS, archives and editable installs.
 
 Dependency resolution
 ---------------------
 
-pipdeptree does **not** resolve dependencies -- it reads metadata from already-installed packages and constructs the
-tree from that. It reports what is installed, not what *should* be installed.
+The default command constructs a graph from installed package metadata. Use ``from-index`` to solve requirements before
+installation.
 
 Conflicting dependency detection works by comparing version constraints: if package A requires ``foo>=2.0`` and package
 B requires ``foo<2.0``, pipdeptree flags this as a conflict.
@@ -55,7 +56,7 @@ B requires ``foo<2.0``, pipdeptree flags this as a conflict.
         foo -. "CONFLICT: 1.5 does not satisfy >=2.0" .-> A
         style foo fill:#e74c3c,color:#fff
 
-Circular dependency detection uses cycle detection on the directed dependency graph.
+pipdeptree finds circular dependencies with cycle detection on the directed graph.
 
 .. mermaid::
 
@@ -68,35 +69,33 @@ Circular dependency detection uses cycle detection on the directed dependency gr
 from-index: resolving from an index instead of inspecting
 ---------------------------------------------------------
 
-The default command reads ``importlib.metadata`` for packages that are *already installed*: each one has a
-``METADATA`` file and real files on disk, so pipdeptree can report its version, dependencies, license, metadata
-fields and on-disk size.
+The default command reads the selected environment's package metadata. Installed distributions have a
+``METADATA`` or ``PKG-INFO`` file and may have real files on disk, so pipdeptree can report versions, dependencies,
+licenses, requested metadata fields and on-disk size.
 
-The ``from-index`` subcommand answers a different question -- "what *would* this tree look like?" -- so it cannot
-read installed state, because nothing is installed. It hands the requirements to the optional index resolver, which
-runs a PubGrub solve against a package index (PyPI) and picks a consistent set of versions *without downloading or
-installing anything*. The name says where the answer comes from: the index server, not the Python environment.
+The ``from-index`` subcommand calculates a tree before installation. It hands requirements to the bundled index
+resolver, which runs a PubGrub solve against a package index and picks a consistent set of versions without downloading
+or installing packages. The result comes from the index server instead of the Python environment.
 It reads requirements files as standard ``requirements.txt`` files, so nested ``-r``, ``-c`` constraints,
 environment markers and comments all carry through. Editable installs, local paths and pinned git requirements
 resolve from the checkout itself rather than the index (see below). Bare wheel/sdist archive URLs and non-git VCS
-schemes stay out of scope, since the resolver has no way to map them. pipdeptree then renders that resolved graph
-through the same machinery as the default command.
+schemes stay out of scope, since the resolver has no way to map them. pipdeptree sends the resolved graph through the
+default renderers.
 
-PubGrub is a version-solving algorithm: the resolver asks the index for the candidate versions of each
-requirement, follows their declared dependencies, and backtracks when two constraints cannot hold at once until it
-reaches a single consistent assignment or proves none exists. Querying the index is why the subcommand needs the
-network and the extra. The default command reads files already on disk, so it needs neither.
+PubGrub solves package versions. The resolver asks the index for candidates and follows their dependencies. It
+backtracks when two constraints cannot hold at once until it finds a consistent assignment or proves none exists.
+Querying an index requires network access. The nab resolver is a base dependency, so ``from-index`` needs no extra.
+The default command reads files on disk and does not use the network.
 
 This solve depends on the same environment markers that govern a real install. A requirement guarded by
-``; python_version < "3.9"`` enters the resolve only when the marker evaluates true, so the Python version you
+``; python_version < "3.9"`` enters the resolve if the marker evaluates true, so the Python version you
 resolve for can change which packages appear. The resolver evaluates markers against the interpreter running
 pipdeptree, which matters when you preview a tree for a version other than your own.
 
 The resolver handles a checkout (an editable install, a local path, or a cloned git repo) by reading its metadata
-rather than querying the index. It reads the project's PEP 621 ``[project]`` table -- and PEP 643 static metadata
-in sdists -- *statically*, with no build. It runs a build backend only when a target declares its dependencies
-dynamically and offers no static fallback. Most local and git dependencies resolve without any build; a project
-that computes its dependencies at build time pays for one.
+rather than querying the index. PEP 621 ``[project]`` data and PEP 643 static sdist metadata need no build. A target
+that declares dynamic dependencies and has no static fallback runs its build backend. Most local and git dependencies
+therefore incur no build.
 
 .. mermaid::
 
@@ -113,46 +112,36 @@ Index selection feeds the resolver's index list. ``--index-url``/``--extra-index
 environment fallbacks, and a ``--pyproject``'s ``[tool.nab].indexes`` each supply that list; with none set the
 resolve uses PyPI.
 
-The resolver yields only names, versions and dependency edges, so ``from-index`` drops the installed-only display
-options: ``--metadata``, ``--computed`` and ``--license`` each need a ``METADATA`` file or on-disk files that never
-exist for un-downloaded packages, and the environment-inspection options (``--python``, ``--path``, ``-l``/``-u``)
-have no environment to point at. The pure graph/version/render flags -- filtering, depth, ``--reverse``,
-``--extras`` and the output formats -- apply unchanged.
+The resolver yields names, versions and dependency edges, so ``from-index`` drops the installed-environment display
+options. ``--metadata``, ``--computed`` and ``--license`` need package files on disk. The environment-inspection
+options (``--python``, ``--path``, ``-l``/``-u``) need an installed environment. Filtering, depth, ``--reverse``,
+``--extras`` and the output formats apply.
 
-``from-lock`` and ``from-index`` differ in where the answer comes from. ``from-index`` **resolves** a tree from an
-index: the versions and edges do not exist yet, so the resolver computes them and needs the ``[index]`` extra and
-network access. ``from-lock`` **reads** an already-resolved
-`PEP 751 <https://peps.python.org/pep-0751/>`_ lock (``pylock.toml``).
+``from-lock`` reads versions and edges from a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock (``pylock.toml``).
 
 A PEP 751 lock records each package's name, its pinned version and the forward edges between packages (its
 ``[[packages]]`` and ``[[packages.dependencies]]`` tables). The tool that wrote the lock did the resolution.
-``from-lock`` runs offline: it maps the TOML tables to a graph and feeds that graph through the same render
-machinery, with no resolver, no network and no extra. The edges live in the file, so nothing is left to compute.
-``from-lock`` shares one limit with ``from-index``: a lock holds only names, versions and edges, so the
-installed-only display options stay absent.
+``from-lock`` runs offline: Rust's ``toml`` crate maps the tables to a graph and feeds that graph through the same
+render machinery, with no resolver or network. A lock holds names, versions and edges, so ``from-lock`` omits the
+installed-environment display options.
 
 The summary report and its two tiers
 ------------------------------------
 
-``--summary`` condenses the whole tree into one block of environment-health metrics. It is a deliberately separate
-axis from the renderers: the flag chooses *what* to produce (the aggregate report), while ``-o`` chooses *how* to
-style it (``text``, ``rich`` or ``json``). Keeping them orthogonal is why the same report can print as a styled
-table, serialize to JSON, or display as an HTML table in a notebook, and why it composes with every tree source --
-``from-index``/``from-lock`` included -- instead of being locked to one. The tree-only renderers (mermaid,
-graphviz, freeze, json-tree) have no meaning for a flat report, so the flag rejects them.
+``--summary`` condenses the tree into environment-health metrics. The flag selects the report; ``-o`` selects text,
+rich or JSON presentation. The same metrics can print as a terminal table or display as an HTML table in a notebook.
+All tree sources support the report. pipdeptree rejects tree formats such as Mermaid for a summary.
 
 The metrics fall into two tiers that mirror the same installed-vs-resolved split as the display options above.
 
-*Graph-structural* metrics -- total/direct/transitive counts, max depth and cyclic dependencies -- derive purely
-from the DAG's nodes and edges. Every command can produce them, including ``from-index`` and ``from-lock``, because
+*Graph-structural* metrics include total/direct/transitive counts, max depth and cyclic dependencies. They derive
+from the DAG's nodes and edges. All commands can produce them, including ``from-index`` and ``from-lock``, because
 a resolved or locked graph still has nodes and edges.
 
-*Installed-environment* metrics -- missing and conflicting dependencies, the license breakdown, the minimum
-``Requires-Python`` and total on-disk size -- read real ``METADATA`` files and files on disk. The synthetic graphs
-behind ``from-index``/``from-lock`` carry only names, versions and edges (the same reason ``--metadata`` and
-``--computed`` are unavailable there), so these metrics cannot be computed. Rather than print a misleading ``0``,
-the summary marks them ``n/a`` in text and omits them from JSON, so an automated check can tell "zero conflicts"
-apart from "conflicts were never measured".
+*Installed-environment* metrics cover missing or conflicting dependencies, licenses, ``Requires-Python`` and size.
+They read ``METADATA`` files and installed files. The synthetic ``from-index`` and ``from-lock`` graphs carry names,
+versions and edges, so Rust lacks the source data for these metrics. Text marks them ``n/a`` and JSON omits them. An
+API clients can distinguish zero conflicts from an unavailable measurement.
 
 Optional dependencies (extras)
 ------------------------------
@@ -161,19 +150,17 @@ The ``--extras`` option controls which optional dependency edges appear in the t
 of three values:
 
 ``explicit`` (the default)
-    Show an extra only when a parent's metadata requests it via ``name[extra]``, such as
-    ``oauthlib[signedtoken]``. The deps gated behind that extra are added under the parent,
-    annotated with ``extra: signedtoken``. This propagates: if ``A[x]`` pulls in ``B[y]``, the
-    deps ``B[y]`` gates are added too.
+    Show an extra when a parent's metadata requests it via ``name[extra]``, such as
+    ``oauthlib[signedtoken]``. pipdeptree adds dependencies gated by that extra under the parent and annotates them
+    with ``extra: signedtoken``. A request for ``A[x]`` that pulls in ``B[y]`` adds dependencies gated by ``B[y]``.
 
 ``active``
-    Everything ``explicit`` shows, plus extras that nothing requested but whose dependencies are
-    all installed. Packaging metadata never records why a package was installed, so this treats a
-    satisfiable extra as if it had been requested. The same package can then appear under several
-    parents, and the tree grows accordingly.
+    Show the ``explicit`` extras and unrequested extras whose dependencies are present. Packaging metadata does not
+    record which command requested a package, so this treats a satisfiable extra like a requested one. The same package
+    can appear under multiple parents.
 
 ``none``
-    Omit optional edges entirely.
+    Omit optional edges.
 
 .. mermaid::
 
@@ -185,19 +172,13 @@ of three values:
         style C fill:#8e44ad,color:#fff
         style P fill:#8e44ad,color:#fff
 
-Edges added through an extra are always annotated with the originating extra, so they stay
-distinguishable from mandatory dependencies in every output format.
+Each extra edge carries its name, which distinguishes it from mandatory dependencies in each output format.
 
-Limitations
------------
+Limits
+------
 
-- pipdeptree only sees packages that are already installed. It cannot predict what a ``pip install`` will do.
-- To preview the tree for a set of requirements without installing them, use the ``from-index`` subcommand (see
-  :doc:`/how-to/usage` and the "from-index: resolving from an index instead of inspecting" section above), which
-  resolves them via the optional index resolver. For a full-featured standalone resolver, :pypi:`uv` is another
-  option.
-- Optional dependencies show by default (``--extras=explicit``); use ``--extras=none`` to omit them,
-  or ``--extras=active`` to also include extras that are merely satisfiable.
-- ``--extras`` cannot reconstruct extras that were requested only on the command line
-  (e.g. ``pip install foo[dev]`` where ``foo`` is itself top-level), because that information
-  is never persisted into installed package metadata.
+The default command sees installed packages and cannot predict a future ``pip install``. Use ``from-index`` to preview
+a requirement set; :pypi:`uv` provides a standalone resolver.
+
+Installed metadata does not preserve command-line extras such as ``pip install foo[dev]`` for a top-level ``foo``.
+``--extras`` therefore cannot reconstruct that request.

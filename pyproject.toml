@@ -1,8 +1,9 @@
 [build-system]
-build-backend = "hatchling.build"
+build-backend = "mesonpy"
 requires = [
-  "hatch-vcs>=0.5",
-  "hatchling>=1.27",
+  "meson>=1.11.2",
+  "meson-python>=0.20",
+  "ninja>=1.13",
 ]
 
 [project]
@@ -30,7 +31,6 @@ classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
   "Intended Audience :: Developers",
-  "Operating System :: OS Independent",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
@@ -38,55 +38,40 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Rust",
 ]
 dynamic = [
   "version",
 ]
 dependencies = [
-  "packaging>=26",
-  "tomli>=2; python_version<'3.11'",
-]
-optional-dependencies.graphviz = [
-  "graphviz>=0.21",
-]
-optional-dependencies.index = [
-  "nab-index>=0.0.4",
-  "nab-python>=0.0.4",
-  "pip-requirements-parser>=32",
-]
-optional-dependencies.rich = [
-  "rich>=14.3.3",
+  "nab-index>=0.0.11",
+  "nab-python>=0.0.11",
 ]
 urls.Changelog = "https://github.com/tox-dev/pipdeptree/releases"
 urls.Documentation = "https://pipdeptree.readthedocs.io"
 urls.Homepage = "https://github.com/tox-dev/pipdeptree"
 urls.Source = "https://github.com/tox-dev/pipdeptree"
 urls.Tracker = "https://github.com/tox-dev/pipdeptree/issues"
-scripts.pipdeptree = "pipdeptree.__main__:main"
+scripts.pipdeptree = "pipdeptree._runner:main"
 
 [dependency-groups]
 test = [
   "covdefaults>=2.3",
-  "diff-cover>=9.7.1",
-  "pipdeptree[index]",
-  "pytest>=8.4.2",
-  "pytest-cov>=7",
-  "pytest-mock>=3.15.1",
-  "pytest-subprocess>=1.5",
-  "virtualenv<21,>=20.34",
+  "diff-cover>=10.3",
+  "pluggy>=1.6",
+  "pytest>=9.1.1",
+  "pytest-cov>=7.1",
 ]
 docs = [
-  "furo>=2024.8.6",
-  "sphinx>=7.4",
-  "sphinx-argparse-cli>=1.18",
+  "furo>=2025.12.19",
+  "sphinx>=9.1",
   "sphinx-copybutton>=0.5.2",
-  "sphinx-inline-tabs>=2023.4.21",
-  "sphinxcontrib-mermaid>=2",
+  "sphinx-inline-tabs>=2025.12.21.14",
+  "sphinxcontrib-mermaid>=2.1",
 ]
 
-[tool.hatch]
-version.source = "vcs"
-build.hooks.vcs.version-file = "src/pipdeptree/version.py"
+[tool.meson-python]
+limited-api = true
 
 [tool.ruff]
 line-length = 120
@@ -97,42 +82,44 @@ lint.select = [
   "ALL",
 ]
 lint.ignore = [
-  "A005",    # Don't care about shadowing builtin modules
-  "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed in
-  "COM812",  # Conflict with formatter
-  "CPY",     # No copyright statements
-  "D104",    # Missing docstring in public package
-  "D203",    # `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible
-  "D212",    # `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible
-  "DOC201",  # TODO: Read the comment for DOC501
-  "DOC402",  # TODO: Read the comment for DOC501
-  "DOC501",  # TODO: Remove this once ruff supports Sphinx-style doc-strings; see https://github.com/astral-sh/ruff/issues/12434
-  "INP001",  # no implicit namespace
-  "ISC001",  # Conflict with formatter
-  "PLR2004", # Magic value used in comparison
-  "RUF067",  # `__init__` module should only contain docstrings and re-exports
-  "S101",    # asserts allowed
-  "S104",    # Possible binding to all interface
+  "any-type",                                  # Expressions typed as typing.Any are disallowed in
+  "assert",                                    # asserts allowed
+  "CPY",                                       # No copyright statements
+  "docstring-missing-exception",               # Blocked by Ruff's incomplete Sphinx-style docstring support (astral-sh/ruff#12434)
+  "docstring-missing-returns",                 # Blocked by Ruff's incomplete Sphinx-style docstring support (astral-sh/ruff#12434)
+  "docstring-missing-yields",                  # Blocked by Ruff's incomplete Sphinx-style docstring support (astral-sh/ruff#12434)
+  "hardcoded-bind-all-interfaces",             # Possible binding to all interface
+  "implicit-namespace-package",                # no implicit namespace
+  "incorrect-blank-line-before-class",         # `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible
+  "magic-value-comparison",                    # Magic value used in comparison
+  "missing-trailing-comma",                    # Conflict with formatter
+  "multi-line-summary-first-line",             # `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible
+  "non-empty-init-module",                     # `__init__` module should only contain docstrings and re-exports
+  "single-line-implicit-string-concatenation", # Conflict with formatter
+  "stdlib-module-shadowing",                   # Allow builtin module shadowing
+  "undocumented-public-package",               # Missing docstring in public package
 ]
 lint.per-file-ignores."tests/**/*.py" = [
-  "D",       # don"t care about documentation in tests
-  "FBT",     # don"t care about booleans as positional arguments in tests
-  "PLC2701", # Private import in tests
-  "PLR0913", # any number of arguments in tests
-  "PLR0917", # any number of arguments in tests
-  "PLR2004", # Magic value used in comparison, consider replacing with a constant variable
-  "S603",    # `subprocess` call: check for execution of untrusted input
+  "D",                                    # Documentation rules do not apply to tests
+  "FBT",                                  # Boolean positional arguments keep parameterized tests compact
+  "import-private-name",                  # Private import in tests
+  "magic-value-comparison",               # Magic value used in comparison, consider replacing with a constant variable
+  "subprocess-without-shell-equals-true", # `subprocess` call: check for execution of untrusted input
+  "too-many-arguments",                   # any number of arguments in tests
+  "too-many-positional-arguments",        # any number of arguments in tests
 ]
 lint.isort = { known-first-party = [
   "pipdeptree",
 ], required-imports = [
   "from __future__ import annotations",
 ] }
+lint.pylint.allow-dunder-method-names = [ "_repr_mimebundle_" ]
 lint.preview = true
 
 [tool.codespell]
 builtin = "clear,usage,en-GB_to_en-US"
-ignore-words-list = "master"
+# Cargo uses the writeable crate, and serde exposes serializer traits through ser.
+ignore-words-list = "master,ser,writeable"
 count = true
 quiet-level = 3
 
@@ -153,7 +140,7 @@ paths.source = [
   ".tox/*/lib/python*/site-packages",
   "*/src",
 ]
-report.fail_under = 88
+report.fail_under = 100
 html.show_contexts = true
 html.skip_covered = false
 subtract_omit = "*/__main__.py"

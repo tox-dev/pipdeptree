@@ -22,17 +22,7 @@ Installation
 
         pip install pipdeptree
 
-For enhanced terminal output with colors and checkmarks, install the ``rich`` extra:
-
-.. code-block:: bash
-
-    pip install pipdeptree[rich]
-
-For Graphviz diagram generation, install the ``graphviz`` extra:
-
-.. code-block:: bash
-
-    pip install pipdeptree[graphviz]
+pipdeptree includes rich output and Graphviz DOT source. Binary Graphviz formats require the ``dot`` executable.
 
 First run
 ---------
@@ -43,56 +33,81 @@ Run ``pipdeptree`` with no arguments to see the full dependency tree of your env
 
     $ pipdeptree
     covdefaults==2.3.0
-    └── coverage [required: >=6.0.2, installed: 7.13.5]
-    diff_cover==10.2.0
+    └── coverage [required: >=6.0.2, installed: 7.15.1]
+    cryptography==2.7
+    diff_cover==10.3.0
+    ├── chardet [required: >=3.0.0, installed: 7.4.3]
     ├── Jinja2 [required: >=2.7.1, installed: 3.1.6]
     │   └── MarkupSafe [required: >=2.0, installed: 3.0.3]
-    ├── Pygments [required: >=2.19.1,<3.0.0, installed: 2.19.2]
-    ├── chardet [required: >=3.0.0, installed: 7.1.0]
-    └── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
-    graphviz==0.21
-    pipdeptree==2.33.0
-    └── packaging [required: >=26, installed: 26.0]
-    pytest-cov==7.0.0
-    ├── coverage [required: >=7.10.6, installed: 7.13.5]
+    ├── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
+    └── Pygments [required: >=2.19.1,<3.0.0, installed: 2.20.0]
+    oauthlib==3.0.0
+    pipdeptree==4.0.0
+    ├── nab-index [required: >=0.0.11, installed: 0.0.11]
+    │   ├── packaging [required: >=24.0, installed: 26.2]
+    │   ├── truststore [required: >=0.10, installed: 0.10.4]
+    │   ├── typing_extensions [required: >=4.6, installed: 4.16.0]
+    │   └── urllib3 [required: >=2.0, installed: 2.7.0]
+    └── nab-python [required: >=0.0.11, installed: 0.0.11]
+        ├── build [required: >=1.2, installed: 1.5.1]
+        │   ├── packaging [required: >=24.0, installed: 26.2]
+        │   └── pyproject_hooks [required: Any, installed: 1.2.0]
+        ├── installer [required: >=0.7, installed: 1.0.1]
+        ├── nab-index [required: ==0.0.11, installed: 0.0.11]
+        │   ├── packaging [required: >=24.0, installed: 26.2]
+        │   ├── truststore [required: >=0.10, installed: 0.10.4]
+        │   ├── typing_extensions [required: >=4.6, installed: 4.16.0]
+        │   └── urllib3 [required: >=2.0, installed: 2.7.0]
+        ├── nab-resolver [required: ==0.0.11, installed: 0.0.11]
+        │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
+        ├── pyproject_hooks [required: >=1.2, installed: 1.2.0]
+        ├── tomli [required: >=2.0, installed: 2.4.1]
+        ├── tomli_w [required: >=1.2, installed: 1.2.0]
+        └── typing_extensions [required: >=4.6, installed: 4.16.0]
+    pyjwt==1.7.1
+    PySocks==1.7.1
+    pytest-cov==7.1.0
+    ├── coverage [required: >=7.10.6, installed: 7.15.1]
     ├── pluggy [required: >=1.2, installed: 1.6.0]
-    └── pytest [required: >=7, installed: 9.0.2]
+    └── pytest [required: >=7, installed: 9.1.1]
         ├── iniconfig [required: >=1.0.1, installed: 2.3.0]
-        ├── packaging [required: >=22, installed: 26.0]
+        ├── packaging [required: >=22, installed: 26.2]
         ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
-        └── Pygments [required: >=2.7.2, installed: 2.19.2]
+        └── Pygments [required: >=2.7.2, installed: 2.20.0]
+    requests==2.32.3
+    ├── certifi [required: >=2017.4.17, installed: 2024.8.30]
+    ├── charset_normalizer [required: >=2,<4, installed: 3.4.0]
+    ├── idna [required: >=2.5,<4, installed: 3.10]
+    └── urllib3 [required: >=1.21.1,<3, installed: 2.7.0]
 
 Each top-level entry is a package with no parent depending on it. Indented lines show dependencies, with the required
-version range and the actually installed version.
+version range and the installed version.
 
 Understanding the output
 ------------------------
 
-Each line shows:
+The top-level line contains the package name and version, such as ``pytest-cov==7.1.0``. Tree-drawing characters indent
+its dependencies. ``[required: >=7, installed: 9.1.1]`` gives the parent's constraint and the installed version.
 
-- **Package name and version** -- the top-level line (e.g., ``pytest-cov==7.0.0``).
-- **Dependencies** -- indented with tree-drawing characters.
-- **Version constraints** -- ``[required: >=7, installed: 9.0.2]`` shows what the parent needs vs what's installed.
-
-When a dependency appears multiple times (e.g., ``pluggy`` above), it means multiple packages depend on it. If their
-version requirements conflict, pipdeptree will warn you.
+A dependency appears multiple times when several packages require it, as with ``pluggy`` above. pipdeptree warns when
+their version requirements conflict.
 
 The dependency graph for the above output looks like this:
 
 .. mermaid::
 
     flowchart TD
-        pytest-cov["pytest-cov<br/>7.0.0"]:::top --> coverage["coverage<br/>7.13.5"]:::dep
+        pytest-cov["pytest-cov<br/>7.1.0"]:::top --> coverage["coverage<br/>7.15.1"]:::dep
         pytest-cov --> pluggy["pluggy<br/>1.6.0"]:::shared
-        pytest-cov --> pytest["pytest<br/>9.0.2"]:::dep
+        pytest-cov --> pytest["pytest<br/>9.1.1"]:::dep
         pytest --> iniconfig["iniconfig<br/>2.3.0"]:::dep
-        pytest --> packaging["packaging<br/>26.0"]:::shared
+        pytest --> packaging["packaging<br/>26.2"]:::shared
         pytest --> pluggy
-        pytest --> pygments["Pygments<br/>2.19.2"]:::shared
+        pytest --> pygments["Pygments<br/>2.20.0"]:::shared
         covdefaults["covdefaults<br/>2.3.0"]:::top --> coverage
-        diff_cover["diff_cover<br/>10.2.0"]:::top --> jinja2["Jinja2<br/>3.1.6"]:::dep
+        diff_cover["diff_cover<br/>10.3.0"]:::top --> jinja2["Jinja2<br/>3.1.6"]:::dep
         diff_cover --> pygments
-        diff_cover --> chardet["chardet<br/>7.1.0"]:::dep
+        diff_cover --> chardet["chardet<br/>7.4.3"]:::dep
         diff_cover --> pluggy
         jinja2 --> markupsafe["MarkupSafe<br/>3.0.3"]:::dep
         classDef top fill:#2980b9,color:#fff
@@ -107,39 +122,52 @@ Filter to a specific package:
 .. code-block:: console
 
     $ pipdeptree --packages pytest
-    pytest==9.0.2
+    pytest==9.1.1
     ├── iniconfig [required: >=1.0.1, installed: 2.3.0]
-    ├── packaging [required: >=22, installed: 26.0]
+    ├── packaging [required: >=22, installed: 26.2]
     ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
-    └── Pygments [required: >=2.7.2, installed: 2.19.2]
+    └── Pygments [required: >=2.7.2, installed: 2.20.0]
 
-Find out why a package is installed (reverse tree):
+Find the packages that require a dependency with a reverse tree:
 
 .. code-block:: console
 
     $ pipdeptree --reverse --packages pygments
-    Pygments==2.19.2
-    ├── rich==14.3.3 [requires: Pygments>=2.13.0,<3.0.0]
-    ├── diff_cover==10.2.0 [requires: Pygments>=2.19.1,<3.0.0]
-    └── pytest==9.0.2 [requires: Pygments>=2.7.2]
-        ├── pytest-mock==3.15.1 [requires: pytest>=6.2.5]
-        ├── pytest-subprocess==1.5.3 [requires: pytest>=4.0.0]
-        └── pytest-cov==7.0.0 [requires: pytest>=7]
+    Pygments==2.20.0
+    ├── diff_cover==10.3.0 [requires: Pygments>=2.19.1,<3.0.0]
+    └── pytest==9.1.1 [requires: Pygments>=2.7.2]
+        └── pytest-cov==7.1.0 [requires: pytest>=7]
 
 Limit the tree depth:
 
 .. code-block:: console
 
-    $ pipdeptree -d 1
+    $ pipdeptree --depth 1
     covdefaults==2.3.0
-    └── coverage [required: >=6.0.2, installed: 7.13.5]
-    diff_cover==10.2.0
+    └── coverage [required: >=6.0.2, installed: 7.15.1]
+    cryptography==2.7
+    diff_cover==10.3.0
+    ├── chardet [required: >=3.0.0, installed: 7.4.3]
     ├── Jinja2 [required: >=2.7.1, installed: 3.1.6]
-    ├── Pygments [required: >=2.19.1,<3.0.0, installed: 2.19.2]
-    ├── chardet [required: >=3.0.0, installed: 7.1.0]
-    └── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
+    ├── pluggy [required: >=0.13.1,<2, installed: 1.6.0]
+    └── Pygments [required: >=2.19.1,<3.0.0, installed: 2.20.0]
+    oauthlib==3.0.0
+    pipdeptree==4.0.0
+    ├── nab-index [required: >=0.0.11, installed: 0.0.11]
+    └── nab-python [required: >=0.0.11, installed: 0.0.11]
+    pyjwt==1.7.1
+    PySocks==1.7.1
+    pytest-cov==7.1.0
+    ├── coverage [required: >=7.10.6, installed: 7.15.1]
+    ├── pluggy [required: >=1.2, installed: 1.6.0]
+    └── pytest [required: >=7, installed: 9.1.1]
+    requests==2.32.3
+    ├── certifi [required: >=2017.4.17, installed: 2024.8.30]
+    ├── charset_normalizer [required: >=2,<4, installed: 3.4.0]
+    ├── idna [required: >=2.5,<4, installed: 3.10]
+    └── urllib3 [required: >=1.21.1,<3, installed: 2.7.0]
 
-Get an at-a-glance health report with ``--summary``:
+Report environment health with ``--summary``:
 
 .. code-block:: console
 
@@ -155,7 +183,7 @@ Get an at-a-glance health report with ``--summary``:
     unknown licenses:         0
     copyleft licenses:        no
     min requires-python:      3.10
-    total size:               6.0 MB
+    total size:               0 B
 
 Drop ``--packages`` to report on the whole environment. Add ``-o rich`` for a styled table, or ``-o json`` for a
 machine-readable version to gate CI on. The programmatic ``pipdeptree.render(summary=True)`` returns the same report
@@ -164,34 +192,28 @@ and displays as an HTML table in a notebook. See :doc:`/how-to/output-formats` f
 Preview a tree before installing
 --------------------------------
 
-So far you have looked at packages that are already installed. You can also peek at the tree a package *would*
-pull in before you commit to installing it. This lives in the ``from-index`` subcommand, which queries PyPI
-instead of inspecting your environment. It ships in an optional extra, so install that first:
+The ``from-index`` subcommand shows the tree a package would install. It queries PyPI instead of inspecting your
+environment.
 
-.. code-block:: console
+Ask what ``starlette`` brings along:
 
-    $ pip install pipdeptree[index]
-
-Now ask what ``starlette`` brings along:
-
+.. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index "starlette"
-    starlette==1.2.1
-    ├── anyio [candidate: 4.13.0]
-    │   ├── idna [candidate: 3.17]
-    │   └── typing-extensions [candidate: 4.15.0]
-    └── typing-extensions [candidate: 4.15.0]
+    starlette==1.3.1
+    └── anyio [candidate: 4.14.2]
+        └── idna [candidate: 3.18]
 
 Read this the same way as the tree from your environment. The top line is the requirement you asked for and the
 indented lines are its dependencies. Each edge shows the candidate version the resolver selected from PyPI:
-nothing is installed and the resolver produces a single version per package without a requirement range, so the
-edges read ``[candidate: <version>]`` rather than the ``[required: ..., installed: ...]`` pair you see for an
-installed environment.
+the resolver does not install packages. It produces one version per package without a requirement range, so the edges
+read ``[candidate: <version>]`` instead of the ``[required: ..., installed: ...]`` pair from an installed environment.
 
 The positional argument is a PEP 508 requirement, the same string you would pass to ``pip install``, so you can
-pin or bound it. Bound ``fastapi`` and resolve it alongside ``starlette`` -- the pin lands on the upper bound:
+pin or bound it. Bound ``fastapi`` and resolve it alongside ``starlette``; the resolver selects the upper bound:
 
+.. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index "fastapi<=0.115.2" starlette
@@ -199,26 +221,43 @@ pin or bound it. Bound ``fastapi`` and resolve it alongside ``starlette`` -- the
     ├── pydantic [candidate: 2.13.4]
     │   ├── annotated-types [candidate: 0.7.0]
     │   ├── pydantic-core [candidate: 2.46.4]
-    │   │   └── typing-extensions [candidate: 4.15.0]
-    │   ├── typing-extensions [candidate: 4.15.0]
+    │   │   └── typing-extensions [candidate: 4.16.0]
+    │   ├── typing-extensions [candidate: 4.16.0]
     │   └── typing-inspection [candidate: 0.4.2]
-    │       └── typing-extensions [candidate: 4.15.0]
+    │       └── typing-extensions [candidate: 4.16.0]
     ├── starlette [candidate: 0.40.0]
-    │   └── anyio [candidate: 4.13.0]
-    │       ├── idna [candidate: 3.17]
-    │       └── typing-extensions [candidate: 4.15.0]
-    └── typing-extensions [candidate: 4.15.0]
+    │   └── anyio [candidate: 4.14.2]
+    │       └── idna [candidate: 3.18]
+    └── typing-extensions [candidate: 4.16.0]
 
-The constraint moves the top-level pin to ``0.115.2`` and the dependency picks follow from it. You can also resolve
-a ``pyproject.toml`` with ``--pyproject`` or a requirements file with ``--requirements``, and even a local checkout
-or a pinned git requirement, where the resolver reads the target's metadata. See :doc:`/how-to/usage` for those
-sources, the render flags, and the inputs the resolver rejects.
+The resolver selects ``0.115.2`` for the top-level package and follows its dependencies. You can resolve a
+``pyproject.toml`` with ``--pyproject`` or a requirements file with ``--requirements``. The resolver reads metadata
+from local checkouts and pinned git requirements. See :doc:`/how-to/usage` for these sources, render flags and rejected
+inputs.
 
 Render a lock file
 ------------------
 
-If you already have a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock file (a ``pylock.toml``, such as the one
-:pypi:`uv` exports), point ``from-lock`` at it to read its tree:
+For an existing `PEP 751 <https://peps.python.org/pep-0751/>`_ lock file (a ``pylock.toml``, such as the one :pypi:`uv`
+exports), point ``from-lock`` at it to read its tree:
+
+.. code-block:: toml
+    :caption: pylock.toml
+
+    lock-version = "1.0"
+
+    [[packages]]
+    name = "build"
+    version = "1.5.0"
+    dependencies = [{ name = "packaging" }, { name = "pyproject-hooks" }]
+
+    [[packages]]
+    name = "packaging"
+    version = "26.2"
+
+    [[packages]]
+    name = "pyproject-hooks"
+    version = "1.2.0"
 
 .. code-block:: console
 
@@ -227,14 +266,12 @@ If you already have a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock file (
     ├── packaging [candidate: 26.2]
     └── pyproject-hooks [candidate: 1.2.0]
 
-The lock already lists every package, version and edge, so ``from-lock`` runs offline with no install, no network
-and no extra. The filtering and output flags you used above work here too. See :doc:`/how-to/usage` for the full
-set.
+The lock lists the package names, versions and edges, so ``from-lock`` runs offline with no install or network.
+The filtering and output flags you used above work here too. See :doc:`/how-to/usage` for the full set.
 
 Next steps
 ----------
 
-See :doc:`/how-to/usage` for filtering, virtualenv support, warning control, and how to surface
-optional (extras) dependencies. See :doc:`/how-to/output-formats` for all available output formats
-including JSON, Mermaid, and Graphviz. See :doc:`/explanation` for how pipdeptree decides when an
-optional dependency edge is "active".
+:doc:`/how-to/usage` covers filtering, virtual environments, warnings and extras. :doc:`/how-to/output-formats` covers
+JSON, Mermaid and Graphviz. :doc:`/explanation` describes how pipdeptree decides when an optional dependency edge is
+"active".

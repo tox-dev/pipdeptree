@@ -1,4 +1,4 @@
-"""Sphinx configuration for pipdeptree documentation."""
+"""Build docs against the installed pipdeptree version."""
 
 from __future__ import annotations
 
@@ -10,13 +10,13 @@ company = "tox-dev"
 name = "pipdeptree"
 version = ".".join(__version__.split(".")[:2])
 release = __version__
-copyright = f"2014-{datetime.now(tz=timezone.utc).year}, {company}"  # noqa: A001
+globals()["copyright"] = f"2014-{datetime.now(tz=timezone.utc).year}, {company}"
 
 extensions = [
     "sphinx.ext.autosectionlabel",
+    "sphinx.ext.doctest",
     "sphinx.ext.extlinks",
     "sphinx.ext.intersphinx",
-    "sphinx_argparse_cli",
     "sphinx_copybutton",
     "sphinx_inline_tabs",
     "sphinxcontrib.mermaid",

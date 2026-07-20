@@ -1,5 +1,8 @@
 *.pyc
 *.egg-info
+*.profraw
 dist/
 .tox/
-/src/pipdeptree/version.py
+/.python-packages/
+/src/pipdeptree/_rust*.so
+/target
