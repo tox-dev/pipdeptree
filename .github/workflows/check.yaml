@@ -13,6 +13,8 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  dist:
+    uses: ./.github/workflows/dist.yaml
   rust:
     runs-on: ubuntu-latest
     env:
