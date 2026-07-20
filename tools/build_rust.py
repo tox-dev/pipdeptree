@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess  # noqa: S404  # Meson supplies the Cargo executable.
+import subprocess  # ruff:ignore[suspicious-subprocess-import]  # Meson supplies the Cargo executable.
 import sys
 from pathlib import Path
 from typing import Final
@@ -26,7 +26,7 @@ def main() -> None:
         "--features",
         features,
     ]
-    code = subprocess.run(command, env=environment, check=False).returncode  # noqa: S603  # Meson supplies Cargo.
+    code = subprocess.run(command, env=environment, check=False).returncode  # ruff:ignore[subprocess-without-shell-equals-true]  # Meson supplies Cargo.
     if code != 0:
         msg = f"Cargo exited with status {code}"
         raise RuntimeError(msg)

@@ -22,6 +22,8 @@ use direct_url::{DirectInfo, DirectUrl};
 use editable::{EggLinks, file_url_to_path};
 pub use vcs::reset_caches as reset_vcs_caches;
 
+const MAX_LICENSE_NAME: usize = 64;
+
 #[derive(Debug)]
 pub struct Package {
     pub name: String,
@@ -122,14 +124,6 @@ impl Package {
         {
             return format!("({value})");
         }
-        // The License field predates License-Expression and stays valid metadata.
-        if let Some(value) = self
-            .metadata
-            .first("license")
-            .filter(|value| !value.is_empty() && !value.contains('\n'))
-        {
-            return format!("({value})");
-        }
         let licenses = self
             .metadata
             .get_all("classifier")
@@ -138,11 +132,16 @@ impl Package {
             .filter(|value| value.starts_with("License"))
             .map(|value| value.rsplit(":: ").next().unwrap_or(value))
             .collect::<Vec<_>>();
-        if licenses.is_empty() {
-            "(N/A)".to_string()
-        } else {
-            format!("({})", licenses.join(", "))
+        if !licenses.is_empty() {
+            return format!("({})", licenses.join(", "));
         }
+        // The License field predates License-Expression and stays valid metadata, but it is free
+        // text and some projects paste the whole license into it. Folding joins its continuation
+        // lines into one value, so only an identifier-length one names a license.
+        self.metadata
+            .first("license")
+            .filter(|value| !value.is_empty() && value.chars().count() <= MAX_LICENSE_NAME)
+            .map_or_else(|| "(N/A)".to_string(), |value| format!("({value})"))
     }
 
     pub fn requires_python(&self) -> Option<&str> {

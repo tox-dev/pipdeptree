@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 
-def render(  # noqa: PLR0913  # The public keyword API predates the Rust implementation.
+def render(  # ruff:ignore[too-many-arguments]  # The public keyword API predates the Rust implementation.
     *,
     packages: str | None = None,
     exclude: str | None = None,
@@ -148,7 +148,7 @@ class _RenderOptions:
     warn: str
 
 
-class _RenderResult(str):  # noqa: FURB189  # Notebook results must retain concrete str behavior.
+class _RenderResult(str):  # ruff:ignore[subclass-builtin]  # Notebook results must retain concrete str behavior.
     __slots__ = ("_mermaid",)
 
     _mermaid: str
@@ -171,7 +171,7 @@ class _RenderResult(str):  # noqa: FURB189  # Notebook results must retain concr
         return _filter_bundle(bundle, include, exclude)
 
 
-class _SummaryResult(str):  # noqa: FURB189  # Notebook results must retain concrete str behavior.
+class _SummaryResult(str):  # ruff:ignore[subclass-builtin]  # Notebook results must retain concrete str behavior.
     __slots__ = ("_html",)
 
     _html: str

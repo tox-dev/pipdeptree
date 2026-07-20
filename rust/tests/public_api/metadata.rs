@@ -215,6 +215,57 @@ fn reads_the_legacy_license_field() {
 }
 
 #[test]
+fn ignores_a_license_field_holding_the_license_text() {
+    let site = PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        concat!(
+            "Name: demo\n",
+            "Version: 1\n",
+            "License: Redistribution and use in source and binary forms, with or without\n",
+            "        modification, are permitted provided that the following conditions\n",
+            "        are met.\n",
+        ),
+    );
+
+    let output = execute_in(
+        &site,
+        &["--metadata", "license", "--packages", "demo", "--json"],
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(
+        value[0]["package"]["metadata"]["license"].clone(),
+        json!("N/A License")
+    );
+}
+
+#[test]
+fn prefers_classifiers_over_the_license_field() {
+    let site = PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        concat!(
+            "Name: demo\n",
+            "Version: 1\n",
+            "License: BSD-3-Clause\n",
+            "Classifier: License :: OSI Approved :: MIT License\n",
+        ),
+    );
+
+    let output = execute_in(
+        &site,
+        &["--metadata", "license", "--packages", "demo", "--json"],
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(
+        value[0]["package"]["metadata"]["license"].clone(),
+        json!("MIT License")
+    );
+}
+
+#[test]
 fn stops_crlf_headers_at_the_body() {
     let site = PackageSite::new();
     site.write(
