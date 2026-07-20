@@ -36,7 +36,8 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
           CIBW_BUILD: cp310-* pp311-*
           CIBW_ENABLE: pypy
-          CIBW_ENVIRONMENT_LINUX: PATH=$HOME/.cargo/bin:$PATH
+          # musl targets default to a static CRT, which makes Cargo drop the cdylib crate type
+          CIBW_ENVIRONMENT_LINUX: PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=10.15
           CIBW_TEST_COMMAND: pipdeptree --version
         with:
