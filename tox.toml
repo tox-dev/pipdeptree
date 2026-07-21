@@ -126,6 +126,24 @@ commands = [
   ],
 ]
 
+[env."3.15t"]
+skip_install = true
+# meson-python refuses the limited API on a free-threaded interpreter, and the package asks for it by default, so
+# this build opts out and takes a wheel tagged for this interpreter alone.
+commands_pre = [
+  [
+    "uv",
+    "pip",
+    "install",
+    "--python",
+    "{env_python}",
+    "--reinstall",
+    "--config-settings",
+    "setup-args=-Dpython.allow_limited_api=false",
+    ".[test]",
+  ],
+]
+
 [env."pypy-3.11"]
 skip_install = true
 commands_pre = [
