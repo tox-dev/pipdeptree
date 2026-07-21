@@ -239,6 +239,12 @@ def test_cli_json_is_valid(
     assert (code, len(json.loads(capsys.readouterr().out))) == (0, 4)
 
 
+@pytest.mark.xfail(
+    sys.implementation.version.releaselevel != "final",
+    reason="pep508_rs drops pre-release segments from marker specifiers, so no specifier can equal a pre-release "
+    "interpreter version",
+    strict=True,
+)
 def test_cli_uses_implementation_version_marker(
     entry_point: Callable[[Sequence[str] | None], int | None],
     tmp_path: Path,

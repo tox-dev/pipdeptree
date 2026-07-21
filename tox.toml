@@ -1,10 +1,12 @@
 requires = [ "tox>=4.57.1", "tox-uv>=1.35.2" ]
 env_list = [
+  "3.15",
   "3.14",
   "3.13",
   "3.12",
   "3.11",
   "3.10",
+  "3.15t",
   "docs",
   "fix",
   "pkg_meta",
@@ -121,6 +123,24 @@ commands = [
     "no:cacheprovider",
     "-qq",
     { replace = "posargs", default = [], extend = true },
+  ],
+]
+
+[env."3.15t"]
+skip_install = true
+# meson-python refuses the limited API on a free-threaded interpreter, and the package asks for it by default, so
+# this build opts out and takes a wheel tagged for this interpreter alone.
+commands_pre = [
+  [
+    "uv",
+    "pip",
+    "install",
+    "--python",
+    "{env_python}",
+    "--reinstall",
+    "--config-settings",
+    "setup-args=-Dpython.allow_limited_api=false",
+    ".[test]",
   ],
 ]
 
