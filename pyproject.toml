@@ -73,6 +73,13 @@ docs = [
 [tool.meson-python]
 limited-api = true
 
+[tool.cibuildwheel]
+overrides = [
+  # meson-python refuses the limited API on a free-threaded interpreter, and the package asks for it by
+  # default, so this build opts out.
+  { select = "cp3*t-*", config-settings.setup-args = "-Dpython.allow_limited_api=false" },
+]
+
 [tool.ruff]
 line-length = 120
 format.preview = true

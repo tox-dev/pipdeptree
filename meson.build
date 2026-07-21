@@ -33,7 +33,15 @@ if host_machine.system() == 'windows'
 else
   rust_artifact = 'lib_pipdeptree.' + (host_machine.system() == 'darwin' ? 'dylib' : 'so')
 endif
-if run_command(py, '-c', 'import sys; print(sys.implementation.name)', check: true).stdout().strip() == 'pypy'
+# PyPy has no stable ABI, and a free-threaded build cannot use the limited API at all, so both take a wheel per
+# interpreter named by its own extension suffix.
+per_interpreter = run_command(
+  py,
+  '-c',
+  'import sys, sysconfig; print(sys.implementation.name == "pypy" or bool(sysconfig.get_config_var("Py_GIL_DISABLED")))',
+  check: true,
+).stdout().strip() == 'True'
+if per_interpreter
   rust_extension = '_rust' + run_command(
     py,
     '-c',
