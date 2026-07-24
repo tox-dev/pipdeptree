@@ -2,7 +2,7 @@ use _pipdeptree::install_python_module;
 use pyo3::types::{PyAnyMethods as _, PyDict, PyDictMethods as _, PyList, PyModule};
 use pyo3::{Bound, PyResult, Python};
 
-use super::common::{PackageSite, with_python};
+use super::common::{PackageSite, VERSION, with_python};
 
 #[test]
 fn reports_python_extension_metadata() {
@@ -26,7 +26,7 @@ fn reports_python_extension_metadata() {
                     .extract::<String>()
                     .unwrap(),
             ),
-            ("rust".to_string(), "4.0.0".to_string())
+            ("rust".to_string(), VERSION.to_string())
         );
     });
 }
