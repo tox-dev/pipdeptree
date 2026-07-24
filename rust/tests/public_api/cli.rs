@@ -1,7 +1,8 @@
 use rstest::rstest;
 
 use super::common::{
-    PackageSite, execute, execute_in, execute_with_runner, package_site, stdout, with_python,
+    PackageSite, VERSION, execute, execute_in, execute_with_runner, package_site, stdout,
+    with_python,
 };
 
 #[rstest]
@@ -151,10 +152,11 @@ fn renders_informational_flags(#[case] flag: &str, #[case] expected: &str) {
 #[case::long("--version")]
 fn prints_bare_version(#[case] flag: &str) {
     let output = execute(&[flag]);
+    let expected = format!("{VERSION}\n");
 
     assert_eq!(
         (output.code, stdout(&output), output.stderr.as_str()),
-        (0, "4.0.0\n", "")
+        (0, expected.as_str(), "")
     );
 }
 
