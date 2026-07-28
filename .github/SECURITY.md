@@ -2,8 +2,8 @@
 
 ## Supported Versions
 
-Software updates are provided only for the latest major and minor release.
-Previous major and minor versions are not supported.
+Software updates are provided only for the latest major and minor release. Previous major and minor versions are not
+supported.
 
 ## Reporting a Vulnerability
 
