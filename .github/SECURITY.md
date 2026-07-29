@@ -2,10 +2,8 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.3.1 + | :white_check_mark: |
-| < 2.3.1 | :x:                |
+Software updates are provided only for the latest major and minor release. Previous major and minor versions are not
+supported.
 
 ## Reporting a Vulnerability
 
