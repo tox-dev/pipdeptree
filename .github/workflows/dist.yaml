@@ -36,10 +36,10 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: >-
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
           # cp310 carries the abi3 wheel every GIL build shares; a free-threaded interpreter cannot use the
-          # limited API, so it takes one wheel of its own. 3.15t waits for a final release rather than
-          # shipping against a beta ABI.
-          CIBW_BUILD: cp310-* cp314t-* pp311-*
-          CIBW_ENABLE: pypy
+          # limited API, so each takes a wheel of its own. 3.15 is still a prerelease, so cpython-prerelease
+          # enables its free-threaded build.
+          CIBW_BUILD: cp310-* cp314t-* cp315t-* pp311-*
+          CIBW_ENABLE: pypy cpython-prerelease
           # musl targets default to a static CRT, which makes Cargo drop the cdylib crate type
           CIBW_ENVIRONMENT_LINUX: PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=10.15
