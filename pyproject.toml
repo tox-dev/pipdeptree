@@ -76,9 +76,9 @@ limited-api = true
 
 [tool.cibuildwheel]
 overrides = [
-  # meson-python refuses the limited API on a free-threaded interpreter, and the package asks for it by
-  # default, so this build opts out.
-  { select = "cp3*t-*", config-settings.setup-args = "-Dpython.allow_limited_api=false" },
+  # The limited API is off by default so every source build works; the single GIL wheel opts back in to ship
+  # one abi3 wheel across CPython versions.
+  { select = "cp310-*", config-settings.setup-args = "-Dpython.allow_limited_api=true" },
 ]
 
 [tool.ruff]

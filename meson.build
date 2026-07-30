@@ -1,7 +1,11 @@
+# The limited API stays off by default so a source build on any interpreter, free-threaded ones included,
+# never trips meson-python's refusal to pair the limited API with a free-threaded CPython. The abi3 wheel
+# turns it back on through cibuildwheel.
 project(
   'pipdeptree',
   version: files('VERSION'),
   meson_version: '>=1.11.2',
+  default_options: ['python.allow_limited_api=false'],
 )
 
 py = import('python').find_installation(pure: false)
@@ -33,15 +37,17 @@ if host_machine.system() == 'windows'
 else
   rust_artifact = 'lib_pipdeptree.' + (host_machine.system() == 'darwin' ? 'dylib' : 'so')
 endif
-# PyPy has no stable ABI, and a free-threaded build cannot use the limited API at all, so both take a wheel per
-# interpreter named by its own extension suffix.
+# PyPy has no stable ABI, a free-threaded build cannot use the limited API, and a source build leaves the
+# limited API off (see the project default above), so each of those takes a wheel per interpreter named by its
+# own extension suffix; only an abi3 wheel keeps the stable-ABI name.
 per_interpreter = run_command(
   py,
   '-c',
   'import sys, sysconfig; print(sys.implementation.name == "pypy" or bool(sysconfig.get_config_var("Py_GIL_DISABLED")))',
   check: true,
 ).stdout().strip() == 'True'
-if per_interpreter
+use_limited_api = get_option('python.allow_limited_api') and not per_interpreter
+if not use_limited_api
   rust_extension = '_rust' + run_command(
     py,
     '-c',
