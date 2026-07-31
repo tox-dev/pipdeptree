@@ -101,3 +101,12 @@ jobs:
         env:
           PYTEST_ADDOPTS: "-vv --durations=20"
           DIFF_AGAINST: HEAD
+  # The one context branch protection requires, so a matrix that grows or renames its cells needs no ruleset edit.
+  check:
+    needs: [dist, rust, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a job this one waited on did
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

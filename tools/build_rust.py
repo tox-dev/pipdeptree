@@ -13,7 +13,8 @@ from typing import Final
 def main() -> None:
     cargo, source, destination, artifact, features, depfile, version = sys.argv[1:]
     output = Path(destination)
-    target = output.parent / "cargo-target"
+    # A caller that points CARGO_TARGET_DIR somewhere shared keeps the dependency graph compiled between builds
+    target = Path(os.environ.get("CARGO_TARGET_DIR", output.parent / "cargo-target"))
     environment = {**os.environ, "CARGO_TARGET_DIR": str(target), "PIPDEPTREE_VERSION": version}
     command = [
         cargo,

@@ -1,0 +1,2 @@
+Build the wheels for each interpreter beside each other in CI, rather than one after another in a single job, and let
+the macOS builds share one Cargo target directory. The wheel matrix used to hold a pull request for 17 minutes.
