@@ -103,6 +103,21 @@ Building documentation
 
 Sphinx writes ``.tox/docs_out/html/index.html``.
 
+Releasing
+---------
+
+``tools/version.py`` derives the version from the release tags, so the tag a release carries is the version its wheels
+and sdist report. Nothing in the tree names the version, and the ``VERSION`` file exists for builds with no tags to
+read, such as one from an unpacked sdist.
+
+Cut a release by running the ``Prepare release`` workflow and choosing a bump. It tags the upstream ``main`` branch and
+opens the GitHub release, and that tag push starts the publish workflow. The same steps run from a checkout against
+the upstream remote:
+
+.. code-block:: bash
+
+    tox run -e release -- --bump minor
+
 Contributing
 ------------
 

@@ -3,10 +3,13 @@
 # turns it back on through cibuildwheel.
 project(
   'pipdeptree',
-  version: files('VERSION'),
+  version: run_command(['tools/version.py'], check: true).stdout().strip(),
   meson_version: '>=1.11.2',
   default_options: ['python.allow_limited_api=false'],
 )
+
+# Freeze the git-derived version into the sdist so a wheel built from it needs no git history.
+meson.add_dist_script('tools/version.py', '--write')
 
 py = import('python').find_installation(pure: false)
 py.install_sources(
@@ -28,7 +31,6 @@ cargo = find_program('cargo')
 rust_inputs = files(
   'Cargo.lock',
   'Cargo.toml',
-  'VERSION',
   'build.rs',
   'rust-toolchain.toml',
 )
@@ -77,6 +79,7 @@ custom_target(
     rust_artifact,
     rust_features,
     '@DEPFILE@',
+    meson.project_version(),
   ],
   install: true,
   install_dir: py.get_install_dir(pure: false) / 'pipdeptree',

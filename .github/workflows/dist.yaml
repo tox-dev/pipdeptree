@@ -23,12 +23,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0 # The build reads the version off the tags.
           persist-credentials: false
       - name: Install Rust
         if: runner.os != 'Linux'
         uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
         with:
           cache: false
+      - name: Resolve the version
+        id: version
+        shell: bash
+        run: echo "value=$(python3 tools/version.py)" >> "$GITHUB_OUTPUT"
       - name: Build wheels
         uses: pypa/cibuildwheel@4726cd35bb13f7bde50cf2761f2499ac7b3aa32c # v4.1.1
         env:
@@ -43,9 +48,12 @@ jobs:
           # enables its free-threaded build.
           CIBW_BUILD: cp310-* cp314t-* cp315t-* pp311-*
           CIBW_ENABLE: pypy cpython-prerelease
+          # The Linux builds run as root in a container over a checkout owned by the runner user, and git
+          # refuses to read the tags there, so the runner resolves the version once for every build.
+          CIBW_ENVIRONMENT: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }}
           # musl targets default to a static CRT, which makes Cargo drop the cdylib crate type
-          CIBW_ENVIRONMENT_LINUX: PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
-          CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=10.15
+          CIBW_ENVIRONMENT_LINUX: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
+          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} MACOSX_DEPLOYMENT_TARGET=10.15
           CIBW_TEST_COMMAND: pipdeptree --version
         with:
           output-dir: dist
@@ -59,6 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0 # The build reads the version off the tags.
           persist-credentials: false
       - name: Install uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
