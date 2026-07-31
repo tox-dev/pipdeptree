@@ -24,11 +24,20 @@ jobs:
           - os: windows-latest
             arch: AMD64
         include:
-          - build: every
+          # The Intel runner takes about twice as long as the arm one for the same work, so it splits its four
+          # builds over two jobs; three macOS jobs stay well inside the cap that made a job per interpreter queue.
+          - build: gil
+            identifiers: cp310-* pp311-*
+            platform:
+              os: macos-15-intel
+              arch: x86_64
+          - build: free-threaded
+            identifiers: cp314t-* cp315t-*
             platform:
               os: macos-15-intel
               arch: x86_64
           - build: every
+            identifiers: cp310-* cp314t-* cp315t-* pp311-*
             platform:
               os: macos-latest
               arch: arm64
@@ -84,7 +93,7 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: >-
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.97 --component clippy --component llvm-tools-preview --component rustfmt
           # 3.15 is still a prerelease, so cpython-prerelease enables its free-threaded build.
-          CIBW_BUILD: ${{ matrix.build == 'every' && 'cp310-* cp314t-* cp315t-* pp311-*' || format('{0}-*', matrix.build) }}
+          CIBW_BUILD: ${{ matrix.identifiers || format('{0}-*', matrix.build) }}
           CIBW_ENABLE: pypy cpython-prerelease
           # The Linux builds run as root in a container over a checkout owned by the runner user, and git
           # refuses to read the tags there, so the runner resolves the version once for every build.
