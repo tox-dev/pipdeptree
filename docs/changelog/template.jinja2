@@ -1,0 +1,22 @@
+{% set top_underline = "*" %}
+{% set underline = "=" %}
+{{ top_underline * ((versiondata.version + versiondata.date)|length + 4) }}
+ {{ versiondata.version }} ({{ versiondata.date }})
+{{ top_underline * ((versiondata.version + versiondata.date)|length + 4) }}
+
+{% for section, _ in sections.items() %}
+{% if sections[section] %}
+{% for category, val in definitions.items() if category in sections[section] %}
+{{ definitions[category]['name'] }} - {{ versiondata.version }}
+{{ underline * ((definitions[category]['name'] + versiondata.version)|length + 3) }}
+
+{% for text, values in sections[section][category].items() %}
+- {{ text }} ({{ values|join(', ') }})
+{% endfor %}
+
+{% endfor %}
+{% else %}
+No significant changes.
+
+{% endif %}
+{% endfor %}

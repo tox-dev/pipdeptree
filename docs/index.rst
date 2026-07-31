@@ -123,3 +123,4 @@ Beyond visualization, ``pipdeptree`` can:
     :caption: Project
 
     development
+    changelog

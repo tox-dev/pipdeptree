@@ -11,10 +11,10 @@ from typing import Final
 
 
 def main() -> None:
-    cargo, source, destination, artifact, features, depfile = sys.argv[1:]
+    cargo, source, destination, artifact, features, depfile, version = sys.argv[1:]
     output = Path(destination)
     target = output.parent / "cargo-target"
-    environment = {**os.environ, "CARGO_TARGET_DIR": str(target)}
+    environment = {**os.environ, "CARGO_TARGET_DIR": str(target), "PIPDEPTREE_VERSION": version}
     command = [
         cargo,
         "build",

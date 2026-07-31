@@ -1,0 +1,39 @@
+name: Prepare release
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump over the latest tag
+        required: true
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+permissions:
+  contents: read
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    environment: release-auth
+    permissions:
+      contents: write # the release commit and its tag go straight to main
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # The next version comes from the tags.
+          # A tag pushed with the workflow token starts no workflow, so the publish run needs this PAT.
+          token: ${{ secrets.RELEASE_PAT }}
+          persist-credentials: true
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: false
+      # The annotated tag needs a committer identity.
+      - name: Configure git
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+      - name: Tag the release
+        env:
+          BUMP: ${{ inputs.bump }}
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: uvx --with tox-uv tox run -e release -- --bump "$BUMP"

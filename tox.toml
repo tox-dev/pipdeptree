@@ -126,6 +126,13 @@ commands = [
   ],
 ]
 
+[env.release]
+description = "build the changelog for the next release, then commit and tag it"
+skip_install = true
+deps = [ "towncrier>=25.8" ]
+pass_env = [ "GH_TOKEN" ]
+commands = [ [ "python", "{tox_root}{/}tools{/}release.py", { replace = "posargs", extend = true } ] ]
+
 [env."3.15t"]
 skip_install = true
 # meson-python refuses the limited API on a free-threaded interpreter, and the package asks for it by default, so

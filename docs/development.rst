@@ -103,10 +103,30 @@ Building documentation
 
 Sphinx writes ``.tox/docs_out/html/index.html``.
 
+Releasing
+---------
+
+``tools/version.py`` derives the version from the release tags, so the tag a release carries is the version its wheels
+and sdist report. Nothing in the tree names the version, and the ``VERSION`` file exists for builds with no tags to
+read, such as one from an unpacked sdist.
+
+Every user-visible change brings a news fragment under ``docs/changelog``, named ``<issue>.<type>.rst`` with one of the
+types ``breaking``, ``feature``, ``bugfix``, ``doc`` or ``packaging``. The unreleased fragments render as a draft
+section at the top of :doc:`changelog`, and the release folds them into it.
+
+Cut a release by running the ``Prepare release`` workflow and choosing a bump. It builds the changelog, commits it on
+the upstream ``main`` branch, tags that commit and opens the GitHub release, and that tag push starts the publish
+workflow. The same steps run from a checkout against the upstream remote:
+
+.. code-block:: bash
+
+    tox run -e release -- --bump minor
+
 Contributing
 ------------
 
 1. Fork the repository.
 2. Create a feature branch.
-3. Run the Rust tests, ``tox run -e 3.14,type,docs,pkg_meta`` and ``prek run --all-files``.
-4. Submit a pull request.
+3. Add a news fragment under ``docs/changelog`` when the change is user-visible.
+4. Run the Rust tests, ``tox run -e 3.14,type,docs,pkg_meta`` and ``prek run --all-files``.
+5. Submit a pull request.
