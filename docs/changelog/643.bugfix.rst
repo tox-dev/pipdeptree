@@ -1,2 +1,0 @@
-Build from source on a free-threaded interpreter. The package asked for the limited API unconditionally and
-meson-python refuses to pair it with a free-threaded CPython, so the source build stopped before it started.

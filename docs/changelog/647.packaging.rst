@@ -1,2 +1,0 @@
-Take the released version from the git tag rather than from a file in the tree, so a release can no longer ship
-artifacts labeled with the previous version. 4.1.1 and 4.1.2 were tagged that way and reached no index.

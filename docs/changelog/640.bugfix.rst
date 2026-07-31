@@ -1,2 +1,0 @@
-Publish Linux ``aarch64`` wheels. 4.1.0 shipped none, so ``pip`` and ``uv`` fell back to the source distribution on
-ARM64 hosts, where building the Rust extension needs a local ``cargo`` and C toolchain.
