@@ -127,8 +127,9 @@ commands = [
 ]
 
 [env.release]
-description = "tag the next release and open its GitHub release"
+description = "build the changelog for the next release, then commit and tag it"
 skip_install = true
+deps = [ "towncrier>=25.8" ]
 pass_env = [ "GH_TOKEN" ]
 commands = [ [ "python", "{tox_root}{/}tools{/}release.py", { replace = "posargs", extend = true } ] ]
 

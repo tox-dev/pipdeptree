@@ -48,7 +48,7 @@ dependencies = [
   "nab-index>=0.0.11",
   "nab-python>=0.0.11",
 ]
-urls.Changelog = "https://github.com/tox-dev/pipdeptree/releases"
+urls.Changelog = "https://pipdeptree.readthedocs.io/en/latest/changelog.html"
 urls.Documentation = "https://pipdeptree.readthedocs.io"
 urls.Homepage = "https://github.com/tox-dev/pipdeptree"
 urls.Source = "https://github.com/tox-dev/pipdeptree"
@@ -69,6 +69,8 @@ docs = [
   "sphinx-copybutton>=0.5.2",
   "sphinx-inline-tabs>=2025.12.21.14",
   "sphinxcontrib-mermaid>=2.1",
+  "sphinxcontrib-towncrier>=0.5.0a0",
+  "towncrier>=25.8",
 ]
 
 [tool.meson-python]
@@ -152,3 +154,17 @@ report.fail_under = 100
 html.show_contexts = true
 html.skip_covered = false
 subtract_omit = "*/__main__.py"
+
+[tool.towncrier]
+directory = "docs/changelog"
+filename = "docs/changelog.rst"
+template = "docs/changelog/template.jinja2"
+title_format = false
+issue_format = ":issue:`{issue}`"
+type = [
+  { directory = "breaking", name = "Backward incompatible changes", showcontent = true },
+  { directory = "feature", name = "Features", showcontent = true },
+  { directory = "bugfix", name = "Bug fixes", showcontent = true },
+  { directory = "doc", name = "Improved documentation", showcontent = true },
+  { directory = "packaging", name = "Packaging updates", showcontent = true },
+]

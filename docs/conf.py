@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 from pipdeptree.version import __version__
 
@@ -20,6 +21,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_inline_tabs",
     "sphinxcontrib.mermaid",
+    "sphinxcontrib.towncrier.ext",  # render the unreleased news fragments as a draft section
 ]
 
 intersphinx_mapping = {
@@ -31,7 +33,7 @@ autosectionlabel_prefix_document = True
 templates_path = []
 unused_docs = []
 source_suffix = ".rst"
-exclude_patterns = ["_build"]
+exclude_patterns = ["_build", "changelog/*"]  # towncrier assembles the fragments; they are not pages
 
 main_doc = "index"
 pygments_style = "default"
@@ -49,6 +51,10 @@ html_theme_options = {
     "dark_logo": "pipdeptree.svg",
 }
 html_show_sourcelink = False
+
+towncrier_draft_autoversion_mode = "draft"
+towncrier_draft_include_empty = True
+towncrier_draft_working_directory = Path(__file__).parent.parent
 
 extlinks = {
     "issue": ("https://github.com/tox-dev/pipdeptree/issues/%s", "#%s"),

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Cut a release by tagging the upstream main branch and opening the GitHub release for it.
+Cut a release: build the changelog, commit it on the upstream main branch, and tag it.
 
-The tag push triggers the publish workflow, and the build reads its version from that tag, so tagging is the whole
-release. The script deletes the tag again when opening the GitHub release fails.
+The tag push triggers the publish workflow, and the build reads its version from that tag, so nothing in the tree
+names the version. Each step lands upstream only once the ones before it went through.
 """
 
 from __future__ import annotations
@@ -25,6 +25,10 @@ def main() -> None:
     target.add_argument("--bump", choices=["major", "minor", "patch"], default="patch", help="how to pick the version")
     target.add_argument("--version", help="release this exact version instead of bumping")
     args = parser.parse_args()
+
+    if _capture("git", "status", "--porcelain"):
+        msg = "the working tree is dirty; commit or stash before releasing"
+        raise RuntimeError(msg)
 
     upstream = _upstream()
     _run("git", "fetch", "--tags", "--force", upstream)
@@ -57,15 +61,13 @@ def _next(tags: list[str], bump: str) -> str:
 
 
 def _release(upstream: str, version: str) -> None:
-    _run("git", "tag", "--annotate", "--message", f"release {version}", version, f"{upstream}/main")
+    _run("git", "switch", "--force-create", f"release-{version}", f"{upstream}/main")
+    _run("towncrier", "build", "--yes", "--version", version)
+    _run("git", "commit", "--all", "--message", f"release {version}")
+    _run("git", "push", upstream, "HEAD:main")
+    _run("git", "tag", "--annotate", "--message", f"release {version}", version)
     _run("git", "push", upstream, f"refs/tags/{version}")
-    try:
-        _run("gh", "release", "create", version, "--title", version, "--generate-notes", "--verify-tag")
-    except subprocess.CalledProcessError:
-        # The rollback has to show in the job log.
-        print(f"opening the release failed, dropping the {version} tag again")  # ruff:ignore[print]
-        _run("git", "push", upstream, f":refs/tags/{version}", check=False)
-        raise
+    _run("gh", "release", "create", version, "--title", version, "--generate-notes", "--verify-tag")
 
 
 def _run(*command: str, check: bool = True) -> None:
