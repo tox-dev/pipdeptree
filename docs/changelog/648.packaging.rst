@@ -1,3 +1,2 @@
-Build each interpreter's wheel in its own CI job. cibuildwheel worked through the four identifiers one after another
-and every one recompiled the Rust dependency graph, so the wheel matrix held a pull request for 17 minutes while most
-of the runners sat idle.
+Build the wheels for each interpreter beside each other in CI, rather than one after another in a single job, and let
+the macOS builds share one Cargo target directory. The wheel matrix used to hold a pull request for 17 minutes.

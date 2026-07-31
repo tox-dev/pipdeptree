@@ -4,9 +4,10 @@ on:
 permissions:
   contents: read
 jobs:
-  # One job per interpreter and platform. cibuildwheel builds the identifiers it is given one after another, and
-  # each recompiles the Rust dependency graph for about a minute, so a job that carried all four ran for a quarter of
-  # an hour on the slowest runner while the rest of the matrix sat idle.
+  # cibuildwheel builds the identifiers it is handed one after another and each recompiles the Rust dependency
+  # graph, so the interpreter joins the matrix and those builds run beside each other. macOS is the exception: its
+  # runners are capped and shared across the org, so a job per interpreter there only queues, and the four builds
+  # stay in one job that reuses a single Cargo target directory instead.
   wheels:
     name: wheels ${{ matrix.build }} ${{ matrix.platform.os }}
     strategy:
@@ -22,10 +23,15 @@ jobs:
             arch: aarch64
           - os: windows-latest
             arch: AMD64
-          - os: macos-15-intel
-            arch: x86_64
-          - os: macos-latest
-            arch: arm64
+        include:
+          - build: every
+            platform:
+              os: macos-15-intel
+              arch: x86_64
+          - build: every
+            platform:
+              os: macos-latest
+              arch: arm64
     runs-on: ${{ matrix.platform.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -78,14 +84,15 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: >-
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.97 --component clippy --component llvm-tools-preview --component rustfmt
           # 3.15 is still a prerelease, so cpython-prerelease enables its free-threaded build.
-          CIBW_BUILD: ${{ matrix.build }}-*
+          CIBW_BUILD: ${{ matrix.build == 'every' && 'cp310-* cp314t-* cp315t-* pp311-*' || format('{0}-*', matrix.build) }}
           CIBW_ENABLE: pypy cpython-prerelease
           # The Linux builds run as root in a container over a checkout owned by the runner user, and git
           # refuses to read the tags there, so the runner resolves the version once for every build.
           CIBW_ENVIRONMENT: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }}
           # musl targets default to a static CRT, which makes Cargo drop the cdylib crate type
           CIBW_ENVIRONMENT_LINUX: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
-          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} MACOSX_DEPLOYMENT_TARGET=10.15
+          # One target directory across the four builds leaves the dependency graph compiled after the first
+          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} MACOSX_DEPLOYMENT_TARGET=10.15 CARGO_TARGET_DIR=$HOME/cargo-target
           CIBW_TEST_COMMAND: pipdeptree --version
         with:
           output-dir: dist
