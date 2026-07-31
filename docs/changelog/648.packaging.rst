@@ -1,0 +1,3 @@
+Build each interpreter's wheel in its own CI job. cibuildwheel worked through the four identifiers one after another
+and every one recompiled the Rust dependency graph, so the wheel matrix held a pull request for 17 minutes while most
+of the runners sat idle.
