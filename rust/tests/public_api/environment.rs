@@ -399,6 +399,50 @@ fn detects_environment_variables(#[case] variable: &str) {
 }
 
 #[test]
+fn accepts_development_interpreter_versions() {
+    let site = PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        "Name: demo\nVersion: 1\nRequires-Dist: child; python_full_version >= '3.13.5'\n",
+    );
+    site.write("child-1.dist-info", "Name: child\nVersion: 1\n");
+    let interpreter = site.path().join("python");
+    let mut info = serde_json::from_slice::<serde_json::Value>(&interpreter_info(
+        &[site.path()],
+        &interpreter,
+        site.path(),
+        site.path(),
+        site.path(),
+    ))
+    .unwrap();
+    info["marker"]["python_full_version"] = "3.13.5+".into();
+    info["marker"]["python_version"] = "3.13".into();
+    let mut processes = MockProcesses::new();
+    processes
+        .expect_run()
+        .return_once(move |_| Ok(process_output(serde_json::to_vec(&info).unwrap())));
+
+    with_python(|python| {
+        let output = execute_with_runner(
+            &processes,
+            python,
+            &[
+                "--python",
+                interpreter.to_str().unwrap(),
+                "--encoding",
+                "ascii",
+            ],
+            false,
+        );
+
+        assert_eq!(
+            (output.code, stdout(&output), output.stderr.as_str()),
+            (0, "demo==1\n  - child [required: Any, installed: 1]\n", "")
+        );
+    });
+}
+
+#[test]
 fn rejects_invalid_marker_environment() {
     let site = PackageSite::new();
     let interpreter = site.path().join("python");
@@ -424,7 +468,17 @@ fn rejects_invalid_marker_environment() {
             false,
         );
 
-        assert_eq!((output.code, output.stderr.is_empty()), (1, false));
+        assert_eq!(
+            (
+                output.code,
+                output.stderr.contains(
+                    "Failed to read the interpreter version markers \
+                     (implementation_version=3.14.0, python_full_version=3.14.0, \
+                     python_version=invalid)"
+                ),
+            ),
+            (1, true)
+        );
     });
 }
 
