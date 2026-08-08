@@ -4,22 +4,44 @@ on:
 permissions:
   contents: read
 jobs:
+  # cibuildwheel builds the identifiers it is handed one after another and each recompiles the Rust dependency
+  # graph, so the interpreter joins the matrix and those builds run beside each other. macOS is the exception: its
+  # runners are capped and shared across the org, so a job per interpreter there only queues, and the four builds
+  # stay in one job that reuses a single Cargo target directory instead.
   wheels:
+    name: wheels ${{ matrix.build }} ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
+        # cp310 carries the abi3 wheel every GIL build shares; a free-threaded interpreter cannot use the limited
+        # API, so each takes a wheel of its own.
+        build: [cp310, cp314t, cp315t, pp311]
+        platform:
           - os: ubuntu-latest
             arch: x86_64
           - os: ubuntu-24.04-arm
             arch: aarch64
           - os: windows-latest
             arch: AMD64
-          - os: macos-15-intel
-            arch: x86_64
-          - os: macos-latest
-            arch: arm64
-    runs-on: ${{ matrix.os }}
+        include:
+          # The Intel runner takes about twice as long as the arm one for the same work, so it splits its four
+          # builds over two jobs; three macOS jobs stay well inside the cap that made a job per interpreter queue.
+          - build: gil
+            identifiers: cp310-* pp311-*
+            platform:
+              os: macos-15-intel
+              arch: x86_64
+          - build: free-threaded
+            identifiers: cp314t-* cp315t-*
+            platform:
+              os: macos-15-intel
+              arch: x86_64
+          - build: every
+            identifiers: cp310-* cp314t-* cp315t-* pp311-*
+            platform:
+              os: macos-latest
+              arch: arm64
+    runs-on: ${{ matrix.platform.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -40,11 +62,16 @@ jobs:
       - name: Pull the build containers
         if: runner.os == 'Linux'
         env:
-          ARCH: ${{ matrix.arch }}
+          ARCH: ${{ matrix.platform.arch }}
+          BUILD: ${{ matrix.build }}
         run: |
           manylinux="quay.io/pypa/manylinux_2_28_$ARCH"
           musllinux="quay.io/pypa/musllinux_1_2_$ARCH"
-          for image in "$manylinux" "$musllinux"; do
+          images="$manylinux"
+          if [ "$BUILD" != pp311 ]; then # PyPy publishes no musllinux wheel, so that container stays unused
+            images="$images $musllinux"
+          fi
+          for image in $images; do
             for attempt in 1 2 3; do
               docker pull "$image" && break
               if [ "$attempt" -eq 3 ]; then
@@ -59,30 +86,29 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@4726cd35bb13f7bde50cf2761f2499ac7b3aa32c # v4.1.1
         env:
-          CIBW_ARCHS: ${{ matrix.arch }}
+          CIBW_ARCHS: ${{ matrix.platform.arch }}
           # Install the pinned toolchain and its components up front. Left to rust-toolchain.toml, the first
           # cargo call in each container provisions them on demand, which races and conflicts on the
           # cargo-clippy hardlink on aarch64. Keep the channel and components in sync with rust-toolchain.toml.
           CIBW_BEFORE_ALL_LINUX: >-
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.97 --component clippy --component llvm-tools-preview --component rustfmt
-          # cp310 carries the abi3 wheel every GIL build shares; a free-threaded interpreter cannot use the
-          # limited API, so each takes a wheel of its own. 3.15 is still a prerelease, so cpython-prerelease
-          # enables its free-threaded build.
-          CIBW_BUILD: cp310-* cp314t-* cp315t-* pp311-*
+          # 3.15 is still a prerelease, so cpython-prerelease enables its free-threaded build.
+          CIBW_BUILD: ${{ matrix.identifiers || format('{0}-*', matrix.build) }}
           CIBW_ENABLE: pypy cpython-prerelease
           # The Linux builds run as root in a container over a checkout owned by the runner user, and git
           # refuses to read the tags there, so the runner resolves the version once for every build.
           CIBW_ENVIRONMENT: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }}
           # musl targets default to a static CRT, which makes Cargo drop the cdylib crate type
           CIBW_ENVIRONMENT_LINUX: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
-          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} MACOSX_DEPLOYMENT_TARGET=10.15
+          # One target directory across the four builds leaves the dependency graph compiled after the first
+          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} MACOSX_DEPLOYMENT_TARGET=10.15 CARGO_TARGET_DIR=$HOME/cargo-target
           CIBW_TEST_COMMAND: pipdeptree --version
         with:
           output-dir: dist
       - name: Store wheels
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: dists-${{ matrix.os }}
+          name: dists-${{ matrix.platform.os }}-${{ matrix.build }}
           path: dist/*
   sdist:
     runs-on: ubuntu-latest

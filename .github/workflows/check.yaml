@@ -36,7 +36,7 @@ jobs:
       - name: Check lints
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Install coverage tool
-        uses: taiki-e/install-action@7572810d7dd469b651bb7793945692cf78da5dd7 # v2.85.0
+        uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf # v2.85.5
         with:
           tool: cargo-llvm-cov
       - name: Run tests with coverage
@@ -101,3 +101,12 @@ jobs:
         env:
           PYTEST_ADDOPTS: "-vv --durations=20"
           DIFF_AGAINST: HEAD
+  # The one context branch protection requires, so a matrix that grows or renames its cells needs no ruleset edit.
+  check:
+    needs: [dist, rust, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a job this one waited on did
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
