@@ -145,6 +145,9 @@ impl Runtime {
 
 impl MarkerValues {
     fn as_environment(&self) -> Result<MarkerEnvironment, Error> {
+        // An interpreter built from a git checkout reports its version with a trailing plus
+        // (3.13.5+), which PEP 440 reads as the start of an empty local segment and rejects.
+        let python_full_version = self.python_full_version.trim_end_matches('+');
         MarkerEnvironment::try_from(MarkerEnvironmentBuilder {
             implementation_name: &self.implementation_name,
             implementation_version: &self.implementation_version,
@@ -154,11 +157,17 @@ impl MarkerValues {
             platform_release: &self.platform_release,
             platform_system: &self.platform_system,
             platform_version: &self.platform_version,
-            python_full_version: &self.python_full_version,
+            python_full_version,
             python_version: &self.python_version,
             sys_platform: &self.sys_platform,
         })
-        .map_err(|error| Error::message(error.to_string()))
+        .map_err(|error| {
+            Error::message(format!(
+                "Failed to read the interpreter version markers (implementation_version={}, \
+                 python_full_version={}, python_version={}): {error}",
+                self.implementation_version, self.python_full_version, self.python_version
+            ))
+        })
     }
 }
 

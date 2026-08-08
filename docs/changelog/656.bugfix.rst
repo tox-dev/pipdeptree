@@ -1,0 +1,4 @@
+Run under an interpreter built from a git checkout. Such a build reports its version with a trailing plus
+(``3.13.5+``), which PEP 440 reads as an empty local segment and rejects, so every run stopped with ``found a `+`
+indicating the start of a local component in a version``. The trailing plus is now dropped, and a marker value that
+still fails to parse names the interpreter versions it came from.
