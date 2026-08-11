@@ -6,14 +6,12 @@ updates:
       interval: "daily"
     cooldown:
       default-days: 7
-
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "14:00"
-
   - package-ecosystem: "rust-toolchain"
     directory: "/"
     schedule:
