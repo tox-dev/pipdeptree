@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -14,6 +15,7 @@ release = __version__
 globals()["copyright"] = f"2014-{datetime.now(tz=timezone.utc).year}, {company}"
 
 extensions = [
+    "sphinx_llm.txt",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.doctest",
     "sphinx.ext.extlinks",
@@ -62,3 +64,5 @@ extlinks = {
     "user": ("https://github.com/%s", "@%s"),
     "pypi": ("https://pypi.org/project/%s", "%s"),
 }
+
+markdown_http_base = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
