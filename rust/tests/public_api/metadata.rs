@@ -72,18 +72,25 @@ fn renders_selected_metadata_and_size() {
     );
 }
 
-#[test]
-fn warns_about_archive_search_paths() {
+#[rstest]
+#[case::archive("bundle.zip", 1, true)]
+#[case::uppercase_archive("bundle.ZIP", 1, true)]
+#[case::console_script_launcher("pipdeptree.exe", 0, false)]
+fn warns_only_about_archive_search_paths(
+    #[case] name: &str,
+    #[case] code: i32,
+    #[case] warns: bool,
+) {
     let site = PackageSite::new();
     site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
-    let archive = site.path().join("bundle.zip");
-    fs::write(&archive, "not a directory").unwrap();
+    let file = site.path().join(name);
+    fs::write(&file, "not a directory").unwrap();
 
     let output = execute(&[
         "--path",
         site.path().to_str().unwrap(),
         "--path",
-        archive.to_str().unwrap(),
+        file.to_str().unwrap(),
         "--warn",
         "fail",
     ]);
@@ -93,9 +100,9 @@ fn warns_about_archive_search_paths() {
             output.code,
             stdout(&output).contains("demo==1"),
             output.stderr.contains("unsupported archives"),
-            output.stderr.contains("bundle.zip"),
+            output.stderr.contains(name),
         ),
-        (1, true, true, true)
+        (code, true, warns, warns)
     );
 }
 

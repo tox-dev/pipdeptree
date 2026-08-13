@@ -23,6 +23,7 @@ use editable::{EggLinks, file_url_to_path};
 pub use vcs::reset_caches as reset_vcs_caches;
 
 const MAX_LICENSE_NAME: usize = 64;
+const ARCHIVE_SUFFIXES: [&str; 5] = ["egg", "pyz", "pyzw", "whl", "zip"];
 
 #[derive(Debug)]
 pub struct Package {
@@ -392,7 +393,7 @@ fn discover_with_fields(
         let Ok(entries) = fs::read_dir(path) else {
             // Nonexistent sys.path entries are routine; a file (zipped egg, zipapp) held
             // packages the old importlib-based discovery listed, so losing it deserves a warning.
-            if path.is_file() {
+            if is_archive(path) {
                 archive_paths.insert(path.clone());
             }
             continue;
@@ -434,6 +435,16 @@ fn discover_with_fields(
         packages,
         warnings: path_warnings(&archive_paths, &invalid_paths, duplicates),
     })
+}
+
+// Windows puts the console-script launcher itself on sys.path[0] (a zip appended to an .exe), and it
+// never holds installed distributions; only a recognized archive suffix is worth warning about.
+fn is_archive(path: &Path) -> bool {
+    path.extension().is_some_and(|suffix| {
+        ARCHIVE_SUFFIXES
+            .iter()
+            .any(|known| suffix.eq_ignore_ascii_case(known))
+    }) && path.is_file()
 }
 
 enum Found {

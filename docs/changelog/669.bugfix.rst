@@ -1,0 +1,3 @@
+Stop warning about the console-script launcher on Windows. Python puts the running ``pipdeptree.exe`` on
+``sys.path``, and every file on the search path counted as an archive, so each run reported ``unsupported archives on
+the search path``. Only files whose suffix is ``.egg``, ``.pyz``, ``.pyzw``, ``.whl`` or ``.zip`` are now reported.
