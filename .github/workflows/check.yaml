@@ -78,7 +78,13 @@ jobs:
         run: sudo apt-get install graphviz -y
       - name: Install OS dependencies (Windows)
         if: runner.os == 'Windows'
-        run: choco install graphviz -y
+        run: |
+          foreach ($attempt in 1..3) {
+            choco install graphviz -y --no-progress --fail-on-unfound
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep -Seconds (30 * $attempt)
+          }
+          dot -V
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
