@@ -36,7 +36,7 @@ jobs:
       - name: Check lints
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Install coverage tool
-        uses: taiki-e/install-action@b20dedce73af6905cdc30d6611090c9b67557c8d # v2.85.12
+        uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1 # v2.85.13
         with:
           tool: cargo-llvm-cov
       - name: Run tests with coverage
