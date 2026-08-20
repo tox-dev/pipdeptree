@@ -1,0 +1,1 @@
+Replace the removed ``nab-python`` dependency with ``nab-project``.

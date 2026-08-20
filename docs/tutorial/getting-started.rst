@@ -43,23 +43,31 @@ Run ``pipdeptree`` with no arguments to see the full dependency tree of your env
     └── Pygments [required: >=2.19.1,<3.0.0, installed: 2.20.0]
     oauthlib==3.0.0
     pipdeptree==4.0.0
-    ├── nab-index [required: >=0.0.11, installed: 0.0.11]
+    ├── nab-index [required: >=0.0.11, installed: 0.0.14]
+    │   ├── nab-provider [required: ==0.0.14, installed: 0.0.14]
+    │   │   ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
+    │   │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
     │   ├── packaging [required: >=24.0, installed: 26.2]
     │   ├── truststore [required: >=0.10, installed: 0.10.4]
     │   ├── typing_extensions [required: >=4.6, installed: 4.16.0]
     │   └── urllib3 [required: >=2.0, installed: 2.7.0]
-    └── nab-python [required: >=0.0.11, installed: 0.0.11]
+    └── nab-project [required: >=0.0.14, installed: 0.0.14]
         ├── build [required: >=1.2, installed: 1.5.1]
         │   ├── packaging [required: >=24.0, installed: 26.2]
         │   └── pyproject_hooks [required: Any, installed: 1.2.0]
-        ├── installer [required: >=0.7, installed: 1.0.1]
-        ├── nab-index [required: ==0.0.11, installed: 0.0.11]
+        ├── installer [required: >=1.0, installed: 1.0.1]
+        ├── nab-index [required: ==0.0.14, installed: 0.0.14]
+        │   ├── nab-provider [required: ==0.0.14, installed: 0.0.14]
+        │   │   ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
+        │   │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
         │   ├── packaging [required: >=24.0, installed: 26.2]
         │   ├── truststore [required: >=0.10, installed: 0.10.4]
         │   ├── typing_extensions [required: >=4.6, installed: 4.16.0]
         │   └── urllib3 [required: >=2.0, installed: 2.7.0]
-        ├── nab-resolver [required: ==0.0.11, installed: 0.0.11]
+        ├── nab-provider [required: ==0.0.14, installed: 0.0.14]
+        │   ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
         │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
+        ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
         ├── pyproject_hooks [required: >=1.2, installed: 1.2.0]
         ├── tomli [required: >=2.0, installed: 2.4.1]
         ├── tomli_w [required: >=1.2, installed: 1.2.0]
@@ -153,8 +161,8 @@ Limit the tree depth:
     └── Pygments [required: >=2.19.1,<3.0.0, installed: 2.20.0]
     oauthlib==3.0.0
     pipdeptree==4.0.0
-    ├── nab-index [required: >=0.0.11, installed: 0.0.11]
-    └── nab-python [required: >=0.0.11, installed: 0.0.11]
+    ├── nab-index [required: >=0.0.11, installed: 0.0.14]
+    └── nab-project [required: >=0.0.14, installed: 0.0.14]
     pyjwt==1.7.1
     PySocks==1.7.1
     pytest-cov==7.1.0
