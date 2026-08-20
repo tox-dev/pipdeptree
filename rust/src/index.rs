@@ -14,7 +14,7 @@ use tempfile::tempdir;
 use crate::Error;
 use crate::metadata::{Discovered, Package};
 
-const RESOLVER_IMPORT_ERROR: &str = "The from-index subcommand requires nab-index and nab-python";
+const RESOLVER_IMPORT_ERROR: &str = "The from-index subcommand requires nab-index and nab-project";
 const PYPI_NAME: &str = "pypi";
 const PYPI_URL: &str = "https://pypi.org/simple";
 const GIT_SCHEMES: [&str; 5] = ["git+https", "git+ssh", "git+http", "git+file", "git+git"];
@@ -480,8 +480,8 @@ impl<'py> ResolverModules<'py> {
         Ok(Self {
             multi_index: import("nab_index.multi_index")?,
             transport: import("nab_index.urllib3_async_transport")?,
-            config: import("nab_python.config")?,
-            resolve: import("nab_python.resolve")?,
+            config: import("nab_project.config")?,
+            resolve: import("nab_project.resolve")?,
         })
     }
 

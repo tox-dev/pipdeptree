@@ -123,7 +123,7 @@ pub fn install_resolver(python: Python<'_>, capture: &Path) -> PyResult<()> {
     let locals = PyDict::new(python);
     locals.set_item("capture", capture)?;
     python.run(
-        c_str!("import nab_python.resolve\nnab_python.resolve.capture = capture\n"),
+        c_str!("import nab_project.resolve\nnab_project.resolve.capture = capture\n"),
         Some(&locals),
         Some(&locals),
     )
@@ -137,10 +137,10 @@ from pathlib import Path
 from unittest.mock import create_autospec
 
 from packaging.version import Version
-from nab_python.config import NabProjectConfig, plan_targets
-from nab_python.lockfile import TargetLock
-from nab_python.resolve import ResolveResult, TargetResult
-import nab_python.resolve as resolve_module
+from nab_project.config import NabProjectConfig, plan_targets
+from nab_project.lockfile import TargetLock
+from nab_project.resolve import ResolveResult, TargetResult
+import nab_project.resolve as resolve_module
 
 def resolved(path, transport, *, config):
     indexes = [(index.name, index.url) for index in config.indexes]

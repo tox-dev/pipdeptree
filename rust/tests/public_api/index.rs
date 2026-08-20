@@ -72,22 +72,32 @@ fn parses_requirement_sources() {
 
     let output = with_python(|python| {
         install_resolver(python, &capture).unwrap();
-        execute_with_python(
-            python,
-            &[
-                "--warn",
-                "silence",
-                "from-index",
-                "vcs-package @ git+https://example.com/repo.git@0123456789abcdef0123456789abcdef01234567",
-                sources.absolute.to_str().unwrap(),
-                &sources.file_requirement,
-                "--requirements",
-                sources.requirements.to_str().unwrap(),
-                "--pyproject",
-                sources.project.to_str().unwrap(),
-                "--pyproject",
-                sources.no_project.to_str().unwrap(),
+        temp_env::with_vars(
+            [
+                ("PIP_INDEX_URL", None::<&str>),
+                ("UV_INDEX_URL", None),
+                ("PIP_EXTRA_INDEX_URL", None),
+                ("UV_EXTRA_INDEX_URL", None),
             ],
+            || {
+                execute_with_python(
+                    python,
+                    &[
+                        "--warn",
+                        "silence",
+                        "from-index",
+                        "vcs-package @ git+https://example.com/repo.git@0123456789abcdef0123456789abcdef01234567",
+                        sources.absolute.to_str().unwrap(),
+                        &sources.file_requirement,
+                        "--requirements",
+                        sources.requirements.to_str().unwrap(),
+                        "--pyproject",
+                        sources.project.to_str().unwrap(),
+                        "--pyproject",
+                        sources.no_project.to_str().unwrap(),
+                    ],
+                )
+            },
         )
     });
 
@@ -490,7 +500,7 @@ fn reports_missing_resolver_module() {
         (output.code, output.stderr.as_str()),
         (
             1,
-            "The from-index subcommand requires nab-index and nab-python\n",
+            "The from-index subcommand requires nab-index and nab-project\n",
         )
     );
 }
