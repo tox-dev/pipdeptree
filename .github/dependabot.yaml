@@ -3,18 +3,31 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "tuesday"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     cooldown:
       default-days: 7
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
+      day: "tuesday"
       time: "14:00"
+    groups:
+      cargo:
+        patterns:
+          - "*"
   - package-ecosystem: "rust-toolchain"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
+      day: "tuesday"
       time: "14:00"
+    groups:
+      rust-toolchain:
+        patterns:
+          - "*"
