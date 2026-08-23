@@ -85,6 +85,7 @@ jobs:
           echo "CIBW_MUSLLINUX_${ARCH^^}_IMAGE=$musllinux" >> "$GITHUB_ENV"
       - name: Read the toolchain rustup should install
         id: rust
+        shell: bash
         run: |
           python3 - <<'EOF' >> "$GITHUB_OUTPUT"
           import tomllib
