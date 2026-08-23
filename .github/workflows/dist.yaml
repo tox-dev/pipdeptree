@@ -83,15 +83,27 @@ jobs:
           done
           echo "CIBW_MANYLINUX_${ARCH^^}_IMAGE=$manylinux" >> "$GITHUB_ENV"
           echo "CIBW_MUSLLINUX_${ARCH^^}_IMAGE=$musllinux" >> "$GITHUB_ENV"
+      - name: Read the toolchain rustup should install
+        id: rust
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import tomllib
+          from pathlib import Path
+
+          toolchain = tomllib.loads(Path("rust-toolchain.toml").read_text())["toolchain"]
+          flags = ["--default-toolchain", toolchain["channel"]]
+          flags += [word for name in toolchain["components"] for word in ("--component", name)]
+          print("flags=" + " ".join(flags))
+          EOF
       - name: Build wheels
         uses: pypa/cibuildwheel@1828c10ab37f080699c7b81cea34097c684a7074 # v4.2.0
         env:
           CIBW_ARCHS: ${{ matrix.platform.arch }}
-          # Install the pinned toolchain and its components up front. Left to rust-toolchain.toml, the first
-          # cargo call in each container provisions them on demand, which races and conflicts on the
-          # cargo-clippy hardlink on aarch64. Keep the channel and components in sync with rust-toolchain.toml.
+          # Install the toolchain and its components up front. Left to rust-toolchain.toml, the first cargo
+          # call in each container provisions them on demand, which races and conflicts on the cargo-clippy
+          # hardlink on aarch64.
           CIBW_BEFORE_ALL_LINUX: >-
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98 --component clippy --component llvm-tools-preview --component rustfmt
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal ${{ steps.rust.outputs.flags }}
           # 3.15 is still a prerelease, so cpython-prerelease enables its free-threaded build.
           CIBW_BUILD: ${{ matrix.identifiers || format('{0}-*', matrix.build) }}
           CIBW_ENABLE: pypy cpython-prerelease
