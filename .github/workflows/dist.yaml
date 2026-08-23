@@ -91,7 +91,7 @@ jobs:
           # cargo call in each container provisions them on demand, which races and conflicts on the
           # cargo-clippy hardlink on aarch64. Keep the channel and components in sync with rust-toolchain.toml.
           CIBW_BEFORE_ALL_LINUX: >-
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.97 --component clippy --component llvm-tools-preview --component rustfmt
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98 --component clippy --component llvm-tools-preview --component rustfmt
           # 3.15 is still a prerelease, so cpython-prerelease enables its free-threaded build.
           CIBW_BUILD: ${{ matrix.identifiers || format('{0}-*', matrix.build) }}
           CIBW_ENABLE: pypy cpython-prerelease
