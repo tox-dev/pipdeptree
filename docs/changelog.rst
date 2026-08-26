@@ -7,6 +7,28 @@
 .. towncrier release notes start
 
 *******************
+ 4.2.2 (2026-08-26)
+*******************
+
+Bug fixes - 4.2.2
+=================
+
+- Run under an interpreter built from a git checkout. Such a build reports its version with a trailing plus
+  (``3.13.5+``), which PEP 440 reads as an empty local segment and rejects, so every run stopped with ``found a `+`
+  indicating the start of a local component in a version``. The trailing plus is now dropped, and a marker value that
+  still fails to parse names the interpreter versions it came from. (:issue:`656`)
+- Stop warning about the console-script launcher on Windows. Python puts the running ``pipdeptree.exe`` on
+  ``sys.path``, and every file on the search path counted as an archive, so each run reported ``unsupported archives on
+  the search path``. Only files whose suffix is ``.egg``, ``.pyz``, ``.pyzw``, ``.whl`` or ``.zip`` are now reported. (:issue:`669`)
+- Replace the removed ``nab-python`` dependency with ``nab-project``. (:issue:`681`)
+
+Packaging updates - 4.2.2
+=========================
+
+- Build the wheels for each interpreter beside each other in CI, rather than one after another in a single job, and let
+  the macOS builds share one Cargo target directory. The wheel matrix used to hold a pull request for 17 minutes. (:issue:`648`)
+
+*******************
  4.2.0 (2026-07-31)
 *******************
 
