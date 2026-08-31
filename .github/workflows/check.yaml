@@ -14,7 +14,7 @@ permissions:
   contents: read
 jobs:
   dist:
-    uses: ./.github/workflows/dist.yaml
+    uses: $/.github/workflows/dist.yaml
   rust:
     runs-on: ubuntu-latest
     env:
