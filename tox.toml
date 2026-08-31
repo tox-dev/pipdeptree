@@ -55,6 +55,24 @@ commands = [
   ],
 ]
 
+[env."3.15t"]
+skip_install = true
+# meson-python refuses the limited API on a free-threaded interpreter, and the package asks for it by default, so
+# this build opts out and takes a wheel tagged for this interpreter alone.
+commands_pre = [
+  [
+    "uv",
+    "pip",
+    "install",
+    "--python",
+    "{env_python}",
+    "--reinstall",
+    "--config-settings",
+    "setup-args=-Dpython.allow_limited_api=false",
+    ".[test]",
+  ],
+]
+
 [env.docs]
 description = "build documentation"
 dependency_groups = [ "docs" ]
@@ -126,31 +144,6 @@ commands = [
   ],
 ]
 
-[env.release]
-description = "build the changelog for the next release, then commit and tag it"
-skip_install = true
-deps = [ "towncrier>=25.8" ]
-pass_env = [ "GH_TOKEN" ]
-commands = [ [ "python", "{tox_root}{/}tools{/}release.py", { replace = "posargs", extend = true } ] ]
-
-[env."3.15t"]
-skip_install = true
-# meson-python refuses the limited API on a free-threaded interpreter, and the package asks for it by default, so
-# this build opts out and takes a wheel tagged for this interpreter alone.
-commands_pre = [
-  [
-    "uv",
-    "pip",
-    "install",
-    "--python",
-    "{env_python}",
-    "--reinstall",
-    "--config-settings",
-    "setup-args=-Dpython.allow_limited_api=false",
-    ".[test]",
-  ],
-]
-
 [env."pypy-3.11"]
 skip_install = true
 commands_pre = [
@@ -164,3 +157,10 @@ commands_pre = [
     ".[test]",
   ],
 ]
+
+[env.release]
+description = "build the changelog for the next release, then commit and tag it"
+skip_install = true
+deps = [ "towncrier>=25.8" ]
+pass_env = [ "GH_TOKEN" ]
+commands = [ [ "python", "{tox_root}{/}tools{/}release.py", { replace = "posargs", extend = true } ] ]
