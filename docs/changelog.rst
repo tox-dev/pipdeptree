@@ -7,6 +7,18 @@
 .. towncrier release notes start
 
 *******************
+ 4.2.3 (2026-08-31)
+*******************
+
+Features - 4.2.3
+================
+
+- Publish Windows ``arm64`` wheels. Every Windows wheel was built for ``AMD64``, so ``pip`` and ``uv`` fell back to the
+  source distribution on Windows on ARM, where building the Rust extension needs a local ``cargo`` and MSVC toolchain.
+  The ``cp310`` abi3 wheel and the free-threaded ``cp314t`` and ``cp315t`` wheels now ship for that platform too; PyPy
+  publishes no Windows ``arm64`` interpreter, so ``pp311`` stays ``AMD64`` only. (:issue:`693`)
+
+*******************
  4.2.2 (2026-08-26)
 *******************
 
