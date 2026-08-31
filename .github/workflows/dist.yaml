@@ -23,6 +23,14 @@ jobs:
             arch: aarch64
           - os: windows-latest
             arch: AMD64
+          - os: windows-11-arm
+            arch: ARM64
+        exclude:
+          # PyPy ships no Windows arm64 interpreter, and cibuildwheel stops a job whose selector matches nothing.
+          - build: pp311
+            platform:
+              os: windows-11-arm
+              arch: ARM64
         include:
           # The Intel runner takes about twice as long as the arm one for the same work, so it splits its four
           # builds over two jobs; three macOS jobs stay well inside the cap that made a job per interpreter queue.
