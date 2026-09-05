@@ -1,0 +1,3 @@
+Fix ``from-index`` with nab 0.0.16 by using the nab CLI package's full configuration parser and passing
+explicit inputs and planned targets to the resolver. Preserve pyproject settings and index overrides,
+and pin nab while its component APIs are experimental.

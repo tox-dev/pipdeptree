@@ -380,6 +380,61 @@ fn resolves_pyproject_indexes(
 }
 
 #[rstest]
+#[case::specific("[tool.nab.environment]\npython = '3.12'\n", &["3.12"])]
+#[case::matrix("[tool.nab.matrix]\npython = '>=3.11,<3.13'\nplatforms = ['linux_x86_64']\n", &["3.11", "3.12"])]
+fn preserves_full_nab_configuration(#[case] environment: &str, #[case] versions: &[&str]) {
+    let directory = tempdir().unwrap();
+    let project = directory.path().join("pyproject.toml");
+    let mode = if versions.len() == 1 {
+        "specific"
+    } else {
+        "universal"
+    };
+    fs::write(
+        &project,
+        format!(
+            "[project]\nname = 'demo'\ndependencies = []\n\
+         [dependency-groups]\ndev = ['parent']\n\
+         [tool.nab]\nmode = '{mode}'\nresolution = 'lowest'\nbuild-policy = 'never'\n\
+         default-groups = ['dev']\nconstraints = ['child<3']\n\
+         [[tool.nab.indexes]]\nname = 'own'\nurl = 'https://own.example/simple'\n{environment}"
+        ),
+    )
+    .unwrap();
+    let capture = directory.path().join("capture.txt");
+    let output = with_python(|python| {
+        install_resolver(python, &capture).unwrap();
+        execute_with_python(
+            python,
+            &[
+                "--warn",
+                "silence",
+                "i",
+                "--pyproject",
+                project.to_str().unwrap(),
+                "--index-url",
+                "https://override.example/simple",
+            ],
+        )
+    });
+    assert_eq!((output.code, output.stderr.as_str()), (0, ""));
+    let settings: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(capture.with_extension("json")).unwrap()).unwrap();
+    assert_eq!(
+        settings,
+        serde_json::json!({
+            "resolution": "lowest", "build_policy": "never", "default_groups": ["dev"],
+            "constraints": ["child<3"], "python_versions": versions,
+        })
+    );
+    assert!(
+        fs::read_to_string(capture)
+            .unwrap()
+            .ends_with("[('primary', 'https://override.example/simple')]")
+    );
+}
+
+#[rstest]
 #[case::default(
     &[],
     &[],
@@ -475,10 +530,12 @@ fn resolves_environment_indexes(
     );
 }
 
-#[test]
-fn reports_missing_resolver_module() {
+#[rstest]
+#[case("nab_index.multi_index")]
+#[case("nab.config.model")]
+fn reports_missing_resolver_module(#[case] name: &str) {
     let output = with_python(|python| {
-        let module = python.import("nab_index.multi_index").unwrap();
+        let module = python.import(name).unwrap();
         let modules = python
             .import("sys")
             .unwrap()
@@ -486,22 +543,17 @@ fn reports_missing_resolver_module() {
             .unwrap()
             .cast_into::<PyDict>()
             .unwrap();
-        modules
-            .set_item("nab_index.multi_index", python.None())
-            .unwrap();
+        modules.set_item(name, python.None()).unwrap();
 
         let output = execute_with_python(python, &["from-index", "demo"]);
 
-        modules.set_item("nab_index.multi_index", module).unwrap();
+        modules.set_item(name, module).unwrap();
         output
     });
 
     assert_eq!(
         (output.code, output.stderr.as_str()),
-        (
-            1,
-            "The from-index subcommand requires nab-index and nab-project\n",
-        )
+        (1, "The from-index subcommand requires nab\n",)
     );
 }
 

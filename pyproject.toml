@@ -45,8 +45,9 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "nab-index>=0.0.11",
-  "nab-project>=0.0.14",
+  "nab==0.0.16",
+  "nab-index==0.0.16",
+  "nab-project==0.0.16",
 ]
 urls.Changelog = "https://pipdeptree.readthedocs.io/en/latest/changelog.html"
 urls.Documentation = "https://pipdeptree.readthedocs.io"
