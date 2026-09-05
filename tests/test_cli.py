@@ -18,6 +18,48 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+@pytest.mark.parametrize("source", ["requirements", "pyproject"])
+@pytest.mark.parametrize("constraint", ["local-demo<2", "local-demo<1"])
+def test_from_index_with_real_nab_config(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+    constraint: str,
+) -> None:
+    for name in ("PIP_INDEX_URL", "UV_INDEX_URL", "PIP_EXTRA_INDEX_URL", "UV_EXTRA_INDEX_URL"):
+        monkeypatch.delenv(name, raising=False)
+    local = tmp_path / "local"
+    local.mkdir()
+    (local / "pyproject.toml").write_text(
+        '[project]\nname = "local-demo"\nversion = "1"\ndependencies = []\n', encoding="utf-8"
+    )
+    index = tmp_path / "index"
+    index.mkdir()
+    if source == "requirements":
+        (tmp_path / "constraints.txt").write_text(constraint, encoding="utf-8")
+        path = tmp_path / "requirements.txt"
+        path.write_text("-c constraints.txt\n-e ./local\n", encoding="utf-8")
+    else:
+        path = tmp_path / "pyproject.toml"
+        path.write_text(
+            '[project]\nname = "demo"\ndependencies = []\n'
+            '[dependency-groups]\ndev = ["local-demo"]\n'
+            f'[tool.nab]\nconstraints = ["{constraint}"]\n'
+            'default-groups = ["dev"]\nresolution = "lowest"\nbuild-policy = "never"\n'
+            '[tool.nab.workspace]\nmembers = ["local"]\n',
+            encoding="utf-8",
+        )
+    code = entry_point(["from-index", f"--{source}", str(path), "--index-url", index.as_uri()])
+    output = capsys.readouterr()
+    if constraint == "local-demo<2":
+        assert (code, output.out, output.err) == (0, "local-demo==1\n", "")
+    else:
+        assert code == 1
+        assert "local-demo" in output.err
+
+
 @pytest.mark.parametrize(
     ("args", "expected"),
     [

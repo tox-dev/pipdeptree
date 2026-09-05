@@ -135,18 +135,25 @@ fn patch_resolver(python: Python<'_>) -> PyResult<()> {
             r#"
 from pathlib import Path
 from unittest.mock import create_autospec
+import json
 
 from packaging.version import Version
-from nab_project.config import NabProjectConfig, plan_targets
 from nab_project.lockfile import TargetLock
 from nab_project.resolve import ResolveResult, TargetResult
 import nab_project.resolve as resolve_module
 
-def resolved(path, transport, *, config):
-    indexes = [(index.name, index.url) for index in config.indexes]
+def resolved(path, transport, *, targets, inputs):
+    indexes = [(index.name, index.url) for index in inputs.indexes]
     text = path.read_text() + "\n--- indexes ---\n" + repr(indexes)
     Path(resolve_module.capture).write_text(text)
-    target = plan_targets(NabProjectConfig())[0]
+    Path(resolve_module.capture).with_suffix(".json").write_text(json.dumps({
+        "resolution": inputs.resolution.value,
+        "build_policy": inputs.build_policy.value,
+        "default_groups": inputs.default_groups,
+        "constraints": inputs.constraints,
+        "python_versions": [target.python_version for target in targets],
+    }))
+    target = targets[0]
     return ResolveResult(
         targets=(target,),
         target_results=[

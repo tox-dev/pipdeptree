@@ -115,7 +115,7 @@ def test_render_explicit_extras(extras: bool | str) -> None:
 
 
 def test_render_reverse() -> None:
-    result = pipdeptree.render(packages="nab-index", extras="active", reverse=True, depth=1)
+    result = pipdeptree.render(packages="nab", extras="active", reverse=True, depth=1)
 
     assert "pipdeptree==" in result
 
