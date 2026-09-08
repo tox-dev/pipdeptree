@@ -28,7 +28,7 @@ commands = [
     "{tty:--color=yes}",
     { replace = "posargs", default = [
       "--cov",
-      "{env_site_packages_dir}{/}pipdeptree",
+      "pipdeptree",
       "--cov",
       "{tox_root}{/}tests",
       "--cov-config=pyproject.toml",
