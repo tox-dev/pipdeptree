@@ -7,6 +7,15 @@
 .. towncrier release notes start
 
 *******************
+ 4.2.4 (2026-09-08)
+*******************
+
+Bug fixes - 4.2.4
+=================
+
+- Fix ``from-index`` with nab 0.0.17 by adapting to its configuration and resolver APIs. (:issue:`697`)
+
+*******************
  4.2.3 (2026-08-31)
 *******************
 
