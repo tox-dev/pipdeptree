@@ -1,9 +1,9 @@
 [build-system]
 build-backend = "mesonpy"
 requires = [
-  "meson>=1.11.2",
-  "meson-python>=0.20",
-  "ninja>=1.13",
+  "meson>=1.12",
+  "meson-python>=0.21",
+  "ninja>=1.13.2",
 ]
 
 [project]
@@ -45,8 +45,9 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "nab-index>=0.0.11",
-  "nab-project<0.0.16,>=0.0.14",
+  "nab>=0.0.17",
+  "nab-index>=0.0.17",
+  "nab-project>=0.0.17",
 ]
 urls.Changelog = "https://pipdeptree.readthedocs.io/en/latest/changelog.html"
 urls.Documentation = "https://pipdeptree.readthedocs.io"
@@ -58,7 +59,7 @@ scripts.pipdeptree = "pipdeptree._runner:main"
 [dependency-groups]
 test = [
   "covdefaults>=2.3",
-  "diff-cover>=10.3",
+  "diff-cover>=10.5.1",
   "pluggy>=1.6",
   "pytest>=9.1.1",
   "pytest-cov>=7.1",
@@ -68,10 +69,10 @@ docs = [
   "sphinx>=9.1",
   "sphinx-copybutton>=0.5.2",
   "sphinx-inline-tabs>=2025.12.21.14",
-  "sphinx-llm>=0.4.1",
-  "sphinxcontrib-mermaid>=2.1",
+  "sphinx-llm>=1",
+  "sphinxcontrib-mermaid>=2.1.1",
   "sphinxcontrib-towncrier>=0.5.0a0",
-  "towncrier>=25.8",
+  "towncrier>=26.9",
 ]
 
 [tool.meson-python]

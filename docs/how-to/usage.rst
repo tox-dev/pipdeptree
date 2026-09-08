@@ -54,9 +54,10 @@ A single requirement resolves to its full tree:
 .. code-block:: console
 
     $ pipdeptree from-index "starlette"
-    starlette==1.3.1
-    └── anyio [candidate: 4.14.2]
-        └── idna [candidate: 3.18]
+    starlette==1.6.0
+    └── anyio [candidate: 4.15.1]
+        ├── idna [candidate: 3.19]
+        └── typing-extensions [candidate: 4.16.0]
 
 Several requirements resolve together into one graph, and a version specifier bounds the pick:
 
@@ -65,16 +66,17 @@ Several requirements resolve together into one graph, and a version specifier bo
 
     $ pipdeptree from-index "fastapi<=0.115.2" starlette
     fastapi==0.115.2
-    ├── pydantic [candidate: 2.13.4]
-    │   ├── annotated-types [candidate: 0.7.0]
-    │   ├── pydantic-core [candidate: 2.46.4]
+    ├── pydantic [candidate: 2.13.5]
+    │   ├── annotated-types [candidate: 0.8.0]
+    │   ├── pydantic-core [candidate: 2.46.5]
     │   │   └── typing-extensions [candidate: 4.16.0]
     │   ├── typing-extensions [candidate: 4.16.0]
-    │   └── typing-inspection [candidate: 0.4.2]
+    │   └── typing-inspection [candidate: 0.4.4]
     │       └── typing-extensions [candidate: 4.16.0]
     ├── starlette [candidate: 0.40.0]
-    │   └── anyio [candidate: 4.14.2]
-    │       └── idna [candidate: 3.18]
+    │   └── anyio [candidate: 4.15.1]
+    │       ├── idna [candidate: 3.19]
+    │       └── typing-extensions [candidate: 4.16.0]
     └── typing-extensions [candidate: 4.16.0]
 
 Request extras with the ``name[extra]`` syntax. The resolver pulls the extra's dependencies into the tree. They appear
@@ -85,9 +87,9 @@ as children, such as ``pysocks`` below, with the pinned version from the resolve
 
     $ pipdeptree from-index "requests[socks]"
     requests==2.34.2
-    ├── certifi [candidate: 2026.6.17]
-    ├── charset-normalizer [candidate: 3.4.9]
-    ├── idna [candidate: 3.18]
+    ├── certifi [candidate: 2026.7.22]
+    ├── charset-normalizer [candidate: 3.5.1]
+    ├── idna [candidate: 3.19]
     ├── pysocks [candidate: 1.7.1]
     └── urllib3 [candidate: 2.7.0]
 
@@ -98,7 +100,7 @@ requirement; a non-matching marker drops it. Quote the argument so the shell kee
 .. code-block:: console
 
     $ pipdeptree from-index 'idna; python_version >= "3.10"'
-    idna==3.18
+    idna==3.19
 
 Resolve from a requirements file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -195,13 +197,18 @@ The graph and render flags behave as they do for the default command. Emit JSON 
             "package": {
                 "key": "anyio",
                 "package_name": "anyio",
-                "candidate_version": "4.14.2"
+                "candidate_version": "4.15.1"
             },
             "dependencies": [
                 {
                     "key": "idna",
                     "package_name": "idna",
-                    "candidate_version": "3.18"
+                    "candidate_version": "3.19"
+                },
+                {
+                    "key": "typing-extensions",
+                    "package_name": "typing-extensions",
+                    "candidate_version": "4.16.0"
                 }
             ]
         },
@@ -209,7 +216,7 @@ The graph and render flags behave as they do for the default command. Emit JSON 
             "package": {
                 "key": "idna",
                 "package_name": "idna",
-                "candidate_version": "3.18"
+                "candidate_version": "3.19"
             },
             "dependencies": []
         },
@@ -217,15 +224,23 @@ The graph and render flags behave as they do for the default command. Emit JSON 
             "package": {
                 "key": "starlette",
                 "package_name": "starlette",
-                "candidate_version": "1.3.1"
+                "candidate_version": "1.6.0"
             },
             "dependencies": [
                 {
                     "key": "anyio",
                     "package_name": "anyio",
-                    "candidate_version": "4.14.2"
+                    "candidate_version": "4.15.1"
                 }
             ]
+        },
+        {
+            "package": {
+                "key": "typing-extensions",
+                "package_name": "typing-extensions",
+                "candidate_version": "4.16.0"
+            },
+            "dependencies": []
         }
     ]
 
@@ -235,8 +250,8 @@ Trace why the resolver pulled a package in with ``--reverse`` (``-r``):
 .. code-block:: console
 
     $ pipdeptree from-index "fastapi<=0.115.2" --reverse --packages anyio
-    anyio==4.14.2
-    └── starlette==0.40.0 [requires: anyio==4.14.2]
+    anyio==4.15.1
+    └── starlette==0.40.0 [requires: anyio==4.15.1]
         └── fastapi==0.115.2 [requires: starlette==0.40.0]
 
 Other supported flags include ``-o mermaid``, the ``graphviz-*`` formats, ``--depth`` (``-d``), package filters,
