@@ -13,8 +13,8 @@ fn main() {
         .or_else(from_metadata)
         .unwrap_or_else(|| "0.0.0".to_string());
     println!("cargo:rustc-env=PIPDEPTREE_VERSION={}", version.trim());
-    if std::env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some()
-        && std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos")
+    if env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some()
+        && env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos")
     {
         println!("cargo:rustc-link-arg=-undefined");
         println!("cargo:rustc-link-arg=dynamic_lookup");
@@ -39,10 +39,12 @@ fn from_git() -> Option<String> {
         }
     }
     let described = git(&["describe", "--tags", "--long", "--match", "[0-9]*"])?;
-    let mut parts = described.rsplitn(3, '-');
-    let commit = parts.next()?;
-    let distance = parts.next()?;
-    let tag = parts.next()?;
+    let (release, commit) = described
+        .rsplit_once('-')
+        .expect("git describe includes a commit");
+    let (tag, distance) = release
+        .rsplit_once('-')
+        .expect("git describe includes a distance");
     Some(if distance == "0" {
         tag.to_string()
     } else {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve the build version without importing the package or its native extension."""
+"""Builds need a version before the native extension exists."""
 
 from __future__ import annotations
 
@@ -8,19 +8,21 @@ import subprocess  # ruff:ignore[suspicious-subprocess-import]  # Reading the ta
 from pathlib import Path
 from typing import Final
 
-_ROOT: Final = Path(__file__).resolve().parent.parent
-
 
 def main() -> None:
     print(_resolve())  # ruff:ignore[print]  # Meson reads the version off this output.
 
 
 def _resolve() -> str:
+    pretend: Final[str | None]
     if (pretend := os.environ.get("PIPDEPTREE_VERSION")) is not None:
-        return pretend  # A build with no history of its own, such as one cibuildwheel runs inside a container.
-    if (from_git := _from_git()) is not None:
+        return pretend
+    root: Final = Path(__file__).resolve().parent.parent
+    from_git: Final[str | None]
+    if (from_git := _from_git(root)) is not None:
         return from_git
-    if (metadata := _ROOT / "PKG-INFO").is_file():
+    metadata: Final[Path]
+    if (metadata := root / "PKG-INFO").is_file():
         for line in metadata.read_text(encoding="utf-8").splitlines():
             if not line:
                 break
@@ -29,22 +31,26 @@ def _resolve() -> str:
     return "0.0.0"
 
 
-def _from_git() -> str | None:
-    if not (_ROOT / ".git").exists():
+def _from_git(root: Path) -> str | None:
+    if not (root / ".git").exists():
         return None
-    if (described := _git("describe", "--tags", "--long", "--match", "[0-9]*")) is None:
+    described: Final[str | None]
+    if (described := _git(root, "describe", "--tags", "--long", "--match", "[0-9]*")) is None:
         return None
+    tag: Final[str]
+    distance: Final[str]
+    commit: Final[str]
     tag, distance, commit = described.rsplit("-", 2)
-    return tag if int(distance) == 0 else f"{tag}.dev{distance}+{commit}"  # The commit already carries the leading g.
+    return tag if int(distance) == 0 else f"{tag}.dev{distance}+{commit}"
 
 
-def _git(*args: str) -> str | None:
+def _git(root: Path, *args: str) -> str | None:
     try:
-        completed = subprocess.run(  # ruff:ignore[subprocess-without-shell-equals-true]  # Fixed argument list.
+        completed: Final = subprocess.run(  # ruff:ignore[subprocess-without-shell-equals-true]  # Fixed argument list.
             ["git", *args],  # ruff:ignore[start-process-with-partial-path]  # Git comes off PATH, as for any build.
             capture_output=True,
             text=True,
-            cwd=_ROOT,
+            cwd=root,
             check=False,
         )
     except FileNotFoundError:  # Git is absent, as in a container building from an unpacked sdist.
