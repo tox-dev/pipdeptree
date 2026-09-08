@@ -8,9 +8,6 @@ project(
   default_options: ['python.allow_limited_api=false'],
 )
 
-# Freeze the git-derived version into the sdist so a wheel built from it needs no git history.
-meson.add_dist_script('tools/version.py', '--write')
-
 py = import('python').find_installation(pure: false)
 py.install_sources(
   files(

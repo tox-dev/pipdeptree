@@ -30,6 +30,8 @@ commands = [
       "--cov",
       "pipdeptree",
       "--cov",
+      "tools.version",
+      "--cov",
       "{tox_root}{/}tests",
       "--cov-config=pyproject.toml",
       "--no-cov-on-fail",

@@ -1,7 +1,6 @@
 [package]
 name = "pipdeptree"
-# Placeholder: the authoritative release version lives in the VERSION file and is wired into the
-# binary through build.rs (PIPDEPTREE_VERSION); this crate is never published to crates.io.
+# The build resolves the release version; this crate is never published to crates.io.
 version = "0.0.0"
 description = "Display Python package dependency trees"
 repository = "https://github.com/tox-dev/pipdeptree"

@@ -106,9 +106,23 @@ Sphinx writes ``.tox/docs_out/html/index.html``.
 Releasing
 ---------
 
-``tools/version.py`` derives the version from the release tags, so the tag a release carries is the version its wheels
-and sdist report. Nothing in the tree names the version, and the ``VERSION`` file exists for builds with no tags to
-read, such as one from an unpacked sdist.
+Builds use the following version sources, in order:
+
+1. ``PIPDEPTREE_VERSION``, if set.
+2. A reachable Git release tag, with a development suffix for commits after the tag.
+3. The ``Version`` header in the source distribution's ``PKG-INFO`` metadata.
+4. ``0.0.0`` if none of those sources provides a version.
+
+Meson-Python includes ``PKG-INFO`` in sdists, so rebuilding a wheel from an sdist needs no Git history. Bare Cargo
+builds use the same precedence. Fetch release tags in shallow clones to obtain the release-derived version.
+
+Package maintainers building without Git history or distribution metadata can supply their own version:
+
+.. code-block:: bash
+
+    PIPDEPTREE_VERSION=4.2.3 uv build
+
+The override takes precedence over tags and metadata; the build uses the value the maintainer supplies.
 
 Every user-visible change brings a news fragment under ``docs/changelog``, named ``<issue>.<type>.rst`` with one of the
 types ``breaking``, ``feature``, ``bugfix``, ``doc`` or ``packaging``. The unreleased fragments render as a draft
