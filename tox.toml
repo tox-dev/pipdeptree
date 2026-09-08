@@ -1,4 +1,4 @@
-requires = [ "tox>=4.57.1", "tox-uv>=1.35.2" ]
+requires = [ "tox>=4.61.2", "tox-uv>=1.36" ]
 env_list = [
   "3.15",
   "3.14",
@@ -102,13 +102,13 @@ commands = [
 [env.fix]
 description = "format the code base and report remaining style violations"
 skip_install = true
-deps = [ "pre-commit-uv>=4.2.2" ]
+deps = [ "pre-commit-uv>=4.3" ]
 commands = [ [ "pre-commit", "run", "--all-files", "--show-diff-on-failure" ] ]
 
 [env.pkg_meta]
 description = "check that the long description is valid"
 skip_install = true
-deps = [ "check-wheel-contents>=0.6.3", "twine>=6.2", "uv>=0.11.29" ]
+deps = [ "check-wheel-contents>=0.6.3", "twine>=7", "uv>=0.12.10" ]
 commands = [
   [ "uv", "build", "--sdist", "--wheel", "--out-dir", "{env_tmp_dir}", "." ],
   [ "twine", "check", "{env_tmp_dir}{/}*" ],
@@ -117,7 +117,7 @@ commands = [
 
 [env.type]
 description = "run type check on code base"
-deps = [ "ty>=0.0.61" ]
+deps = [ "ty>=0.0.79" ]
 commands = [ [ "ty", "check", "--python-platform", "all", "--output-format", "concise", "--error-on-warning", "." ] ]
 
 [env.dev]
@@ -161,6 +161,6 @@ commands_pre = [
 [env.release]
 description = "build the changelog for the next release, then commit and tag it"
 skip_install = true
-deps = [ "towncrier>=25.8" ]
+deps = [ "towncrier>=26.9" ]
 pass_env = [ "GH_TOKEN" ]
 commands = [ [ "python", "{tox_root}{/}tools{/}release.py", { replace = "posargs", extend = true } ] ]
