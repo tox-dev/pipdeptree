@@ -16,8 +16,7 @@ use tempfile::{TempDir, tempdir};
 static PYTHON_LOCK: Mutex<()> = Mutex::new(());
 static RESOLVER: Once = Once::new();
 
-pub const VERSION: &str =
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/VERSION")).trim_ascii_end();
+pub const VERSION: &str = env!("PIPDEPTREE_VERSION");
 
 mockall::mock! {
     pub Processes {}
