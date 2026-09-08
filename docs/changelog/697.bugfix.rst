@@ -1,0 +1,1 @@
+Fix ``from-index`` with nab 0.0.17 by adapting to its configuration and resolver APIs.

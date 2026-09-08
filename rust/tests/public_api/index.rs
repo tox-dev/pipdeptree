@@ -500,7 +500,7 @@ fn reports_missing_resolver_module() {
         (output.code, output.stderr.as_str()),
         (
             1,
-            "The from-index subcommand requires nab-index and nab-project\n",
+            "The from-index subcommand requires nab, nab-index and nab-project\n",
         )
     );
 }

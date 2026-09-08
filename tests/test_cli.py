@@ -6,7 +6,7 @@ import sys
 import tempfile
 import webbrowser
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
@@ -218,6 +218,20 @@ def test_cli_lock(
     lock.write_text('[[packages]]\nname = "locked"\nversion = "1"\n')
 
     assert (entry_point(["from-lock", str(lock)]), "locked==1" in capsys.readouterr().out) == (0, True)
+
+
+def test_cli_index_empty_project(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    project: Final = tmp_path / "pyproject.toml"
+    project.write_text('[project]\nname = "empty"\nversion = "1"\ndependencies = []\n')
+
+    code: Final = entry_point(["from-index", "--pyproject", str(project), "--json"])
+    captured: Final = capsys.readouterr()
+
+    assert (code, json.loads(captured.out), captured.err) == (0, [], "")
 
 
 def test_module_entrypoint(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
