@@ -7,6 +7,16 @@
 .. towncrier release notes start
 
 *******************
+ 4.2.5 (2026-09-08)
+*******************
+
+Packaging updates - 4.2.5
+=========================
+
+- Remove the tracked ``VERSION`` file. Resolve build versions from ``PIPDEPTREE_VERSION``, Git tags, or sdist metadata,
+  falling back to ``0.0.0`` when none is available. (:issue:`699`)
+
+*******************
  4.2.4 (2026-09-08)
 *******************
 
