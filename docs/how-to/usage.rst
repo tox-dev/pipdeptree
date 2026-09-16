@@ -489,6 +489,47 @@ list of pinned packages, each with no children:
     packaging==26.2
     pyproject-hooks==1.2.0
 
+``from-lock`` does not fill in missing edges from another source; it reads the lock and neither ``METADATA`` on disk
+nor a package index. Without edges the tree, ``--reverse``, ``--depth``, ``--packages`` and ``--exclude`` act on a
+graph where each package is a root with no children, and ``--summary`` reports zero transitive dependencies and a max
+depth of one. ``--freeze`` output does not change. To see edges, have the lock's producer record them (``uv export``
+does), or render the same packages from an installed environment with the default command or from an index with
+``from-index``.
+
+Locks for several environments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A universal lock can pin one package several times, each entry guarded by an environment ``marker``. ``from-lock``
+evaluates each marker against the interpreter that runs pipdeptree and keeps the entries that match, so one run shows
+one environment. This lock pins ``importlib-metadata`` for interpreters older than Python 3.10:
+
+.. code-block:: toml
+    :caption: pylock.toml
+
+    lock-version = "1.0"
+
+    [[packages]]
+    name = "build"
+    version = "1.5.0"
+    dependencies = [{ name = "importlib-metadata" }]
+
+    [[packages]]
+    name = "importlib-metadata"
+    version = "8.7.0"
+    marker = "python_version < '3.10'"
+
+pipdeptree runs on Python 3.10 or newer, so the marker fails, ``from-lock`` drops the entry and the edge from
+``build`` points at nothing; the candidate shows as unknown:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml
+    build==1.5.0
+    └── importlib-metadata [candidate: ?]
+
+``from-lock`` does not render several targets from one lock at once; run pipdeptree under an interpreter that
+matches the other environment to project the lock for it.
+
 Lock limitations
 ~~~~~~~~~~~~~~~~~
 

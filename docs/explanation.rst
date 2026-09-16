@@ -125,6 +125,17 @@ A PEP 751 lock records each package's name, its pinned version and the forward e
 render machinery, with no resolver or network. A lock holds names, versions and edges, so ``from-lock`` omits the
 installed-environment display options.
 
+PEP 751 makes ``[[packages.dependencies]]`` optional and marks it as informational, for auditing rather than for
+installation. Auditing is what pipdeptree does with it, so a lock that omits the table renders as a flat list and
+``from-lock`` does not reconstruct the edges. Reconstruction would need a second source, and each source already has
+its own command. The default command reads installed ``METADATA``; ``from-index`` resolves against an index. A guessed
+graph would also show edges the lock's producer did not assert. That defeats the audit.
+
+A lock may cover several environments by guarding package entries with a ``marker``. ``from-lock`` evaluates those
+markers against the interpreter running pipdeptree and keeps the matching entries, so each run is a deterministic
+projection of the lock onto one environment. pipdeptree analyses one environment at a time on every command; there is
+no workflow that derives several target graphs from one input.
+
 The summary report and its two tiers
 ------------------------------------
 
