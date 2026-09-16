@@ -501,7 +501,7 @@ Locks for several environments
 
 A universal lock can pin one package several times, each entry guarded by an environment ``marker``. ``from-lock``
 evaluates each marker against the interpreter that runs pipdeptree and keeps the entries that match, so one run shows
-one environment. This lock pins ``colorama`` for Windows only:
+one environment. This lock pins ``importlib-metadata`` for interpreters older than Python 3.10:
 
 .. code-block:: toml
     :caption: pylock.toml
@@ -509,26 +509,26 @@ one environment. This lock pins ``colorama`` for Windows only:
     lock-version = "1.0"
 
     [[packages]]
-    name = "click"
-    version = "8.3.1"
-    dependencies = [{ name = "colorama" }]
+    name = "build"
+    version = "1.5.0"
+    dependencies = [{ name = "importlib-metadata" }]
 
     [[packages]]
-    name = "colorama"
-    version = "0.4.6"
-    marker = "sys_platform == 'win32'"
+    name = "importlib-metadata"
+    version = "8.7.0"
+    marker = "python_version < '3.10'"
 
-On Linux or macOS the marker fails, so ``from-lock`` drops the entry and the edge from ``click`` points at nothing;
-the candidate shows as unknown:
+pipdeptree runs on Python 3.10 or newer, so the marker fails, ``from-lock`` drops the entry and the edge from
+``build`` points at nothing; the candidate shows as unknown:
 
 .. code-block:: console
 
     $ pipdeptree from-lock pylock.toml
-    click==8.3.1
-    └── colorama [candidate: ?]
+    build==1.5.0
+    └── importlib-metadata [candidate: ?]
 
-``from-lock`` does not render several targets from one lock at once; run pipdeptree under an interpreter for the
-other platform to project the lock for it.
+``from-lock`` does not render several targets from one lock at once; run pipdeptree under an interpreter that
+matches the other environment to project the lock for it.
 
 Lock limitations
 ~~~~~~~~~~~~~~~~~
