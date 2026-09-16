@@ -489,6 +489,47 @@ list of pinned packages, each with no children:
     packaging==26.2
     pyproject-hooks==1.2.0
 
+``from-lock`` does not fill in missing edges from another source; it reads the lock and neither ``METADATA`` on disk
+nor a package index. Without edges the tree, ``--reverse``, ``--depth``, ``--packages`` and ``--exclude`` act on a
+graph where each package is a root with no children, and ``--summary`` reports zero transitive dependencies and a max
+depth of one. ``--freeze`` output does not change. To see edges, have the lock's producer record them (``uv export``
+does), or render the same packages from an installed environment with the default command or from an index with
+``from-index``.
+
+Locks for several environments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A universal lock can pin one package several times, each entry guarded by an environment ``marker``. ``from-lock``
+evaluates each marker against the interpreter that runs pipdeptree and keeps the entries that match, so one run shows
+one environment. This lock pins ``colorama`` for Windows only:
+
+.. code-block:: toml
+    :caption: pylock.toml
+
+    lock-version = "1.0"
+
+    [[packages]]
+    name = "click"
+    version = "8.3.1"
+    dependencies = [{ name = "colorama" }]
+
+    [[packages]]
+    name = "colorama"
+    version = "0.4.6"
+    marker = "sys_platform == 'win32'"
+
+On Linux or macOS the marker fails, so ``from-lock`` drops the entry and the edge from ``click`` points at nothing;
+the candidate shows as unknown:
+
+.. code-block:: console
+
+    $ pipdeptree from-lock pylock.toml
+    click==8.3.1
+    └── colorama [candidate: ?]
+
+``from-lock`` does not render several targets from one lock at once; run pipdeptree under an interpreter for the
+other platform to project the lock for it.
+
 Lock limitations
 ~~~~~~~~~~~~~~~~~
 
