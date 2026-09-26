@@ -5,8 +5,12 @@ use std::process::Command;
 
 fn main() {
     println!("cargo:rerun-if-env-changed=PIPDEPTREE_VERSION");
-    println!("cargo:rerun-if-changed=PKG-INFO");
-    println!("cargo:rerun-if-changed=.git");
+    // Missing inputs stay dirty in Cargo and in Meson's editable-install depfile.
+    for path in ["PKG-INFO", ".git"] {
+        if Path::new(path).exists() {
+            println!("cargo:rerun-if-changed={path}");
+        }
+    }
     let version = env::var("PIPDEPTREE_VERSION")
         .ok()
         .or_else(from_git)
@@ -35,7 +39,9 @@ fn from_git() -> Option<String> {
         "packed-refs",
     ]) {
         for path in paths.lines() {
-            println!("cargo:rerun-if-changed={path}");
+            if Path::new(path).exists() {
+                println!("cargo:rerun-if-changed={path}");
+            }
         }
     }
     let described = git(&["describe", "--tags", "--long", "--match", "[0-9]*"])?;
