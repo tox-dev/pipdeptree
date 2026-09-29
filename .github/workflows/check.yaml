@@ -26,7 +26,7 @@ jobs:
       - name: Install Graphviz
         run: sudo apt-get install graphviz -y
       - name: Install uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: false
       - name: Install resolver dependencies
@@ -36,7 +36,7 @@ jobs:
       - name: Check lints
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Install coverage tool
-        uses: taiki-e/install-action@26e9283f268b880168bdbd2c545dfcd60ec2c6ab # v2.87.13
+        uses: taiki-e/install-action@dfae9bf3d6f6c6f20ef4ebb3486c01a51341ff12 # v2.87.18
         with:
           tool: cargo-llvm-cov
       - name: Run tests with coverage
@@ -90,7 +90,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: false
           cache-dependency-glob: "pyproject.toml"
