@@ -12,7 +12,7 @@ permissions:
   contents: read
 jobs:
   prepare-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     environment: release-auth
     permissions:
       contents: write # the release commit and its tag go straight to main

@@ -17,7 +17,7 @@ jobs:
         # API, so each takes a wheel of its own.
         build: [cp310, cp314t, cp315t, pp311]
         platform:
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             arch: x86_64
           - os: ubuntu-24.04-arm
             arch: aarch64
@@ -132,7 +132,7 @@ jobs:
           name: dists-${{ matrix.platform.os }}-${{ matrix.build }}
           path: dist/*
   sdist:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

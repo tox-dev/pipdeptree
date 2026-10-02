@@ -9,7 +9,7 @@ jobs:
     uses: $/.github/workflows/dist.yaml
   release:
     needs: dist
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     environment:
       name: release
       url: https://pypi.org/project/pipdeptree/${{ github.ref_name }}

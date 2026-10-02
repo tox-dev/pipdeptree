@@ -16,7 +16,7 @@ jobs:
   dist:
     uses: $/.github/workflows/dist.yaml
   rust:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     env:
       PYTHONPATH: ${{ github.workspace }}/.python-packages
     steps:
@@ -47,7 +47,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
+          - ubuntu-26.04
           - windows-latest
         env:
           - "pypy-3.11"
@@ -111,7 +111,7 @@ jobs:
   check:
     needs: [dist, rust, test]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Fail when a job this one waited on did
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
