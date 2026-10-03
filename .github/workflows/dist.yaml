@@ -17,7 +17,7 @@ jobs:
         # API, so each takes a wheel of its own.
         build: [cp310, cp314t, cp315t, pp311]
         platform:
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             arch: x86_64
           - os: ubuntu-24.04-arm
             arch: aarch64
@@ -121,18 +121,19 @@ jobs:
           CIBW_ENVIRONMENT: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }}
           # musl targets default to a static CRT, which makes Cargo drop the cdylib crate type
           CIBW_ENVIRONMENT_LINUX: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
-          # One target directory across the four builds leaves the dependency graph compiled after the first
-          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} MACOSX_DEPLOYMENT_TARGET=10.15 CARGO_TARGET_DIR=$HOME/cargo-target
+          # One target directory across the four builds leaves the dependency graph compiled after the first;
+          # arm64 macOS starts at 11.0, so only the x86_64 wheels can reach back to 10.15
+          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} MACOSX_DEPLOYMENT_TARGET=${{ matrix.platform.arch == 'arm64' && '11.0' || '10.15' }} CARGO_TARGET_DIR=$HOME/cargo-target
           CIBW_TEST_COMMAND: pipdeptree --version
         with:
           output-dir: dist
       - name: Store wheels
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dists-${{ matrix.platform.os }}-${{ matrix.build }}
           path: dist/*
   sdist:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -145,7 +146,7 @@ jobs:
       - name: Build source distribution
         run: uv build --sdist --out-dir dist
       - name: Store source distribution
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dists-sdist
           path: dist/*

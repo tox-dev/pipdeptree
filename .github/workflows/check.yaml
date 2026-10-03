@@ -16,7 +16,7 @@ jobs:
   dist:
     uses: $/.github/workflows/dist.yaml
   rust:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     env:
       PYTHONPATH: ${{ github.workspace }}/.python-packages
     steps:
@@ -36,7 +36,7 @@ jobs:
       - name: Check lints
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Install coverage tool
-        uses: taiki-e/install-action@dfae9bf3d6f6c6f20ef4ebb3486c01a51341ff12 # v2.87.18
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: cargo-llvm-cov
       - name: Run tests with coverage
@@ -47,7 +47,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
+          - ubuntu-26.04
           - windows-latest
         env:
           - "pypy-3.11"
@@ -111,7 +111,7 @@ jobs:
   check:
     needs: [dist, rust, test]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Fail when a job this one waited on did
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')

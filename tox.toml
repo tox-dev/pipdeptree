@@ -1,4 +1,4 @@
-requires = [ "tox>=4.61.2", "tox-uv>=1.36" ]
+requires = [ "tox>=4.64.7", "tox-uv>=1.36.1" ]
 env_list = [
   "3.15",
   "3.14",
@@ -110,7 +110,7 @@ commands = [ [ "pre-commit", "run", "--all-files", "--show-diff-on-failure" ] ]
 [env.pkg_meta]
 description = "check that the long description is valid"
 skip_install = true
-deps = [ "check-wheel-contents>=0.6.3", "twine>=7", "uv>=0.12.10" ]
+deps = [ "check-wheel-contents>=0.6.3", "twine>=7", "uv>=0.12.22" ]
 commands = [
   [ "uv", "build", "--sdist", "--wheel", "--out-dir", "{env_tmp_dir}", "." ],
   [ "twine", "check", "{env_tmp_dir}{/}*" ],
@@ -119,7 +119,7 @@ commands = [
 
 [env.type]
 description = "run type check on code base"
-deps = [ "ty>=0.0.79" ]
+deps = [ "ty>=0.0.84" ]
 commands = [ [ "ty", "check", "--python-platform", "all", "--output-format", "concise", "--error-on-warning", "." ] ]
 
 [env.dev]
