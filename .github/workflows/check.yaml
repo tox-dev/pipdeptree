@@ -24,6 +24,8 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Graphviz
+        id: graphviz
+        background: true
         run: sudo apt-get install graphviz -y
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -39,6 +41,7 @@ jobs:
         uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: cargo-llvm-cov
+      - wait: graphviz
       - name: Run tests with coverage
         run: cargo llvm-cov --no-default-features --test public_api --fail-under-lines 100 --fail-under-functions 100
   test:
