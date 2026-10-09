@@ -13,9 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # cp310 carries the abi3 wheel every GIL build shares; a free-threaded interpreter cannot use the limited
+        # cp315 carries the abi3 wheel every GIL build shares; a free-threaded interpreter cannot use the limited
         # API, so each takes a wheel of its own.
-        build: [cp310, cp314t, cp315t, pp311]
+        build: [cp315, cp314t, cp315t, pp311]
         platform:
           - os: ubuntu-26.04
             arch: x86_64
@@ -35,7 +35,7 @@ jobs:
           # The Intel runner takes about twice as long as the arm one for the same work, so it splits its four
           # builds over two jobs; three macOS jobs stay well inside the cap that made a job per interpreter queue.
           - build: gil
-            identifiers: cp310-* pp311-*
+            identifiers: cp315-* pp311-*
             platform:
               os: macos-15-intel
               arch: x86_64
@@ -45,7 +45,7 @@ jobs:
               os: macos-15-intel
               arch: x86_64
           - build: every
-            identifiers: cp310-* cp314t-* cp315t-* pp311-*
+            identifiers: cp315-* cp314t-* cp315t-* pp311-*
             platform:
               os: macos-latest
               arch: arm64
@@ -113,7 +113,6 @@ jobs:
           # hardlink on aarch64.
           CIBW_BEFORE_ALL_LINUX: >-
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal ${{ steps.rust.outputs.flags }}
-          # 3.15 is still a prerelease, so cpython-prerelease enables its free-threaded build.
           CIBW_BUILD: ${{ matrix.identifiers || format('{0}-*', matrix.build) }}
           CIBW_ENABLE: pypy cpython-prerelease
           # The Linux builds run as root in a container over a checkout owned by the runner user, and git
