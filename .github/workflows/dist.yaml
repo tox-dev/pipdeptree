@@ -60,10 +60,15 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
           cache: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.15"
+          enable-cache: false
       - name: Resolve the version
         id: version
         shell: bash
-        run: echo "value=$(python3 tools/version.py)" >> "$GITHUB_OUTPUT"
+        run: echo "value=$(uv run --no-project --python 3.15 python tools/version.py)" >> "$GITHUB_OUTPUT"
       # cibuildwheel pulls its container inside docker create, and a slow quay.io response there fails the job.
       # It skips that pull when the image is already on the runner, so fetch the image here with retries and point
       # cibuildwheel at the same tag rather than at the digest it pins itself.
@@ -95,7 +100,7 @@ jobs:
         id: rust
         shell: bash
         run: |
-          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          uv run --no-project --python 3.15 python - <<'EOF' >> "$GITHUB_OUTPUT"
           import tomllib
           from pathlib import Path
 
@@ -126,10 +131,6 @@ jobs:
           CIBW_TEST_COMMAND: pipdeptree --version
         with:
           output-dir: dist
-      - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        with:
-          enable-cache: false
       - name: Set the stable ABI minimum
         shell: bash
         run: |
@@ -154,6 +155,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          python-version: "3.15"
           enable-cache: false
       - name: Build source distribution
         run: uv build --sdist --out-dir dist
