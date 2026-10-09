@@ -54,7 +54,7 @@ Running tests
 
 The Rust suite calls production code through ``Application`` and its public process boundary. Disabling
 extension-module linking lets the test executable link to Python. The Python suite tests the packaged API and CLI.
-You can substitute a supported Python version from 3.10 through 3.14.
+You can substitute a supported Python version from 3.11 through 3.15.
 
 Documentation examples
 -----------------------

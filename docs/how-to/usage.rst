@@ -334,7 +334,7 @@ from-lock (render a PEP 751 lock)
 
 The ``from-lock`` subcommand reads a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock file
 (``pylock.toml``) and renders its dependency tree. A lock records the pinned packages, their versions and the edges
-between them. ``from-lock`` runs **offline** with no package index or network on Python 3.10 through 3.14. The native
+between them. ``from-lock`` runs **offline** with no package index or network on Python 3.11 through 3.15. The native
 extension parses TOML with Rust's ``toml`` crate. Take this lock:
 
 .. code-block:: toml
@@ -518,7 +518,7 @@ one environment. This lock pins ``importlib-metadata`` for interpreters older th
     version = "8.7.0"
     marker = "python_version < '3.10'"
 
-pipdeptree runs on Python 3.10 or newer, so the marker fails, ``from-lock`` drops the entry and the edge from
+pipdeptree runs on Python 3.11 or newer, so the marker fails, ``from-lock`` drops the entry and the edge from
 ``build`` points at nothing; the candidate shows as unknown:
 
 .. code-block:: console

@@ -43,7 +43,7 @@ temp-env = "0.3.6"
 
 [features]
 extension-module = ["pyo3/extension-module"]
-abi3 = ["pyo3/abi3-py310"]
+abi3 = ["pyo3/abi3-py311"]
 default = ["extension-module"]
 
 [lints.clippy]

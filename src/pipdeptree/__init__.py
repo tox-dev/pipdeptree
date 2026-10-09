@@ -21,8 +21,7 @@ from .version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import Container
-
-    from typing_extensions import Self
+    from typing import Self
 
 
 def render(  # ruff:ignore[too-many-arguments]  # The public keyword API predates the Rust implementation.
