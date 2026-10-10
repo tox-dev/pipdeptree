@@ -1,7 +1,8 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use rayon::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
+use serde::Serialize;
 use std::fmt::Write as _;
 use std::fs;
 use std::io;
@@ -45,12 +46,29 @@ pub struct DiscoveryWarning {
     pub failure: bool,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct ResolvedDeclaration {
+    pub requirement_text: String,
+    pub dependency_specifier: String,
+    pub requirement_condition: Option<String>,
+    pub dependency_extras: Vec<String>,
+    pub required_for_parent_extras: Vec<String>,
+    pub required_without_parent_extras: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct ResolvedEdge {
+    pub child: String,
+    pub declaration: Option<ResolvedDeclaration>,
+}
+
 // The common currency of every package source (installed environment, lock file, index resolve):
 // the packages to render plus any environment-level warnings gathered while finding them.
 #[derive(Debug)]
 pub struct Discovered {
     pub packages: Vec<Package>,
     pub warnings: Vec<DiscoveryWarning>,
+    pub resolved_edges: Option<HashMap<String, Vec<ResolvedEdge>>>,
 }
 
 impl Discovered {
@@ -58,6 +76,7 @@ impl Discovered {
         Self {
             packages,
             warnings: Vec::new(),
+            resolved_edges: None,
         }
     }
 }
@@ -434,6 +453,7 @@ fn discover_with_fields(
     Ok(Discovered {
         packages,
         warnings: path_warnings(&archive_paths, &invalid_paths, duplicates),
+        resolved_edges: None,
     })
 }
 

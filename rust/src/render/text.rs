@@ -5,8 +5,8 @@ use crate::graph::{Dependency, Graph, ReverseRoot};
 use crate::options::{ComputedField, Options};
 use crate::process::ProcessRunner;
 
-use super::rich_text::{self, DependencyLabel, Status};
-use super::shared::{format_size, required_version, reverse_required_extra};
+use super::rich_text::{self, DependencyLabel, Status, VersionLabel};
+use super::shared::{format_size, required_version, reverse_required_extras};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(super) enum TextStyle {
@@ -136,11 +136,15 @@ impl TreeRenderer<'_> {
     fn walk_reverse(
         &mut self,
         child: usize,
-        required_extra: Option<&str>,
+        required_extras: Option<&BTreeSet<String>>,
         prefix: &str,
         depth: usize,
     ) {
-        self.walk_reverse_parents(self.graph.parents_for(child, required_extra), prefix, depth);
+        self.walk_reverse_parents(
+            self.graph.parents_for(child, required_extras),
+            prefix,
+            depth,
+        );
     }
 
     fn walk_reverse_parents(
@@ -172,10 +176,9 @@ impl TreeRenderer<'_> {
                 label
             ));
             self.path.insert(parent);
-            let required_extra =
-                reverse_required_extra(self.graph, parent, dependency).map(ToOwned::to_owned);
+            let required_extras = reverse_required_extras(self.graph, parent, dependency);
             let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
-            self.walk_reverse(parent, required_extra.as_deref(), &next_prefix, depth + 1);
+            self.walk_reverse(parent, required_extras.as_ref(), &next_prefix, depth + 1);
             self.path.remove(&parent);
         }
     }
@@ -218,10 +221,15 @@ fn reverse_label(
         || dependency.key().to_string(),
         |target| graph.nodes[target].package.name.clone(),
     );
+    if let Some(declaration) = &dependency.declaration {
+        if !declaration.dependency_extras.is_empty() {
+            let _ = write!(required, "[{}]", declaration.dependency_extras.join(","));
+        }
+    }
     if let Some(specifier) = dependency.version_spec() {
         required.push_str(&specifier);
     }
-    if let Some(extra) = &dependency.activated_by {
+    if let Some(extra) = dependency.activating_extras() {
         let _ = write!(required, ", extra: {extra}");
     }
     let suffix = node_suffix(graph, parent, options, ", ");
@@ -248,15 +256,30 @@ impl TreeRenderer<'_> {
             || dependency.key(),
             |target| self.graph.nodes[target].package.name.as_str(),
         );
-        let extra = dependency
-            .activated_by
+        let name = dependency.declaration.as_ref().map_or_else(
+            || name.to_string(),
+            |declaration| {
+                if declaration.dependency_extras.is_empty() {
+                    name.to_string()
+                } else {
+                    format!("{name}[{}]", declaration.dependency_extras.join(","))
+                }
+            },
+        );
+        let activating_extras = dependency.activating_extras();
+        let extra = activating_extras
             .as_ref()
             .map_or_else(String::new, |extra| format!(", extra: {extra}"));
         let detail = if self.options.resolved() {
+            let required = dependency
+                .declaration
+                .as_ref()
+                .map(|_| format!("required: {}, ", required_version(dependency)))
+                .unwrap_or_default();
             if self.style == TextStyle::Rich {
-                format!("candidate: {installed}")
+                format!("{required}candidate: {installed}")
             } else {
-                format!("candidate: {installed}{extra}")
+                format!("{required}candidate: {installed}{extra}")
             }
         } else {
             let required = required_version(dependency);
@@ -280,15 +303,25 @@ impl TreeRenderer<'_> {
                 (false, false, _) => Status::Success,
             };
             if self.color {
+                let required = (!self.options.resolved() || dependency.declaration.is_some())
+                    .then(|| required_version(dependency));
                 return rich_text::dependency(&DependencyLabel {
                     status,
                     unique,
                     unicode: self.unicode,
-                    name,
-                    candidate: self.options.resolved().then_some(installed),
-                    required: dependency.version_spec().as_deref().unwrap_or("Any"),
-                    installed,
-                    extra: dependency.activated_by.as_deref(),
+                    name: &name,
+                    version: if self.options.resolved() {
+                        VersionLabel::Candidate {
+                            required: required.as_deref(),
+                            candidate: installed,
+                        }
+                    } else {
+                        VersionLabel::Installed {
+                            required: required.as_deref().unwrap_or("Any"),
+                            installed,
+                        }
+                    },
+                    extra: activating_extras.as_deref(),
                     suffix: &suffix,
                 });
             }
@@ -298,8 +331,7 @@ impl TreeRenderer<'_> {
             } else {
                 String::new()
             };
-            let extra = dependency
-                .activated_by
+            let extra = activating_extras
                 .as_ref()
                 .map_or_else(String::new, |extra| format!(" [extra: {extra}]"));
             format!("{marker}{star} {name} {detail}{extra}{suffix}")

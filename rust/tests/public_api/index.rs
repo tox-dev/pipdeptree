@@ -1,12 +1,16 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use _pipdeptree::Execution;
 use pyo3::ffi::c_str;
 use pyo3::types::{PyAnyMethods as _, PyDict, PyDictMethods as _};
 use rstest::rstest;
+use serde_json::{Value, json};
 use tempfile::tempdir;
 
-use super::common::{execute, execute_with_python, install_resolver, stdout, with_python};
+use super::common::{
+    execute, execute_with_python, execute_with_runner, install_resolver, stdout, with_python,
+};
 
 #[test]
 fn resolves_inline_requirements() {
@@ -39,7 +43,7 @@ fn resolves_inline_requirements() {
         ),
         (
             0,
-            "parent==1\n├── child [candidate: 2]\n└── external [candidate: ?]\n",
+            "parent==1\n├── child [required: >=1, candidate: 2]\n└── external [required: Any, candidate: ?]\n",
             "",
             concat!(
                 "[project]\n",
@@ -61,6 +65,297 @@ fn resolves_inline_requirements() {
             )
             .to_string(),
         )
+    );
+}
+
+#[rstest]
+#[case::default(None, None)]
+#[case::nab(Some("nab"), None)]
+#[case::xdg(None, Some("xdg"))]
+#[case::nab_precedes_xdg(Some("nab"), Some("xdg"))]
+#[case::relative_xdg(None, Some("relative"))]
+fn passes_cache_path_to_nab(#[case] nab: Option<&str>, #[case] xdg: Option<&str>) {
+    let directory = tempdir().unwrap();
+    with_python(|python| {
+        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
+        let nab_path = directory.path().join("nab");
+        let xdg_path = directory.path().join("xdg");
+        let output = temp_env::with_vars(
+            [
+                ("NAB_CACHE_DIR", nab.map(|_| nab_path.to_str().unwrap())),
+                (
+                    "XDG_CACHE_HOME",
+                    xdg.map(|value| {
+                        if value == "relative" {
+                            value
+                        } else {
+                            xdg_path.to_str().unwrap()
+                        }
+                    }),
+                ),
+            ],
+            || execute_with_python(python, &["from-index", "parent"]),
+        );
+        let actual = python
+            .import("nab_project.resolve")
+            .unwrap()
+            .getattr("last_cache_dir")
+            .unwrap()
+            .extract::<std::path::PathBuf>()
+            .unwrap();
+        let expected = if nab.is_some() {
+            nab_path
+        } else if xdg == Some("xdg") {
+            xdg_path.join("nab")
+        } else {
+            python
+                .import("pathlib")
+                .unwrap()
+                .getattr("Path")
+                .unwrap()
+                .call_method0("home")
+                .unwrap()
+                .extract::<std::path::PathBuf>()
+                .unwrap()
+                .join(".cache/nab")
+        };
+        assert_eq!((output.code, actual), (0, expected));
+    });
+}
+
+#[test]
+fn rejects_empty_nab_cache_dir() {
+    let output = with_python(|python| {
+        temp_env::with_var("NAB_CACHE_DIR", Some(""), || {
+            execute_with_python(python, &["from-index", "parent"])
+        })
+    });
+
+    assert_eq!(
+        (output.code, output.stderr.as_str()),
+        (1, "ValueError: NAB_CACHE_DIR must be a non-empty path\n")
+    );
+}
+
+#[test]
+fn preserves_active_declarations_in_json() {
+    let output = resolved_output(&[
+        "--warn",
+        "silence",
+        "--json",
+        "from-index",
+        "parent[feature]",
+    ]);
+    let entries: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let parent = entries
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["package"]["key"] == "parent")
+        .unwrap();
+    let children = parent["dependencies"].as_array().unwrap();
+
+    assert_eq!(
+        children
+            .iter()
+            .filter(|entry| entry["key"] == "child")
+            .map(|entry| (&entry["required_version"], &entry["declaration"]))
+            .collect::<Vec<_>>(),
+        vec![
+            (
+                &json!(">=1"),
+                &json!({
+                    "requirement_text": "child>=1",
+                    "dependency_specifier": ">=1",
+                    "requirement_condition": null,
+                    "dependency_extras": [],
+                    "required_for_parent_extras": [],
+                    "required_without_parent_extras": true,
+                }),
+            ),
+            (
+                &json!("<3"),
+                &json!({
+                    "requirement_text": "child[socks]<3; extra == \"feature\"",
+                    "dependency_specifier": "<3",
+                    "requirement_condition": "extra == \"feature\"",
+                    "dependency_extras": ["socks"],
+                    "required_for_parent_extras": ["feature"],
+                    "required_without_parent_extras": false,
+                }),
+            ),
+        ]
+    );
+}
+
+#[test]
+fn leaves_unrecorded_edges_without_a_required_version() {
+    let output = resolved_output(&["--warn", "silence", "--json", "from-index", "parent[empty]"]);
+    let entries: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let parent = entries
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["package"]["key"] == "parent")
+        .unwrap();
+
+    assert_eq!(
+        parent["dependencies"][1],
+        json!({
+            "key": "external",
+            "package_name": "external",
+            "candidate_version": "?",
+        })
+    );
+}
+
+#[rstest]
+#[case::root(&[])]
+#[case::filtered(&["--packages", "parent[feature]"])]
+fn renders_parent_and_child_extras(#[case] flags: &[&str]) {
+    let output = resolved_output(
+        &["--warn", "silence"]
+            .iter()
+            .copied()
+            .chain(flags.iter().copied())
+            .chain(["from-index", "parent[feature]"])
+            .collect::<Vec<_>>(),
+    );
+
+    assert_eq!(
+        stdout(&output),
+        concat!(
+            "parent==1\n",
+            "├── child [required: >=1, candidate: 2]\n",
+            "├── child[socks] [required: <3, candidate: 2, extra: feature]\n",
+            "└── external [required: Any, candidate: ?]\n",
+        )
+    );
+}
+
+#[test]
+fn renders_declarations_in_colored_rich_text() {
+    let directory = tempdir().unwrap();
+    let output = with_python(|python| {
+        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
+        execute_with_runner(
+            &_pipdeptree::SystemProcessRunner,
+            python,
+            &[
+                "--warn",
+                "silence",
+                "--output",
+                "rich",
+                "from-index",
+                "parent[feature]",
+            ],
+            true,
+        )
+    });
+
+    assert!(stdout(&output).contains("required:"));
+    assert!(stdout(&output).contains("candidate:"));
+    assert!(stdout(&output).contains("child[socks]"));
+}
+
+#[test]
+fn renders_declarations_in_reverse_text() {
+    let output = resolved_output(&[
+        "--warn",
+        "silence",
+        "--reverse",
+        "--packages",
+        "child",
+        "from-index",
+        "parent[feature]",
+    ]);
+
+    assert!(stdout(&output).contains("[requires: child[socks]<3, extra: feature]"));
+}
+
+#[rstest]
+#[case::mermaid(&["--mermaid"], "parent -- \"[feature] <3\" --> child")]
+#[case::graphviz(&["--graph-output", "dot"], "parent -> child [label=\"[feature] <3\"]")]
+fn renders_declarations_in_graph_edges(#[case] args: &[&str], #[case] expected: &str) {
+    let output = resolved_output(
+        &args
+            .iter()
+            .copied()
+            .chain(["from-index", "parent[feature]"])
+            .collect::<Vec<_>>(),
+    );
+
+    assert!(stdout(&output).contains(expected));
+}
+
+#[rstest]
+#[case::forward_tree(&["--json-tree"], false)]
+#[case::reverse_flat(&["--json", "--reverse", "--packages", "child"], true)]
+#[case::reverse_tree(&["--json-tree", "--reverse", "--packages", "child"], true)]
+fn retains_declarations_in_json(#[case] flags: &[&str], #[case] reverse: bool) {
+    let output = resolved_output(
+        &["--warn", "silence"]
+            .iter()
+            .copied()
+            .chain(flags.iter().copied())
+            .chain(["from-index", "parent[feature]"])
+            .collect::<Vec<_>>(),
+    );
+    let entries: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(
+        entries[0]["dependencies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|entry| reverse || entry["key"] == "child")
+            .map(|entry| (
+                &entry["required_version"],
+                &entry["declaration"]["requirement_text"]
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            (&json!(">=1"), &json!("child>=1")),
+            (&json!("<3"), &json!("child[socks]<3; extra == \"feature\"")),
+        ]
+    );
+}
+
+#[test]
+fn reverse_follows_parent_extras_from_nab() {
+    let output = resolved_output(&[
+        "--warn",
+        "silence",
+        "--json-tree",
+        "--reverse",
+        "--packages",
+        "child",
+        "from-index",
+        "chain",
+        "other",
+        "plain",
+    ]);
+    let entries: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(
+        entries[0]["dependencies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| json!({
+                "extra": entry["declaration"]["required_for_parent_extras"],
+                "parents": entry["dependencies"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|parent| &parent["key"])
+                    .collect::<Vec<_>>(),
+            }))
+            .collect::<Vec<_>>(),
+        vec![
+            json!({"extra": [], "parents": ["chain", "other", "plain"]}),
+            json!({"extra": ["feature", "other"], "parents": ["chain", "other"]}),
+        ]
     );
 }
 
@@ -110,7 +405,7 @@ fn parses_requirement_sources() {
         ),
         (
             0,
-            "parent==1\n├── child [candidate: 2]\n└── external [candidate: ?]\n",
+            "parent==1\n├── child [required: >=1, candidate: 2]\n└── external [required: Any, candidate: ?]\n",
             "",
             expected_requirement_sources(&sources),
         )
@@ -372,7 +667,7 @@ fn resolves_pyproject_indexes(
         ),
         (
             0,
-            "parent==1\n├── child [candidate: 2]\n└── external [candidate: ?]\n",
+            "parent==1\n├── child [required: >=1, candidate: 2]\n└── external [required: Any, candidate: ?]\n",
             "",
             true,
         )
@@ -658,6 +953,14 @@ enum InvalidSource {
     LocalWithoutPyproject,
     LocalWithoutName,
     MalformedLocal,
+}
+
+fn resolved_output(args: &[&str]) -> Execution {
+    let directory = tempdir().unwrap();
+    with_python(|python| {
+        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
+        execute_with_python(python, args)
+    })
 }
 
 struct RequirementSources {

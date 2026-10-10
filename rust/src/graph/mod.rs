@@ -11,7 +11,7 @@ use pep508_rs::marker::{MarkerExpression, MarkerValueExtra};
 use pep508_rs::pep440_rs::Version;
 use pep508_rs::{ExtraName, MarkerEnvironment, MarkerTree, Requirement, VerbatimUrl, VersionOrUrl};
 
-use crate::metadata::{Package, canonicalize_name};
+use crate::metadata::{Package, ResolvedDeclaration, ResolvedEdge, canonicalize_name};
 use crate::options::ExtrasMode;
 
 mod extras;
@@ -25,6 +25,7 @@ pub struct Dependency {
     pub requirement: Requirement<VerbatimUrl>,
     pub target: Option<usize>,
     pub activated_by: Option<String>,
+    pub declaration: Option<ResolvedDeclaration>,
     version_spec: OnceLock<Option<String>>,
 }
 
@@ -34,6 +35,7 @@ impl Clone for Dependency {
             requirement: self.requirement.clone(),
             target: self.target,
             activated_by: self.activated_by.clone(),
+            declaration: self.declaration.clone(),
             version_spec: OnceLock::new(),
         }
     }
@@ -94,16 +96,35 @@ impl Dependency {
 
     pub fn version_spec(&self) -> Option<String> {
         self.version_spec
-            .get_or_init(|| match &self.requirement.version_or_url {
-                Some(VersionOrUrl::VersionSpecifier(specifiers)) if !specifiers.is_empty() => {
-                    Some(specifiers.to_string().replace(", ", ","))
+            .get_or_init(|| {
+                if let Some(declaration) = &self.declaration {
+                    return (!declaration.dependency_specifier.is_empty())
+                        .then(|| declaration.dependency_specifier.clone());
                 }
-                _ => None,
+                match &self.requirement.version_or_url {
+                    Some(VersionOrUrl::VersionSpecifier(specifiers)) if !specifiers.is_empty() => {
+                        Some(specifiers.to_string().replace(", ", ","))
+                    }
+                    _ => None,
+                }
             })
             .clone()
     }
 
+    pub fn activating_extras(&self) -> Option<String> {
+        self.declaration.as_ref().map_or_else(
+            || self.activated_by.clone(),
+            |declaration| {
+                (!declaration.required_for_parent_extras.is_empty())
+                    .then(|| declaration.required_for_parent_extras.join(","))
+            },
+        )
+    }
+
     pub fn requested_extras(&self) -> BTreeSet<String> {
+        if let Some(declaration) = &self.declaration {
+            return declaration.dependency_extras.iter().cloned().collect();
+        }
         self.requirement
             .extras
             .iter()
@@ -140,6 +161,7 @@ impl Dependency {
 impl Graph {
     pub fn new(
         mut packages: Vec<Package>,
+        mut resolved_edges: Option<std::collections::HashMap<String, Vec<ResolvedEdge>>>,
         marker: &MarkerEnvironment,
         extras_mode: ExtrasMode,
     ) -> Self {
@@ -152,7 +174,12 @@ impl Graph {
         let mut warnings = Vec::new();
         let nodes = packages
             .into_iter()
-            .map(|package| Self::build_node(package, marker, &index, &mut warnings))
+            .map(|package| {
+                let edges = resolved_edges
+                    .as_mut()
+                    .and_then(|edges| edges.remove(&package.key));
+                Self::build_node(package, edges, marker, &index, &mut warnings)
+            })
             .collect::<Vec<_>>();
         let mut graph = Self {
             visible: vec![true; nodes.len()],
@@ -177,13 +204,31 @@ impl Graph {
 
     fn build_node(
         mut package: Package,
+        resolved_edges: Option<Vec<ResolvedEdge>>,
         marker: &MarkerEnvironment,
         index: &HashMap<String, usize>,
         warnings: &mut Vec<String>,
     ) -> Node {
         let mut mandatory = Vec::new();
         let mut optional = BTreeMap::<String, Vec<Dependency>>::new();
-        let requires = std::mem::take(&mut package.requires);
+        let resolved = resolved_edges.is_some();
+        if let Some(edges) = resolved_edges {
+            mandatory.extend(edges.into_iter().map(|edge| {
+                Dependency {
+                    requirement: Requirement::<VerbatimUrl>::from_str(&edge.child)
+                        .expect("nab dependency names are valid PEP 508 names"),
+                    target: index.get(&edge.child).copied(),
+                    activated_by: None,
+                    declaration: edge.declaration,
+                    version_spec: OnceLock::new(),
+                }
+            }));
+        }
+        let requires = if resolved {
+            Vec::new()
+        } else {
+            std::mem::take(&mut package.requires)
+        };
         for raw in requires {
             let Ok(requirement) = Requirement::<VerbatimUrl>::from_str(&raw) else {
                 warnings.push(format!(
@@ -196,6 +241,7 @@ impl Graph {
                 target: index.get(requirement.name.as_ref()).copied(),
                 requirement,
                 activated_by: None,
+                declaration: None,
                 version_spec: OnceLock::new(),
             };
             if dependency.requirement.evaluate_markers(marker, &[]) {
@@ -217,7 +263,9 @@ impl Graph {
             }
         }
         mandatory.sort_by(|left, right| left.key().cmp(right.key()));
-        mandatory.dedup_by(|left, right| left.requirement == right.requirement);
+        if !resolved {
+            mandatory.dedup_by(|left, right| left.requirement == right.requirement);
+        }
         for dependencies in optional.values_mut() {
             dependencies.sort_by(|left, right| left.key().cmp(right.key()));
             dependencies.dedup_by(|left, right| left.requirement == right.requirement);
@@ -285,9 +333,8 @@ impl Graph {
     pub fn parents_for(
         &self,
         child: usize,
-        required_extra: Option<&str>,
+        required_extras: Option<&BTreeSet<String>>,
     ) -> Vec<(usize, &Dependency)> {
-        let required = required_extra.map(canonicalize_name);
         let mut result = Vec::new();
         // Nodes sort by key at construction, so ascending parent indices are already key order.
         for (parent, slot) in &self.reverse_edges()[child] {
@@ -295,12 +342,22 @@ impl Graph {
                 continue;
             }
             let dependency = &self.nodes[*parent].dependencies[*slot];
-            if required.as_ref().is_none_or(|extra| {
-                dependency
-                    .requirement
-                    .extras
-                    .iter()
-                    .any(|candidate| candidate.as_ref() == extra)
+            if required_extras.is_none_or(|extras| {
+                dependency.declaration.as_ref().map_or_else(
+                    || {
+                        dependency
+                            .requirement
+                            .extras
+                            .iter()
+                            .any(|candidate| extras.contains(candidate.as_ref()))
+                    },
+                    |declaration| {
+                        declaration
+                            .dependency_extras
+                            .iter()
+                            .any(|extra| extras.contains(extra))
+                    },
+                )
             }) {
                 result.push((*parent, dependency));
             }
@@ -628,7 +685,10 @@ impl Graph {
         result.dedup_by(|left, right| {
             let left = &node.dependencies[*left];
             let right = &node.dependencies[*right];
-            left.requirement == right.requirement && left.activated_by == right.activated_by
+            left.declaration.is_none()
+                && right.declaration.is_none()
+                && left.requirement == right.requirement
+                && left.activated_by == right.activated_by
         });
         result
     }

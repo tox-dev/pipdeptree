@@ -7,7 +7,7 @@ use crate::graph::{Dependency, Graph, ReverseRoot};
 use crate::options::Options;
 
 use super::json::computed_json;
-use super::shared::{required_version, reverse_required_extra};
+use super::shared::{required_version, reverse_required_extras};
 
 pub(super) fn render(graph: &Graph, options: &Options) -> String {
     let entries = if options.reverse {
@@ -95,28 +95,30 @@ fn reverse_tree_json(
     graph: &Graph,
     index: usize,
     incoming: Option<&Dependency>,
-    required_extra: Option<&str>,
+    required_extras: Option<&BTreeSet<String>>,
     path: &mut HashSet<usize>,
     options: &Options,
 ) -> Value {
     path.insert(index);
     let mut value = package_json(graph, index, options);
     if let Some(dependency) = incoming {
-        if !options.resolved() {
-            value["required_version"] = Value::String(required_version(dependency));
-        }
+        add_requirement_json(
+            value.as_object_mut().expect("package JSON is an object"),
+            dependency,
+            options,
+        );
     } else if !options.resolved() {
         value["required_version"] = Value::String(graph.nodes[index].package.version.clone());
     }
     let mut dependencies = Vec::new();
-    for (parent, dependency) in graph.parents_for(index, required_extra) {
+    for (parent, dependency) in graph.parents_for(index, required_extras) {
         if !path.contains(&parent) {
-            let required_extra = reverse_required_extra(graph, parent, dependency);
+            let required_extras = reverse_required_extras(graph, parent, dependency);
             dependencies.push(reverse_tree_json(
                 graph,
                 parent,
                 Some(dependency),
-                required_extra,
+                required_extras.as_ref(),
                 path,
                 options,
             ));
@@ -142,12 +144,7 @@ fn missing_dependency_json(graph: &Graph, dependency: &Dependency, options: &Opt
             Value::String(graph.missing_version(name).to_string()),
         ),
     ]);
-    if !options.resolved() {
-        object.insert(
-            "required_version".to_string(),
-            Value::String(required_version(dependency)),
-        );
-    }
+    add_requirement_json(&mut object, dependency, options);
     object.insert("dependencies".to_string(), Value::Array(Vec::new()));
     Value::Object(object)
 }
@@ -236,15 +233,32 @@ fn dependency_json(graph: &Graph, dependency: &Dependency, options: &Options) ->
         object.insert("candidate_version".to_string(), Value::String(version));
     } else {
         object.insert("installed_version".to_string(), Value::String(version));
+    }
+    add_requirement_json(&mut object, dependency, options);
+    if let Some(extra) = &dependency.activated_by {
+        object.insert("extra".to_string(), Value::String(extra.clone()));
+    }
+    Value::Object(object)
+}
+
+fn add_requirement_json(
+    object: &mut Map<String, Value>,
+    dependency: &Dependency,
+    options: &Options,
+) {
+    if !options.resolved() || dependency.declaration.is_some() {
         object.insert(
             "required_version".to_string(),
             Value::String(required_version(dependency)),
         );
     }
-    if let Some(extra) = &dependency.activated_by {
-        object.insert("extra".to_string(), Value::String(extra.clone()));
+    if let Some(declaration) = &dependency.declaration {
+        object.insert(
+            "declaration".to_string(),
+            serde_json::to_value(declaration)
+                .expect("resolved declarations contain serializable values"),
+        );
     }
-    Value::Object(object)
 }
 
 fn add_context_json(
