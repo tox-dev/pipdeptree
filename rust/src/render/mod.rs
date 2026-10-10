@@ -18,9 +18,10 @@ pub fn render(
     graph: &Graph,
     options: &Options,
     color: bool,
+    terminal_width: Option<usize>,
 ) -> Result<Vec<u8>, Error> {
     let text = if options.summary() {
-        summary::render(graph, options, color)
+        summary::render(graph, options, color, terminal_width)
     } else {
         match &options.output_format {
             Format::Json => json::render(graph, options),

@@ -64,6 +64,53 @@ fn executes_through_python_extension() {
 }
 
 #[test]
+fn wraps_summary_through_python_extension() {
+    let site = PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        "Name: demo\nVersion: 1\nLicense-Expression: MIT OR Apache-2.0 OR BSD-3-Clause\n",
+    );
+    with_python(|python| {
+        let kwargs = PyDict::new(python);
+        kwargs.set_item("terminal_width", 40).unwrap();
+        let (code, stdout, _, _) = extension(python)
+            .getattr("execute")
+            .unwrap()
+            .call(
+                (PyList::new(
+                    python,
+                    [
+                        "--path",
+                        site.path().to_str().unwrap(),
+                        "--summary",
+                        "--output",
+                        "rich",
+                    ],
+                )
+                .unwrap(),),
+                Some(&kwargs),
+            )
+            .unwrap()
+            .extract::<(i32, Vec<u8>, String, Option<String>)>()
+            .unwrap();
+
+        assert_eq!(
+            (
+                code,
+                std::str::from_utf8(&stdout)
+                    .unwrap()
+                    .lines()
+                    .nth(1)
+                    .unwrap()
+                    .chars()
+                    .count()
+            ),
+            (0, 40)
+        );
+    });
+}
+
+#[test]
 fn renders_through_python_extension() {
     let directory = tempfile::tempdir().unwrap();
 

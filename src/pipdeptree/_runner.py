@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 import tempfile
 import webbrowser
@@ -21,7 +22,11 @@ def main(args: Sequence[str] | None = None) -> int | None:
     color = "NO_COLOR" not in os.environ and (
         "FORCE_COLOR" in os.environ or (sys.stdout.isatty() and os.environ.get("TERM") != "dumb")
     )
-    code, stdout, stderr, graphviz_format = execute(argv, color=color)
+    code, stdout, stderr, graphviz_format = execute(
+        argv,
+        color=color,
+        terminal_width=shutil.get_terminal_size().columns if sys.stdout.isatty() else None,
+    )
     _write(sys.stdout, stdout, graphviz_format=graphviz_format)
     if stderr:
         sys.stderr.write(stderr)

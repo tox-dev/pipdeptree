@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import runpy
+import shutil
 import sys
 import tempfile
 import webbrowser
@@ -52,6 +55,45 @@ def test_cli_formats(
     code = entry_point(["--path", str(package_path), "--warn", "silence", *args])
 
     assert (code, expected in capsys.readouterr().out) == (0, True)
+
+
+@pytest.mark.parametrize(
+    ("tty", "no_color", "expected_width"),
+    [
+        pytest.param(True, False, 40, id="terminal"),
+        pytest.param(True, True, 40, id="terminal-no-color"),
+        pytest.param(False, False, 69, id="redirected"),
+    ],
+)
+def test_cli_summary_terminal_width(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    expected_width: int,
+    *,
+    tty: bool,
+    no_color: bool,
+) -> None:
+    (tmp_path / "demo-1.dist-info").mkdir()
+    (tmp_path / "demo-1.dist-info" / "METADATA").write_text(
+        "Name: demo\nVersion: 1\nLicense-Expression: MIT OR Apache-2.0 OR BSD-3-Clause\n"
+    )
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: tty)
+    monkeypatch.setattr(
+        shutil, "get_terminal_size", create_autospec(shutil.get_terminal_size, return_value=os.terminal_size((40, 24)))
+    )
+    monkeypatch.delenv("TERM", raising=False)
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    if no_color:
+        monkeypatch.setenv("NO_COLOR", "1")
+    else:
+        monkeypatch.delenv("NO_COLOR", raising=False)
+
+    code: Final = entry_point(["--path", str(tmp_path), "--warn", "silence", "--summary", "-o", "rich"])
+    lines: Final = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out).splitlines()
+
+    assert (code, {len(line) for line in lines}) == (0, {expected_width})
 
 
 def test_cli_uses_sys_argv(

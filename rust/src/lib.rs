@@ -37,12 +37,22 @@ pub struct Execution {
 
 pub struct Application<'a> {
     processes: &'a dyn ProcessRunner,
+    terminal_width: Option<usize>,
 }
 
 impl<'a> Application<'a> {
     #[must_use]
     pub const fn new(processes: &'a dyn ProcessRunner) -> Self {
-        Self { processes }
+        Self {
+            processes,
+            terminal_width: None,
+        }
+    }
+
+    #[must_use]
+    pub const fn with_terminal_width(mut self, width: Option<usize>) -> Self {
+        self.terminal_width = width;
+        self
     }
 
     #[must_use]
@@ -59,7 +69,7 @@ impl<'a> Application<'a> {
             args,
             color,
             log_resolved,
-            Interface::Cli,
+            Interface::Cli(self.terminal_width),
             false,
         )
     }
@@ -75,15 +85,18 @@ const fn version() -> &'static str {
     env!("PIPDEPTREE_VERSION")
 }
 
-#[pyfunction(name = "execute", signature = (args, *, color = false, log_resolved = true))]
+#[pyfunction(name = "execute", signature = (args, *, color = false, log_resolved = true, terminal_width = None))]
 fn execute_py(
     py: Python<'_>,
     args: &Bound<'_, PyList>,
     color: bool,
     log_resolved: bool,
+    terminal_width: Option<usize>,
 ) -> PyResult<(i32, Py<PyBytes>, String, Option<String>)> {
     let args: Vec<String> = args.extract()?;
-    let output = run(py, &args, color, log_resolved);
+    let output = Application::new(&SystemProcessRunner)
+        .with_terminal_width(terminal_width)
+        .run(py, &args, color, log_resolved);
     Ok((
         output.code,
         PyBytes::new(py, &output.stdout).unbind(),
@@ -189,11 +202,6 @@ fn format_flags_py(output_format: &str, summary: bool) -> PyResult<Vec<String>> 
     Ok(flags.iter().map(ToString::to_string).collect())
 }
 
-#[must_use]
-pub fn run(py: Python<'_>, args: &[String], color: bool, log_resolved: bool) -> Execution {
-    Application::new(&SystemProcessRunner).run(py, args, color, log_resolved)
-}
-
 fn execute(
     processes: &dyn ProcessRunner,
     py: Python<'_>,
@@ -237,13 +245,18 @@ fn execute(
     if options.needs_sizes() {
         graph.warm_sizes();
     }
-    let output = match render::render(processes, &graph, &options, color) {
+    let terminal_width = match interface {
+        Interface::Cli(width) => width,
+        Interface::Python => None,
+    };
+    let output = match render::render(processes, &graph, &options, color, terminal_width) {
         Ok(output) => output,
         Err(error) => return failure(1, format!("{stderr}{error}\n")),
     };
     let mermaid = with_mermaid.then(|| {
         options.output_format = Format::Mermaid;
-        render::render(processes, &graph, &options, color).expect("mermaid rendering cannot fail")
+        render::render(processes, &graph, &options, color, None)
+            .expect("mermaid rendering cannot fail")
     });
     let code = i32::from(ctx.warning_mode == WarningMode::Fail && warned);
     Execution {
@@ -367,7 +380,7 @@ fn filter_failure(
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum Interface {
-    Cli,
+    Cli(Option<usize>),
     Python,
 }
 
