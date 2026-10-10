@@ -190,7 +190,7 @@ impl Serialize for JsonDependent<'_> {
     {
         let package = &self.graph.nodes[self.parent].package;
         let resolved = self.options.resolved();
-        let mut object = serializer.serialize_map(Some(3 + usize::from(!resolved)))?;
+        let mut object = serializer.serialize_map(None)?;
         object.serialize_entry("key", &package.key)?;
         object.serialize_entry("package_name", &package.name)?;
         let version_key = if resolved {
@@ -199,9 +199,12 @@ impl Serialize for JsonDependent<'_> {
             "installed_version"
         };
         object.serialize_entry(version_key, &package.version)?;
-        if !resolved {
+        if !resolved || self.dependency.declaration.is_some() {
             let required = self.dependency.version_spec();
             object.serialize_entry("required_version", required.as_deref().unwrap_or("Any"))?;
+        }
+        if let Some(declaration) = &self.dependency.declaration {
+            object.serialize_entry("declaration", declaration)?;
         }
         object.end()
     }
@@ -302,9 +305,7 @@ impl Serialize for JsonDependency<'_> {
     where
         S: Serializer,
     {
-        let field_count = if self.options.resolved() { 3 } else { 4 }
-            + usize::from(self.dependency.activated_by.is_some());
-        let mut object = serializer.serialize_map(Some(field_count))?;
+        let mut object = serializer.serialize_map(None)?;
         let version = self.dependency.installed_version(self.graph).unwrap_or("?");
         object.serialize_entry("key", self.dependency.key())?;
         let package_name = self.dependency.target.map_or_else(
@@ -316,7 +317,12 @@ impl Serialize for JsonDependency<'_> {
             object.serialize_entry("candidate_version", version)?;
         } else {
             object.serialize_entry("installed_version", version)?;
+        }
+        if !self.options.resolved() || self.dependency.declaration.is_some() {
             object.serialize_entry("required_version", &required_version(self.dependency))?;
+        }
+        if let Some(declaration) = &self.dependency.declaration {
+            object.serialize_entry("declaration", declaration)?;
         }
         if let Some(extra) = &self.dependency.activated_by {
             object.serialize_entry("extra", extra)?;

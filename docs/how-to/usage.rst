@@ -40,10 +40,15 @@ You supply files with repeatable flags:
 - ``--pyproject FILE`` -- a ``pyproject.toml`` handed to the resolver, which reads ``[project].dependencies`` and
   honors its ``[tool.nab]`` configuration.
 
-Pass at least one source. Each edge shows the candidate version the resolver selected rather than a package on your
-machine. The resolver produces one version per package with no requirement range, so edges read
-``[candidate: <version>]`` instead of the ``[required: ..., installed: ...]`` pair shown for an installed
-environment.
+Pass at least one source. Each edge shows the range its parent requires and the candidate version the resolver selected,
+for example ``[required: <5,>=4, candidate: 4.15.1]``. An unrestricted dependency reads ``required: Any``. A package
+may appear more than once under the same parent when several active requirements declare it. ``--json`` and
+``--json-tree`` include each requirement's marker and extra information in a ``declaration`` object. These values come
+from the selected resolve, not packages installed on your machine.
+
+Nab caches index responses and package metadata for repeat runs. ``from-index`` uses ``NAB_CACHE_DIR`` when set, then
+``$XDG_CACHE_HOME/nab`` or ``~/.cache/nab``. A relative ``XDG_CACHE_HOME`` is ignored. Set ``NAB_CACHE_DIR`` to keep the
+cache elsewhere.
 
 Resolve inline requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -55,9 +60,9 @@ A single requirement resolves to its full tree:
 
     $ pipdeptree from-index "starlette"
     starlette==1.6.0
-    └── anyio [candidate: 4.15.1]
-        ├── idna [candidate: 3.19]
-        └── typing-extensions [candidate: 4.16.0]
+    └── anyio [required: <5,>=3.6.2, candidate: 4.15.1]
+        ├── idna [required: >=2.8, candidate: 3.19]
+        └── typing-extensions [required: >=4.16.0, candidate: 4.16.0]
 
 Several requirements resolve together into one graph, and a version specifier bounds the pick:
 
@@ -66,32 +71,21 @@ Several requirements resolve together into one graph, and a version specifier bo
 
     $ pipdeptree from-index "fastapi<=0.115.2" starlette
     fastapi==0.115.2
-    ├── pydantic [candidate: 2.13.5]
-    │   ├── annotated-types [candidate: 0.8.0]
-    │   ├── pydantic-core [candidate: 2.46.5]
-    │   │   └── typing-extensions [candidate: 4.16.0]
-    │   ├── typing-extensions [candidate: 4.16.0]
-    │   └── typing-inspection [candidate: 0.4.4]
-    │       └── typing-extensions [candidate: 4.16.0]
-    ├── starlette [candidate: 0.40.0]
-    │   └── anyio [candidate: 4.15.1]
-    │       ├── idna [candidate: 3.19]
-    │       └── typing-extensions [candidate: 4.16.0]
-    └── typing-extensions [candidate: 4.16.0]
+    ...
+    ├── starlette [required: <0.41.0,>=0.37.2, candidate: 0.40.0]
+    ...
 
-Request extras with the ``name[extra]`` syntax. The resolver pulls the extra's dependencies into the tree. They appear
-as children, such as ``pysocks`` below, with the pinned version from the resolve and no extra label:
+Request extras with the ``name[extra]`` syntax. The resolver pulls the extra's dependencies into the tree. The
+``extra: socks`` label on ``pysocks`` shows why that dependency is active:
 
 .. runs-online
 .. code-block:: console
 
     $ pipdeptree from-index "requests[socks]"
     requests==2.34.2
-    ├── certifi [candidate: 2026.7.22]
-    ├── charset-normalizer [candidate: 3.5.1]
-    ├── idna [candidate: 3.19]
-    ├── pysocks [candidate: 1.7.1]
-    └── urllib3 [candidate: 2.7.0]
+    ...
+    ├── pysocks [required: !=1.5.7,>=1.5.6, candidate: 1.7.1, extra: socks]
+    ...
 
 An environment marker gates a requirement on the interpreter that the resolve targets. A matching marker includes the
 requirement; a non-matching marker drops it. Quote the argument so the shell keeps the marker attached:
@@ -193,56 +187,44 @@ The graph and render flags behave as they do for the default command. Emit JSON 
 
     $ pipdeptree from-index "starlette" -o json
     [
-        {
-            "package": {
-                "key": "anyio",
-                "package_name": "anyio",
-                "candidate_version": "4.15.1"
-            },
-            "dependencies": [
-                {
-                    "key": "idna",
-                    "package_name": "idna",
-                    "candidate_version": "3.19"
-                },
-                {
-                    "key": "typing-extensions",
-                    "package_name": "typing-extensions",
-                    "candidate_version": "4.16.0"
-                }
-            ]
-        },
-        {
-            "package": {
-                "key": "idna",
-                "package_name": "idna",
-                "candidate_version": "3.19"
-            },
-            "dependencies": []
-        },
-        {
-            "package": {
-                "key": "starlette",
-                "package_name": "starlette",
-                "candidate_version": "1.6.0"
-            },
-            "dependencies": [
-                {
+        ...
                     "key": "anyio",
                     "package_name": "anyio",
-                    "candidate_version": "4.15.1"
-                }
-            ]
-        },
-        {
-            "package": {
-                "key": "typing-extensions",
-                "package_name": "typing-extensions",
-                "candidate_version": "4.16.0"
-            },
-            "dependencies": []
-        }
+                    "candidate_version": "4.15.1",
+                    "required_version": "<5,>=3.6.2",
+                    "declaration": {
+                        "requirement_text": "anyio<5,>=3.6.2",
+                        "dependency_specifier": "<5,>=3.6.2",
+                        "requirement_condition": null,
+                        "dependency_extras": [],
+                        "required_for_parent_extras": [],
+                        "required_without_parent_extras": true
+                    }
+        ...
     ]
+
+To inspect Nab's declaration fields for an edge, select it from flat JSON:
+
+.. illustrative
+.. code-block:: console
+
+    $ pipdeptree -o json from-index 'requests[socks]' | jq '.[]|.dependencies[]|select(.key == "pysocks")|.declaration'
+    {
+      "requirement_text": "PySocks!=1.5.7,>=1.5.6; extra == \"socks\"",
+      "dependency_specifier": "!=1.5.7,>=1.5.6",
+      "requirement_condition": "extra == \"socks\"",
+      "dependency_extras": [],
+      "required_for_parent_extras": [
+        "socks"
+      ],
+      "required_without_parent_extras": false
+    }
+
+``requirement_condition`` retains the marker. ``dependency_extras`` lists extras requested on the child;
+``required_for_parent_extras`` lists parent extras that activate the edge. ``required_without_parent_extras`` says
+whether the parent also requires the child without an extra. ``--output json-tree`` exposes the same declaration on
+each nested dependency. The surrounding JSON identifies the parent and child and shows ``candidate_version`` and
+``required_version``.
 
 Trace why the resolver pulled a package in with ``--reverse`` (``-r``):
 
@@ -251,8 +233,8 @@ Trace why the resolver pulled a package in with ``--reverse`` (``-r``):
 
     $ pipdeptree from-index "fastapi<=0.115.2" --reverse --packages anyio
     anyio==4.15.1
-    └── starlette==0.40.0 [requires: anyio==4.15.1]
-        └── fastapi==0.115.2 [requires: starlette==0.40.0]
+    └── starlette==0.40.0 [requires: anyio<5,>=3.6.2]
+        └── fastapi==0.115.2 [requires: starlette<0.41.0,>=0.37.2]
 
 Other supported flags include ``-o mermaid``, the ``graphviz-*`` formats, ``--depth`` (``-d``), package filters,
 ``--extras`` (``-x``) and ``--encoding``:

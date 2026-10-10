@@ -49,24 +49,40 @@ pub(super) fn dependency(label: &DependencyLabel<'_>) -> String {
     } else {
         String::new()
     };
-    let detail = label.candidate.map_or_else(
-        || {
+    let detail = match label.version {
+        VersionLabel::Installed {
+            required,
+            installed,
+        } => {
             format!(
                 "{} {} {} {}",
                 style_label("required:"),
-                style_constraint(label.required),
+                style_constraint(required),
                 style_label("installed:"),
-                style_installed(label.installed, label.status)
+                style_installed(installed, label.status)
             )
-        },
-        |candidate| {
+        }
+        VersionLabel::Candidate {
+            required: Some(required),
+            candidate,
+        } => format!(
+            "{} {} {} {}",
+            style_label("required:"),
+            style_constraint(required),
+            style_label("candidate:"),
+            style_installed(candidate, label.status)
+        ),
+        VersionLabel::Candidate {
+            required: None,
+            candidate,
+        } => {
             format!(
                 "{} {}",
                 style_label("candidate:"),
                 style_installed(candidate, label.status)
             )
-        },
-    );
+        }
+    };
     let extra = label
         .extra
         .map_or_else(String::new, |extra| format!(" [extra: {extra}]"));
@@ -134,9 +150,18 @@ pub(super) struct DependencyLabel<'a> {
     pub(super) unique: bool,
     pub(super) unicode: bool,
     pub(super) name: &'a str,
-    pub(super) candidate: Option<&'a str>,
-    pub(super) required: &'a str,
-    pub(super) installed: &'a str,
+    pub(super) version: VersionLabel<'a>,
     pub(super) extra: Option<&'a str>,
     pub(super) suffix: &'a str,
+}
+
+pub(super) enum VersionLabel<'a> {
+    Installed {
+        required: &'a str,
+        installed: &'a str,
+    },
+    Candidate {
+        required: Option<&'a str>,
+        candidate: &'a str,
+    },
 }

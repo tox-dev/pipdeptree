@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::ffi::{CStr, OsString};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, Once, PoisonError};
@@ -129,33 +129,129 @@ pub fn install_resolver(python: Python<'_>, capture: &Path) -> PyResult<()> {
 }
 
 fn patch_resolver(python: Python<'_>) -> PyResult<()> {
-    python.run(
-        c_str!(
-            r#"
+    python.run(RESOLVER_STUB, None, None)
+}
+
+const RESOLVER_STUB: &CStr = c_str!(
+    r#"
+from __future__ import annotations
+
+from collections.abc import Sequence
 from pathlib import Path
 from unittest.mock import create_autospec
 
 from packaging.version import Version
+from nab_index.transport import AsyncHttpTransport
+from nab_project.declarations import DependencyDeclaration
+from nab_project.inputs import ResolveInputs
 from nab_project.lockfile import TargetLock
 from nab_project.resolve import ResolveResult, TargetResult
+from nab_provider.target import ResolveTarget
 import nab_project.resolve as resolve_module
 
-def resolved(path, transport, *, targets, inputs):
+def resolved(
+    path: Path,
+    transport: AsyncHttpTransport,
+    *,
+    targets: Sequence[ResolveTarget],
+    inputs: ResolveInputs,
+    include_dependency_requirements: bool,
+    cache_dir: Path,
+) -> ResolveResult:
+    assert include_dependency_requirements
+    assert isinstance(cache_dir, Path)
+    resolve_module.last_cache_dir = cache_dir
+    source = path.read_text()
+    chain = '"chain"' in source
+    child_requirements = (
+        DependencyDeclaration(
+            requirement_text="child>=1",
+            dependency_specifier=">=1",
+            parent_name="parent",
+            dependency_name="child",
+        ),
+    )
+    if '"parent[feature]"' in source or chain:
+        condition = 'extra == "feature" or extra == "other"' if chain else 'extra == "feature"'
+        child_requirements += (
+            DependencyDeclaration(
+                requirement_text=f"child[socks]<3; {condition}",
+                dependency_specifier="<3",
+                parent_name="parent",
+                dependency_name="child",
+                dependency_extras=("socks",),
+                requirement_condition=condition,
+                required_for_parent_extras=("feature", "other") if chain else ("feature",),
+            ),
+        )
     indexes = [(index.name, index.url) for index in inputs.indexes]
-    text = path.read_text() + "\n--- indexes ---\n" + repr(indexes)
+    text = source + "\n--- indexes ---\n" + repr(indexes)
     Path(resolve_module.capture).write_text(text)
     target = targets[0]
+    pins = {"parent": Version("1"), "child": Version("2")}
+    dependencies = {"parent": ("child", "external")}
+    declarations = {
+        "parent": {
+            "child": child_requirements,
+            "external": () if '"parent[empty]"' in source else (
+                DependencyDeclaration(
+                    requirement_text="external",
+                    dependency_specifier="",
+                    parent_name="parent",
+                    dependency_name="external",
+                ),
+            ),
+        },
+    }
+    if chain:
+        pins.update(chain=Version("1"), other=Version("1"), plain=Version("1"))
+        dependencies.update(chain=("parent",), other=("parent",), plain=("parent",))
+        declarations.update(
+            chain={
+                "parent": (
+                    DependencyDeclaration(
+                        requirement_text="parent[feature]",
+                        dependency_specifier="",
+                        parent_name="chain",
+                        dependency_name="parent",
+                        dependency_extras=("feature",),
+                    ),
+                ),
+            },
+            other={
+                "parent": (
+                    DependencyDeclaration(
+                        requirement_text="parent[other]",
+                        dependency_specifier="",
+                        parent_name="other",
+                        dependency_name="parent",
+                        dependency_extras=("other",),
+                    ),
+                ),
+            },
+            plain={
+                "parent": (
+                    DependencyDeclaration(
+                        requirement_text="parent",
+                        dependency_specifier="",
+                        parent_name="plain",
+                        dependency_name="parent",
+                    ),
+                ),
+            },
+        )
     return ResolveResult(
         targets=(target,),
         target_results=[
             TargetResult(
                 target=target,
                 success=True,
-                pins={"parent": Version("1"), "child": Version("2")},
+                pins=pins,
                 lock=TargetLock(
                     target=target,
                     pins={},
-                    dependencies={"parent": ("child", "external")},
+                    dependencies=dependencies,
+                    dependency_requirements=declarations,
                 ),
             )
         ],
@@ -166,11 +262,7 @@ resolve_module.resolve_for_targets = create_autospec(
     side_effect=resolved,
 )
 "#
-        ),
-        None,
-        None,
-    )
-}
+);
 
 pub fn with_python<Result>(test: impl FnOnce(Python<'_>) -> Result) -> Result {
     let _guard = python_lock();

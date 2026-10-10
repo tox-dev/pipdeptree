@@ -114,6 +114,43 @@ fn keeps_duplicate_requirement_edges() {
     );
 }
 
+#[test]
+fn keeps_requirement_edges_activated_by_distinct_extras() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        concat!(
+            "Name: root\n",
+            "Version: 1\n",
+            "Requires-Dist: child; extra == 'one' or extra == 'two'\n",
+            "Provides-Extra: one\n",
+            "Provides-Extra: two\n",
+        ),
+    );
+    site.write("child-1.dist-info", "Name: child\nVersion: 1\n");
+
+    let output = execute(&[
+        "--path",
+        site.path().to_str().unwrap(),
+        "--packages",
+        "root[one,two]",
+        "--warn",
+        "silence",
+    ]);
+
+    assert_eq!(
+        (output.code, stdout(&output)),
+        (
+            0,
+            concat!(
+                "root==1\n",
+                "├── child [required: Any, installed: 1, extra: one]\n",
+                "└── child [required: Any, installed: 1, extra: two]\n",
+            ),
+        )
+    );
+}
+
 #[rstest]
 #[case::silence("silence", 0, false)]
 #[case::suppress("suppress", 0, true)]

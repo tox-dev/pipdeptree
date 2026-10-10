@@ -112,10 +112,20 @@ Index selection feeds the resolver's index list. ``--index-url``/``--extra-index
 environment fallbacks, and a ``--pyproject``'s ``[tool.nab].indexes`` each supply that list; with none set the
 resolve uses PyPI.
 
-The resolver yields names, versions and dependency edges, so ``from-index`` drops the installed-environment display
-options. ``--metadata``, ``--computed`` and ``--license`` need package files on disk. The environment-inspection
-options (``--python``, ``--path``, ``-l``/``-u``) need an installed environment. Filtering, depth, ``--reverse``,
-``--extras`` and the output formats apply.
+The resolver yields names, versions, dependency edges and each active declaration, so ``from-index`` can show a parent's
+required range beside the selected candidate. ``--metadata``, ``--computed`` and ``--license`` need package files on disk.
+The environment-inspection options (``--python``, ``--path``, ``-l``/``-u``) need an installed environment. Filtering,
+depth, ``--reverse``, ``--extras`` and the output formats apply.
+
+Nab selects declarations for the resolve target before pipdeptree builds the graph. Each active declaration becomes its
+own edge, preserving separate requirements on the same child and their marker and extra context. Nab's target-specific
+marker decisions and declared ranges pass through unchanged. An edge without a declaration shows only its candidate.
+JSON keeps declaration data in a nested object beside the candidate version, so consumers can distinguish what the
+parent requested from what the resolver selected.
+
+``from-index`` gives Nab a disk cache root for index responses and metadata. Without a root, Nab discards both after
+each run. The root follows ``NAB_CACHE_DIR``, then ``XDG_CACHE_HOME`` or the home directory, so repeat runs reuse fetched
+data while Nab still revalidates stale listings.
 
 ``from-lock`` reads versions and edges from a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock (``pylock.toml``).
 
