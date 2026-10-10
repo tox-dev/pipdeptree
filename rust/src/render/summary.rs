@@ -4,6 +4,7 @@ use std::str::FromStr;
 use anstyle::Style;
 use pep508_rs::pep440_rs::{Version, VersionSpecifiers};
 use serde_json::json;
+use textwrap::core::display_width;
 
 use crate::graph::Graph;
 use crate::options::{Format, Options};
@@ -11,7 +12,12 @@ use crate::options::{Format, Options};
 use super::shared::format_size;
 use super::text::is_unicode;
 
-pub(super) fn render(graph: &Graph, options: &Options, color: bool) -> String {
+pub(super) fn render(
+    graph: &Graph,
+    options: &Options,
+    color: bool,
+    terminal_width: Option<usize>,
+) -> String {
     let summary = Summary::new(graph, options.resolved());
     if options.output_format == Format::Json {
         return summary.json();
@@ -23,10 +29,15 @@ pub(super) fn render(graph: &Graph, options: &Options, color: bool) -> String {
             &rows,
             color,
             is_unicode(&options.encoding),
+            terminal_width,
         );
     }
+    text_rows(&rows)
+}
+
+fn text_rows(rows: &[(String, String)]) -> String {
     let width = rows.iter().map(|(label, _)| label.len()).max().unwrap_or(0);
-    rows.into_iter()
+    rows.iter()
         .map(|(label, value)| format!("{:<width$} {value}", format!("{label}:"), width = width + 1))
         .collect::<Vec<_>>()
         .join("\n")
@@ -166,17 +177,29 @@ impl Summary {
     }
 }
 
-fn rich_table(title: &str, rows: &[(String, String)], color: bool, unicode: bool) -> String {
+fn rich_table(
+    title: &str,
+    rows: &[(String, String)],
+    color: bool,
+    unicode: bool,
+    terminal_width: Option<usize>,
+) -> String {
     let first = rows
         .iter()
         .map(|(label, _)| label.chars().count())
         .max()
         .unwrap_or(0);
-    let second = rows
+    let mut second = rows
         .iter()
-        .map(|(_, value)| value.chars().count())
+        .map(|(_, value)| display_width(value))
         .max()
         .unwrap_or(0);
+    if let Some(width) = terminal_width {
+        if width < first + 9 {
+            return text_rows(rows);
+        }
+        second = second.min(width - first - 7);
+    }
     let first_bar = if unicode { "━" } else { "-" }.repeat(first + 2);
     let second_bar = if unicode { "━" } else { "-" }.repeat(second + 2);
     let (top, vertical, bottom) = if unicode {
@@ -192,18 +215,22 @@ fn rich_table(title: &str, rows: &[(String, String)], color: bool, unicode: bool
             format!("+{first_bar}+{second_bar}+"),
         )
     };
-    let width = first + second + 5;
-    let mut lines = vec![format!("{:^width$}", title, width = width + 2), top];
+    let width = first + second + 7;
+    let mut lines = vec![format!("{title:^width$}"), top];
     for (label, value) in rows {
-        let label = if color {
-            let style = Style::new().bold();
-            format!("{style}{label:<first$}{style:#}")
-        } else {
-            format!("{label:<first$}")
-        };
-        lines.push(format!(
-            "{vertical} {label} {vertical} {value:<second$} {vertical}"
-        ));
+        for (index, value) in textwrap::wrap(value, second).iter().enumerate() {
+            let label = if index == 0 { label.as_str() } else { "" };
+            let label = if color {
+                let style = Style::new().bold();
+                format!("{style}{label:<first$}{style:#}")
+            } else {
+                format!("{label:<first$}")
+            };
+            lines.push(format!(
+                "{vertical} {label} {vertical} {value}{} {vertical}",
+                " ".repeat(second - display_width(value))
+            ));
+        }
     }
     lines.push(bottom);
     lines.join("\n")

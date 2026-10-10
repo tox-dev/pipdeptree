@@ -29,6 +29,8 @@ rustc-hash = "2.1.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.150", features = ["preserve_order"] }
 tempfile = "3.27.0"
+# Later textwrap releases require a newer compiler than our MSRV.
+textwrap = { version = "=0.16.2", default-features = false, features = ["unicode-width"] }
 thiserror = "2.0.18"
 toml = "1.1.2"
 url = "2.5.8"

@@ -1,5 +1,8 @@
-use rstest::rstest;
+use std::collections::BTreeSet;
+
+use rstest::{fixture, rstest};
 use serde_json::Value;
+use textwrap::core::display_width;
 
 use super::{PackageSite, execute, lock_file, path, render_site, text};
 
@@ -46,6 +49,128 @@ fn renders_summary_tables(#[case] args: &[&str], #[case] color: bool, #[case] ex
     let output = super::execute_with(&_pipdeptree::SystemProcessRunner, &site, args, color);
 
     assert!(text(&output).contains(expected));
+}
+
+#[rstest]
+#[case::unicode(60, "utf-8", false)]
+#[case::ascii(60, "ascii", false)]
+#[case::color(60, "utf-8", true)]
+#[case::minimum(33, "utf-8", false)]
+fn fits_summary_to_terminal_width(
+    licensed_site: PackageSite,
+    #[case] width: usize,
+    #[case] encoding: &str,
+    #[case] color: bool,
+) {
+    let output = execute_at_width(&licensed_site, width, encoding, color);
+
+    assert_eq!(
+        text(&output)
+            .lines()
+            .map(display_width)
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([width])
+    );
+}
+
+#[rstest]
+#[case::words("MIT OR Apache-2.0 OR BSD-3-Clause")]
+#[case::long_word("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")]
+#[case::wide_characters("许可证许可证许可证许可证许可证许可证")]
+#[case::combining_characters("Cafe\u{301} Cafe\u{301} Cafe\u{301} Cafe\u{301} Cafe\u{301}")]
+fn preserves_wrapped_summary_licenses(
+    #[case] license: &str,
+    #[with(license)] licensed_site: PackageSite,
+) {
+    let output = execute_at_width(&licensed_site, 40, "utf-8", false);
+    let values = text(&output)
+        .lines()
+        .skip_while(|line| !line.contains("licenses"))
+        .take_while(|line| !line.contains("unknown licenses"))
+        .map(|line| line.split('┃').nth(2).unwrap().trim())
+        .collect::<String>();
+
+    assert_eq!(
+        values.replace(' ', ""),
+        format!("({license}):1").replace(' ', "")
+    );
+}
+
+#[rstest]
+fn aligns_unicode_summary_borders(
+    #[with("许可证许可证许可证许可证许可证")] licensed_site: PackageSite,
+) {
+    let output = execute_at_width(&licensed_site, 40, "utf-8", false);
+
+    assert_eq!(
+        text(&output)
+            .lines()
+            .map(display_width)
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([40])
+    );
+}
+
+#[rstest]
+#[case::zero(0)]
+#[case::narrow(20)]
+#[case::below_minimum(32)]
+fn falls_back_to_text_for_narrow_terminals(#[case] width: usize) {
+    let site = render_site();
+
+    assert_eq!(
+        execute_at_width(&site, width, "utf-8", false).stdout,
+        execute(&site, &["--summary", "--output", "text"]).stdout
+    );
+}
+
+#[test]
+fn keeps_small_summary_tables_compact() {
+    let site = PackageSite::new();
+
+    assert_eq!(
+        execute_at_width(&site, 200, "utf-8", false).stdout,
+        execute(&site, &["--summary", "--output", "rich"]).stdout
+    );
+}
+
+#[fixture]
+fn licensed_site(#[default("MIT OR Apache-2.0 OR BSD-3-Clause")] license: &str) -> PackageSite {
+    let site = PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        &format!("Name: demo\nVersion: 1\nLicense-Expression: {license}\n"),
+    );
+    site
+}
+
+fn execute_at_width(
+    site: &PackageSite,
+    width: usize,
+    encoding: &str,
+    color: bool,
+) -> _pipdeptree::Execution {
+    super::super::common::with_python(|python| {
+        _pipdeptree::Application::new(&_pipdeptree::SystemProcessRunner)
+            .with_terminal_width(Some(width))
+            .run(
+                python,
+                &[
+                    "--path",
+                    site.path().to_str().unwrap(),
+                    "--warn",
+                    "silence",
+                    "--summary",
+                    "--output",
+                    "rich",
+                    "--encoding",
+                    encoding,
+                ]
+                .map(ToString::to_string),
+                color,
+                false,
+            )
+    })
 }
 
 #[test]

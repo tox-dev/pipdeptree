@@ -584,6 +584,7 @@ dependencies = [
  "serde_json",
  "temp-env",
  "tempfile",
+ "textwrap",
  "thiserror 2.0.21",
  "toml",
  "url",
@@ -996,6 +997,15 @@ name = "termtree"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
+
+[[package]]
+name = "textwrap"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c13547615a44dc9c452a8a534638acdf07120d4b6847c8178705da06306a3057"
+dependencies = [
+ "unicode-width",
+]
 
 [[package]]
 name = "thiserror"
