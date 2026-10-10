@@ -199,6 +199,29 @@ The graph and render flags behave as they do for the default command. Emit JSON 
         ...
     ]
 
+To inspect Nab's declaration fields for an edge, select the parent and child from flat JSON:
+
+.. illustrative
+.. code-block:: console
+
+    $ pipdeptree --output json from-index 'requests[socks]' | jq '.[] | select(.package.key == "requests") | .dependencies[] | select(.key == "pysocks") | .declaration'
+    {
+      "requirement_text": "PySocks!=1.5.7,>=1.5.6; extra == \"socks\"",
+      "dependency_specifier": "!=1.5.7,>=1.5.6",
+      "requirement_condition": "extra == \"socks\"",
+      "dependency_extras": [],
+      "required_for_parent_extras": [
+        "socks"
+      ],
+      "required_without_parent_extras": false
+    }
+
+``requirement_condition`` retains the marker. ``dependency_extras`` lists extras requested on the child;
+``required_for_parent_extras`` lists parent extras that activate the edge. ``required_without_parent_extras`` says
+whether the parent also requires the child without an extra. ``--output json-tree`` exposes the same declaration on
+each nested dependency. The surrounding JSON identifies the parent and child and shows ``candidate_version`` and
+``required_version``.
+
 Trace why the resolver pulled a package in with ``--reverse`` (``-r``):
 
 .. runs-online
