@@ -30,6 +30,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          python-version: "3.15"
           enable-cache: false
       - name: Install resolver dependencies
         run: uv pip install --target .python-packages 'nab>=0.0.17' 'nab-index>=0.0.17' 'nab-project>=0.0.17'
@@ -60,7 +61,6 @@ jobs:
           - "3.13"
           - "3.12"
           - "3.11"
-          - "3.10"
           - type
           - docs
           - dev
@@ -95,13 +95,14 @@ jobs:
       - name: Install the latest version of uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          python-version: "3.15"
           enable-cache: false
           cache-dependency-glob: "pyproject.toml"
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install tox
-        run: uv tool install --python-preference only-managed --python 3.14 tox --with tox-uv
+        run: uv tool install --python-preference only-managed --python 3.15 tox --with tox-uv
       - name: Install Python
-        if: (startsWith(matrix.env, '3.') || startsWith(matrix.env, 'pypy-')) && matrix.env != '3.14'
+        if: (startsWith(matrix.env, '3.') || startsWith(matrix.env, 'pypy-')) && matrix.env != '3.15'
         run: uv python install --python-preference only-managed ${{ matrix.env }}
       - name: Setup test suite
         run: tox run -vv --notest --skip-missing-interpreters false -e ${{ matrix.env }}

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pipdeptree.version import __version__
@@ -12,7 +12,7 @@ company = "tox-dev"
 name = "pipdeptree"
 version = ".".join(__version__.split(".")[:2])
 release = __version__
-globals()["copyright"] = f"2014-{datetime.now(tz=timezone.utc).year}, {company}"
+globals()["copyright"] = f"2014-{datetime.now(tz=UTC).year}, {company}"
 
 extensions = [
     "sphinx_llm.txt",
@@ -43,7 +43,7 @@ project = name
 today_fmt = "%B %d, %Y"
 
 html_theme = "furo"
-html_title, html_last_updated_fmt = project, datetime.now(tz=timezone.utc).isoformat()
+html_title, html_last_updated_fmt = project, datetime.now(tz=UTC).isoformat()
 pygments_style, pygments_dark_style = "sphinx", "monokai"
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
