@@ -682,14 +682,6 @@ impl Graph {
                 .cmp(right.key())
                 .then_with(|| left.activated_by.cmp(&right.activated_by))
         });
-        result.dedup_by(|left, right| {
-            let left = &node.dependencies[*left];
-            let right = &node.dependencies[*right];
-            left.declaration.is_none()
-                && right.declaration.is_none()
-                && left.requirement == right.requirement
-                && left.activated_by == right.activated_by
-        });
         result
     }
 
