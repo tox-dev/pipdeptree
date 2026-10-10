@@ -1,1 +1,0 @@
-Wrap rich summary values to fit the terminal width, preserving table borders when license breakdowns are long.

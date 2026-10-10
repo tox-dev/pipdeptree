@@ -7,6 +7,15 @@
 .. towncrier release notes start
 
 *******************
+ 4.2.6 (2026-10-10)
+*******************
+
+Bug fixes - 4.2.6
+=================
+
+- Wrap rich summary values to fit the terminal width, preserving table borders when license breakdowns are long. (:issue:`725`)
+
+*******************
  4.2.5 (2026-09-08)
 *******************
 
