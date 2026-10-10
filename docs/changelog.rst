@@ -7,6 +7,15 @@
 .. towncrier release notes start
 
 *******************
+ 4.2.7 (2026-10-10)
+*******************
+
+Features - 4.2.7
+================
+
+- Show declared requirement ranges, markers and extras for dependencies resolved with ``from-index``. (:issue:`723`)
+
+*******************
  4.2.6 (2026-10-10)
 *******************
 
