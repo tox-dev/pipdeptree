@@ -46,6 +46,10 @@ may appear more than once under the same parent when several active requirements
 ``--json-tree`` include each requirement's marker and extra information in a ``declaration`` object. These values come
 from the selected resolve, not packages installed on your machine.
 
+Nab caches index responses and package metadata for repeat runs. ``from-index`` uses ``NAB_CACHE_DIR`` when set, then
+``$XDG_CACHE_HOME/nab`` or ``~/.cache/nab``. A relative ``XDG_CACHE_HOME`` is ignored. Set ``NAB_CACHE_DIR`` to keep the
+cache elsewhere.
+
 Resolve inline requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -199,12 +203,12 @@ The graph and render flags behave as they do for the default command. Emit JSON 
         ...
     ]
 
-To inspect Nab's declaration fields for an edge, select the parent and child from flat JSON:
+To inspect Nab's declaration fields for an edge, select it from flat JSON:
 
 .. illustrative
 .. code-block:: console
 
-    $ pipdeptree --output json from-index 'requests[socks]' | jq '.[] | select(.package.key == "requests") | .dependencies[] | select(.key == "pysocks") | .declaration'
+    $ pipdeptree -o json from-index 'requests[socks]' | jq '.[]|.dependencies[]|select(.key == "pysocks")|.declaration'
     {
       "requirement_text": "PySocks!=1.5.7,>=1.5.6; extra == \"socks\"",
       "dependency_specifier": "!=1.5.7,>=1.5.6",

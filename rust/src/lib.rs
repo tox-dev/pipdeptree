@@ -307,7 +307,7 @@ fn prepare_graph(
     }
     let mut graph = Graph::new(
         discovered.packages,
-        discovered.resolved_edges.as_ref(),
+        discovered.resolved_edges,
         &runtime.marker,
         options.extras,
     );

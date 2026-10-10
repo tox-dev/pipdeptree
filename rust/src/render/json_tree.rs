@@ -7,7 +7,7 @@ use crate::graph::{Dependency, Graph, ReverseRoot};
 use crate::options::Options;
 
 use super::json::computed_json;
-use super::shared::{required_version, reverse_required_extra};
+use super::shared::{required_version, reverse_required_extras};
 
 pub(super) fn render(graph: &Graph, options: &Options) -> String {
     let entries = if options.reverse {
@@ -95,7 +95,7 @@ fn reverse_tree_json(
     graph: &Graph,
     index: usize,
     incoming: Option<&Dependency>,
-    required_extra: Option<&str>,
+    required_extras: Option<&BTreeSet<String>>,
     path: &mut HashSet<usize>,
     options: &Options,
 ) -> Value {
@@ -111,14 +111,14 @@ fn reverse_tree_json(
         value["required_version"] = Value::String(graph.nodes[index].package.version.clone());
     }
     let mut dependencies = Vec::new();
-    for (parent, dependency) in graph.parents_for(index, required_extra) {
+    for (parent, dependency) in graph.parents_for(index, required_extras) {
         if !path.contains(&parent) {
-            let required_extra = reverse_required_extra(graph, parent, dependency);
+            let required_extras = reverse_required_extras(graph, parent, dependency);
             dependencies.push(reverse_tree_json(
                 graph,
                 parent,
                 Some(dependency),
-                required_extra,
+                required_extras.as_ref(),
                 path,
                 options,
             ));

@@ -161,7 +161,7 @@ impl Dependency {
 impl Graph {
     pub fn new(
         mut packages: Vec<Package>,
-        resolved_edges: Option<&std::collections::HashMap<String, Vec<ResolvedEdge>>>,
+        mut resolved_edges: Option<std::collections::HashMap<String, Vec<ResolvedEdge>>>,
         marker: &MarkerEnvironment,
         extras_mode: ExtrasMode,
     ) -> Self {
@@ -175,8 +175,9 @@ impl Graph {
         let nodes = packages
             .into_iter()
             .map(|package| {
-                let edges =
-                    resolved_edges.and_then(|edges| edges.get(&package.key).map(Vec::as_slice));
+                let edges = resolved_edges
+                    .as_mut()
+                    .and_then(|edges| edges.remove(&package.key));
                 Self::build_node(package, edges, marker, &index, &mut warnings)
             })
             .collect::<Vec<_>>();
@@ -203,26 +204,27 @@ impl Graph {
 
     fn build_node(
         mut package: Package,
-        resolved_edges: Option<&[ResolvedEdge]>,
+        resolved_edges: Option<Vec<ResolvedEdge>>,
         marker: &MarkerEnvironment,
         index: &HashMap<String, usize>,
         warnings: &mut Vec<String>,
     ) -> Node {
         let mut mandatory = Vec::new();
         let mut optional = BTreeMap::<String, Vec<Dependency>>::new();
+        let resolved = resolved_edges.is_some();
         if let Some(edges) = resolved_edges {
-            mandatory.extend(edges.iter().map(|edge| {
+            mandatory.extend(edges.into_iter().map(|edge| {
                 Dependency {
                     requirement: Requirement::<VerbatimUrl>::from_str(&edge.child)
                         .expect("nab dependency names are valid PEP 508 names"),
                     target: index.get(&edge.child).copied(),
                     activated_by: None,
-                    declaration: edge.declaration.clone(),
+                    declaration: edge.declaration,
                     version_spec: OnceLock::new(),
                 }
             }));
         }
-        let requires = if resolved_edges.is_some() {
+        let requires = if resolved {
             Vec::new()
         } else {
             std::mem::take(&mut package.requires)
@@ -261,7 +263,7 @@ impl Graph {
             }
         }
         mandatory.sort_by(|left, right| left.key().cmp(right.key()));
-        if resolved_edges.is_none() {
+        if !resolved {
             mandatory.dedup_by(|left, right| left.requirement == right.requirement);
         }
         for dependencies in optional.values_mut() {
@@ -331,9 +333,8 @@ impl Graph {
     pub fn parents_for(
         &self,
         child: usize,
-        required_extra: Option<&str>,
+        required_extras: Option<&BTreeSet<String>>,
     ) -> Vec<(usize, &Dependency)> {
-        let required = required_extra.map(canonicalize_name);
         let mut result = Vec::new();
         // Nodes sort by key at construction, so ascending parent indices are already key order.
         for (parent, slot) in &self.reverse_edges()[child] {
@@ -341,12 +342,22 @@ impl Graph {
                 continue;
             }
             let dependency = &self.nodes[*parent].dependencies[*slot];
-            if required.as_ref().is_none_or(|extra| {
-                dependency
-                    .requirement
-                    .extras
-                    .iter()
-                    .any(|candidate| candidate.as_ref() == extra)
+            if required_extras.is_none_or(|extras| {
+                dependency.declaration.as_ref().map_or_else(
+                    || {
+                        dependency
+                            .requirement
+                            .extras
+                            .iter()
+                            .any(|candidate| extras.contains(candidate.as_ref()))
+                    },
+                    |declaration| {
+                        declaration
+                            .dependency_extras
+                            .iter()
+                            .any(|extra| extras.contains(extra))
+                    },
+                )
             }) {
                 result.push((*parent, dependency));
             }
@@ -674,7 +685,10 @@ impl Graph {
         result.dedup_by(|left, right| {
             let left = &node.dependencies[*left];
             let right = &node.dependencies[*right];
-            left.requirement == right.requirement && left.activated_by == right.activated_by
+            left.declaration.is_none()
+                && right.declaration.is_none()
+                && left.requirement == right.requirement
+                && left.activated_by == right.activated_by
         });
         result
     }

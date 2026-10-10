@@ -123,6 +123,10 @@ marker decisions and declared ranges pass through unchanged. An edge without a d
 JSON keeps declaration data in a nested object beside the candidate version, so consumers can distinguish what the
 parent requested from what the resolver selected.
 
+``from-index`` gives Nab a disk cache root for index responses and metadata. Without a root, Nab discards both after
+each run. The root follows ``NAB_CACHE_DIR``, then ``XDG_CACHE_HOME`` or the home directory, so repeat runs reuse fetched
+data while Nab still revalidates stale listings.
+
 ``from-lock`` reads versions and edges from a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock (``pylock.toml``).
 
 A PEP 751 lock records each package's name, its pinned version and the forward edges between packages (its

@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use pep508_rs::{Requirement, VerbatimUrl, VersionOrUrl};
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::{PyAnyMethods, PyModule};
 use pyo3::types::{PyDict, PyDictMethods, PyList, PyListMethods, PyStringMethods, PyTuple};
 use pyo3::{PyResult, Python};
@@ -516,6 +517,30 @@ impl<'py> ResolverModules<'py> {
         kwargs.set_item("targets", targets)?;
         kwargs.set_item("inputs", config.call_method0("resolve_inputs")?)?;
         kwargs.set_item("include_dependency_requirements", true)?;
+        let cache_dir = if let Some(path) = env::var_os("NAB_CACHE_DIR") {
+            if path.is_empty() {
+                return Err(PyValueError::new_err(
+                    "NAB_CACHE_DIR must be a non-empty path",
+                ));
+            }
+            pathlib
+                .getattr("Path")?
+                .call1((path.to_string_lossy().as_ref(),))?
+        } else if let Some(path) = env::var_os("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .filter(|path| path.is_absolute())
+        {
+            pathlib
+                .getattr("Path")?
+                .call1((path.to_string_lossy().as_ref(),))?
+                .call_method1("joinpath", ("nab",))?
+        } else {
+            pathlib
+                .getattr("Path")?
+                .call_method0("home")?
+                .call_method1("joinpath", (".cache", "nab"))?
+        };
+        kwargs.set_item("cache_dir", cache_dir)?;
         let transport = self.transport.getattr("Urllib3AsyncTransport")?.call0()?;
         self.resolve
             .getattr("resolve_for_targets")?

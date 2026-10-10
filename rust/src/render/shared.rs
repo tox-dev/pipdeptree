@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::graph::{Dependency, Graph};
 
 pub(super) fn edge_label(dependency: &Dependency) -> String {
@@ -17,17 +19,27 @@ pub(super) fn required_version(dependency: &Dependency) -> String {
         .unwrap_or_else(|| "Any".to_string())
 }
 
-// A reverse edge keeps recursing under the extra that pulled it in, unless that extra was requested
-// globally (via --packages name[extra]) and so is not part of this specific chain.
-pub(super) fn reverse_required_extra<'a>(
+// A globally selected parent extra makes that parent reachable outside the reverse chain.
+pub(super) fn reverse_required_extras(
     graph: &Graph,
     parent: usize,
-    dependency: &'a Dependency,
-) -> Option<&'a str> {
-    dependency
-        .activated_by
-        .as_deref()
-        .filter(|extra| !graph.extra_is_global(parent, extra))
+    dependency: &Dependency,
+) -> Option<BTreeSet<String>> {
+    let extras: BTreeSet<String> = dependency.declaration.as_ref().map_or_else(
+        || dependency.activated_by.iter().cloned().collect(),
+        |declaration| {
+            declaration
+                .required_for_parent_extras
+                .iter()
+                .cloned()
+                .collect()
+        },
+    );
+    (!extras.is_empty()
+        && !extras
+            .iter()
+            .any(|extra| graph.extra_is_global(parent, extra)))
+    .then_some(extras)
 }
 
 pub(super) fn format_size(bytes: u64) -> String {

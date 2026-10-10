@@ -6,7 +6,7 @@ use crate::options::{ComputedField, Options};
 use crate::process::ProcessRunner;
 
 use super::rich_text::{self, DependencyLabel, Status, VersionLabel};
-use super::shared::{format_size, required_version, reverse_required_extra};
+use super::shared::{format_size, required_version, reverse_required_extras};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(super) enum TextStyle {
@@ -136,11 +136,15 @@ impl TreeRenderer<'_> {
     fn walk_reverse(
         &mut self,
         child: usize,
-        required_extra: Option<&str>,
+        required_extras: Option<&BTreeSet<String>>,
         prefix: &str,
         depth: usize,
     ) {
-        self.walk_reverse_parents(self.graph.parents_for(child, required_extra), prefix, depth);
+        self.walk_reverse_parents(
+            self.graph.parents_for(child, required_extras),
+            prefix,
+            depth,
+        );
     }
 
     fn walk_reverse_parents(
@@ -172,10 +176,9 @@ impl TreeRenderer<'_> {
                 label
             ));
             self.path.insert(parent);
-            let required_extra =
-                reverse_required_extra(self.graph, parent, dependency).map(ToOwned::to_owned);
+            let required_extras = reverse_required_extras(self.graph, parent, dependency);
             let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
-            self.walk_reverse(parent, required_extra.as_deref(), &next_prefix, depth + 1);
+            self.walk_reverse(parent, required_extras.as_ref(), &next_prefix, depth + 1);
             self.path.remove(&parent);
         }
     }

@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use _pipdeptree::Execution;
 use pyo3::ffi::c_str;
 use pyo3::types::{PyAnyMethods as _, PyDict, PyDictMethods as _};
 use rstest::rstest;
@@ -67,22 +68,84 @@ fn resolves_inline_requirements() {
     );
 }
 
+#[rstest]
+#[case::default(None, None)]
+#[case::nab(Some("nab"), None)]
+#[case::xdg(None, Some("xdg"))]
+#[case::nab_precedes_xdg(Some("nab"), Some("xdg"))]
+#[case::relative_xdg(None, Some("relative"))]
+fn passes_cache_path_to_nab(#[case] nab: Option<&str>, #[case] xdg: Option<&str>) {
+    let directory = tempdir().unwrap();
+    with_python(|python| {
+        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
+        let nab_path = directory.path().join("nab");
+        let xdg_path = directory.path().join("xdg");
+        let output = temp_env::with_vars(
+            [
+                ("NAB_CACHE_DIR", nab.map(|_| nab_path.to_str().unwrap())),
+                (
+                    "XDG_CACHE_HOME",
+                    xdg.map(|value| {
+                        if value == "relative" {
+                            value
+                        } else {
+                            xdg_path.to_str().unwrap()
+                        }
+                    }),
+                ),
+            ],
+            || execute_with_python(python, &["from-index", "parent"]),
+        );
+        let actual = python
+            .import("nab_project.resolve")
+            .unwrap()
+            .getattr("last_cache_dir")
+            .unwrap()
+            .extract::<std::path::PathBuf>()
+            .unwrap();
+        let expected = if nab.is_some() {
+            nab_path
+        } else if xdg == Some("xdg") {
+            xdg_path.join("nab")
+        } else {
+            python
+                .import("pathlib")
+                .unwrap()
+                .getattr("Path")
+                .unwrap()
+                .call_method0("home")
+                .unwrap()
+                .extract::<std::path::PathBuf>()
+                .unwrap()
+                .join(".cache/nab")
+        };
+        assert_eq!((output.code, actual), (0, expected));
+    });
+}
+
+#[test]
+fn rejects_empty_nab_cache_dir() {
+    let output = with_python(|python| {
+        temp_env::with_var("NAB_CACHE_DIR", Some(""), || {
+            execute_with_python(python, &["from-index", "parent"])
+        })
+    });
+
+    assert_eq!(
+        (output.code, output.stderr.as_str()),
+        (1, "ValueError: NAB_CACHE_DIR must be a non-empty path\n")
+    );
+}
+
 #[test]
 fn preserves_active_declarations_in_json() {
-    let directory = tempdir().unwrap();
-    let output = with_python(|python| {
-        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
-        execute_with_python(
-            python,
-            &[
-                "--warn",
-                "silence",
-                "--json",
-                "from-index",
-                "parent[feature]",
-            ],
-        )
-    });
+    let output = resolved_output(&[
+        "--warn",
+        "silence",
+        "--json",
+        "from-index",
+        "parent[feature]",
+    ]);
     let entries: Value = serde_json::from_slice(&output.stdout).unwrap();
     let parent = entries
         .as_array()
@@ -127,14 +190,7 @@ fn preserves_active_declarations_in_json() {
 
 #[test]
 fn leaves_unrecorded_edges_without_a_required_version() {
-    let directory = tempdir().unwrap();
-    let output = with_python(|python| {
-        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
-        execute_with_python(
-            python,
-            &["--warn", "silence", "--json", "from-index", "parent[empty]"],
-        )
-    });
+    let output = resolved_output(&["--warn", "silence", "--json", "from-index", "parent[empty]"]);
     let entries: Value = serde_json::from_slice(&output.stdout).unwrap();
     let parent = entries
         .as_array()
@@ -153,16 +209,18 @@ fn leaves_unrecorded_edges_without_a_required_version() {
     );
 }
 
-#[test]
-fn renders_parent_and_child_extras() {
-    let directory = tempdir().unwrap();
-    let output = with_python(|python| {
-        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
-        execute_with_python(
-            python,
-            &["--warn", "silence", "from-index", "parent[feature]"],
-        )
-    });
+#[rstest]
+#[case::root(&[])]
+#[case::filtered(&["--packages", "parent[feature]"])]
+fn renders_parent_and_child_extras(#[case] flags: &[&str]) {
+    let output = resolved_output(
+        &["--warn", "silence"]
+            .iter()
+            .copied()
+            .chain(flags.iter().copied())
+            .chain(["from-index", "parent[feature]"])
+            .collect::<Vec<_>>(),
+    );
 
     assert_eq!(
         stdout(&output),
@@ -202,22 +260,15 @@ fn renders_declarations_in_colored_rich_text() {
 
 #[test]
 fn renders_declarations_in_reverse_text() {
-    let directory = tempdir().unwrap();
-    let output = with_python(|python| {
-        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
-        execute_with_python(
-            python,
-            &[
-                "--warn",
-                "silence",
-                "--reverse",
-                "--packages",
-                "child",
-                "from-index",
-                "parent[feature]",
-            ],
-        )
-    });
+    let output = resolved_output(&[
+        "--warn",
+        "silence",
+        "--reverse",
+        "--packages",
+        "child",
+        "from-index",
+        "parent[feature]",
+    ]);
 
     assert!(stdout(&output).contains("[requires: child[socks]<3, extra: feature]"));
 }
@@ -226,38 +277,30 @@ fn renders_declarations_in_reverse_text() {
 #[case::mermaid(&["--mermaid"], "parent -- \"[feature] <3\" --> child")]
 #[case::graphviz(&["--graph-output", "dot"], "parent -> child [label=\"[feature] <3\"]")]
 fn renders_declarations_in_graph_edges(#[case] args: &[&str], #[case] expected: &str) {
-    let directory = tempdir().unwrap();
-    let output = with_python(|python| {
-        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
-        execute_with_python(
-            python,
-            &args
-                .iter()
-                .copied()
-                .chain(["from-index", "parent[feature]"])
-                .collect::<Vec<_>>(),
-        )
-    });
+    let output = resolved_output(
+        &args
+            .iter()
+            .copied()
+            .chain(["from-index", "parent[feature]"])
+            .collect::<Vec<_>>(),
+    );
 
     assert!(stdout(&output).contains(expected));
 }
 
-#[test]
-fn retains_declarations_in_forward_json_tree() {
-    let directory = tempdir().unwrap();
-    let output = with_python(|python| {
-        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
-        execute_with_python(
-            python,
-            &[
-                "--warn",
-                "silence",
-                "--json-tree",
-                "from-index",
-                "parent[feature]",
-            ],
-        )
-    });
+#[rstest]
+#[case::forward_tree(&["--json-tree"], false)]
+#[case::reverse_flat(&["--json", "--reverse", "--packages", "child"], true)]
+#[case::reverse_tree(&["--json-tree", "--reverse", "--packages", "child"], true)]
+fn retains_declarations_in_json(#[case] flags: &[&str], #[case] reverse: bool) {
+    let output = resolved_output(
+        &["--warn", "silence"]
+            .iter()
+            .copied()
+            .chain(flags.iter().copied())
+            .chain(["from-index", "parent[feature]"])
+            .collect::<Vec<_>>(),
+    );
     let entries: Value = serde_json::from_slice(&output.stdout).unwrap();
 
     assert_eq!(
@@ -265,7 +308,7 @@ fn retains_declarations_in_forward_json_tree() {
             .as_array()
             .unwrap()
             .iter()
-            .filter(|entry| entry["key"] == "child")
+            .filter(|entry| reverse || entry["key"] == "child")
             .map(|entry| (
                 &entry["required_version"],
                 &entry["declaration"]["requirement_text"]
@@ -279,24 +322,19 @@ fn retains_declarations_in_forward_json_tree() {
 }
 
 #[test]
-fn retains_declarations_in_reverse_flat_json() {
-    let directory = tempdir().unwrap();
-    let output = with_python(|python| {
-        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
-        execute_with_python(
-            python,
-            &[
-                "--warn",
-                "silence",
-                "--json",
-                "--reverse",
-                "--packages",
-                "child",
-                "from-index",
-                "parent[feature]",
-            ],
-        )
-    });
+fn reverse_follows_parent_extras_from_nab() {
+    let output = resolved_output(&[
+        "--warn",
+        "silence",
+        "--json-tree",
+        "--reverse",
+        "--packages",
+        "child",
+        "from-index",
+        "chain",
+        "other",
+        "plain",
+    ]);
     let entries: Value = serde_json::from_slice(&output.stdout).unwrap();
 
     assert_eq!(
@@ -304,51 +342,19 @@ fn retains_declarations_in_reverse_flat_json() {
             .as_array()
             .unwrap()
             .iter()
-            .map(|entry| (
-                &entry["required_version"],
-                &entry["declaration"]["requirement_text"]
-            ))
+            .map(|entry| json!({
+                "extra": entry["declaration"]["required_for_parent_extras"],
+                "parents": entry["dependencies"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|parent| &parent["key"])
+                    .collect::<Vec<_>>(),
+            }))
             .collect::<Vec<_>>(),
         vec![
-            (&json!(">=1"), &json!("child>=1")),
-            (&json!("<3"), &json!("child[socks]<3; extra == \"feature\"")),
-        ]
-    );
-}
-
-#[test]
-fn retains_declarations_in_reverse_json_tree() {
-    let directory = tempdir().unwrap();
-    let output = with_python(|python| {
-        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
-        execute_with_python(
-            python,
-            &[
-                "--warn",
-                "silence",
-                "--json-tree",
-                "--reverse",
-                "--packages",
-                "child",
-                "from-index",
-                "parent[feature]",
-            ],
-        )
-    });
-    let entries: Value = serde_json::from_slice(&output.stdout).unwrap();
-    let dependents = entries[0]["dependencies"].as_array().unwrap();
-
-    assert_eq!(
-        dependents
-            .iter()
-            .map(|entry| (
-                &entry["required_version"],
-                &entry["declaration"]["requirement_text"]
-            ))
-            .collect::<Vec<_>>(),
-        vec![
-            (&json!(">=1"), &json!("child>=1")),
-            (&json!("<3"), &json!("child[socks]<3; extra == \"feature\"")),
+            json!({"extra": [], "parents": ["chain", "other", "plain"]}),
+            json!({"extra": ["feature", "other"], "parents": ["chain", "other"]}),
         ]
     );
 }
@@ -947,6 +953,14 @@ enum InvalidSource {
     LocalWithoutPyproject,
     LocalWithoutName,
     MalformedLocal,
+}
+
+fn resolved_output(args: &[&str]) -> Execution {
+    let directory = tempdir().unwrap();
+    with_python(|python| {
+        install_resolver(python, &directory.path().join("capture.txt")).unwrap();
+        execute_with_python(python, args)
+    })
 }
 
 struct RequirementSources {
