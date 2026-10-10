@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tempfile::tempdir;
 
 use crate::Error;
-use crate::metadata::{Discovered, Package};
+use crate::metadata::{Discovered, Package, ResolvedDeclaration, ResolvedEdge};
 
 const RESOLVER_IMPORT_ERROR: &str =
     "The from-index subcommand requires nab, nab-index and nab-project";
@@ -146,7 +146,7 @@ pub fn resolve(
             fs::write(&path, render_pyproject(&inputs))?;
             resolve_pyproject(py, &path, None)?
         };
-    adapt_result(&result).map(Discovered::new)
+    adapt_result(&result)
 }
 
 fn resolve_indexes(index_url: Option<&str>, extra_index_urls: &[String]) -> Option<Vec<Index>> {
@@ -515,6 +515,7 @@ impl<'py> ResolverModules<'py> {
         let targets = self.config.getattr("plan_targets")?.call1((&config,))?;
         kwargs.set_item("targets", targets)?;
         kwargs.set_item("inputs", config.call_method0("resolve_inputs")?)?;
+        kwargs.set_item("include_dependency_requirements", true)?;
         let transport = self.transport.getattr("Urllib3AsyncTransport")?.call0()?;
         self.resolve
             .getattr("resolve_for_targets")?
@@ -522,7 +523,7 @@ impl<'py> ResolverModules<'py> {
     }
 }
 
-fn adapt_result(result: &pyo3::Bound<'_, pyo3::PyAny>) -> Result<Vec<Package>, Error> {
+fn adapt_result(result: &pyo3::Bound<'_, pyo3::PyAny>) -> Result<Discovered, Error> {
     // A target that cannot be resolved is reported rather than raised, so ask for the failure.
     // What is left is one result per planned target, and the generated project plans just the one.
     result.call_method0("raise_for_failure")?;
@@ -539,22 +540,53 @@ fn adapt_result(result: &pyo3::Bound<'_, pyo3::PyAny>) -> Result<Vec<Package>, E
         .getattr("lock")?
         .getattr("dependencies")?
         .extract::<HashMap<String, Vec<String>>>()?;
-    Ok(versions
+    let requirements = target.call_method0("dependency_requirements")?;
+    let mut resolved_edges = HashMap::new();
+    for (parent, children) in dependencies {
+        let by_child = requirements.get_item(&parent)?;
+        let mut edges = Vec::new();
+        for child in children {
+            let records = by_child.get_item(&child)?;
+            let mut found = false;
+            for record in records.try_iter()? {
+                let record = record?;
+                found = true;
+                edges.push(ResolvedEdge {
+                    child: child.clone(),
+                    declaration: Some(ResolvedDeclaration {
+                        requirement_text: record.getattr("requirement_text")?.extract()?,
+                        dependency_specifier: record.getattr("dependency_specifier")?.extract()?,
+                        requirement_condition: record
+                            .getattr("requirement_condition")?
+                            .extract()?,
+                        dependency_extras: record.getattr("dependency_extras")?.extract()?,
+                        required_for_parent_extras: record
+                            .getattr("required_for_parent_extras")?
+                            .extract()?,
+                        required_without_parent_extras: record
+                            .getattr("required_without_parent_extras")?
+                            .extract()?,
+                    }),
+                });
+            }
+            if !found {
+                edges.push(ResolvedEdge {
+                    child,
+                    declaration: None,
+                });
+            }
+        }
+        resolved_edges.insert(parent, edges);
+    }
+    let packages = versions
         .iter()
-        .map(|(name, version)| {
-            let requires = dependencies
-                .get(name)
-                .into_iter()
-                .flatten()
-                .map(|child| {
-                    versions
-                        .get(child)
-                        .map_or_else(|| child.clone(), |version| format!("{child}=={version}"))
-                })
-                .collect();
-            Package::synthetic(name.clone(), version.clone(), requires)
-        })
-        .collect())
+        .map(|(name, version)| Package::synthetic(name.clone(), version.clone(), Vec::new()))
+        .collect();
+    Ok(Discovered {
+        packages,
+        warnings: Vec::new(),
+        resolved_edges: Some(resolved_edges),
+    })
 }
 
 fn require_file(path: &Path) -> Result<&Path, Error> {

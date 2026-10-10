@@ -136,13 +136,37 @@ from pathlib import Path
 from unittest.mock import create_autospec
 
 from packaging.version import Version
+from nab_project.declarations import DependencyDeclaration
 from nab_project.lockfile import TargetLock
 from nab_project.resolve import ResolveResult, TargetResult
 import nab_project.resolve as resolve_module
 
-def resolved(path, transport, *, targets, inputs):
+def resolved(path, transport, *, targets, inputs, include_dependency_requirements):
+    assert include_dependency_requirements
+    source = path.read_text()
+    feature = '"parent[feature]"' in source
+    child_requirements = (
+        DependencyDeclaration(
+            requirement_text="child>=1",
+            dependency_specifier=">=1",
+            parent_name="parent",
+            dependency_name="child",
+        ),
+    )
+    if feature:
+        child_requirements += (
+            DependencyDeclaration(
+                requirement_text='child[socks]<3; extra == "feature"',
+                dependency_specifier="<3",
+                parent_name="parent",
+                dependency_name="child",
+                dependency_extras=("socks",),
+                requirement_condition='extra == "feature"',
+                required_for_parent_extras=("feature",),
+            ),
+        )
     indexes = [(index.name, index.url) for index in inputs.indexes]
-    text = path.read_text() + "\n--- indexes ---\n" + repr(indexes)
+    text = source + "\n--- indexes ---\n" + repr(indexes)
     Path(resolve_module.capture).write_text(text)
     target = targets[0]
     return ResolveResult(
@@ -156,6 +180,19 @@ def resolved(path, transport, *, targets, inputs):
                     target=target,
                     pins={},
                     dependencies={"parent": ("child", "external")},
+                    dependency_requirements={
+                        "parent": {
+                            "child": child_requirements,
+                            "external": () if '"parent[empty]"' in source else (
+                                DependencyDeclaration(
+                                    requirement_text="external",
+                                    dependency_specifier="",
+                                    parent_name="parent",
+                                    dependency_name="external",
+                                ),
+                            ),
+                        },
+                    },
                 ),
             )
         ],

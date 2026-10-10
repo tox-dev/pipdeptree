@@ -102,9 +102,11 @@ fn reverse_tree_json(
     path.insert(index);
     let mut value = package_json(graph, index, options);
     if let Some(dependency) = incoming {
-        if !options.resolved() {
-            value["required_version"] = Value::String(required_version(dependency));
-        }
+        add_requirement_json(
+            value.as_object_mut().expect("package JSON is an object"),
+            dependency,
+            options,
+        );
     } else if !options.resolved() {
         value["required_version"] = Value::String(graph.nodes[index].package.version.clone());
     }
@@ -142,12 +144,7 @@ fn missing_dependency_json(graph: &Graph, dependency: &Dependency, options: &Opt
             Value::String(graph.missing_version(name).to_string()),
         ),
     ]);
-    if !options.resolved() {
-        object.insert(
-            "required_version".to_string(),
-            Value::String(required_version(dependency)),
-        );
-    }
+    add_requirement_json(&mut object, dependency, options);
     object.insert("dependencies".to_string(), Value::Array(Vec::new()));
     Value::Object(object)
 }
@@ -236,15 +233,32 @@ fn dependency_json(graph: &Graph, dependency: &Dependency, options: &Options) ->
         object.insert("candidate_version".to_string(), Value::String(version));
     } else {
         object.insert("installed_version".to_string(), Value::String(version));
+    }
+    add_requirement_json(&mut object, dependency, options);
+    if let Some(extra) = &dependency.activated_by {
+        object.insert("extra".to_string(), Value::String(extra.clone()));
+    }
+    Value::Object(object)
+}
+
+fn add_requirement_json(
+    object: &mut Map<String, Value>,
+    dependency: &Dependency,
+    options: &Options,
+) {
+    if !options.resolved() || dependency.declaration.is_some() {
         object.insert(
             "required_version".to_string(),
             Value::String(required_version(dependency)),
         );
     }
-    if let Some(extra) = &dependency.activated_by {
-        object.insert("extra".to_string(), Value::String(extra.clone()));
+    if let Some(declaration) = &dependency.declaration {
+        object.insert(
+            "declaration".to_string(),
+            serde_json::to_value(declaration)
+                .expect("resolved declarations contain serializable values"),
+        );
     }
-    Value::Object(object)
 }
 
 fn add_context_json(

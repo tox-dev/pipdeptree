@@ -112,10 +112,10 @@ Index selection feeds the resolver's index list. ``--index-url``/``--extra-index
 environment fallbacks, and a ``--pyproject``'s ``[tool.nab].indexes`` each supply that list; with none set the
 resolve uses PyPI.
 
-The resolver yields names, versions and dependency edges, so ``from-index`` drops the installed-environment display
-options. ``--metadata``, ``--computed`` and ``--license`` need package files on disk. The environment-inspection
-options (``--python``, ``--path``, ``-l``/``-u``) need an installed environment. Filtering, depth, ``--reverse``,
-``--extras`` and the output formats apply.
+The resolver yields names, versions, dependency edges and each active declaration, so ``from-index`` can show a parent's
+required range beside the selected candidate. ``--metadata``, ``--computed`` and ``--license`` need package files on disk.
+The environment-inspection options (``--python``, ``--path``, ``-l``/``-u``) need an installed environment. Filtering,
+depth, ``--reverse``, ``--extras`` and the output formats apply.
 
 ``from-lock`` reads versions and edges from a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock (``pylock.toml``).
 

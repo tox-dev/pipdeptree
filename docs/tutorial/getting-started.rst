@@ -210,14 +210,14 @@ Ask what ``starlette`` brings along:
 
     $ pipdeptree from-index "starlette"
     starlette==1.6.0
-    └── anyio [candidate: 4.15.1]
-        ├── idna [candidate: 3.19]
-        └── typing-extensions [candidate: 4.16.0]
+    └── anyio [required: <5,>=3.6.2, candidate: 4.15.1]
+        ├── idna [required: >=2.8, candidate: 3.19]
+        └── typing-extensions [required: >=4.16.0, candidate: 4.16.0]
 
 Read this the same way as the tree from your environment. The top line is the requirement you asked for and the
-indented lines are its dependencies. Each edge shows the candidate version the resolver selected from PyPI:
-the resolver does not install packages. It produces one version per package without a requirement range, so the edges
-read ``[candidate: <version>]`` instead of the ``[required: ..., installed: ...]`` pair from an installed environment.
+indented lines are its dependencies. Each edge shows the parent's requirement and the candidate version the resolver
+selected from PyPI; the resolver does not install packages. If two active declarations name the same dependency, both
+appear in the tree.
 
 The positional argument is a PEP 508 requirement, the same string you would pass to ``pip install``, so you can
 pin or bound it. Bound ``fastapi`` and resolve it alongside ``starlette``; the resolver selects the upper bound:
@@ -227,18 +227,9 @@ pin or bound it. Bound ``fastapi`` and resolve it alongside ``starlette``; the r
 
     $ pipdeptree from-index "fastapi<=0.115.2" starlette
     fastapi==0.115.2
-    ├── pydantic [candidate: 2.13.5]
-    │   ├── annotated-types [candidate: 0.8.0]
-    │   ├── pydantic-core [candidate: 2.46.5]
-    │   │   └── typing-extensions [candidate: 4.16.0]
-    │   ├── typing-extensions [candidate: 4.16.0]
-    │   └── typing-inspection [candidate: 0.4.4]
-    │       └── typing-extensions [candidate: 4.16.0]
-    ├── starlette [candidate: 0.40.0]
-    │   └── anyio [candidate: 4.15.1]
-    │       ├── idna [candidate: 3.19]
-    │       └── typing-extensions [candidate: 4.16.0]
-    └── typing-extensions [candidate: 4.16.0]
+    ...
+    ├── starlette [required: <0.41.0,>=0.37.2, candidate: 0.40.0]
+    ...
 
 The resolver selects ``0.115.2`` for the top-level package and follows its dependencies. You can resolve a
 ``pyproject.toml`` with ``--pyproject`` or a requirements file with ``--requirements``. The resolver reads metadata

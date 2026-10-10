@@ -295,19 +295,22 @@ fn prepare_graph(
         .map_err(|error| failure(1, format!("{error}\n")))?;
     let mut stderr = runtime.resolved_message.clone().unwrap_or_default();
     let mut warned = false;
-    let packages = match packages(py, options, &runtime) {
-        Ok(discovered) => {
-            if ctx.warning_mode != WarningMode::Silence {
-                for warning in discovered.warnings {
-                    stderr.push_str(&style_warning(&warning.message, ctx.color));
-                    warned |= warning.failure;
-                }
-            }
-            discovered.packages
-        }
+    let discovered = match packages(py, options, &runtime) {
+        Ok(discovered) => discovered,
         Err(error) => return Err(failure(1, format!("{stderr}{error}\n"))),
     };
-    let mut graph = Graph::new(packages, &runtime.marker, options.extras);
+    if ctx.warning_mode != WarningMode::Silence {
+        for warning in &discovered.warnings {
+            stderr.push_str(&style_warning(&warning.message, ctx.color));
+            warned |= warning.failure;
+        }
+    }
+    let mut graph = Graph::new(
+        discovered.packages,
+        discovered.resolved_edges.as_ref(),
+        &runtime.marker,
+        options.extras,
+    );
     let (filter_spec, requested_extras) = FilterSpec::from_options(options);
     graph.apply_global_extras(&requested_extras);
     let filtered = |graph: &mut Graph, stderr: String, warned: bool| {

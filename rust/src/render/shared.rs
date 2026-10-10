@@ -5,8 +5,7 @@ pub(super) fn edge_label(dependency: &Dependency) -> String {
         .version_spec()
         .unwrap_or_else(|| "any".to_string());
     dependency
-        .activated_by
-        .as_ref()
+        .activating_extras()
         .map_or_else(|| version.clone(), |extra| format!("[{extra}] {version}"))
 }
 
