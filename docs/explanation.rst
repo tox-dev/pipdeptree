@@ -117,6 +117,12 @@ required range beside the selected candidate. ``--metadata``, ``--computed`` and
 The environment-inspection options (``--python``, ``--path``, ``-l``/``-u``) need an installed environment. Filtering,
 depth, ``--reverse``, ``--extras`` and the output formats apply.
 
+Nab selects declarations for the resolve target before pipdeptree builds the graph. Each active declaration becomes its
+own edge, preserving separate requirements on the same child and their marker and extra context. Nab's target-specific
+marker decisions and declared ranges pass through unchanged. An edge without a declaration shows only its candidate.
+JSON keeps declaration data in a nested object beside the candidate version, so consumers can distinguish what the
+parent requested from what the resolver selected.
+
 ``from-lock`` reads versions and edges from a `PEP 751 <https://peps.python.org/pep-0751/>`_ lock (``pylock.toml``).
 
 A PEP 751 lock records each package's name, its pinned version and the forward edges between packages (its
