@@ -4,6 +4,7 @@ mod json;
 mod json_tree;
 mod mermaid;
 mod rich_text;
+mod sbom;
 mod shared;
 mod summary;
 mod text;
@@ -26,6 +27,7 @@ pub fn render(
         match &options.output_format {
             Format::Json => json::render(graph, options),
             Format::JsonTree => json_tree::render(graph, options),
+            Format::CycloneDxJson => return sbom::render(graph, options),
             Format::Mermaid => format!("{}\n", mermaid::render(graph, options)),
             Format::Freeze => freeze::render(processes, graph, options),
             Format::Rich => rich_text::render(processes, graph, options, color),

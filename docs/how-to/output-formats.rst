@@ -347,3 +347,45 @@ and JSON omits the field. See :doc:`/explanation` for the reasoning.
 The formats work with ``from-index`` (alias ``i``) and ``from-lock`` (alias ``l``). For example,
 ``pipdeptree from-index --requirements requirements.txt -o json`` resolves and renders index packages, while
 ``pipdeptree from-lock pylock.toml -o json`` renders a PEP 751 lock offline. See :doc:`/how-to/usage` for details.
+
+cyclonedx-json
+-------------
+
+``cyclonedx-json`` emits a `CycloneDX <https://cyclonedx.org/>`_ 1.5 JSON Software Bill of Materials, built with the Rust
+``cyclonedx-bom`` library. It works with every dependency source:
+
+.. code-block:: console
+
+    $ pipdeptree -o cyclonedx-json > environment.cdx.json
+    $ pipdeptree --python /path/to/venv/bin/python -o cyclonedx-json > venv.cdx.json
+    $ pipdeptree from-lock pylock.toml -o cyclonedx-json > locked.cdx.json
+    $ pipdeptree from-index --requirements requirements.txt -o cyclonedx-json > resolved.cdx.json
+    $ pipdeptree from-index --pyproject pyproject.toml -o cyclonedx-json > project.cdx.json
+
+The Python API also supports ``pipdeptree.render(output_format="cyclonedx-json")`` for installed environments.
+
+Each distribution becomes one ``library`` component. Its name retains the distribution's spelling; its PyPI
+package URL (``purl``) uses the normalized Python project name and an escaped version. The same URL serves as its
+``bom-ref``. Extras select dependencies of a distribution; they do not create additional components or versions.
+The ``dependencies`` section links parent references to their required components, with duplicate links collapsed.
+Cycles are preserved.
+
+``--packages``, ``--exclude`` and ``--extras`` select the graph using the same rules as other renderers. With
+``--reverse``, package selection follows dependents, but SBOM links still point from a package to its dependencies.
+``--depth`` and ``--all`` control tree presentation and have no effect on the flat SBOM. ``--summary`` cannot be
+combined with ``-o cyclonedx-json``.
+
+Installed package metadata supplies licenses and repeated ``pipdeptree:provides-extra`` properties automatically.
+Valid SPDX ``License-Expression`` values become CycloneDX license expressions; other license labels become named
+licenses. ``--metadata`` and ``--computed`` add properties under ``pipdeptree:metadata:FIELD`` and
+``pipdeptree:computed:FIELD`` respectively.
+
+Missing distributions remain identifiable as unversioned components with ``scope: excluded`` and
+``pipdeptree:missing: true``. Their own dependency graph is unknown, so they have no dependency entry. A package
+present in a lock without a version also omits its version, but is not marked missing.
+
+The SBOM contains the data available in pipdeptree's graph. Lock and index sources currently supply names,
+versions and dependency relationships, rather than installed distribution metadata, artifact hashes or source
+provenance. A lock's exact-version links are derived from its pins; they do not reconstruct the original dependency
+constraints. Index resolution retains original declarations when the resolver provides them. Requirements and
+pyproject inputs use ``from-index`` resolution; pipdeptree does not infer an installed environment from those files.

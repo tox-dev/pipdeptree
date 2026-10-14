@@ -11,6 +11,7 @@ mod json;
 mod json_tree;
 mod mermaid;
 mod rich_text;
+mod sbom;
 mod summary;
 mod text;
 

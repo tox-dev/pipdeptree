@@ -51,6 +51,7 @@ pub enum Format {
     Freeze,
     Json,
     JsonTree,
+    CycloneDxJson,
     Mermaid,
     Graphviz(String),
 }
@@ -63,6 +64,7 @@ impl Format {
             "freeze" => Self::Freeze,
             "json" => Self::Json,
             "json-tree" => Self::JsonTree,
+            "cyclonedx-json" => Self::CycloneDxJson,
             "mermaid" => Self::Mermaid,
             other => Self::Graphviz(other.strip_prefix("graphviz-")?.to_string()),
         })
@@ -206,7 +208,7 @@ pub struct Options {
         long = "output",
         value_name = "FMT",
         global = true,
-        help = "Output format: text, rich, freeze, json, json-tree, mermaid, or graphviz-FMT \
+        help = "Output format: text, rich, freeze, json, json-tree, cyclonedx-json, mermaid, or graphviz-FMT \
                 [default: rich on color terminals, text otherwise]"
     )]
     output: Option<String>,

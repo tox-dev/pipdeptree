@@ -44,8 +44,8 @@ def render(  # ruff:ignore[too-many-arguments]  # The public keyword API predate
 
     :param packages: Comma-separated package allowlist. Wildcards and ``name[extra]`` are supported.
     :param exclude: Comma-separated package denylist. Wildcards are supported.
-    :param output_format: ``text``, ``json``, ``json-tree``, ``mermaid`` or ``dot``. With ``summary=True``, use
-        ``text``, ``rich`` or ``json``.
+    :param output_format: ``text``, ``json``, ``json-tree``, ``cyclonedx-json``, ``mermaid`` or ``dot``.
+        With ``summary=True``, use ``text``, ``rich`` or ``json``.
     :param summary: Return an environment health report instead of a dependency tree.
     :param reverse: Show packages beneath the dependencies that require them.
     :param depth: Maximum rendered tree depth.
