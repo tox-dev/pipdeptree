@@ -294,6 +294,8 @@ dependencies = [
  "ref-cast",
  "serde",
 ]
+
+[[package]]
 name = "foldhash"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
