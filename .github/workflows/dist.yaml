@@ -19,7 +19,7 @@ jobs:
         platform:
           - os: ubuntu-26.04
             arch: x86_64
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-26.04-arm
             arch: aarch64
           - os: windows-latest
             arch: AMD64
@@ -37,17 +37,17 @@ jobs:
           - build: gil
             identifiers: cp315-* pp311-*
             platform:
-              os: macos-15-intel
+              os: macos-26-intel
               arch: x86_64
           - build: free-threaded
             identifiers: cp314t-* cp315t-*
             platform:
-              os: macos-15-intel
+              os: macos-26-intel
               arch: x86_64
           - build: every
             identifiers: cp315-* cp314t-* cp315t-* pp311-*
             platform:
-              os: macos-latest
+              os: macos-26
               arch: arm64
     runs-on: ${{ matrix.platform.os }}
     steps:
