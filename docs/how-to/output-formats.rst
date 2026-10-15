@@ -375,14 +375,14 @@ Cycles are preserved.
 ``--depth`` and ``--all`` control tree presentation and have no effect on the flat SBOM. ``--summary`` cannot be
 combined with ``-o cyclonedx-json``.
 
-Installed package metadata supplies licenses and repeated ``pipdeptree:provides-extra`` properties automatically.
-Valid SPDX ``License-Expression`` values become CycloneDX license expressions; other license labels become named
-licenses. ``--metadata`` and ``--computed`` add properties under ``pipdeptree:metadata:FIELD`` and
+Installed package metadata supplies licenses and repeated ``pipdeptree:provides-extra`` properties automatically. Valid
+SPDX ``License-Expression`` values become CycloneDX license expressions; other license labels become named licenses, one
+per license classifier. ``--metadata`` and ``--computed`` add properties under ``pipdeptree:metadata:FIELD`` and
 ``pipdeptree:computed:FIELD`` respectively.
 
-Missing distributions remain identifiable as unversioned components with ``scope: excluded`` and
-``pipdeptree:missing: true``. Their own dependency graph is unknown, so they have no dependency entry. A package
-present in a lock without a version also omits its version, but is not marked missing.
+Missing distributions remain identifiable as unversioned components marked ``pipdeptree:missing: true``. Their own
+dependency graph is unknown, so they have no dependency entry and are listed in a ``compositions`` entry with
+``aggregate: unknown``. A package present in a lock without a version also omits its version, but is not marked missing.
 
 The SBOM contains the data available in pipdeptree's graph. Lock and index sources currently supply names,
 versions and dependency relationships, rather than installed distribution metadata, artifact hashes or source

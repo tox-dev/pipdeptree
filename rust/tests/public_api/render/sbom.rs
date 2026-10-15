@@ -52,11 +52,9 @@ fn edges(value: &Value, reference: &str) -> Value {
         .clone()
 }
 
-#[test]
-fn renders_environment_identity_metadata_and_missing_dependencies() {
-    let site = render_site();
-    let output = execute(
-        &site,
+fn render_environment(site: &PackageSite) -> _pipdeptree::Execution {
+    execute(
+        site,
         &[
             "-o",
             "cyclonedx-json",
@@ -65,12 +63,21 @@ fn renders_environment_identity_metadata_and_missing_dependencies() {
             "--computed",
             "size-raw",
         ],
-    );
+    )
+}
+
+#[test]
+fn renders_environment_identity_and_metadata() {
+    let output = render_environment(&render_site());
     assert_eq!(output.stderr, "");
     let value = read(&output);
     assert_eq!(value["bomFormat"], "CycloneDX");
     assert_eq!(value["specVersion"], "1.5");
     assert_eq!(value["metadata"]["properties"][0]["value"], "environment");
+    assert_eq!(
+        value["metadata"]["tools"]["components"][0]["name"],
+        "pipdeptree"
+    );
     let root = component(&value, "root");
     assert_eq!(root["type"], "library");
     assert_eq!(root["purl"], "pkg:pypi/root@1");
@@ -87,14 +94,6 @@ fn renders_environment_identity_metadata_and_missing_dependencies() {
             .unwrap()
             .contains(&json!({"name": "pipdeptree:computed:size_raw", "value": "0"}))
     );
-    let missing = component(&value, "missing");
-    assert!(missing.get("version").is_none());
-    assert_eq!(missing["scope"], "excluded");
-    assert_eq!(missing["purl"], "pkg:pypi/missing");
-    assert_eq!(
-        edges(&value, "pkg:pypi/root@1"),
-        json!(["pkg:pypi/child@1", "pkg:pypi/missing", "pkg:pypi/unique@1"])
-    );
     assert!(
         component(&value, "unique")["properties"]
             .as_array()
@@ -102,25 +101,43 @@ fn renders_environment_identity_metadata_and_missing_dependencies() {
             .contains(&json!({"name": "pipdeptree:provides-extra", "value": "feature"}))
     );
     assert!(!String::from_utf8_lossy(&output.stdout).contains("pipdeptree:dependency"));
-    let serial = value["serialNumber"].as_str().unwrap();
+}
+
+#[test]
+fn marks_missing_dependencies_with_an_unknown_graph() {
+    let value = read(&render_environment(&render_site()));
+    let missing = component(&value, "missing");
+    assert!(missing.get("version").is_none());
+    assert!(missing.get("scope").is_none());
+    assert_eq!(missing["purl"], "pkg:pypi/missing");
+    assert_eq!(
+        value["compositions"],
+        json!([{"aggregate": "unknown", "dependencies": ["pkg:pypi/missing"]}])
+    );
+    assert_eq!(
+        edges(&value, "pkg:pypi/root@1"),
+        json!(["pkg:pypi/child@1", "pkg:pypi/missing", "pkg:pypi/unique@1"])
+    );
+}
+
+#[test]
+fn renders_a_new_serial_per_run() {
+    let site = render_site();
+    let mut first = read(&render_environment(&site));
+    let mut second = read(&render_environment(&site));
+    let serial = first["serialNumber"].as_str().unwrap();
     assert!(serial.starts_with("urn:uuid:"));
     assert_eq!(serial.len(), 45);
-    let mut repeated = read(&execute(
-        &site,
-        &[
-            "-o",
-            "cyclonedx-json",
-            "--metadata",
-            "classifier",
-            "--computed",
-            "size-raw",
-        ],
-    ));
-    assert_ne!(value["serialNumber"], repeated["serialNumber"]);
-    let mut stable = value;
-    stable.as_object_mut().unwrap().remove("serialNumber");
-    repeated.as_object_mut().unwrap().remove("serialNumber");
-    assert_eq!(stable, repeated);
+    assert_ne!(first["serialNumber"], second["serialNumber"]);
+    for document in [&mut first, &mut second] {
+        document.as_object_mut().unwrap().remove("serialNumber");
+        document["metadata"]
+            .as_object_mut()
+            .unwrap()
+            .remove("timestamp")
+            .unwrap();
+    }
+    assert_eq!(first, second);
 }
 
 #[rstest]
@@ -212,7 +229,10 @@ fn renders_lock_versions_and_omits_unavailable_metadata() {
     );
     assert!(component(&value, "Root.Name").get("licenses").is_none());
     assert!(component(&value, "child").get("version").is_none());
-    assert!(component(&value, "child").get("scope").is_none());
+    assert_eq!(
+        value["compositions"],
+        json!([{"aggregate": "unknown", "dependencies": ["pkg:pypi/missing"]}])
+    );
 }
 
 #[test]
@@ -275,6 +295,9 @@ fn renders_external_references_from_installed_metadata() {
             "Project-URL: License, https://example.org/license\n",
             "Project-URL: Security, https://example.org/security\n",
             "Project-URL: Download, https://example.org/download\n",
+            "Project-URL: Bug Reports, https://example.org/bugs\n",
+            "Project-URL: What's New, https://example.org/new\n",
+            "Project-URL: GitHub, https://github.com/example/demo-fork\n",
             "Project-URL: Documentation, https://example.org/docs\n",
             "Project-URL: Invalid, not a URL\n",
             "Project-URL: Empty, \n",
@@ -291,7 +314,7 @@ fn renders_external_references_from_installed_metadata() {
     let references = component(&value, "demo")["externalReferences"]
         .as_array()
         .unwrap();
-    assert_eq!(references.len(), 14);
+    assert_eq!(references.len(), 17);
     for (index, kind) in [
         "vcs",
         "documentation",
@@ -303,8 +326,11 @@ fn renders_external_references_from_installed_metadata() {
         "mailing-list",
         "support",
         "license",
-        "advisories",
+        "security-contact",
         "distribution",
+        "issue-tracker",
+        "release-notes",
+        "vcs",
         "website",
         "distribution",
     ]
@@ -318,9 +344,9 @@ fn renders_external_references_from_installed_metadata() {
         references[0]["comment"],
         "from packaging metadata Project-URL: Source Code"
     );
-    assert_eq!(references[12]["url"], "https://example.org/home");
+    assert_eq!(references[15]["url"], "https://example.org/home");
     assert_eq!(
-        references[13]["url"],
+        references[16]["url"],
         "https://example.org/archive/demo.whl"
     );
     assert!(
@@ -343,6 +369,30 @@ fn preserves_invalid_spdx_expressions_as_named_licenses() {
     assert_eq!(
         component(&value, "demo")["licenses"],
         json!([{"license": {"name": "Not an SPDX expression"}}])
+    );
+}
+
+#[test]
+fn renders_each_license_classifier_as_a_license() {
+    let site = PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        concat!(
+            "Name: demo\nVersion: 1\nLicense: Dual License\n",
+            "Classifier: License :: OSI Approved :: BSD License\n",
+            "Classifier: License :: OSI Approved :: Apache Software License\n",
+            "Classifier: Programming Language :: Python\n",
+        ),
+    );
+
+    let value = read(&execute(&site, &["-o", "cyclonedx-json"]));
+
+    assert_eq!(
+        component(&value, "demo")["licenses"],
+        json!([
+            {"license": {"name": "BSD License"}},
+            {"license": {"name": "Apache Software License"}},
+        ])
     );
 }
 
