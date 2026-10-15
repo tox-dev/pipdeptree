@@ -31,7 +31,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<Vec<u8>, Error>
             let child = if let Some(target) = dependency.target {
                 package_purl(&graph.nodes[target].package)?.to_string()
             } else {
-                let missing = missing_component(dependency)?;
+                let missing = missing_component(dependency);
                 let reference = missing
                     .bom_ref
                     .clone()
@@ -86,18 +86,19 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<Vec<u8>, Error>
     };
     let mut output = Vec::new();
     bom.output_as_json_v1_5(&mut output)
-        .map_err(|error| Error::message(format!("could not serialize CycloneDX SBOM: {error}")))?;
+        .expect("CycloneDX 1.5 model can be serialized to memory");
     // The library omits empty dependsOn arrays. An explicit empty array distinguishes known
     // leaves from missing distributions, whose dependency graph is unknown and has no entry.
     let mut value: serde_json::Value = serde_json::from_slice(&output)?;
-    if let Some(entries) = value["dependencies"].as_array_mut() {
-        for entry in entries {
-            entry
-                .as_object_mut()
-                .expect("CycloneDX dependency is an object")
-                .entry("dependsOn")
-                .or_insert_with(|| json!([]));
-        }
+    let entries = value["dependencies"]
+        .as_array_mut()
+        .expect("BOM includes a dependency array");
+    for entry in entries {
+        entry
+            .as_object_mut()
+            .expect("CycloneDX dependency is an object")
+            .entry("dependsOn")
+            .or_insert_with(|| json!([]));
     }
     let mut output = serde_json::to_vec_pretty(&value)?;
     output.push(b'\n');
@@ -163,12 +164,10 @@ fn package_component(package: &Package) -> Result<Component, Error> {
     Ok(component)
 }
 
-fn missing_component(dependency: &Dependency) -> Result<Component, Error> {
-    let purl = Purl::new("pypi", dependency.key(), "").map_err(|error| {
-        Error::message(format!(
-            "could not identify missing dependency in SBOM: {error}"
-        ))
-    })?;
+fn missing_component(dependency: &Dependency) -> Component {
+    // Unlike installed metadata, dependency names have already passed PEP 508 parsing.
+    let purl = Purl::new("pypi", dependency.key(), "")
+        .expect("parsed dependency has a nonempty package name");
     let mut component = Component::new(
         Classification::Library,
         dependency.key(),
@@ -182,7 +181,7 @@ fn missing_component(dependency: &Dependency) -> Result<Component, Error> {
         "pipdeptree:missing",
         "true",
     )]));
-    Ok(component)
+    component
 }
 
 fn external_references(package: &Package) -> Option<ExternalReferences> {

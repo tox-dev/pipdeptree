@@ -329,3 +329,37 @@ fn renders_external_references_from_installed_metadata() {
             .is_none()
     );
 }
+
+#[test]
+fn preserves_invalid_spdx_expressions_as_named_licenses() {
+    let site = PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        "Name: demo\nVersion: 1\nLicense-Expression: Not an SPDX expression\nLicense: MIT\n",
+    );
+
+    let value = read(&execute(&site, &["-o", "cyclonedx-json"]));
+
+    assert_eq!(
+        component(&value, "demo")["licenses"],
+        json!([{"license": {"name": "Not an SPDX expression"}}])
+    );
+}
+
+#[test]
+fn rejects_packages_without_a_purl_name() {
+    let site = PackageSite::new();
+    site.write("unnamed-1.dist-info", "Name: \nVersion: 1\n");
+
+    let output = execute(&site, &["-o", "cyclonedx-json"]);
+
+    assert_eq!(output.code, 1);
+    assert_eq!(output.stdout, [] as [u8; 0]);
+    assert!(
+        output
+            .stderr
+            .contains("could not identify  in SBOM: Invalid Purl:"),
+        "{}",
+        output.stderr
+    );
+}
