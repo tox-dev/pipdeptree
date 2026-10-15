@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     ("output_format", "expected"),
     [
         pytest.param("json", '"package_name": "pipdeptree"', id="json"),
+        pytest.param("cyclonedx-json", '"bomFormat": "CycloneDX"', id="cyclonedx-json"),
         pytest.param("json-tree", '"dependencies"', id="json-tree"),
         pytest.param("mermaid", "flowchart TD", id="mermaid"),
         pytest.param("dot", "digraph {", id="graphviz"),

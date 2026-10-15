@@ -336,6 +336,10 @@ fn format_flags_translate_render_output_formats() {
         assert_eq!(call("text", false).unwrap(), Vec::<String>::new());
         assert_eq!(call("json", false).unwrap(), ["--json"]);
         assert_eq!(call("json-tree", false).unwrap(), ["--json-tree"]);
+        assert_eq!(
+            call("cyclonedx-json", false).unwrap(),
+            ["--output", "cyclonedx-json"]
+        );
         assert_eq!(call("mermaid", false).unwrap(), ["--mermaid"]);
         assert_eq!(call("dot", false).unwrap(), ["--graph-output", "dot"]);
         assert_eq!(

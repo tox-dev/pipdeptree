@@ -36,6 +36,7 @@ Output as [JSON](https://www.json.org/), [Mermaid](https://mermaid.js.org/), or 
 
 ```bash
 pipdeptree -o json
+pipdeptree -o cyclonedx-json > environment.cdx.json
 pipdeptree -o mermaid
 pipdeptree -o graphviz-svg > deps.svg
 ```
@@ -56,6 +57,8 @@ pipdeptree from-index "flask"          # i is a shorthand alias
 pipdeptree from-index --requirements requirements.txt
 pipdeptree from-lock pylock.toml       # l is a shorthand alias
 ```
+
+Export a CycloneDX 1.5 JSON SBOM from any of these dependency sources with `-o cyclonedx-json`.
 
 The render flags above, including `--summary`, work with both subcommands.
 

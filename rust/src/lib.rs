@@ -162,7 +162,14 @@ fn render_with_mermaid_py(
 // Binary Graphviz targets that the string-returning render() API cannot hand back; kept here so the
 // output-format vocabulary lives on the Rust side of the boundary rather than in the Python shim.
 const BINARY_GRAPHVIZ: &[&str] = &["png", "svg", "pdf", "jpeg", "jpg", "gif", "bmp", "ps"];
-const RENDER_FORMATS: &[&str] = &["text", "json", "json-tree", "mermaid", "dot"];
+const RENDER_FORMATS: &[&str] = &[
+    "text",
+    "json",
+    "json-tree",
+    "cyclonedx-json",
+    "mermaid",
+    "dot",
+];
 
 // Translate a render() output_format into the CLI arguments the engine expects, or raise the same
 // ValueError the Python shim used to raise. Summary and tree formats have distinct vocabularies.
@@ -184,6 +191,7 @@ fn format_flags_py(output_format: &str, summary: bool) -> PyResult<Vec<String>> 
         "text" => &[],
         "json" => &["--json"],
         "json-tree" => &["--json-tree"],
+        "cyclonedx-json" => &["--output", "cyclonedx-json"],
         "mermaid" => &["--mermaid"],
         "dot" => &["--graph-output", "dot"],
         _ if BINARY_GRAPHVIZ.contains(&output_format) => {
@@ -422,7 +430,23 @@ const fn failure(code: i32, stderr: String) -> Execution {
 
 fn packages(py: Python<'_>, options: &Options, runtime: &Runtime) -> Result<Discovered, Error> {
     match &options.command {
-        None => metadata::discover_selected(&runtime.paths, &options.metadata, options.summary()),
+        None => {
+            let mut fields = options.metadata.clone();
+            if options.output_format == Format::CycloneDxJson {
+                fields.extend(
+                    [
+                        "license",
+                        "license-expression",
+                        "provides-extra",
+                        "project-url",
+                        "home-page",
+                        "download-url",
+                    ]
+                    .map(ToString::to_string),
+                );
+            }
+            metadata::discover_selected(&runtime.paths, &fields, options.summary())
+        }
         Some(Command::FromLock { lock }) => lock::load(lock, &runtime.marker),
         Some(Command::FromIndex {
             requirements,
