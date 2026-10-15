@@ -103,16 +103,12 @@ def test_render_summary_notebook_bundle_respects_exclude() -> None:
 
 
 @pytest.mark.parametrize("extras", [pytest.param(True, id="bool"), pytest.param("explicit", id="named")])
-def test_render_explicit_extras(extras: bool | str) -> None:
-    result = pipdeptree.render(
-        packages="pluggy[testing]",
-        depth=1,
-        extras=extras,
-        encoding="ascii",
-    )
+def test_render_explicit_extras(extras: bool | str, package_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "path", [str(package_path)])
 
-    assert "\n  - coverage [required: Any, installed: " in result
-    assert "extra: testing]" in result
+    result = pipdeptree.render(packages="root[feature]", depth=1, extras=extras, encoding="ascii")
+
+    assert "\n  - optional [required: Any, installed: 1, extra: feature]" in result
 
 
 def test_render_reverse() -> None:
