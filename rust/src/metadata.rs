@@ -432,18 +432,19 @@ fn discover_with_fields(
             Found::Invalid(path) => {
                 invalid_paths.insert(path);
             }
+            Found::Package(package, path)
+                if let Some((version, first_path)) = seen.get(&package.key) =>
+            {
+                duplicates.entry(path).or_default().push((
+                    package.name,
+                    package.version,
+                    version.clone(),
+                    first_path.clone(),
+                ));
+            }
             Found::Package(package, path) => {
-                if let Some((version, first_path)) = seen.get(&package.key) {
-                    duplicates.entry(path).or_default().push((
-                        package.name,
-                        package.version,
-                        version.clone(),
-                        first_path.clone(),
-                    ));
-                } else {
-                    seen.insert(package.key.clone(), (package.version.clone(), path.clone()));
-                    packages.push(*package);
-                }
+                seen.insert(package.key.clone(), (package.version.clone(), path.clone()));
+                packages.push(*package);
             }
         }
     }
