@@ -349,7 +349,7 @@ The formats work with ``from-index`` (alias ``i``) and ``from-lock`` (alias ``l`
 ``pipdeptree from-lock pylock.toml -o json`` renders a PEP 751 lock offline. See :doc:`/how-to/usage` for details.
 
 cyclonedx-json
--------------
+--------------
 
 ``cyclonedx-json`` emits a `CycloneDX <https://cyclonedx.org/>`_ 1.5 JSON Software Bill of Materials, built with the Rust
 ``cyclonedx-bom`` library. It works with every dependency source:
