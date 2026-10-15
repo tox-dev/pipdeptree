@@ -359,10 +359,9 @@ fn min_requires_python(graph: &Graph) -> String {
                 .strip_prefix(">=")
                 .or_else(|| specifier.strip_prefix('>'))
                 .or_else(|| specifier.strip_prefix("=="))
+                && let Ok(version) = Version::from_str(version.trim())
             {
-                if let Ok(version) = Version::from_str(version.trim()) {
-                    versions.push(version);
-                }
+                versions.push(version);
             }
         }
     }

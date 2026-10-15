@@ -221,10 +221,10 @@ fn reverse_label(
         || dependency.key().to_string(),
         |target| graph.nodes[target].package.name.clone(),
     );
-    if let Some(declaration) = &dependency.declaration {
-        if !declaration.dependency_extras.is_empty() {
-            let _ = write!(required, "[{}]", declaration.dependency_extras.join(","));
-        }
+    if let Some(declaration) = &dependency.declaration
+        && !declaration.dependency_extras.is_empty()
+    {
+        let _ = write!(required, "[{}]", declaration.dependency_extras.join(","));
     }
     if let Some(specifier) = dependency.version_spec() {
         required.push_str(&specifier);
@@ -413,41 +413,35 @@ pub(super) fn node_suffix_parts(graph: &Graph, index: usize, options: &Options) 
         .computed
         .iter()
         .any(|field| field.is_unique())
-        .then(|| graph.unique_dependencies(index));
+        .then(|| graph.unique_dependencies(index))
+        .filter(|unique| !unique.is_empty());
     for field in &options.computed {
         match field {
             ComputedField::Size => parts.push(format_size(graph.nodes[index].package.size())),
             ComputedField::SizeRaw => parts.push(graph.nodes[index].package.size().to_string()),
-            ComputedField::UniqueDepsCount => {
-                if let Some(unique) = unique.filter(|unique| !unique.is_empty()) {
-                    parts.push(format!("{} unique deps", unique.len()));
-                }
+            ComputedField::UniqueDepsCount if let Some(unique) = unique => {
+                parts.push(format!("{} unique deps", unique.len()));
             }
-            ComputedField::UniqueDepsNames => {
-                if let Some(unique) = unique.filter(|unique| !unique.is_empty()) {
-                    parts.push(format!(
-                        "unique: {}",
-                        unique
-                            .iter()
-                            .map(|dependency| graph.nodes[*dependency].package.key.as_str())
-                            .collect::<Vec<_>>()
-                            .join(" | ")
-                    ));
-                }
-            }
-            ComputedField::UniqueDepsSize => {
-                if let Some(unique) = unique.filter(|unique| !unique.is_empty()) {
-                    parts.push(format!(
-                        "unique size: {}",
-                        format_size(
-                            unique
-                                .iter()
-                                .map(|dependency| graph.nodes[*dependency].package.size())
-                                .sum()
-                        )
-                    ));
-                }
-            }
+            ComputedField::UniqueDepsNames if let Some(unique) = unique => parts.push(format!(
+                "unique: {}",
+                unique
+                    .iter()
+                    .map(|dependency| graph.nodes[*dependency].package.key.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" | ")
+            )),
+            ComputedField::UniqueDepsSize if let Some(unique) = unique => parts.push(format!(
+                "unique size: {}",
+                format_size(
+                    unique
+                        .iter()
+                        .map(|dependency| graph.nodes[*dependency].package.size())
+                        .sum()
+                )
+            )),
+            ComputedField::UniqueDepsCount
+            | ComputedField::UniqueDepsNames
+            | ComputedField::UniqueDepsSize => {}
         }
     }
     parts

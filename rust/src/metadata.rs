@@ -185,20 +185,20 @@ impl Package {
         let Some(metadata_dir) = &self.metadata_dir else {
             return self.regular_specifier();
         };
-        if let Ok(content) = fs::read_to_string(metadata_dir.join("direct_url.json")) {
-            if let Ok(direct) = DirectUrl::parse(&content) {
-                if direct.editable() {
-                    if let Some(location) = file_url_to_path(&direct.url) {
-                        return vcs::editable_requirement(
-                            processes,
-                            &location,
-                            &self.name,
-                            &self.version,
-                        );
-                    }
-                } else {
-                    return self.direct_specifier(&direct);
+        if let Ok(content) = fs::read_to_string(metadata_dir.join("direct_url.json"))
+            && let Ok(direct) = DirectUrl::parse(&content)
+        {
+            if direct.editable() {
+                if let Some(location) = file_url_to_path(&direct.url) {
+                    return vcs::editable_requirement(
+                        processes,
+                        &location,
+                        &self.name,
+                        &self.version,
+                    );
                 }
+            } else {
+                return self.direct_specifier(&direct);
             }
         }
         if let Some(location) = &self.legacy_editable {
@@ -432,18 +432,19 @@ fn discover_with_fields(
             Found::Invalid(path) => {
                 invalid_paths.insert(path);
             }
+            Found::Package(package, path)
+                if let Some((version, first_path)) = seen.get(&package.key) =>
+            {
+                duplicates.entry(path).or_default().push((
+                    package.name,
+                    package.version,
+                    version.clone(),
+                    first_path.clone(),
+                ));
+            }
             Found::Package(package, path) => {
-                if let Some((version, first_path)) = seen.get(&package.key) {
-                    duplicates.entry(path).or_default().push((
-                        package.name,
-                        package.version,
-                        version.clone(),
-                        first_path.clone(),
-                    ));
-                } else {
-                    seen.insert(package.key.clone(), (package.version.clone(), path.clone()));
-                    packages.push(*package);
-                }
+                seen.insert(package.key.clone(), (package.version.clone(), path.clone()));
+                packages.push(*package);
             }
         }
     }

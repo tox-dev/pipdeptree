@@ -284,12 +284,9 @@ fn detect_interpreter(processes: &dyn ProcessRunner, implementation: &str) -> Op
         .filter(|path| path.exists())
 }
 
-#[cfg(unix)]
 const fn environment_locations() -> [(&'static str, &'static str); 2] {
-    [("VIRTUAL_ENV", "bin"), ("CONDA_PREFIX", "bin")]
-}
-
-#[cfg(windows)]
-const fn environment_locations() -> [(&'static str, &'static str); 2] {
-    [("VIRTUAL_ENV", "Scripts"), ("CONDA_PREFIX", "")]
+    cfg_select! {
+        windows => [("VIRTUAL_ENV", "Scripts"), ("CONDA_PREFIX", "")],
+        _ => [("VIRTUAL_ENV", "bin"), ("CONDA_PREFIX", "bin")],
+    }
 }
