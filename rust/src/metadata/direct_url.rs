@@ -128,13 +128,13 @@ fn parse_archive(object: &Map<String, Value>) -> Result<ArchiveInfo, String> {
             );
         }
     }
-    if hashes.is_empty() {
-        if let Some(hash) = &hash {
-            let (algorithm, digest) = hash
-                .split_once('=')
-                .expect("archive hash syntax was validated");
-            hashes.insert(algorithm.to_string(), digest.to_string());
-        }
+    if hashes.is_empty()
+        && let Some(hash) = &hash
+    {
+        let (algorithm, digest) = hash
+            .split_once('=')
+            .expect("archive hash syntax was validated");
+        hashes.insert(algorithm.to_string(), digest.to_string());
     }
     Ok(ArchiveInfo { hashes })
 }

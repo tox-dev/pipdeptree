@@ -93,11 +93,11 @@ pub(super) fn build_requirement(input: VcsRequirement<'_>) -> VcsResult {
         quote_commit(input.commit),
         input.package.replace('-', "_")
     );
-    if input.include_subdirectory {
-        if let Some(subdirectory) = project_subdirectory(input.location, input.root) {
-            requirement.push_str("&subdirectory=");
-            requirement.push_str(&subdirectory);
-        }
+    if input.include_subdirectory
+        && let Some(subdirectory) = project_subdirectory(input.location, input.root)
+    {
+        requirement.push_str("&subdirectory=");
+        requirement.push_str(&subdirectory);
     }
     VcsResult {
         requirement: Some(requirement),

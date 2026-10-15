@@ -42,12 +42,12 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
     let lock: Lock = toml::from_str(&content)
         .map_err(|error| Error::message(format!("malformed TOML: {error}")))?;
     // PEP 751 tools must refuse a lock whose major version they do not implement.
-    if let Some(version) = &lock.lock_version {
-        if version.split('.').next() != Some("1") {
-            return Err(Error::message(format!(
-                "unsupported lock-version: {version}"
-            )));
-        }
+    if let Some(version) = &lock.lock_version
+        && version.split('.').next() != Some("1")
+    {
+        return Err(Error::message(format!(
+            "unsupported lock-version: {version}"
+        )));
     }
     let packages = lock
         .packages

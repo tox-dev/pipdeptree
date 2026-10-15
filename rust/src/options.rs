@@ -452,13 +452,13 @@ impl Options {
             pyproject_files,
             ..
         }) = &self.command
+            && requirements.is_empty()
+            && requirement_files.is_empty()
+            && pyproject_files.is_empty()
         {
-            if requirements.is_empty() && requirement_files.is_empty() && pyproject_files.is_empty()
-            {
-                return Err(Error::usage(
-                    "from-index needs at least one REQUIREMENT, --requirements FILE, or --pyproject FILE",
-                ));
-            }
+            return Err(Error::usage(
+                "from-index needs at least one REQUIREMENT, --requirements FILE, or --pyproject FILE",
+            ));
         }
         if self.command.is_some()
             && (self.installed.license || !self.metadata.is_empty() || !self.computed.is_empty())

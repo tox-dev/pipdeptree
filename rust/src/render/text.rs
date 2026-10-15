@@ -221,10 +221,10 @@ fn reverse_label(
         || dependency.key().to_string(),
         |target| graph.nodes[target].package.name.clone(),
     );
-    if let Some(declaration) = &dependency.declaration {
-        if !declaration.dependency_extras.is_empty() {
-            let _ = write!(required, "[{}]", declaration.dependency_extras.join(","));
-        }
+    if let Some(declaration) = &dependency.declaration
+        && !declaration.dependency_extras.is_empty()
+    {
+        let _ = write!(required, "[{}]", declaration.dependency_extras.join(","));
     }
     if let Some(specifier) = dependency.version_spec() {
         required.push_str(&specifier);

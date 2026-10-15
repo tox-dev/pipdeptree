@@ -185,20 +185,20 @@ impl Package {
         let Some(metadata_dir) = &self.metadata_dir else {
             return self.regular_specifier();
         };
-        if let Ok(content) = fs::read_to_string(metadata_dir.join("direct_url.json")) {
-            if let Ok(direct) = DirectUrl::parse(&content) {
-                if direct.editable() {
-                    if let Some(location) = file_url_to_path(&direct.url) {
-                        return vcs::editable_requirement(
-                            processes,
-                            &location,
-                            &self.name,
-                            &self.version,
-                        );
-                    }
-                } else {
-                    return self.direct_specifier(&direct);
+        if let Ok(content) = fs::read_to_string(metadata_dir.join("direct_url.json"))
+            && let Ok(direct) = DirectUrl::parse(&content)
+        {
+            if direct.editable() {
+                if let Some(location) = file_url_to_path(&direct.url) {
+                    return vcs::editable_requirement(
+                        processes,
+                        &location,
+                        &self.name,
+                        &self.version,
+                    );
                 }
+            } else {
+                return self.direct_specifier(&direct);
             }
         }
         if let Some(location) = &self.legacy_editable {
