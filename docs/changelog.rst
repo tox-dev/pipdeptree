@@ -7,6 +7,15 @@
 .. towncrier release notes start
 
 *******************
+ 4.2.8 (2026-10-15)
+*******************
+
+Features - 4.2.8
+================
+
+- Add ``-o cyclonedx-json`` and ``render(output_format="cyclonedx-json")`` to export CycloneDX 1.5 JSON using ``cyclonedx-bom``, including dependency relationships, available installed licenses and extras, component external references, a timestamp, and a unique serial number. The renderer supports installed environments, PEP 751 locks, and index resolution. ()
+
+*******************
  4.2.7 (2026-10-10)
 *******************
 

@@ -1,1 +1,0 @@
-Add ``-o cyclonedx-json`` and ``render(output_format="cyclonedx-json")`` to export CycloneDX 1.5 JSON using ``cyclonedx-bom``, including dependency relationships, available installed licenses and extras, component external references, a timestamp, and a unique serial number. The renderer supports installed environments, PEP 751 locks, and index resolution.
