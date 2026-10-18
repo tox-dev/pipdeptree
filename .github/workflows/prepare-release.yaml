@@ -42,6 +42,12 @@ jobs:
         run: |
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+      - name: Require a news fragment
+        run: |
+          if ! compgen -G 'docs/changelog/*.*.rst' > /dev/null; then
+            echo '::error::add a docs/changelog/*.rst fragment before preparing a release'
+            exit 1
+          fi
       - name: Tag the release
         env:
           BUMP: ${{ inputs.bump }}
