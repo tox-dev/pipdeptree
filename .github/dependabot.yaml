@@ -2,6 +2,10 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
+    labels:
+      - dependencies
+      - github_actions
+      - skip news
     schedule:
       interval: "weekly"
       day: "tuesday"
@@ -13,6 +17,9 @@ updates:
       default-days: 7
   - package-ecosystem: "cargo"
     directory: "/"
+    labels:
+      - dependencies
+      - skip news
     schedule:
       interval: "weekly"
       day: "tuesday"
@@ -23,6 +30,9 @@ updates:
           - "*"
   - package-ecosystem: "rust-toolchain"
     directory: "/"
+    labels:
+      - dependencies
+      - skip news
     schedule:
       interval: "weekly"
       day: "tuesday"
