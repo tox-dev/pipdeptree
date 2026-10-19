@@ -82,9 +82,11 @@ jobs:
           body = re.sub(r":user:`([^`]+)`", r"\1", body)
           body = re.sub(r":(?:issue|pr):`(\d+)`", r"#\1", body)
           body = re.sub(r":[a-z]+:`~?([^`]+)`", lambda match: f"`{match.group(1).split('.')[-1]}`", body)
-          path.write_text(body.replace("``", "`"))
+          body = body.replace("``", "`").strip()
+          if not body:
+              raise SystemExit("release notes are empty")
+          path.write_text(f"{body}\n")
           PY
-          test -s "$RUNNER_TEMP/release-notes.md"
           printf '\n[PyPI release](https://pypi.org/project/pipdeptree/%s/)\n' "$TAG" >> "$RUNNER_TEMP/release-notes.md"
           previous=$({ gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[].tag_name'; printf '%s\n' "$TAG"; } | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -Vu | awk -v tag="$TAG" '$0 == tag { print previous; exit } { previous = $0 }')
           if [[ -n "$previous" ]]; then
