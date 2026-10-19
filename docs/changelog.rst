@@ -7,6 +7,15 @@
 .. towncrier release notes start
 
 *******************
+ 4.2.9 (2026-10-19)
+*******************
+
+Packaging updates - 4.2.9
+=========================
+
+- Publish GitHub Releases with changelog notes, PyPI links, and version comparisons. (:issue:`739`)
+
+*******************
  4.2.8 (2026-10-15)
 *******************
 
