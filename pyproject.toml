@@ -8,14 +8,13 @@ requires = [
 
 [project]
 name = "pipdeptree"
+import-names = [ "pipdeptree" ]
 description = "Command line utility to show dependency tree of packages."
 readme = "README.md"
 keywords = [
-  "application",
-  "cache",
-  "directory",
-  "log",
-  "user",
+  "dependencies",
+  "dependency-tree",
+  "packages",
 ]
 license = "MIT"
 license-files = [
