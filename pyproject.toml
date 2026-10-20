@@ -76,6 +76,9 @@ docs = [
 [tool.meson-python]
 limited-api = true
 
+[tool.uv]
+dependency-groups.docs = { requires-python = ">=3.12" }
+
 [tool.cibuildwheel]
 overrides = [
   # The limited API is off by default so every source build works; the single GIL wheel opts back in to ship
