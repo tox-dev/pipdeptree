@@ -72,12 +72,18 @@ docs = [
   "sphinxcontrib-towncrier>=0.5.0a0",
   "towncrier>=26.9",
 ]
+release = [
+  "prek>=0.5",
+  "release-creator @ git+https://github.com/tox-dev/release-creator@6377ed5b470b66fca2bf482ca1a73d95e611f517",
+  "towncrier>=26.9",
+]
 
 [tool.meson-python]
 limited-api = true
 
 [tool.uv]
 dependency-groups.docs = { requires-python = ">=3.12" }
+dependency-groups.release = { requires-python = ">=3.15" }
 
 [tool.cibuildwheel]
 overrides = [
@@ -163,11 +169,16 @@ directory = "docs/changelog"
 filename = "docs/changelog.rst"
 template = "docs/changelog/template.jinja2"
 title_format = false
-issue_format = ":issue:`{issue}`"
+issue_format = ""
 type = [
-  { directory = "breaking", name = "Backward incompatible changes", showcontent = true },
-  { directory = "feature", name = "Features", showcontent = true },
-  { directory = "bugfix", name = "Bug fixes", showcontent = true },
-  { directory = "doc", name = "Improved documentation", showcontent = true },
-  { directory = "packaging", name = "Packaging updates", showcontent = true },
+  { directory = "feature", name = "Added", showcontent = true },
+  { directory = "change", name = "Changes", showcontent = true },
+  { directory = "bugfix", name = "Fixed", showcontent = true },
+  { directory = "doc", name = "Documentation", showcontent = true },
+  { directory = "security", name = "Security", showcontent = true },
+  { directory = "performance", name = "Performance", showcontent = true },
+  { directory = "deprecation", name = "Deprecated", showcontent = true },
+  { directory = "removal", name = "Removed", showcontent = true },
+  { directory = "breaking", name = "Breaking changes", showcontent = true },
+  { directory = "packaging", name = "Packaging", showcontent = true },
 ]

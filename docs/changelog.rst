@@ -10,8 +10,12 @@
  4.2.9 (2026-10-19)
 ********************
 
-Packaging updates - 4.2.9
-=========================
+.. _packaging-updates-4-2-9:
+
+.. _release-4-2-9-packaging:
+
+Packaging
+=========
 
 - Publish GitHub Releases with changelog notes, PyPI links, and version comparisons. (:issue:`739`)
 
@@ -19,8 +23,12 @@ Packaging updates - 4.2.9
  4.2.8 (2026-10-15)
 ********************
 
-Features - 4.2.8
-================
+.. _features-4-2-8:
+
+.. _release-4-2-8-added:
+
+Added
+=====
 
 - Add ``-o cyclonedx-json`` and ``render(output_format="cyclonedx-json")`` to export CycloneDX 1.5 JSON using
   ``cyclonedx-bom``, including dependency relationships, available installed licenses and extras, component external
@@ -31,8 +39,12 @@ Features - 4.2.8
  4.2.7 (2026-10-10)
 ********************
 
-Features - 4.2.7
-================
+.. _features-4-2-7:
+
+.. _release-4-2-7-added:
+
+Added
+=====
 
 - Show declared requirement ranges, markers and extras for dependencies resolved with ``from-index``. (:issue:`723`)
 
@@ -40,8 +52,12 @@ Features - 4.2.7
  4.2.6 (2026-10-10)
 ********************
 
-Bug fixes - 4.2.6
-=================
+.. _bug-fixes-4-2-6:
+
+.. _release-4-2-6-fixed:
+
+Fixed
+=====
 
 - Wrap rich summary values to fit the terminal width, preserving table borders when license breakdowns are long.
   (:issue:`725`)
@@ -50,8 +66,12 @@ Bug fixes - 4.2.6
  4.2.5 (2026-09-08)
 ********************
 
-Packaging updates - 4.2.5
-=========================
+.. _packaging-updates-4-2-5:
+
+.. _release-4-2-5-packaging:
+
+Packaging
+=========
 
 - Remove the tracked ``VERSION`` file. Resolve build versions from ``PIPDEPTREE_VERSION``, Git tags, or sdist metadata,
   falling back to ``0.0.0`` when none is available. (:issue:`699`)
@@ -60,8 +80,12 @@ Packaging updates - 4.2.5
  4.2.4 (2026-09-08)
 ********************
 
-Bug fixes - 4.2.4
-=================
+.. _bug-fixes-4-2-4:
+
+.. _release-4-2-4-fixed:
+
+Fixed
+=====
 
 - Fix ``from-index`` with nab 0.0.17 by adapting to its configuration and resolver APIs. (:issue:`697`)
 
@@ -69,8 +93,12 @@ Bug fixes - 4.2.4
  4.2.3 (2026-08-31)
 ********************
 
-Features - 4.2.3
-================
+.. _features-4-2-3:
+
+.. _release-4-2-3-added:
+
+Added
+=====
 
 - Publish Windows ``arm64`` wheels. Every Windows wheel was built for ``AMD64``, so ``pip`` and ``uv`` fell back to the
   source distribution on Windows on ARM, where building the Rust extension needs a local ``cargo`` and MSVC toolchain.
@@ -81,8 +109,12 @@ Features - 4.2.3
  4.2.2 (2026-08-26)
 ********************
 
-Bug fixes - 4.2.2
-=================
+.. _bug-fixes-4-2-2:
+
+.. _release-4-2-2-fixed:
+
+Fixed
+=====
 
 - Run under an interpreter built from a git checkout. Such a build reports its version with a trailing plus
   (``3.13.5+``), which PEP 440 reads as an empty local segment and rejects, so every run stopped with ``found a `+`
@@ -94,8 +126,12 @@ Bug fixes - 4.2.2
   (:issue:`669`)
 - Replace the removed ``nab-python`` dependency with ``nab-project``. (:issue:`681`)
 
-Packaging updates - 4.2.2
-=========================
+.. _packaging-updates-4-2-2:
+
+.. _release-4-2-2-packaging:
+
+Packaging
+=========
 
 - Build the wheels for each interpreter beside each other in CI, rather than one after another in a single job, and let
   the macOS builds share one Cargo target directory. The wheel matrix used to hold a pull request for 17 minutes.
@@ -105,14 +141,22 @@ Packaging updates - 4.2.2
  4.2.0 (2026-07-31)
 ********************
 
-Features - 4.2.0
-================
+.. _features-4-2-0:
+
+.. _release-4-2-0-added:
+
+Added
+=====
 
 - Publish ``cp315t`` wheels, so a free-threaded 3.15 installs a wheel instead of compiling the Rust extension.
   (:issue:`644`)
 
-Bug fixes - 4.2.0
-=================
+.. _bug-fixes-4-2-0:
+
+.. _release-4-2-0-fixed:
+
+Fixed
+=====
 
 - Publish Linux ``aarch64`` wheels. 4.1.0 shipped none, so ``pip`` and ``uv`` fell back to the source distribution on
   ARM64 hosts, where building the Rust extension needs a local ``cargo`` and C toolchain. (:issue:`640`)
@@ -120,8 +164,12 @@ Bug fixes - 4.2.0
   meson-python refuses to pair it with a free-threaded CPython, so the source build stopped before it started.
   (:issue:`643`)
 
-Packaging updates - 4.2.0
-=========================
+.. _packaging-updates-4-2-0:
+
+.. _release-4-2-0-packaging:
+
+Packaging
+=========
 
 - Take the released version from the git tag rather than from a file in the tree, so a release can no longer ship
   artifacts labeled with the previous version. 4.1.1 and 4.1.2 were tagged that way and reached no index. (:issue:`647`)
