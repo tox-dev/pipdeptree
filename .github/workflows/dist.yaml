@@ -114,6 +114,7 @@ jobs:
         env:
           CIBW_ARCHS: ${{ matrix.platform.arch }}
           CIBW_BUILD_FRONTEND: uv
+          UV_PYTHON: ""
           # Install the toolchain and its components up front. Left to rust-toolchain.toml, the first cargo
           # call in each container provisions them on demand, which races and conflicts on the cargo-clippy
           # hardlink on aarch64.
