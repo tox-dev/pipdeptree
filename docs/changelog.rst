@@ -274,6 +274,8 @@ Changes
 
 - Auto-detect active virtualenv by default (:pull:`588`) by :user:`gaborbernat`.
 - Default --extras to explicit, add active/none modes (:pull:`587`) by :user:`gaborbernat`.
+- Resolve the setuptools version through the normal import fallback when distribution metadata is missing (:pull:`585`)
+  by :user:`kemzeb`.
 
 *********************
  2.35.3 (2026-05-17)
@@ -325,6 +327,13 @@ Fixed
 -----
 
 - Write binary graphviz output to temp file when stdout is tty (:pull:`564`) by :user:`BlocksecPHD`.
+
+.. _release-2-35-0-documentation:
+
+Documentation
+-------------
+
+- Show ``pipdeptree`` as the program name in the generated CLI reference (:pull:`561`) by :user:`kemzeb`.
 
 *********************
  2.34.0 (2026-03-23)
@@ -422,6 +431,7 @@ Changes
 -------
 
 - Have render functions call print() themselves rather than the caller (:pull:`506`) by :user:`kemzeb`.
+- Require a value for ``--warn`` instead of accepting the bare option (:pull:`511`) by :user:`kemzeb`.
 
 *********************
  2.28.0 (2025-07-20)
@@ -625,6 +635,8 @@ Fixed
 -----
 
 - Handle invalid requirement strings when using importlib.metadata (:pull:`345`) by :user:`kemzeb`.
+- Discover packages through the selected interpreter for custom environments (:issue:`343`; :pull:`346`) by
+  :user:`xiacunshun`.
 
 *********************
  2.17.0 (2024-04-04)
@@ -846,6 +858,13 @@ Fixed
 ********************
  2.9.2 (2023-06-15)
 ********************
+
+.. _release-2-9-2-fixed:
+
+Fixed
+-----
+
+- Resolve relative interpreter paths before inspecting a virtual environment (:pull:`247`) by :user:`gaborbernat`.
 
 ********************
  2.9.1 (2023-06-14)
