@@ -147,7 +147,7 @@ jobs:
         with:
           name: contributor-metadata
           path: ${{ runner.temp }}/contributor-metadata
-      - uses: tox-dev/github-workflows/render-release-notes@e8d429040f73cd95af722543a0a09717bf3bb0aa
+      - uses: tox-dev/github-workflows/render-release-notes@8db87d4730353b61630d66cbc592d6bed0c85d2b
         with:
           tag: ${{ github.ref_name }}
           changelog: docs/changelog.rst
@@ -184,7 +184,7 @@ jobs:
           path: dist/
       - name: Stage missing PyPI artifacts
         id: reconcile
-        uses: tox-dev/github-workflows/reconcile-pypi-artifacts@e8d429040f73cd95af722543a0a09717bf3bb0aa
+        uses: tox-dev/github-workflows/reconcile-pypi-artifacts@8db87d4730353b61630d66cbc592d6bed0c85d2b
         with:
           project: pipdeptree
           version: ${{ github.ref_name }}
@@ -208,7 +208,7 @@ jobs:
           name: github-release-notes
           path: ${{ runner.temp }}/release-notes
       - name: Stage GitHub Release
-        uses: tox-dev/github-workflows/publish-github-release@e8d429040f73cd95af722543a0a09717bf3bb0aa
+        uses: tox-dev/github-workflows/publish-github-release@8db87d4730353b61630d66cbc592d6bed0c85d2b
         env:
           GH_TOKEN: ${{ github.token }}
         with:
@@ -239,7 +239,7 @@ jobs:
           name: pypi-missing-manifest
           path: ${{ runner.temp }}/pypi-missing-manifest
       - name: Select missing validated artifacts
-        uses: tox-dev/github-workflows/select-pypi-artifacts@e8d429040f73cd95af722543a0a09717bf3bb0aa
+        uses: tox-dev/github-workflows/select-pypi-artifacts@8db87d4730353b61630d66cbc592d6bed0c85d2b
         with:
           dist: dist
           manifest: ${{ runner.temp }}/pypi-missing-manifest/pypi-missing-names.txt
@@ -275,7 +275,7 @@ jobs:
           pattern: dists-*
           path: dist/
       - name: Verify complete PyPI release
-        uses: tox-dev/github-workflows/reconcile-pypi-artifacts@e8d429040f73cd95af722543a0a09717bf3bb0aa
+        uses: tox-dev/github-workflows/reconcile-pypi-artifacts@8db87d4730353b61630d66cbc592d6bed0c85d2b
         with:
           project: pipdeptree
           version: ${{ github.ref_name }}
@@ -293,7 +293,7 @@ jobs:
           name: github-release-notes
           path: ${{ runner.temp }}/release-notes
       - name: Publish GitHub Release
-        uses: tox-dev/github-workflows/publish-github-release@e8d429040f73cd95af722543a0a09717bf3bb0aa
+        uses: tox-dev/github-workflows/publish-github-release@8db87d4730353b61630d66cbc592d6bed0c85d2b
         env:
           GH_TOKEN: ${{ github.token }}
         with:

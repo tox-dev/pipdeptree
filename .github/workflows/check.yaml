@@ -138,10 +138,22 @@ jobs:
             --python "$RUNNER_TEMP/release-tools/bin/python" \
             --group release pylock.toml
           echo "$RUNNER_TEMP/release-tools/bin" >>"$GITHUB_PATH"
-      - uses: tox-dev/github-workflows/validate-news@e8d429040f73cd95af722543a0a09717bf3bb0aa
+      - uses: tox-dev/github-workflows/validate-news@8db87d4730353b61630d66cbc592d6bed0c85d2b
+  hook-update-cooldown:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: tox-dev/github-workflows/check-hook-update-cooldown@8db87d4730353b61630d66cbc592d6bed0c85d2b
+        with:
+          repository: ${{ github.repository }}
+          pull-request: ${{ github.event.pull_request.number }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
   # The one context branch protection requires, so a matrix that grows or renames its cells needs no ruleset edit.
   check:
-    needs: [dist, rust, test, changelog]
+    needs: [dist, rust, test, changelog, hook-update-cooldown]
     if: always()
     runs-on: ubuntu-26.04
     steps:
@@ -153,6 +165,7 @@ jobs:
             all(
               to_entries[];
               .value.result == "success" or
-              (.key == "changelog" and .value.result == "skipped" and $event != "pull_request")
+              ((.key == "changelog" or .key == "hook-update-cooldown") and
+               .value.result == "skipped" and $event != "pull_request")
             )
           ' <<< "$NEEDS_JSON"
