@@ -32,6 +32,8 @@ commands = [
       "--cov",
       "tools.version",
       "--cov",
+      "tools.release",
+      "--cov",
       "{tox_root}{/}tests",
       "--cov-config=pyproject.toml",
       "--no-cov-on-fail",
@@ -164,8 +166,22 @@ commands_pre = [
 ]
 
 [env.release]
-description = "build the changelog for the next release, then commit and tag it"
+description = "preview a release locally without publishing, or dispatch the protected release workflow"
 skip_install = true
-deps = [ "towncrier>=26.9" ]
+deps = [ "uv>=0.12.22" ]
 pass_env = [ "GH_TOKEN" ]
+commands_pre = [
+  [
+    "uv",
+    "pip",
+    "sync",
+    "--preview-features",
+    "pylock",
+    "--python",
+    "{env_python}",
+    "--group",
+    "release",
+    "pylock.toml"
+  ],
+]
 commands = [ [ "python", "{tox_root}{/}tools{/}release.py", { replace = "posargs", extend = true } ] ]
