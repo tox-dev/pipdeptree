@@ -147,10 +147,10 @@ jobs:
       - name: Export hashed build constraints
         shell: bash
         env:
-          TOOL_PYTHON: ${{ runner.os == 'Windows' && format('{0}/release-tools/Scripts/python.exe', runner.temp) || format('{0}/release-tools/bin/python', runner.temp) }}
+          PYTHON: ${{ runner.temp }}/release-tools/${{ runner.os == 'Windows' && 'Scripts/python.exe' || 'bin/python' }}
           BUILD_PLATFORM: ${{ runner.os == 'Linux' && 'linux' || runner.os == 'macOS' && 'macos' || 'windows' }}
         run: |
-          "$TOOL_PYTHON" -m release_creator build-constraints \
+          "$PYTHON" -m release_creator build-constraints \
             --lock pylock.toml --group build --platform "$BUILD_PLATFORM" \
             --python-version 3.11.0 --python-version 3.12.0 --python-version 3.13.0 \
             --python-version 3.14.0 --python-version 3.15.0 \
@@ -164,8 +164,9 @@ jobs:
           # Install the toolchain and its components up front. Left to rust-toolchain.toml, the first cargo
           # call in each container provisions them on demand, which races and conflicts on the cargo-clippy
           # hardlink on aarch64.
-          CIBW_BEFORE_ALL_LINUX: >-
-            if [ -f /etc/alpine-release ]; then installer=musl; else installer=gnu; fi; ./.release-tools/rustup-init-$installer -y --profile minimal ${{ steps.rust.outputs.flags }}
+          CIBW_BEFORE_ALL_LINUX: |-
+            if [ -f /etc/alpine-release ]; then installer=musl; else installer=gnu; fi
+            ./.release-tools/rustup-init-$installer -y --profile minimal ${{ steps.rust.outputs.flags }}
           CIBW_BUILD: ${{ matrix.identifiers || format('{0}-*', matrix.build) }}
           CIBW_ENABLE: pypy cpython-prerelease
           # The Linux builds run as root in a container over a checkout owned by the runner user, and git
@@ -216,14 +217,19 @@ jobs:
       - name: Install locked release tools
         run: |
           uv venv --python 3.15 "$RUNNER_TEMP/release-tools"
-          uv pip sync --preview-features pylock --python "$RUNNER_TEMP/release-tools/bin/python" --group release pylock.toml
+          uv pip sync \
+            --preview-features pylock \
+            --python "$RUNNER_TEMP/release-tools/bin/python" \
+            --group release pylock.toml
       - name: Export hashed build constraints
         run: |
           "$RUNNER_TEMP/release-tools/bin/python" -m release_creator build-constraints \
             --lock pylock.toml --group build --platform linux --python-version 3.15.0 \
             --output "$RUNNER_TEMP/build-constraints.txt"
       - name: Build source distribution
-        run: uv build --sdist --python 3.15 --out-dir dist --build-constraints "$RUNNER_TEMP/build-constraints.txt" --require-build-hashes
+        run: |
+          uv build --sdist --python 3.15 --out-dir dist \
+            --build-constraints "$RUNNER_TEMP/build-constraints.txt" --require-build-hashes
       - name: Store source distribution
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

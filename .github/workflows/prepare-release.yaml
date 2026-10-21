@@ -16,7 +16,7 @@ permissions: {}
 jobs:
   prepare:
     if: github.ref == 'refs/heads/main'
-    uses: tox-dev/github-workflows/.github/workflows/prepare-towncrier-release.yaml@3bfcf2c8eda1a5040c69d14d88cb68e88b3f3ae0
+    uses: tox-dev/github-workflows/.github/workflows/prepare-towncrier-release.yaml@e8d429040f73cd95af722543a0a09717bf3bb0aa
     permissions:
       contents: read
       pull-requests: read

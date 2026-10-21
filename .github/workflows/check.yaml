@@ -133,9 +133,12 @@ jobs:
       - name: Install locked release tools
         run: |
           uv venv --python 3.15 "$RUNNER_TEMP/release-tools"
-          uv pip sync --preview-features pylock --python "$RUNNER_TEMP/release-tools/bin/python" --group release pylock.toml
+          uv pip sync \
+            --preview-features pylock \
+            --python "$RUNNER_TEMP/release-tools/bin/python" \
+            --group release pylock.toml
           echo "$RUNNER_TEMP/release-tools/bin" >>"$GITHUB_PATH"
-      - uses: tox-dev/github-workflows/validate-news@5e11f2254a4dcb7102747d312ad7db48a2e9b0cb
+      - uses: tox-dev/github-workflows/validate-news@e8d429040f73cd95af722543a0a09717bf3bb0aa
   # The one context branch protection requires, so a matrix that grows or renames its cells needs no ruleset edit.
   check:
     needs: [dist, rust, test, changelog]
