@@ -1254,6 +1254,8 @@ Fixed
 - Fix graphviz (dot file) output.
 - Handle a (rare) case while guessing version of a package.
 
+.. _release-2-0-0b1:
+
 **********************
  2.0.0b1 (2020-06-13)
 **********************
