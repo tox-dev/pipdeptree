@@ -5213,28 +5213,7 @@ sha256 = "1db9852e528efa7702f5123969f86678663e46d57ff28ab13f5fd84d64a85fb1"
 name = "packaging"
 version = "26.3"
 index = "https://pypi.org/simple"
-marker = "\"project-runtime\" in dependency_groups or \"test\" in dependency_groups or (\"docs\" in dependency_groups and (python_full_version >= '3.12')) or (\"release\" in dependency_groups and (python_full_version >= '3.15'))"
-
-[packages.sdist]
-url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz"
-upload-time = 2026-08-04 18:15:28+00:00
-size = 313412
-
-[packages.sdist.hashes]
-sha256 = "94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79"
-
-[[packages.wheels]]
-url = "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl"
-upload-time = 2026-08-04 18:15:27+00:00
-size = 129956
-
-[packages.wheels.hashes]
-sha256 = "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"
-
-[[packages]]
-name = "packaging"
-version = "26.3"
-marker = "\"build\" in dependency_groups"
+marker = "\"build\" in dependency_groups or \"project-runtime\" in dependency_groups or \"test\" in dependency_groups or (\"docs\" in dependency_groups and (python_full_version >= '3.12')) or (\"release\" in dependency_groups and (python_full_version >= '3.15'))"
 
 [packages.sdist]
 url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz"
@@ -6620,7 +6599,7 @@ sha256 = "8a1513379d709975552d202d942d9837758905c8d01eb82b8bcc30918929e7b8"
 name = "pyyaml"
 version = "6.0.3"
 index = "https://pypi.org/simple"
-marker = "(\"docs\" in dependency_groups and (python_full_version >= '3.12')) or (\"release\" in dependency_groups and (python_full_version >= '3.15'))"
+marker = "(\"docs\" in dependency_groups and (python_full_version >= '3.12'))"
 
 [packages.sdist]
 url = "https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz"
@@ -7030,14 +7009,14 @@ sha256 = "d0dae1f74bb273b534770cb4cccb6bb78735540afdb03c2146f4e19dcd412560"
 
 [[packages]]
 name = "release-creator"
-version = "0.4.2.dev40+ga68e1cac5"
+version = "0.4.2.dev48+g7c126334a"
 marker = "(\"release\" in dependency_groups and (python_full_version >= '3.15'))"
 
 [packages.vcs]
 type = "git"
 url = "https://github.com/tox-dev/release-creator"
-requested-revision = "a68e1cac50755c8d8fbb2be85fa1a35eeb78d577"
-commit-id = "a68e1cac50755c8d8fbb2be85fa1a35eeb78d577"
+requested-revision = "7c126334a6b6627976e69afb77f720d48d1394fd"
+commit-id = "7c126334a6b6627976e69afb77f720d48d1394fd"
 
 [[packages]]
 name = "requests"

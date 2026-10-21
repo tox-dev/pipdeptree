@@ -93,13 +93,39 @@ def main() -> None:
         if "### " not in notes:
             msg = f"{version} has no user-facing release notes"
             raise RuntimeError(msg)
+        try:
+            build_platform: Final = {"linux": "linux", "darwin": "macos", "win32": "windows"}[sys.platform]
+        except KeyError as error:
+            msg = f"unsupported build platform: {sys.platform}"
+            raise RuntimeError(msg) from error
+        build_constraints: Final = Path(temporary_directory) / "build-constraints.txt"
+        _run(
+            "release-creator",
+            "build-constraints",
+            "--lock",
+            "pylock.toml",
+            "--group",
+            "build",
+            "--platform",
+            build_platform,
+            "--python-version",
+            f"{sys.version_info.major}.{sys.version_info.minor}.0",
+            "--output",
+            str(build_constraints),
+            cwd=source,
+        )
         _run(
             "uv",
             "build",
             "--sdist",
             "--wheel",
+            "--python",
+            sys.executable,
             "--out-dir",
             "dist",
+            "--build-constraints",
+            str(build_constraints),
+            "--require-hashes",
             cwd=source,
             env=dict(os.environ, PIPDEPTREE_VERSION=version, UV_EXCLUDE_NEWER="1 week"),
         )

@@ -19,8 +19,12 @@ jobs:
         platform:
           - os: ubuntu-26.04
             arch: x86_64
+            rustup-gnu-sha: 4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10
+            rustup-musl-sha: 9cd3fda5fd293890e36ab271af6a786ee22084b5f6c2b83fd8323cec6f0992c1
           - os: ubuntu-26.04-arm
             arch: aarch64
+            rustup-gnu-sha: 9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792
+            rustup-musl-sha: 88761caacddb92cd79b0b1f939f3990ba1997d701a38b3e8dd6746a562f2a759
           - os: windows-2025
             arch: AMD64
           - os: windows-11-arm
@@ -63,6 +67,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
+          version: latest-known
           python-version: "3.15"
           enable-cache: false
       - name: Resolve the version
@@ -96,6 +101,31 @@ jobs:
           done
           echo "CIBW_MANYLINUX_${ARCH^^}_IMAGE=$manylinux" >> "$GITHUB_ENV"
           echo "CIBW_MUSLLINUX_${ARCH^^}_IMAGE=$musllinux" >> "$GITHUB_ENV"
+      - name: Download checked GNU Rustup installer
+        if: runner.os == 'Linux'
+        env:
+          ARCH: ${{ matrix.platform.arch }}
+          SHA256: ${{ matrix.platform.rustup-gnu-sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p .release-tools
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 3 \
+            "https://static.rust-lang.org/rustup/archive/1.29.0/${ARCH}-unknown-linux-gnu/rustup-init" \
+            -o .release-tools/rustup-init-gnu
+          printf '%s  %s\n' "$SHA256" .release-tools/rustup-init-gnu | sha256sum --check
+          chmod +x .release-tools/rustup-init-gnu
+      - name: Download checked musl Rustup installer
+        if: runner.os == 'Linux' && matrix.build != 'pp311'
+        env:
+          ARCH: ${{ matrix.platform.arch }}
+          SHA256: ${{ matrix.platform.rustup-musl-sha }}
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 3 \
+            "https://static.rust-lang.org/rustup/archive/1.29.0/${ARCH}-unknown-linux-musl/rustup-init" \
+            -o .release-tools/rustup-init-musl
+          printf '%s  %s\n' "$SHA256" .release-tools/rustup-init-musl | sha256sum --check
+          chmod +x .release-tools/rustup-init-musl
       - name: Read the toolchain rustup should install
         id: rust
         shell: bash
@@ -135,7 +165,7 @@ jobs:
           # call in each container provisions them on demand, which races and conflicts on the cargo-clippy
           # hardlink on aarch64.
           CIBW_BEFORE_ALL_LINUX: >-
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal ${{ steps.rust.outputs.flags }}
+            if [ -f /etc/alpine-release ]; then installer=musl; else installer=gnu; fi; ./.release-tools/rustup-init-$installer -y --profile minimal ${{ steps.rust.outputs.flags }}
           CIBW_BUILD: ${{ matrix.identifiers || format('{0}-*', matrix.build) }}
           CIBW_ENABLE: pypy cpython-prerelease
           # The Linux builds run as root in a container over a checkout owned by the runner user, and git
@@ -180,6 +210,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
+          version: latest-known
           python-version: "3.15"
           enable-cache: false
       - name: Install locked release tools
@@ -192,7 +223,7 @@ jobs:
             --lock pylock.toml --group build --platform linux --python-version 3.15.0 \
             --output "$RUNNER_TEMP/build-constraints.txt"
       - name: Build source distribution
-        run: uv build --sdist --out-dir dist --build-constraints "$RUNNER_TEMP/build-constraints.txt" --require-build-hashes
+        run: uv build --sdist --python 3.15 --out-dir dist --build-constraints "$RUNNER_TEMP/build-constraints.txt" --require-build-hashes
       - name: Store source distribution
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

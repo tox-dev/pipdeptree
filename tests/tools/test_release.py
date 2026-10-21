@@ -71,6 +71,7 @@ def test_release_preview_checks_notes_and_packages(
         "",
         "",
         "",
+        "",
     ]
     responses: list[subprocess.CompletedProcess[str] | subprocess.CalledProcessError] = [
         _completed(output) for output in outputs
@@ -90,9 +91,19 @@ def test_release_preview_checks_notes_and_packages(
         assert commands[9 + format_changes][-2:] == ("--previous", previous)
     else:
         assert "--previous" not in commands[9 + format_changes]
-    assert commands[10 + format_changes][:3] == ("uv", "build", "--sdist")
-    assert run.call_args_list[10 + format_changes].kwargs["env"]["PIPDEPTREE_VERSION"] == "4.2.10"
-    assert run.call_args_list[10 + format_changes].kwargs["env"]["UV_EXCLUDE_NEWER"] == "1 week"
+    assert commands[10 + format_changes][:6] == (
+        "release-creator",
+        "build-constraints",
+        "--lock",
+        "pylock.toml",
+        "--group",
+        "build",
+    )
+    assert commands[11 + format_changes][:3] == ("uv", "build", "--sdist")
+    assert commands[11 + format_changes][4:6] == ("--python", sys.executable)
+    assert "--require-hashes" in commands[11 + format_changes]
+    assert run.call_args_list[11 + format_changes].kwargs["env"]["PIPDEPTREE_VERSION"] == "4.2.10"
+    assert run.call_args_list[11 + format_changes].kwargs["env"]["UV_EXCLUDE_NEWER"] == "1 week"
     assert commands[-2:] == [("twine", "check", "dist/*"), ("check-wheel-contents", "--no-config", "dist")]
     assert all(call.kwargs["stdout"] is sys.stderr for call in run.call_args_list if not call.kwargs["capture_output"])
     assert all(command[:2] != ("git", "push") for command in commands)
@@ -107,6 +118,20 @@ def test_release_preview_rejects_empty_news(mocker: MockerFixture) -> None:
     )
 
     with pytest.raises(RuntimeError, match="no user-facing release notes"):
+        main()
+
+    assert run.call_count == 10
+
+
+def test_release_preview_rejects_unsupported_platform(mocker: MockerFixture) -> None:
+    mocker.patch.object(sys, "argv", ["release"])
+    mocker.patch.object(sys, "platform", "freebsd")
+    outputs = ["", "", "4.2.9\n", "4.2.10\n", "4.2.9\n", "", "", "", "", "### Bug fixes\n\n- Fixed output.\n"]
+    run = mocker.patch(
+        "tools.release.subprocess.run", autospec=True, side_effect=[_completed(output) for output in outputs]
+    )
+
+    with pytest.raises(RuntimeError, match="unsupported build platform: freebsd"):
         main()
 
     assert run.call_count == 10
