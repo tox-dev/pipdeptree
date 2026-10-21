@@ -413,7 +413,7 @@ Added
 Added
 -----
 
-- Begin running tests against 3.14 (:pull:`500`) by :user:`kemzeb`.
+- Support Python 3.14 (:pull:`500`) by :user:`kemzeb`.
 - Drop 3.9 support (:pull:`512`) by :user:`gaborbernat`.
 
 .. _release-2-29-0-changes:
@@ -495,7 +495,7 @@ Packaging
 Added
 -----
 
-- Drop support for python 3.8 (:pull:`444`) by :user:`kemzeb`.
+- Drop support for Python 3.8 (:pull:`444`) by :user:`kemzeb`.
 
 *********************
  2.24.0 (2024-11-26)
@@ -1080,7 +1080,7 @@ Fixed
 Added
 -----
 
-- Dropped support for python ``3.3`` and added support for python ``3.7`` and ``3.8``.
+- Support Python ``3.7`` and ``3.8``; drop Python ``3.3`` support.
 
 .. _release-2-0-0b1-changes:
 
