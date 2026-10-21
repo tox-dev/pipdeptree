@@ -113,6 +113,7 @@ jobs:
         uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
         env:
           CIBW_ARCHS: ${{ matrix.platform.arch }}
+          CIBW_BUILD_FRONTEND: uv
           # Install the toolchain and its components up front. Left to rust-toolchain.toml, the first cargo
           # call in each container provisions them on demand, which races and conflicts on the cargo-clippy
           # hardlink on aarch64.
@@ -122,12 +123,12 @@ jobs:
           CIBW_ENABLE: pypy cpython-prerelease
           # The Linux builds run as root in a container over a checkout owned by the runner user, and git
           # refuses to read the tags there, so the runner resolves the version once for every build.
-          CIBW_ENVIRONMENT: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }}
+          CIBW_ENVIRONMENT: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} UV_EXCLUDE_NEWER="1 week"
           # musl targets default to a static CRT, which makes Cargo drop the cdylib crate type
-          CIBW_ENVIRONMENT_LINUX: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
+          CIBW_ENVIRONMENT_LINUX: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} UV_EXCLUDE_NEWER="1 week" PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
           # One target directory across the four builds leaves the dependency graph compiled after the first;
           # arm64 macOS starts at 11.0, so only the x86_64 wheels can reach back to 10.15
-          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} MACOSX_DEPLOYMENT_TARGET=${{ matrix.platform.arch == 'arm64' && '11.0' || '10.15' }} CARGO_TARGET_DIR=$HOME/cargo-target
+          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} UV_EXCLUDE_NEWER="1 week" MACOSX_DEPLOYMENT_TARGET=${{ matrix.platform.arch == 'arm64' && '11.0' || '10.15' }} CARGO_TARGET_DIR=$HOME/cargo-target
           CIBW_TEST_COMMAND: pipdeptree --version
         with:
           output-dir: dist
