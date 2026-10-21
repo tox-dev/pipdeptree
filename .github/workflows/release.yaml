@@ -54,7 +54,9 @@ jobs:
       - name: Check package descriptions
         run: twine check dist/*
       - name: Check every wheel
-        run: check-wheel-contents --no-config dist
+        run: check-wheel-contents --no-config --ignore W009,W010 dist
+      - name: Check bundled wheel libraries
+        run: python3 tools/check_release_wheels.py dist
   previous:
     runs-on: ubuntu-26.04
     permissions:
