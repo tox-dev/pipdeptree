@@ -1063,7 +1063,7 @@ Changes
 Fixed
 -----
 
-- Handle mermaid output for a reversed tree.
+- Handle mermaid output for a reversed tree by :user:`ajkerrigan`.
 
 .. _release-2-5-2:
 
@@ -1076,7 +1076,7 @@ Fixed
 Fixed
 -----
 
-- Fix Mermaid not working with reserved keyword package names.
+- Fix Mermaid not working with reserved keyword package names by :user:`kdeldycke`.
 
 .. _release-2-5-1:
 
@@ -1089,7 +1089,7 @@ Fixed
 Fixed
 -----
 
-- Fix Mermaid flag.
+- Fix Mermaid flag by :user:`kdeldycke`.
 
 .. _release-2-5-0:
 
@@ -1154,7 +1154,8 @@ Changes
 Fixed
 -----
 
-- Use ``importlib.metadata`` to guess version of package before fallback to ``pkg.__version__``.
+- Use ``importlib.metadata`` to guess version of package before fallback to ``pkg.__version__`` by :user:`saaketp` and
+  :user:`gaborbernat`.
 
 .. _release-2-3-0:
 
@@ -1167,15 +1168,15 @@ Fixed
 Added
 -----
 
-- Add support for invocation via ``-m``.
-- Support Python 3.11.
+- Add support for invocation via ``-m`` by :user:`gaborbernat`.
+- Support Python 3.11 by :user:`dqkqd`.
 
 .. _release-2-3-0-packaging:
 
 Packaging
 ---------
 
-- Now packaged via hatchling instead of setuptools.
+- Now packaged via hatchling instead of setuptools by :user:`gaborbernat`.
 
 .. _release-2-2-1:
 
@@ -1188,8 +1189,8 @@ Packaging
 Fixed
 -----
 
-- Fix ``--user-only`` and ``--freeze`` flags which were broken after the last release.
-- Fix for compatibility with new version of ``graphviz`` (>= 0.18.1).
+- Fix ``--user-only`` and ``--freeze`` flags which were broken after the last release by :user:`naiquevin`.
+- Fix for compatibility with new version of ``graphviz`` (>= 0.18.1) by :user:`rodrigomologni` and :user:`naiquevin`.
 
 .. _release-2-2-0:
 
@@ -1216,21 +1217,21 @@ Fixed
 Changes
 -------
 
-- JSON output is sorted alphabetically to make it deterministic.
+- JSON output is sorted alphabetically to make it deterministic by :user:`pjw91`.
 
 .. _release-2-1-0-fixed:
 
 Fixed
 -----
 
-- Fix --freeze option due to breaking changes in pip's internal api in version > 21.1.1.
+- Fix --freeze option due to breaking changes in pip's internal api in version > 21.1.1 by :user:`naiquevin`.
 
 .. _release-2-1-0-packaging:
 
 Packaging
 ---------
 
-- Include license file in dist package.
+- Include license file in dist package by :user:`milos-korenciak`.
 
 .. _release-2-0-0:
 
@@ -1243,16 +1244,17 @@ Packaging
 Added
 -----
 
-- Support for running in the context of a virtualenv (without installing pipdeptree inside the virtualenv).
+- Support for running in the context of a virtualenv (without installing pipdeptree inside the virtualenv) by
+  :user:`gaborbernat`.
 
 .. _release-2-0-0-fixed:
 
 Fixed
 -----
 
-- Avoid crash when rendering cyclic dependencies.
-- Fix graphviz (dot file) output.
-- Handle a (rare) case while guessing version of a package.
+- Avoid crash when rendering cyclic dependencies by :user:`StephenWeber`.
+- Fix graphviz (dot file) output by :user:`foreignmeloman`.
+- Handle a (rare) case while guessing version of a package by :user:`naiquevin`.
 
 .. _release-2-0-0b1:
 
@@ -1265,7 +1267,7 @@ Fixed
 Added
 -----
 
-- Support Python ``3.7`` and ``3.8``; drop Python ``3.3`` support.
+- Support Python ``3.7`` and ``3.8``; drop Python ``3.3`` support by :user:`naiquevin`.
 
 .. _release-2-0-0b1-changes:
 
@@ -1274,9 +1276,10 @@ Changes
 
 - In this first beta release targeting ``2.0.0``, the underlying code is heavily refactored to make different CLI
   options work well with each other. This was a serious limitation in older version ``<=1.0.0`` which made it difficult
-  to extend the tool. For more information about the plans for 2.0.0 release, please check ``docs/v2beta-opts.org``
-  file.
-- The ``--reverse``, ``--packages`` and ``--exclude`` flags now work with ``--json-tree`` and ``--graph-output``.
+  to extend the tool. For more information about the plans for 2.0.0 release, please check ``docs/v2beta-opts.org`` file
+  by :user:`naiquevin`.
+- The ``--reverse``, ``--packages`` and ``--exclude`` flags now work with ``--json-tree`` and ``--graph-output`` by
+  :user:`naiquevin`.
 
 .. _release-1-0-0:
 
@@ -1289,7 +1292,7 @@ Changes
 Changes
 -------
 
-- Use ``pkg_resources`` vendored with ``pip``.
+- Use ``pkg_resources`` vendored with ``pip`` by :user:`sinoroc`.
 
 .. _release-0-13-2:
 
@@ -1304,7 +1307,7 @@ Fixed
 
 - Fixed call to ``FrozenRequirement.to_dist`` to handle changes to the internal api of pip version 19.0. The api change
   is because dependency links support has been removed in pip 19.0 See more: https://github.com/pypa/pip/pull/6060
-  https://github.com/pypa/pip/pull/5881/commits/46ffb13f13f69c509fd253329da49889008f8e23.
+  https://github.com/pypa/pip/pull/5881/commits/46ffb13f13f69c509fd253329da49889008f8e23 by :user:`naiquevin`.
 
 .. _release-0-13-1:
 
@@ -1317,7 +1320,7 @@ Fixed
 Fixed
 -----
 
-- Fixed import after changes in pip._internal introduced in pip version 18.1.
+- Fixed import after changes in pip._internal introduced in pip version 18.1 by :user:`naiquevin`.
 
 .. _release-0-13-0:
 
@@ -1330,7 +1333,7 @@ Fixed
 Added
 -----
 
-- Added ``--exclude`` option to exclude packages specified as CSV.
+- Added ``--exclude`` option to exclude packages specified as CSV by :user:`ciarancourtney`.
 
 .. _release-0-13-0-fixed:
 
@@ -1338,7 +1341,7 @@ Fixed
 -----
 
 - In case of multiple version specs eg. <x,>=y, fix the order to ensure consistent output. The sorting is naive - puts
-  the '>' prior to '<', and '!'.
+  the '>' prior to '<', and '!' by :user:`pjw91`.
 
 .. _release-0-12-1:
 
@@ -1351,7 +1354,7 @@ Fixed
 Fixed
 -----
 
-- Fix import of 'FrozenRequirement' for pip 10.0.0.
+- Fix import of 'FrozenRequirement' for pip 10.0.0 by :user:`naiquevin`.
 
 .. _release-0-12-0:
 
@@ -1364,7 +1367,7 @@ Fixed
 Fixed
 -----
 
-- Changes to make pipdeptree work with pip 10.0.0. This change is backward compatible.
+- Support pip 10.0.0 without dropping older pip versions by :user:`sourcenouveau`.
 
 .. _release-0-11-0:
 
@@ -1377,7 +1380,8 @@ Fixed
 Added
 -----
 
-- Added support for nested json output (``--json-tree`` flag). Behavior of ``--json`` stays the same.
+- Added support for nested json output (``--json-tree`` flag). Behavior of ``--json`` stays the same by
+  :user:`haikoschol`.
 
 .. _release-0-10-1:
 
@@ -1390,7 +1394,7 @@ Added
 Fixed
 -----
 
-- Fixed the changed behavior when using ``--json`` with ``--packages`` by reverting PR #65.
+- Revert PR #65 to restore ``--json`` with ``--packages`` by :user:`naiquevin`.
 
 .. _release-0-10-0:
 
@@ -1403,15 +1407,15 @@ Fixed
 Added
 -----
 
-- Dropped support for Python 2.6.
-- ``--json`` and ``--packages`` options can now be used together.
+- Dropped support for Python 2.6 by :user:`naiquevin`.
+- ``--json`` and ``--packages`` options can now be used together by :user:`kdeldycke`.
 
 .. _release-0-10-0-fixed:
 
 Fixed
 -----
 
-- Fixed binary graphviz output on Python 3.
+- Fixed binary graphviz output on Python 3 by :user:`jmbowman`.
 
 .. _release-0-9-0:
 
@@ -1424,16 +1428,18 @@ Fixed
 Added
 -----
 
-- Support for visualizing dependency tree of packages using Graphviz in various formats.
-- Support to consider only packages installed in the user directory.
-- CLI option to print version.
+- Support for visualizing dependency tree of packages using Graphviz in various formats by :user:`johnyf` and
+  :user:`Dunedan`.
+- Support to consider only packages installed in the user directory by :user:`naiquevin`.
+- CLI option to print version by :user:`naiquevin`.
 
 .. _release-0-9-0-fixed:
 
 Fixed
 -----
 
-- Fix the output to use a better term, "Any" instead of "None" if a dependency doesn't need to be of a specific version.
+- Fix the output to use a better term, "Any" instead of "None" if a dependency doesn't need to be of a specific version
+  by :user:`naiquevin`.
 
 .. _release-0-8-0:
 
@@ -1447,14 +1453,15 @@ Changes
 -------
 
 - Use pip's list of excluded default packages. This means that the ``pipdeptree`` package itself is no longer excluded
-  and will appear in the output tree.
+  and will appear in the output tree by :user:`jimbocoder`.
 
 .. _release-0-8-0-fixed:
 
 Fixed
 -----
 
-- Fix the bug that caused a package to appear in conflicting deps although it's installed version could be guessed.
+- Fix the bug that caused a package to appear in conflicting deps although it's installed version could be guessed by
+  :user:`naiquevin`.
 
 .. _release-0-7-0:
 
@@ -1467,15 +1474,15 @@ Fixed
 Changes
 -------
 
-- Alphabetical sorting of packages in the output.
+- Alphabetical sorting of packages in the output by :user:`naiquevin`.
 
 .. _release-0-7-0-fixed:
 
 Fixed
 -----
 
-- Fix for a bug in reverse mode.
-- Fallback to guess installed version of packages "skipped" by pip.
+- Fix for a bug in reverse mode by :user:`naiquevin`.
+- Fallback to guess installed version of packages "skipped" by pip by :user:`naiquevin`.
 
 .. _release-0-6-0:
 
@@ -1513,6 +1520,6 @@ Fixed
 Added
 -----
 
-- Add ``--reverse`` flag to show the dependency tree upside down.
-- Add ``--packages`` flag to show only select packages in output.
-- Add ``--json`` flag to output dependency tree as json that may be used by external tools.
+- Add ``--reverse`` flag to show the dependency tree upside down by :user:`naiquevin`.
+- Add ``--packages`` flag to show only select packages in output by :user:`naiquevin`.
+- Add ``--json`` flag to output dependency tree as json that may be used by external tools by :user:`naiquevin`.
