@@ -120,6 +120,7 @@ commands = [
   [ "uv", "build", "--sdist", "--wheel", "--out-dir", "{env_tmp_dir}", "." ],
   [ "twine", "check", "{env_tmp_dir}{/}*" ],
   [ "check-wheel-contents", "--no-config", "{env_tmp_dir}" ],
+  [ "python", "tools/check_release_wheels.py", "{env_tmp_dir}" ],
 ]
 
 [env.type]

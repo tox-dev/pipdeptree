@@ -72,6 +72,7 @@ def test_release_preview_checks_notes_and_packages(
         "",
         "",
         "",
+        "",
     ]
     responses: list[subprocess.CompletedProcess[str] | subprocess.CalledProcessError] = [
         _completed(output) for output in outputs
@@ -104,7 +105,11 @@ def test_release_preview_checks_notes_and_packages(
     assert "--require-hashes" in commands[11 + format_changes]
     assert run.call_args_list[11 + format_changes].kwargs["env"]["PIPDEPTREE_VERSION"] == "4.2.10"
     assert run.call_args_list[11 + format_changes].kwargs["env"]["UV_EXCLUDE_NEWER"] == "1 week"
-    assert commands[-2:] == [("twine", "check", "dist/*"), ("check-wheel-contents", "--no-config", "dist")]
+    assert commands[-3:] == [
+        ("twine", "check", "dist/*"),
+        ("check-wheel-contents", "--no-config", "dist"),
+        (sys.executable, "tools/check_release_wheels.py", "dist"),
+    ]
     assert all(call.kwargs["stdout"] is sys.stderr for call in run.call_args_list if not call.kwargs["capture_output"])
     assert all(command[:2] != ("git", "push") for command in commands)
     assert all(command[:2] != ("git", "tag") or command[2:] == ("--list",) for command in commands)

@@ -131,6 +131,7 @@ def main() -> None:
         )
         _run("twine", "check", "dist/*", cwd=source)
         _run("check-wheel-contents", "--no-config", "dist", cwd=source)
+        _run(sys.executable, "tools/check_release_wheels.py", "dist", cwd=source)
         sys.stdout.write(notes)
 
 
