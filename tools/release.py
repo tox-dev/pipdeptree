@@ -120,6 +120,7 @@ def _run(
         cwd=cwd,
         input=stdin_text,
         capture_output=capture_output,
+        stdout=None if capture_output else sys.stderr,
         text=True,
         check=True,
         shell=False,
