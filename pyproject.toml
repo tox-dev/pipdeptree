@@ -4,6 +4,7 @@ requires = [
   "meson>=1.12.1",
   "meson-python>=0.22.1",
   "ninja>=1.13.2",
+  "patchelf>=0.11; sys_platform=='linux'",
 ]
 
 [project]
@@ -75,7 +76,7 @@ docs = [
 release = [
   "check-wheel-contents>=0.6.3",
   "prek>=0.5",
-  "release-creator @ git+https://github.com/tox-dev/release-creator@5ab33234939cf2969d25a11ba477c31eb264067c",
+  "release-creator @ git+https://github.com/tox-dev/release-creator@a68e1cac50755c8d8fbb2be85fa1a35eeb78d577",
   "towncrier>=26.9",
   "twine>=7",
   "uv>=0.12.22",

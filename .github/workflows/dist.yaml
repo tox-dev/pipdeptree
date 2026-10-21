@@ -109,11 +109,27 @@ jobs:
           flags += [word for name in toolchain["components"] for word in ("--component", name)]
           print("flags=" + " ".join(flags))
           EOF
+      - name: Install locked release tools
+        shell: bash
+        run: |
+          uv venv --python 3.15 "$RUNNER_TEMP/release-tools"
+          uv pip sync --preview-features pylock --python "$RUNNER_TEMP/release-tools" --group release pylock.toml
+      - name: Export hashed build constraints
+        shell: bash
+        env:
+          TOOL_PYTHON: ${{ runner.os == 'Windows' && format('{0}/release-tools/Scripts/python.exe', runner.temp) || format('{0}/release-tools/bin/python', runner.temp) }}
+          BUILD_PLATFORM: ${{ runner.os == 'Linux' && 'linux' || runner.os == 'macOS' && 'macos' || 'windows' }}
+        run: |
+          "$TOOL_PYTHON" -m release_creator build-constraints \
+            --lock pylock.toml --group build --platform "$BUILD_PLATFORM" \
+            --python-version 3.11.0 --python-version 3.12.0 --python-version 3.13.0 \
+            --python-version 3.14.0 --python-version 3.15.0 \
+            --output .release-build-constraints.txt
       - name: Build wheels
         uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
         env:
           CIBW_ARCHS: ${{ matrix.platform.arch }}
-          CIBW_BUILD_FRONTEND: uv
+          CIBW_BUILD_FRONTEND: "uv; args: --build-constraint .release-build-constraints.txt --require-hashes"
           UV_PYTHON: ""
           # Install the toolchain and its components up front. Left to rust-toolchain.toml, the first cargo
           # call in each container provisions them on demand, which races and conflicts on the cargo-clippy
@@ -133,11 +149,6 @@ jobs:
           CIBW_TEST_COMMAND: pipdeptree --version
         with:
           output-dir: dist
-      - name: Install locked wheel tagger
-        shell: bash
-        run: |
-          uv venv --python 3.15 "$RUNNER_TEMP/release-tools"
-          uv pip sync --preview-features pylock --python "$RUNNER_TEMP/release-tools" --group release pylock.toml
       - name: Set the stable ABI minimum
         shell: bash
         run: |
@@ -171,8 +182,17 @@ jobs:
         with:
           python-version: "3.15"
           enable-cache: false
+      - name: Install locked release tools
+        run: |
+          uv venv --python 3.15 "$RUNNER_TEMP/release-tools"
+          uv pip sync --preview-features pylock --python "$RUNNER_TEMP/release-tools/bin/python" --group release pylock.toml
+      - name: Export hashed build constraints
+        run: |
+          "$RUNNER_TEMP/release-tools/bin/python" -m release_creator build-constraints \
+            --lock pylock.toml --group build --platform linux --python-version 3.15.0 \
+            --output "$RUNNER_TEMP/build-constraints.txt"
       - name: Build source distribution
-        run: uv build --sdist --out-dir dist
+        run: uv build --sdist --out-dir dist --build-constraints "$RUNNER_TEMP/build-constraints.txt" --require-build-hashes
       - name: Store source distribution
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
