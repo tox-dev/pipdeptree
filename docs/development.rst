@@ -136,15 +136,25 @@ behavior, ``bugfix`` for fixes, and ``doc`` for documentation that helps users. 
 pull request needs the ``skip news`` label rather than a fragment. Bot pull requests without a fragment receive that
 label automatically.
 
-Cut a release by running the ``Prepare release`` workflow with ``auto``. The feature fragments select a minor version;
+Cut a release by running the ``Prepare release`` workflow with ``auto``. Feature fragments select a minor version;
 other fragments select a patch version. The workflow builds and checks the changelog, commits it on upstream ``main``,
-and pushes an annotated tag. The tag starts the PyPI publisher, followed by the GitHub Release.
+and pushes an annotated tag. The tag workflow checks the source archive and every wheel, renders GitHub notes from the
+tagged changelog, publishes to PyPI, then creates the GitHub Release. The GitHub notes link to PyPI, the version diff,
+and credited contributors; the documentation changelog keeps the RST links and section anchors.
 
-The local release task is available from a checkout against the upstream remote:
+Preview preparation, notes, the package build and package checks from a clean checkout. The preview uses a temporary
+clone and does not push a commit, tag or release:
 
 .. code-block:: bash
 
-    tox run -e release -- --bump minor
+    tox run -e release
+
+Use ``-- --bump minor`` to override automatic version selection. After reviewing the preview, dispatch the protected
+workflow on ``main``:
+
+.. code-block:: bash
+
+    tox run -e release -- --dispatch
 
 Contributing
 ------------
