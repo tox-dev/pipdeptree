@@ -53,7 +53,7 @@ jobs:
       matrix:
         os:
           - ubuntu-26.04
-          - windows-latest
+          - windows-2025
         env:
           - "pypy-3.11"
           - "3.15"
@@ -68,13 +68,13 @@ jobs:
           - pkg_meta
         exclude:
           # Run non-runtime checks only on Linux
-          - os: windows-latest
+          - os: windows-2025
             env: type
-          - os: windows-latest
+          - os: windows-2025
             env: docs
-          - os: windows-latest
+          - os: windows-2025
             env: dev
-          - os: windows-latest
+          - os: windows-2025
             env: pkg_meta
     steps:
       - name: Install OS dependencies (Linux)
@@ -113,8 +113,11 @@ jobs:
           PYTEST_ADDOPTS: "-vv --durations=20"
           DIFF_AGAINST: HEAD
   changelog:
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip news')
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -124,7 +127,12 @@ jobs:
         with:
           python-version: "3.15"
           enable-cache: false
-      - run: uvx towncrier check --compare-with "origin/${GITHUB_BASE_REF}"
+      - name: Install locked release tools
+        run: |
+          uv venv --python 3.15 "$RUNNER_TEMP/release-tools"
+          uv pip sync --preview-features pylock --python "$RUNNER_TEMP/release-tools/bin/python" --group release pylock.toml
+          echo "$RUNNER_TEMP/release-tools/bin" >>"$GITHUB_PATH"
+      - uses: tox-dev/github-workflows/validate-news@5e11f2254a4dcb7102747d312ad7db48a2e9b0cb
   # The one context branch protection requires, so a matrix that grows or renames its cells needs no ruleset edit.
   check:
     needs: [dist, rust, test, changelog]
@@ -134,13 +142,11 @@ jobs:
       - env:
           NEEDS_JSON: ${{ toJSON(needs) }}
           EVENT_NAME: ${{ github.event_name }}
-          SKIP_NEWS: ${{ contains(github.event.pull_request.labels.*.name, 'skip news') }}
         run: |
-          jq -e --arg event "$EVENT_NAME" --arg skip_news "$SKIP_NEWS" '
+          jq -e --arg event "$EVENT_NAME" '
             all(
               to_entries[];
               .value.result == "success" or
-              (.key == "changelog" and .value.result == "skipped" and
-                ($event != "pull_request" or $skip_news == "true"))
+              (.key == "changelog" and .value.result == "skipped" and $event != "pull_request")
             )
           ' <<< "$NEEDS_JSON"

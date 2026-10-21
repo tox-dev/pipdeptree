@@ -60,6 +60,7 @@ test = [
   "diff-cover>=10.6",
   "pytest>=9.1.1",
   "pytest-cov>=7.1",
+  "pytest-mock>=3.15",
 ]
 docs = [
   "furo>=2025.12.19",
@@ -72,9 +73,13 @@ docs = [
   "towncrier>=26.9",
 ]
 release = [
+  "check-wheel-contents>=0.6.3",
   "prek>=0.5",
-  "release-creator @ git+https://github.com/tox-dev/release-creator@6377ed5b470b66fca2bf482ca1a73d95e611f517",
+  "release-creator @ git+https://github.com/tox-dev/release-creator@5ab33234939cf2969d25a11ba477c31eb264067c",
   "towncrier>=26.9",
+  "twine>=7",
+  "uv>=0.12.22",
+  "wheel>=0.46",
 ]
 
 [tool.meson-python]
