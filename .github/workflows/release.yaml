@@ -86,7 +86,7 @@ jobs:
             gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
               -f tag_name="$TAG" --jq .body > "$RUNNER_TEMP/generated-notes.md"
           fi
-      - uses: tox-dev/github-workflows/render-release-notes@65ca97430da17d7c6f3cf636c0fd16dc3474481e
+      - uses: tox-dev/github-workflows/render-release-notes@144f8e68b7d4c7c44e32258b1305e4402bc4e392
         with:
           tag: ${{ github.ref_name }}
           changelog: docs/changelog.rst
