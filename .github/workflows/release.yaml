@@ -22,7 +22,7 @@ jobs:
           python-version: "3.15"
           enable-cache: false
       - name: Install locked release checks
-        uses: tox-dev/github-workflows/install-locked-tools@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
+        uses: tox-dev/github-workflows/install-locked-tools@33db207c963ad07b8d2bff4099143593fd4100b2
         with:
           venv: ${{ runner.temp }}/release-tools
       - name: Add installed tools to PATH
@@ -72,7 +72,7 @@ jobs:
           python-version: "3.15"
           enable-cache: false
       - name: Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
+        uses: tox-dev/github-workflows/install-locked-tools@33db207c963ad07b8d2bff4099143593fd4100b2
         with:
           venv: ${{ runner.temp }}/release-tools
       - name: Add installed tools to PATH
@@ -130,7 +130,7 @@ jobs:
           python-version: "3.15"
           enable-cache: false
       - name: Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
+        uses: tox-dev/github-workflows/install-locked-tools@33db207c963ad07b8d2bff4099143593fd4100b2
         with:
           venv: ${{ runner.temp }}/release-tools
       - name: Add installed tools to PATH
@@ -139,7 +139,7 @@ jobs:
         with:
           name: contributor-metadata
           path: ${{ runner.temp }}/contributor-metadata
-      - uses: tox-dev/github-workflows/render-release-notes@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
+      - uses: tox-dev/github-workflows/render-release-notes@33db207c963ad07b8d2bff4099143593fd4100b2
         with:
           tag: ${{ github.ref_name }}
           changelog: docs/changelog.rst
@@ -176,7 +176,7 @@ jobs:
           path: dist/
       - name: Stage missing PyPI artifacts
         id: reconcile
-        uses: tox-dev/github-workflows/reconcile-pypi-artifacts@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
+        uses: tox-dev/github-workflows/reconcile-pypi-artifacts@33db207c963ad07b8d2bff4099143593fd4100b2
         with:
           project: pipdeptree
           version: ${{ github.ref_name }}
@@ -200,7 +200,7 @@ jobs:
           name: github-release-notes
           path: ${{ runner.temp }}/release-notes
       - name: Stage GitHub Release
-        uses: tox-dev/github-workflows/publish-github-release@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
+        uses: tox-dev/github-workflows/publish-github-release@33db207c963ad07b8d2bff4099143593fd4100b2
         env:
           GH_TOKEN: ${{ github.token }}
         with:
@@ -231,7 +231,7 @@ jobs:
           name: pypi-missing-manifest
           path: ${{ runner.temp }}/pypi-missing-manifest
       - name: Select missing validated artifacts
-        uses: tox-dev/github-workflows/select-pypi-artifacts@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
+        uses: tox-dev/github-workflows/select-pypi-artifacts@33db207c963ad07b8d2bff4099143593fd4100b2
         with:
           dist: dist
           manifest: ${{ runner.temp }}/pypi-missing-manifest/pypi-missing-names.txt
@@ -267,7 +267,7 @@ jobs:
           pattern: dists-*
           path: dist/
       - name: Verify complete PyPI release
-        uses: tox-dev/github-workflows/reconcile-pypi-artifacts@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
+        uses: tox-dev/github-workflows/reconcile-pypi-artifacts@33db207c963ad07b8d2bff4099143593fd4100b2
         with:
           project: pipdeptree
           version: ${{ github.ref_name }}
@@ -285,7 +285,7 @@ jobs:
           name: github-release-notes
           path: ${{ runner.temp }}/release-notes
       - name: Publish GitHub Release
-        uses: tox-dev/github-workflows/publish-github-release@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
+        uses: tox-dev/github-workflows/publish-github-release@33db207c963ad07b8d2bff4099143593fd4100b2
         env:
           GH_TOKEN: ${{ github.token }}
         with:
