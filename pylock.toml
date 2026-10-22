@@ -4678,157 +4678,157 @@ sha256 = "258fde948cf45aab5df23fcc9e17a9050ee73d4e1002fe6cf86519f61c414778"
 
 [[packages]]
 name = "more-itertools"
-version = "11.2.0"
+version = "11.2.1"
 index = "https://pypi.org/simple"
 marker = "(\"release\" in dependency_groups and (python_full_version >= '3.15' and platform_machine != 'ppc64le' and platform_machine != 's390x'))"
 
 [packages.sdist]
-url = "https://files.pythonhosted.org/packages/55/e5/8735dc589d9e3571e76cd684e7763dc0fcc940b811f71640410458749689/more_itertools-11.2.0.tar.gz"
-upload-time = 2026-10-13 16:01:14+00:00
-size = 75940
+url = "https://files.pythonhosted.org/packages/52/b8/c63995bebbb9ac9c059350e0fb8c82c2420c85aeca7d34e40aecf3df9281/more_itertools-11.2.1.tar.gz"
+upload-time = 2026-10-14 18:50:30+00:00
+size = 154133
 
 [packages.sdist.hashes]
-sha256 = "59960f488835254863a857eb501f69e4ec92fdc8822f098c0f48dba530afd487"
+sha256 = "cbf08fd0af284dc69718b9b76a8e6203df624d70209ea511e4219d350c856f63"
 
 [[packages.wheels]]
-url = "https://files.pythonhosted.org/packages/d4/f7/86f27473377a8ebdbdfedec5e62e87fbc24c4c88ed0a2a5ea0a12ee2229b/more_itertools-11.2.0-py3-none-any.whl"
-upload-time = 2026-10-13 16:01:13+00:00
-size = 74407
+url = "https://files.pythonhosted.org/packages/5d/57/3c4b1c6f2e0cc29ba023802458ea3d2a996f87085559e4a5f2192d549532/more_itertools-11.2.1-py3-none-any.whl"
+upload-time = 2026-10-14 18:50:29+00:00
+size = 74405
 
 [packages.wheels.hashes]
-sha256 = "e4c522352a24664c974d0be8382944107ae638281a06391a5a538366b5707fe5"
+sha256 = "35a7377edd1dd6608dcb2cdf534ded55ea32d49448875ad042cd3f879fb1ded0"
 
 [[packages]]
 name = "nab"
-version = "0.0.20"
+version = "0.0.21"
 index = "https://pypi.org/simple"
 marker = "\"project-runtime\" in dependency_groups"
 
 [packages.sdist]
-url = "https://files.pythonhosted.org/packages/25/cb/2a2b5ff74592407d726b9642322356c07f65dddeac71ece9bfdf6e64c6eb/nab-0.0.20.tar.gz"
-upload-time = 2026-10-13 23:15:45+00:00
-size = 282867
+url = "https://files.pythonhosted.org/packages/b6/15/fd49f67bf3e9b559c78dbd79c393214377ea78b858541ef47e9cfd1fcb4d/nab-0.0.21.tar.gz"
+upload-time = 2026-10-14 20:48:05+00:00
+size = 284378
 
 [packages.sdist.hashes]
-sha256 = "3b6614a394b49a864dcd667dea31c421eac6b24bf6fd02f9bd775ecd21fe0f16"
+sha256 = "1cef7f26a758b1cdde7227d2e558a0f6e35d0858f6b918f65cb2e8ac45eb3fba"
 
 [[packages.wheels]]
-url = "https://files.pythonhosted.org/packages/02/68/efe6be788729cebfe44f61fdb722027ab1928393042f377c6a9080304242/nab-0.0.20-py3-none-any.whl"
-upload-time = 2026-10-13 23:15:44+00:00
-size = 137794
+url = "https://files.pythonhosted.org/packages/22/22/85c9c677320e03fbc53a4d950708d9d1a47f747c88c549a7cb318fc5545f/nab-0.0.21-py3-none-any.whl"
+upload-time = 2026-10-14 20:48:03+00:00
+size = 137800
 
 [packages.wheels.hashes]
-sha256 = "9057b76c5d50167e4a871791fe7fd10ae335ff8a2046db821bffb68bc9fc3b54"
+sha256 = "266e4f5c9a7fc071036a403b408f3dc56d9fe8ae03aa9448cc74455f2bb62010"
 
 [[packages]]
 name = "nab-index"
-version = "0.0.20"
+version = "0.0.21"
 index = "https://pypi.org/simple"
 marker = "\"project-runtime\" in dependency_groups"
 
 [packages.sdist]
-url = "https://files.pythonhosted.org/packages/b8/08/d61f8e73623f8db9cdad4fd4b3dfe8568385786ec31ca3e0f93bba59fb64/nab_index-0.0.20.tar.gz"
-upload-time = 2026-10-13 23:15:30+00:00
-size = 108256
+url = "https://files.pythonhosted.org/packages/35/1d/cd81258161ebe3f7562614eb05a30370168d57c19d0e4b76f42d83c38b4c/nab_index-0.0.21.tar.gz"
+upload-time = 2026-10-14 20:47:39+00:00
+size = 110236
 
 [packages.sdist.hashes]
-sha256 = "96a786a853be5f8f5b36b08461701462b7b5206a6c9a462de85cb3d239b2572a"
+sha256 = "51c8e37936fe5af85791791bf8eb46a881b5378edcb4d363b6610646f17489a6"
 
 [[packages.wheels]]
-url = "https://files.pythonhosted.org/packages/07/83/68da8d5f4be9bc96b65b6634408a382c38ce019aaf65afe58b64a166bf8f/nab_index-0.0.20-py3-none-any.whl"
-upload-time = 2026-10-13 23:15:29+00:00
-size = 88111
+url = "https://files.pythonhosted.org/packages/e5/74/369daddebac4ca335780d7cd6bcdf127623bc0272d91f6bc0dfebf79c4a3/nab_index-0.0.21-py3-none-any.whl"
+upload-time = 2026-10-14 20:47:37+00:00
+size = 88370
 
 [packages.wheels.hashes]
-sha256 = "48a8d2efee19699d29d534ccaa6c311bf15eea8d7f506068923c825221fe1a18"
+sha256 = "485725f1662cef41c398d28bef4508a55fd24ab53ba889dc0ba2acac0e05f1a8"
 
 [[packages]]
 name = "nab-markersets"
-version = "0.0.20"
+version = "0.0.21"
 index = "https://pypi.org/simple"
 marker = "\"project-runtime\" in dependency_groups"
 
 [packages.sdist]
-url = "https://files.pythonhosted.org/packages/8d/16/7304fd3822c013262064362b9a4d76cf92350b00af0d8f1fd09eb4f22fd1/nab_markersets-0.0.20.tar.gz"
-upload-time = 2026-10-13 23:15:14+00:00
-size = 60757
+url = "https://files.pythonhosted.org/packages/a9/0f/2d6ea329bd7132ca9098b93dfb15555d89361c2219dc917040ffece7986c/nab_markersets-0.0.21.tar.gz"
+upload-time = 2026-10-14 20:47:15+00:00
+size = 62461
 
 [packages.sdist.hashes]
-sha256 = "79ce4c42298a7accb91e30b7df1558611034a95922da56215255b8b0377b1dcf"
+sha256 = "0fa9f90c4fe9aa92700e8be97b738353afe751ba6e6b4c80f62806c2b22e9f08"
 
 [[packages.wheels]]
-url = "https://files.pythonhosted.org/packages/2d/fa/18b94edca949a9a2e255d342f055033216adc765a91a201c9c7becf85154/nab_markersets-0.0.20-py3-none-any.whl"
-upload-time = 2026-10-13 23:15:13+00:00
-size = 31331
+url = "https://files.pythonhosted.org/packages/af/51/52096bad3c461b5a9209552a93d3c62f7273f6dbab5e419da64dd788d073/nab_markersets-0.0.21-py3-none-any.whl"
+upload-time = 2026-10-14 20:47:14+00:00
+size = 32583
 
 [packages.wheels.hashes]
-sha256 = "42daa2443ae2ed43740bd03230551dadada893eb0fa3ba98a70a27dd6284689e"
+sha256 = "0d8959058215a9ee1520c765135e78e87783acfbc3762b0aaf79eaaedaa6aad1"
 
 [[packages]]
 name = "nab-project"
-version = "0.0.20"
+version = "0.0.21"
 index = "https://pypi.org/simple"
 marker = "\"project-runtime\" in dependency_groups"
 
 [packages.sdist]
-url = "https://files.pythonhosted.org/packages/a9/b6/dff2382a8f46557428f2a3179f5991422ac763b159821292bc6d2f7b8665/nab_project-0.0.20.tar.gz"
-upload-time = 2026-10-13 23:15:37+00:00
-size = 757806
+url = "https://files.pythonhosted.org/packages/cc/f3/649a8080e4ba15aea3b4100727f50e45168c178c71f2ed9c871a3aeda9e3/nab_project-0.0.21.tar.gz"
+upload-time = 2026-10-14 20:47:51+00:00
+size = 758799
 
 [packages.sdist.hashes]
-sha256 = "730524463ccc871f19cce8fd8f4cbbde7a4c8f92d0f429fb756cca8ea07396a6"
+sha256 = "d746a4c831527d3ba48113ccbd9d5cdb8ba165150eb2aa3291756b0488f22761"
 
 [[packages.wheels]]
-url = "https://files.pythonhosted.org/packages/9c/55/438a6e52684a6842292b19f4800f037653cef998025bd957bbe219db4295/nab_project-0.0.20-py3-none-any.whl"
-upload-time = 2026-10-13 23:15:36+00:00
-size = 145994
+url = "https://files.pythonhosted.org/packages/c4/18/04111f34660e08ed88aa7b7bf835743654d78181046526083bb27f4f5c1f/nab_project-0.0.21-py3-none-any.whl"
+upload-time = 2026-10-14 20:47:49+00:00
+size = 146012
 
 [packages.wheels.hashes]
-sha256 = "2d5efeedb3325464d066f40252cd449ec3c5fea418863b10ec89a2000a4ea89e"
+sha256 = "c8221d47d01f406e470fdbb9388a214aae1ac6f71d4412b8b99a1b0a370d3d0a"
 
 [[packages]]
 name = "nab-provider"
-version = "0.0.20"
+version = "0.0.21"
 index = "https://pypi.org/simple"
 marker = "\"project-runtime\" in dependency_groups"
 
 [packages.sdist]
-url = "https://files.pythonhosted.org/packages/90/f8/633086717838da22e253f03de15636d1d54ba54c3506c9d1fd81b8d0a6a2/nab_provider-0.0.20.tar.gz"
-upload-time = 2026-10-13 23:15:22+00:00
-size = 407258
+url = "https://files.pythonhosted.org/packages/34/97/e187dc33611dcb0acc4eaec8980436e1b0cf70dc4270108bbda67e5c50a5/nab_provider-0.0.21.tar.gz"
+upload-time = 2026-10-14 20:47:28+00:00
+size = 407394
 
 [packages.sdist.hashes]
-sha256 = "36f8956e5aa8cf942f2058fafcb6dc51a7387f4e27deeb7a95e3f2df48f07a46"
+sha256 = "b3b9dd6c629df89ecd0b4d7a13287853ac8ef7bfd75675a22f94f54163795a90"
 
 [[packages.wheels]]
-url = "https://files.pythonhosted.org/packages/58/e8/18d6a0c59e7bfba8f8f06747f784c2d21dfe23adadb96d02772ec6c134b9/nab_provider-0.0.20-py3-none-any.whl"
-upload-time = 2026-10-13 23:15:20+00:00
-size = 338873
+url = "https://files.pythonhosted.org/packages/ed/f1/fcb0d41f63e328dad740cbc4395d423499b77c0cee0715be2fe85d45cca1/nab_provider-0.0.21-py3-none-any.whl"
+upload-time = 2026-10-14 20:47:26+00:00
+size = 338910
 
 [packages.wheels.hashes]
-sha256 = "b44c744752cfb72e194ffc1da9fda6b865f1f8ccae800ceed20995ed6304ae19"
+sha256 = "b20f487186c53253912a84a9adbe8d6694c7093143bd6a48f02be3c82e71e43f"
 
 [[packages]]
 name = "nab-resolver"
-version = "0.0.20"
+version = "0.0.21"
 index = "https://pypi.org/simple"
 marker = "\"project-runtime\" in dependency_groups"
 
 [packages.sdist]
-url = "https://files.pythonhosted.org/packages/05/c5/98d3fbd93979f4c3704869caab4b7e06f00a661380d17bb6e51aea007164/nab_resolver-0.0.20.tar.gz"
-upload-time = 2026-10-13 23:15:07+00:00
-size = 167639
+url = "https://files.pythonhosted.org/packages/e1/a4/b2bf789fd6d6b33cdf7200cd373f27e4a2b7457bfb787a1d37009e2de372/nab_resolver-0.0.21.tar.gz"
+upload-time = 2026-10-14 20:47:05+00:00
+size = 167637
 
 [packages.sdist.hashes]
-sha256 = "bf92b4579785e86aeeff6d32bceb39c60d650834fa8d3f98a06d0ae57aa64887"
+sha256 = "f44391325dbde953ca7309572659e9d0f4afd9a1dafdf55cfa6e79b77c852897"
 
 [[packages.wheels]]
-url = "https://files.pythonhosted.org/packages/f7/52/ad365ce24af275dec3381d5f662ccdf3b1abcf999dc7596a6380330eede8/nab_resolver-0.0.20-py3-none-any.whl"
-upload-time = 2026-10-13 23:15:06+00:00
-size = 58595
+url = "https://files.pythonhosted.org/packages/c1/dd/0c439a14d99c78f01f67ddb488ad37f8b66146fdb5873953f7e3496d30d3/nab_resolver-0.0.21-py3-none-any.whl"
+upload-time = 2026-10-14 20:47:04+00:00
+size = 58596
 
 [packages.wheels.hashes]
-sha256 = "4b1930ac0c6ed5898fd6f75a6e7c02953e6dcafee0fa6771d55b8bba7b019b53"
+sha256 = "9554a5c4244d875f8093f41364b2cd103214f4a21932de9f1181c8b455687ec3"
 
 [[packages]]
 name = "nh3"
@@ -6599,7 +6599,7 @@ sha256 = "8a1513379d709975552d202d942d9837758905c8d01eb82b8bcc30918929e7b8"
 name = "pyyaml"
 version = "6.0.3"
 index = "https://pypi.org/simple"
-marker = "(\"docs\" in dependency_groups and (python_full_version >= '3.12'))"
+marker = "(\"docs\" in dependency_groups and (python_full_version >= '3.12')) or (\"release\" in dependency_groups and (python_full_version >= '3.15'))"
 
 [packages.sdist]
 url = "https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz"
@@ -7009,14 +7009,25 @@ sha256 = "d0dae1f74bb273b534770cb4cccb6bb78735540afdb03c2146f4e19dcd412560"
 
 [[packages]]
 name = "release-creator"
-version = "0.4.2.dev61+ga5873f5d6"
+version = "0.5.0"
+index = "https://pypi.org/simple"
 marker = "(\"release\" in dependency_groups and (python_full_version >= '3.15'))"
 
-[packages.vcs]
-type = "git"
-url = "https://github.com/tox-dev/release-creator"
-requested-revision = "a5873f5d66c5b1ff07da6294aa2719764fa9f864"
-commit-id = "a5873f5d66c5b1ff07da6294aa2719764fa9f864"
+[packages.sdist]
+url = "https://files.pythonhosted.org/packages/2e/64/830a7a0c3e984d31429a3a605a760b60c2442413d1cd979c938976b5581b/release_creator-0.5.0.tar.gz"
+upload-time = 2026-10-22 06:32:59+00:00
+size = 156415
+
+[packages.sdist.hashes]
+sha256 = "e3a5d0b7ab8781ea7f66bb95353792a12592c8d40cb81a575e5defcbd2e3d3fd"
+
+[[packages.wheels]]
+url = "https://files.pythonhosted.org/packages/78/87/9c0644b186b62b1fb1f15f0d49a0982dad1b036c7d393866c1e2b58a3e98/release_creator-0.5.0-py3-none-any.whl"
+upload-time = 2026-10-22 06:32:58+00:00
+size = 49978
+
+[packages.wheels.hashes]
+sha256 = "a056a01b1484e00f403b0fae054e3b3b6bebd8621e1e430ba8f83cdf939fa736"
 
 [[packages]]
 name = "requests"
