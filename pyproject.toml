@@ -82,6 +82,33 @@ release = [
   "uv>=0.12.22",
   "wheel>=0.46",
 ]
+release-check = [
+  "prek>=0.5",
+]
+release-news = [
+  "release-creator>=0.5.1",
+  "towncrier>=26.9",
+]
+release-notes = [
+  "release-creator>=0.5.1",
+]
+release-package = [
+  "check-wheel-contents>=0.6.3",
+  "twine>=7",
+]
+release-prepare = [
+  "prek>=0.5",
+  "release-creator>=0.5.1",
+  "towncrier>=26.9",
+]
+release-validate = [
+  "prek>=0.5",
+  "release-creator>=0.5.1",
+]
+release-wheel = [
+  "release-creator>=0.5.1",
+  "wheel>=0.46",
+]
 
 [tool.meson-python]
 limited-api = true
@@ -89,6 +116,13 @@ limited-api = true
 [tool.uv]
 dependency-groups.docs = { requires-python = ">=3.12" }
 dependency-groups.release = { requires-python = ">=3.15" }
+dependency-groups.release-check = { requires-python = ">=3.15" }
+dependency-groups.release-news = { requires-python = ">=3.15" }
+dependency-groups.release-notes = { requires-python = ">=3.15" }
+dependency-groups.release-package = { requires-python = ">=3.15" }
+dependency-groups.release-prepare = { requires-python = ">=3.15" }
+dependency-groups.release-validate = { requires-python = ">=3.15" }
+dependency-groups.release-wheel = { requires-python = ">=3.15" }
 
 [tool.cibuildwheel]
 overrides = [
