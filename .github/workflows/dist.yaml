@@ -140,7 +140,7 @@ jobs:
           print("flags=" + " ".join(flags))
           EOF
       - name: Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@961281cba49418a682b2bb123ae4a1c4d22f74ff
+        uses: tox-dev/github-workflows/install-locked-tools@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
         with:
           venv: ${{ runner.temp }}/release-tools
       - name: Export hashed build constraints
@@ -214,7 +214,7 @@ jobs:
           python-version: "3.15"
           enable-cache: false
       - name: Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@961281cba49418a682b2bb123ae4a1c4d22f74ff
+        uses: tox-dev/github-workflows/install-locked-tools@a040f8eb1c335676f3f97db2010a1a39a3cea1ac
         with:
           venv: ${{ runner.temp }}/release-tools
       - name: Export hashed build constraints
