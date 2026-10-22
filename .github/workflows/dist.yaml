@@ -140,10 +140,9 @@ jobs:
           print("flags=" + " ".join(flags))
           EOF
       - name: Install locked release tools
-        shell: bash
-        run: |
-          uv venv --python 3.15 "$RUNNER_TEMP/release-tools"
-          uv pip sync --preview-features pylock --python "$RUNNER_TEMP/release-tools" --group release pylock.toml
+        uses: tox-dev/github-workflows/install-locked-tools@24e7c78489b6e2adb7b8f881761a5c2dbfe03fee
+        with:
+          venv: ${{ runner.temp }}/release-tools
       - name: Export hashed build constraints
         shell: bash
         env:
@@ -215,12 +214,9 @@ jobs:
           python-version: "3.15"
           enable-cache: false
       - name: Install locked release tools
-        run: |
-          uv venv --python 3.15 "$RUNNER_TEMP/release-tools"
-          uv pip sync \
-            --preview-features pylock \
-            --python "$RUNNER_TEMP/release-tools/bin/python" \
-            --group release pylock.toml
+        uses: tox-dev/github-workflows/install-locked-tools@24e7c78489b6e2adb7b8f881761a5c2dbfe03fee
+        with:
+          venv: ${{ runner.temp }}/release-tools
       - name: Export hashed build constraints
         run: |
           "$RUNNER_TEMP/release-tools/bin/python" -m release_creator build-constraints \
