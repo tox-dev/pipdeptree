@@ -122,7 +122,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: tox-dev/github-workflows/check-hook-update-cooldown@801969505384f96d16882e224e98a74bffd09d21
+      - uses: tox-dev/github-workflows/check-hook-update-cooldown@1b7d58c3e744b505215e1cb11697a80737b0e94d
   # The one context branch protection requires, so a matrix that grows or renames its cells needs no ruleset edit.
   check:
     needs: [dist, rust, test, hook-update-cooldown]
