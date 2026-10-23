@@ -2,8 +2,10 @@ lock-version = "1.0"
 environments = [
     "python_version == \"3.15\" and sys_platform == \"linux\" and platform_machine == \"x86_64\" and implementation_name == \"cpython\" and os_name == \"posix\" and platform_python_implementation == \"CPython\" and platform_system == \"Linux\"",
     "python_version == \"3.15\" and sys_platform == \"linux\" and platform_machine == \"aarch64\" and implementation_name == \"cpython\" and os_name == \"posix\" and platform_python_implementation == \"CPython\" and platform_system == \"Linux\"",
+    "python_version == \"3.15\" and sys_platform == \"darwin\" and platform_machine == \"x86_64\" and os_name == \"posix\" and platform_python_implementation == \"CPython\" and platform_system == \"Darwin\"",
     "python_version == \"3.15\" and sys_platform == \"darwin\" and platform_machine == \"arm64\" and os_name == \"posix\" and platform_python_implementation == \"CPython\" and platform_system == \"Darwin\"",
     "python_version == \"3.15\" and sys_platform == \"win32\" and platform_machine == \"AMD64\" and os_name == \"nt\" and platform_python_implementation == \"CPython\" and platform_system == \"Windows\"",
+    "python_version == \"3.15\" and sys_platform == \"win32\" and platform_machine == \"ARM64\" and os_name == \"nt\" and platform_python_implementation == \"CPython\" and platform_system == \"Windows\"",
 ]
 requires-python = ">=3.11"
 dependency-groups = [
@@ -220,6 +222,15 @@ size = 210858
 sha256 = "89b53f3cda69831909888e0494f4fa0bcd3537e3e138dabeb620bd6ad946bae8"
 
 [[packages.wheels]]
+name = "charset_normalizer-3.5.2-cp315-cp315-win_arm64.whl"
+upload-time = 2026-09-30 04:37:55.015729+00:00
+url = "https://files.pythonhosted.org/packages/a9/5b/974423c2fd8e524c7a7f64318c1e02240ef954912fa2b4d70344107b9c68/charset_normalizer-3.5.2-cp315-cp315-win_arm64.whl"
+size = 200309
+
+[packages.wheels.hashes]
+sha256 = "6be488a102b8cf28d0391d8c4ba7748938ae28b78ad901f8585520fca33ead1a"
+
+[[packages.wheels]]
 name = "charset_normalizer-3.5.2-cp37-abi3-macosx_10_9_universal2.whl"
 upload-time = 2026-09-30 04:38:26.216534+00:00
 url = "https://files.pythonhosted.org/packages/8c/ab/176fbfd5b64939c55d652366aa5b9ef1d767af207a3aa6ebeb0d226c484d/charset_normalizer-3.5.2-cp37-abi3-macosx_10_9_universal2.whl"
@@ -254,6 +265,15 @@ size = 200092
 
 [packages.wheels.hashes]
 sha256 = "9f56f72050826f63dcee7a7f55b0a77168cb3bfc553fd405e7f8f9ece75a4036"
+
+[[packages.wheels]]
+name = "charset_normalizer-3.5.2-cp37-abi3-win_arm64.whl"
+upload-time = 2026-09-30 04:38:51.312480+00:00
+url = "https://files.pythonhosted.org/packages/03/cf/4c66866fa9e2b1c78e3c911516d1de497a677b7ac60f1eceda74ce777ca3/charset_normalizer-3.5.2-cp37-abi3-win_arm64.whl"
+size = 294363
+
+[packages.wheels.hashes]
+sha256 = "40ab6bffa02ae10a0581e6c198be7d2d8ca5c2a0c64e4ed3465d766df457573e"
 
 [[packages.wheels]]
 name = "charset_normalizer-3.5.2-py3-none-any.whl"
@@ -842,6 +862,15 @@ size = 153777
 sha256 = "2e9ad7dd851bf45fab9f75cbff4cb493fee9979e8d8c7c9c3ee119022518edd6"
 
 [[packages.wheels]]
+name = "markupsafe-3.0.4-cp315-cp315-macosx_10_15_x86_64.whl"
+upload-time = 2026-10-02 23:06:16.701372+00:00
+url = "https://files.pythonhosted.org/packages/88/54/9e5ec76c62e6e2834d5a93623018c943e8b3bb41d663e3fd4c03303b9b85/markupsafe-3.0.4-cp315-cp315-macosx_10_15_x86_64.whl"
+size = 11719
+
+[packages.wheels.hashes]
+sha256 = "799c39bdf5e2f1292fedd3009f7b3c9e760f10b2420cb9638d56920840ff6db8"
+
+[[packages.wheels]]
 name = "markupsafe-3.0.4-cp315-cp315-macosx_11_0_arm64.whl"
 upload-time = 2026-10-02 23:06:17.855823+00:00
 url = "https://files.pythonhosted.org/packages/96/24/3ec292b44064c16229e064d770b2625bd8ea941aa61f44905a9fa44942c0/markupsafe-3.0.4-cp315-cp315-macosx_11_0_arm64.whl"
@@ -876,6 +905,15 @@ size = 14496
 
 [packages.wheels.hashes]
 sha256 = "d882a373d8093c2941e01291b7ced96e9cbe4781da9a7751ca7e6c70385e5214"
+
+[[packages.wheels]]
+name = "markupsafe-3.0.4-cp315-cp315-win_arm64.whl"
+upload-time = 2026-10-02 23:06:34.539930+00:00
+url = "https://files.pythonhosted.org/packages/bc/66/e73bd5016421d5d6e2fb6de7dd609f9de020942ac8c626526bd8c6eeaf82/markupsafe-3.0.4-cp315-cp315-win_arm64.whl"
+size = 14361
+
+[packages.wheels.hashes]
+sha256 = "353bd63081912ab8cfa6a0c7d185934cdf8426f04c618bba6bc4b394f2069b67"
 
 [[packages]]
 name = "mdformat"
@@ -1305,6 +1343,15 @@ size = 644462
 [packages.wheels.hashes]
 sha256 = "618e3059caf41ccdf5dcccb3fa9df4cf6e4efe23d1382a8bbfca272a8a4f8bfc"
 
+[[packages.wheels]]
+name = "nh3-0.3.7-cp38-abi3-win_arm64.whl"
+upload-time = 2026-08-23 14:26:29.547414+00:00
+url = "https://files.pythonhosted.org/packages/f9/70/e140dffff6e808dc6343598df76e7e2407fd0f581de3524c75fba2e0cf24/nh3-0.3.7-cp38-abi3-win_arm64.whl"
+size = 621867
+
+[packages.wheels.hashes]
+sha256 = "f04b7d333b27f13ca439da3cf1c75c2fba34f104969f6ce4ac8e7079699c2f4a"
+
 [[packages]]
 name = "ninja"
 version = "1.13.2"
@@ -1356,6 +1403,15 @@ size = 311798
 
 [packages.wheels.hashes]
 sha256 = "1293f4078278b70d0ee4b6cc8f3a9e030656c9b2f59909970343c4fe76070118"
+
+[[packages.wheels]]
+name = "ninja-1.13.2-py3-none-win_arm64.whl"
+upload-time = 2026-08-30 15:49:50.639085+00:00
+url = "https://files.pythonhosted.org/packages/b7/8d/59a31fa508070d042571d9d226b541a21000756817313f397da22287ad34/ninja-1.13.2-py3-none-win_arm64.whl"
+size = 290620
+
+[packages.wheels.hashes]
+sha256 = "1db9852e528efa7702f5123969f86678663e46d57ff28ab13f5fd84d64a85fb1"
 
 [[packages]]
 name = "packaging"
@@ -1433,6 +1489,15 @@ size = 570428
 sha256 = "16bf596768bb754779c7d42317e9ca16ac609c0cce7d13bae0829944ab40a26a"
 
 [[packages.wheels]]
+name = "prek-0.5.5-py3-none-macosx_10_12_x86_64.whl"
+upload-time = 2026-10-05 06:08:39.368112+00:00
+url = "https://files.pythonhosted.org/packages/2e/77/189e554ea92baf6c1d33733b3e9d1ed819ab7d77e57eb2e3ead0bb1d8060/prek-0.5.5-py3-none-macosx_10_12_x86_64.whl"
+size = 6038669
+
+[packages.wheels.hashes]
+sha256 = "50fbceb0f728b504023f6e6c9037ac0656436949d94f7a85bac5542e6c1a4a75"
+
+[[packages.wheels]]
 name = "prek-0.5.5-py3-none-macosx_11_0_arm64.whl"
 upload-time = 2026-10-05 06:08:41.428822+00:00
 url = "https://files.pythonhosted.org/packages/63/ea/fc857c6b3f1e3fdb4d81bdca2051076de82e986cb1455a01b351ac7a5cd1/prek-0.5.5-py3-none-macosx_11_0_arm64.whl"
@@ -1476,6 +1541,15 @@ size = 5784759
 
 [packages.wheels.hashes]
 sha256 = "15bff9039349466ea9bf6b0c173b822ff08f8ae4cfbfdea782492e519c06d874"
+
+[[packages.wheels]]
+name = "prek-0.5.5-py3-none-win_arm64.whl"
+upload-time = 2026-10-05 06:08:57.193388+00:00
+url = "https://files.pythonhosted.org/packages/41/d9/bb6811e438d3c74d26cb5d72e6343606e0a7a6283fee87521189f4ba1191/prek-0.5.5-py3-none-win_arm64.whl"
+size = 5517355
+
+[packages.wheels.hashes]
+sha256 = "3db3191d2509830c75438e20956a47c2259867d18a4106064ed75088b968a0c6"
 
 [[packages]]
 name = "pycparser"
@@ -1553,6 +1627,15 @@ size = 513515
 sha256 = "e50d7b94baac6c7d09927fa5ca5800a0c7ee5015c7fcff65beb3a1931b5a6e09"
 
 [[packages.wheels]]
+name = "pydantic_core-2.50.1-cp315-cp315-macosx_10_12_x86_64.whl"
+upload-time = 2026-10-11 18:34:04.016846+00:00
+url = "https://files.pythonhosted.org/packages/b2/84/23984b763d8862a02a13d27a44b6e8169428fd85ecfed88f54c29108604d/pydantic_core-2.50.1-cp315-cp315-macosx_10_12_x86_64.whl"
+size = 2224599
+
+[packages.wheels.hashes]
+sha256 = "8a6791afa2245e6c6b180122d105941644f5bd410bb18623b408808cc41a3102"
+
+[[packages.wheels]]
 name = "pydantic_core-2.50.1-cp315-cp315-macosx_11_0_arm64.whl"
 upload-time = 2026-10-11 18:34:05.901276+00:00
 url = "https://files.pythonhosted.org/packages/4d/90/a63cf8586abc1d1a3f6d9b18f0224789ebf003851f092ebda3c7c863fd32/pydantic_core-2.50.1-cp315-cp315-macosx_11_0_arm64.whl"
@@ -1587,6 +1670,15 @@ size = 2171681
 
 [packages.wheels.hashes]
 sha256 = "983a662de2571cb2502fc8ff47b6770b03d025d2eb314c92f77b3f07c74720ed"
+
+[[packages.wheels]]
+name = "pydantic_core-2.50.1-cp315-cp315-win_arm64.whl"
+upload-time = 2026-10-11 18:34:31.455313+00:00
+url = "https://files.pythonhosted.org/packages/10/87/4bb3e1e7f385c076ab5af4d6dd0571b22042cd8207eb810d5b9fef15ae31/pydantic_core-2.50.1-cp315-cp315-win_arm64.whl"
+size = 2156251
+
+[packages.wheels.hashes]
+sha256 = "94845ff54dc5193f228cab81b2662a04bfbb892e95bdc15edf7399000ce57d54"
 
 [[packages]]
 name = "pygments"
@@ -1929,6 +2021,15 @@ size = 17662
 sha256 = "264507556cd8b8c8e7c6ee037cdf443a463f03f4c958e57195e3d369711b8ff6"
 
 [[packages.wheels]]
+name = "tomli-2.5.0-cp315-cp315-macosx_10_15_x86_64.whl"
+upload-time = 2026-10-07 12:23:13.941700+00:00
+url = "https://files.pythonhosted.org/packages/66/98/316fdc00f8c0939e6fe50461dd343c162d3ad51d1286eb25b7db54361d50/tomli-2.5.0-cp315-cp315-macosx_10_15_x86_64.whl"
+size = 162775
+
+[packages.wheels.hashes]
+sha256 = "a525685c2f97da40762b8695eb7aa0af4c8344ca1905c73e4e29cb04d34607dc"
+
+[[packages.wheels]]
 name = "tomli-2.5.0-cp315-cp315-macosx_11_0_arm64.whl"
 upload-time = 2026-10-07 12:23:15.215497+00:00
 url = "https://files.pythonhosted.org/packages/c5/22/7b10fa5bb01c9539f53f69b619361b19350acc73657772ea7ac70ba309a8/tomli-2.5.0-cp315-cp315-macosx_11_0_arm64.whl"
@@ -1963,6 +2064,15 @@ size = 114589
 
 [packages.wheels.hashes]
 sha256 = "d747252933c8a65ef6bd8da0fbb7ce28a90eb6119d8cd00772cd528aa07b68d5"
+
+[[packages.wheels]]
+name = "tomli-2.5.0-cp315-cp315-win_arm64.whl"
+upload-time = 2026-10-07 12:23:24.233048+00:00
+url = "https://files.pythonhosted.org/packages/47/a2/4f6310fa699364f0e3af7ee3af88dddd9af066d33e716a0265bbe2b3ea84/tomli-2.5.0-cp315-cp315-win_arm64.whl"
+size = 111493
+
+[packages.wheels.hashes]
+sha256 = "75dbcde8751b0a960aa3de173aa5e894d590755c6d7758b7e774c06f1dc3cbdd"
 
 [[packages.wheels]]
 name = "tomli-2.5.0-py3-none-any.whl"
@@ -2183,6 +2293,15 @@ size = 7434239
 sha256 = "6df50a86b09be66a413f8f1b16258d585d4dd1cbff591077ae1e6f65c26de2eb"
 
 [[packages.wheels]]
+name = "uv-0.13.1-py3-none-macosx_10_12_x86_64.whl"
+upload-time = 2026-10-14 05:12:53.604908+00:00
+url = "https://files.pythonhosted.org/packages/db/3d/6ac43d7a15be1d589aae1e15289507f5ccebeac14f28c37882058f2474a3/uv-0.13.1-py3-none-macosx_10_12_x86_64.whl"
+size = 17663254
+
+[packages.wheels.hashes]
+sha256 = "7e60223e3e9636a3734d6c11b3552aeed987c40f1ca2497a546af58f2f883d56"
+
+[[packages.wheels]]
 name = "uv-0.13.1-py3-none-macosx_11_0_arm64.whl"
 upload-time = 2026-10-14 05:12:56.056660+00:00
 url = "https://files.pythonhosted.org/packages/3b/31/fad7fd2ac81954d02d33765bf8535eb320fcc2d71f2603a5c1ba0b13b8ef/uv-0.13.1-py3-none-macosx_11_0_arm64.whl"
@@ -2227,6 +2346,15 @@ size = 15404994
 [packages.wheels.hashes]
 sha256 = "4f693cd4feb52f08f30474c4612f24be2050472609be65b9960b635f286da284"
 
+[[packages.wheels]]
+name = "uv-0.13.1-py3-none-win_arm64.whl"
+upload-time = 2026-10-14 05:13:32.891106+00:00
+url = "https://files.pythonhosted.org/packages/0a/e0/f27f161ee2ad242cb714fe7185f63cc2a88b83c4d8b375ca8c580f9f23b7/uv-0.13.1-py3-none-win_arm64.whl"
+size = 15899284
+
+[packages.wheels.hashes]
+sha256 = "b173413a5dc18437b2d28266a02be636f35ac7e97741773aed163ed2143abfaf"
+
 [[packages]]
 name = "wcwidth"
 version = "0.9.2"
@@ -2242,6 +2370,15 @@ size = 955039
 
 [packages.sdist.hashes]
 sha256 = "ae0ef90b90f6af38b54f1fe6d58662ec33b3cb4b8391958a62416d654231727b"
+
+[[packages.wheels]]
+name = "wcwidth-0.9.2-cp310-abi3-macosx_10_9_x86_64.whl"
+upload-time = 2026-10-05 00:23:22.649242+00:00
+url = "https://files.pythonhosted.org/packages/59/1e/4532a81fb9dfbf4114a816775e0a36c3a64ee1d1f4bba2094e2da50be5dc/wcwidth-0.9.2-cp310-abi3-macosx_10_9_x86_64.whl"
+size = 605343
+
+[packages.wheels.hashes]
+sha256 = "7ef5a940bd5e30bac6e721f1a48fce0cd7bb3ece19e9c5d139e72c76c35cfd07"
 
 [[packages.wheels]]
 name = "wcwidth-0.9.2-cp310-abi3-macosx_11_0_arm64.whl"
@@ -2278,6 +2415,15 @@ size = 597827
 
 [packages.wheels.hashes]
 sha256 = "2a9746de704242bd4fdaabb31dd46b82f694a56a8d21081ad89b679a89da9fec"
+
+[[packages.wheels]]
+name = "wcwidth-0.9.2-cp310-abi3-win_arm64.whl"
+upload-time = 2026-10-05 00:23:51.517153+00:00
+url = "https://files.pythonhosted.org/packages/e5/11/6ecf4e9e268ab1a4ec617ffcccc2ee4a71301625f5490912dbaba462fa9c/wcwidth-0.9.2-cp310-abi3-win_arm64.whl"
+size = 598415
+
+[packages.wheels.hashes]
+sha256 = "b9c6ab615e03723b7f8760ea2f27758d656e7e13b51515c9dca5c3e8b04612fa"
 
 [[packages.wheels]]
 name = "wcwidth-0.9.2-py3-none-any.whl"
@@ -2348,8 +2494,6 @@ command-line = [
     "nab",
     "lock",
     "--groups",
-    "lock-tools",
-    "pkg-meta",
     "release-check",
     "release-news",
     "release-notes",
@@ -2358,9 +2502,10 @@ command-line = [
     "release-preview",
     "release-validate",
     "release-wheel",
+    "pkg-meta",
+    "lock-tools",
     "--output",
     "pylock.toml",
-    "--upgrade",
 ]
 input-path = "pyproject.toml"
 mode = "universal"
@@ -2368,6 +2513,8 @@ python-specifier = ">=3.15,<3.16"
 platforms = [
     "linux_x86_64",
     "linux_aarch64",
+    "macos_x86_64",
     "macos_arm64",
     "windows_amd64",
+    "windows_arm64",
 ]

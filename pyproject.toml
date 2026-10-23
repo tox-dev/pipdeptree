@@ -237,7 +237,14 @@ default-groups = []
 uploaded-prior-to = "P7D"
 decision-order = "stable"
 matrix.python = ">=3.15,<3.16"
-matrix.platforms = [ "linux_x86_64", "linux_aarch64", "macos_arm64", "windows_amd64" ]
+matrix.platforms = [
+  "linux_x86_64",
+  "linux_aarch64",
+  "macos_x86_64",
+  "macos_arm64",
+  "windows_amd64",
+  "windows_arm64",
+]
 matrix.overrides.implementations.pypy.python = "==3.11"
 matrix.overrides.implementations.pypy.platforms = [
   "linux_x86_64",
