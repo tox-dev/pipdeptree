@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess  # ruff:ignore[suspicious-subprocess-import]  # The subprocess boundary is mocked in these tests.
 import sys
+from contextlib import nullcontext
 from typing import TYPE_CHECKING
 
 import pytest
@@ -11,6 +12,8 @@ import pytest
 from tools.release import main
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from pytest_mock import MockerFixture
 
 
@@ -53,27 +56,20 @@ def test_release_preview_requires_clean_checkout(mocker: MockerFixture) -> None:
 def test_release_preview_checks_notes_and_packages(
     mocker: MockerFixture,
     capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
     format_changes: bool,
     previous: str,
 ) -> None:
     mocker.patch.object(sys, "argv", ["release", "--bump", "patch"])
-    outputs = [
-        "",
-        "",
-        "4.2.9\n",
-        "4.2.10\n",
-        previous,
-        "",
-        "",
-        "",
-        "",
-        "### Bug fixes\n\n- Fixed output.\n",
-        "",
-        "",
-        "",
-        "",
-        "",
-    ]
+    mocker.patch("tools.release.TemporaryDirectory", return_value=nullcontext(str(tmp_path)))
+    dist = tmp_path / "source" / "dist"
+    dist.mkdir(parents=True)
+    (dist / "pipdeptree-4.2.10.tar.gz").touch()
+    (dist / "pipdeptree-4.2.10-py3-none-any.whl").touch()
+    outputs = [""] * 17
+    outputs[2:5] = ["4.2.9\n", "4.2.10\n", previous]
+    outputs[9] = "### Bug fixes\n\n- Fixed output.\n"
+    outputs[12] = "1792696343\n"
     responses: list[subprocess.CompletedProcess[str] | subprocess.CalledProcessError] = [
         _completed(output) for output in outputs
     ]
@@ -92,21 +88,16 @@ def test_release_preview_checks_notes_and_packages(
         assert commands[9 + format_changes][-2:] == ("--previous", previous)
     else:
         assert "--previous" not in commands[9 + format_changes]
-    assert commands[10 + format_changes][:6] == (
-        "release-creator",
-        "build-constraints",
-        "--lock",
-        "pylock.toml",
-        "--group",
-        "build",
-    )
-    assert commands[11 + format_changes][:3] == ("uv", "build", "--sdist")
-    assert commands[11 + format_changes][4:6] == ("--python", sys.executable)
-    assert "--require-hashes" in commands[11 + format_changes]
-    assert run.call_args_list[11 + format_changes].kwargs["env"]["PIPDEPTREE_VERSION"] == "4.2.10"
-    assert run.call_args_list[11 + format_changes].kwargs["env"]["UV_EXCLUDE_NEWER"] == "1 week"
+    assert commands[10 + format_changes][:3] == ("uv", "venv", "--python")
+    assert commands[11 + format_changes][:3] == ("uv", "pip", "sync")
+    assert "pylock.build.toml" in commands[11 + format_changes]
+    assert commands[12 + format_changes] == ("git", "log", "-1", "--format=%ct")
+    assert commands[13 + format_changes][:3] == ("uv", "build", "--sdist")
+    assert "--no-build-isolation" in commands[13 + format_changes]
+    assert run.call_args_list[13 + format_changes].kwargs["env"]["PIPDEPTREE_VERSION"] == "4.2.10"
+    assert run.call_args_list[13 + format_changes].kwargs["env"]["SOURCE_DATE_EPOCH"] == "1792696343"
     assert commands[-3:] == [
-        ("twine", "check", "dist/*"),
+        ("twine", "check", str(dist / "pipdeptree-4.2.10-py3-none-any.whl"), str(dist / "pipdeptree-4.2.10.tar.gz")),
         ("check-wheel-contents", "--no-config", "dist"),
         (sys.executable, "tools/check_release_wheels.py", "dist"),
     ]
@@ -115,28 +106,16 @@ def test_release_preview_checks_notes_and_packages(
     assert all(command[:2] != ("git", "tag") or command[2:] == ("--list",) for command in commands)
 
 
-def test_release_preview_rejects_empty_news(mocker: MockerFixture) -> None:
+def test_release_preview_stops_when_notes_fail(mocker: MockerFixture) -> None:
     mocker.patch.object(sys, "argv", ["release"])
-    outputs = ["", "", "4.2.9\n", "4.2.10\n", "4.2.9\n", "", "", "", "", "[PyPI release](https://example.org)\n"]
+    outputs = ["", "", "4.2.9\n", "4.2.10\n", "4.2.9\n", "", "", "", ""]
     run = mocker.patch(
-        "tools.release.subprocess.run", autospec=True, side_effect=[_completed(output) for output in outputs]
+        "tools.release.subprocess.run",
+        autospec=True,
+        side_effect=[*(_completed(output) for output in outputs), subprocess.CalledProcessError(1, "release-creator")],
     )
 
-    with pytest.raises(RuntimeError, match="no user-facing release notes"):
-        main()
-
-    assert run.call_count == 10
-
-
-def test_release_preview_rejects_unsupported_platform(mocker: MockerFixture) -> None:
-    mocker.patch.object(sys, "argv", ["release"])
-    mocker.patch.object(sys, "platform", "freebsd")
-    outputs = ["", "", "4.2.9\n", "4.2.10\n", "4.2.9\n", "", "", "", "", "### Bug fixes\n\n- Fixed output.\n"]
-    run = mocker.patch(
-        "tools.release.subprocess.run", autospec=True, side_effect=[_completed(output) for output in outputs]
-    )
-
-    with pytest.raises(RuntimeError, match="unsupported build platform: freebsd"):
+    with pytest.raises(subprocess.CalledProcessError):
         main()
 
     assert run.call_count == 10

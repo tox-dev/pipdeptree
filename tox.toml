@@ -181,7 +181,7 @@ commands_pre = [
     "--python",
     "{env_python}",
     "--group",
-    "release-prepare",
+    "release-preview",
     "pylock.toml"
   ],
 ]

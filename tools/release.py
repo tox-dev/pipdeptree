@@ -65,8 +65,6 @@ def main() -> None:
             "docs/changelog",
             "--repository",
             repository,
-            "--git",
-            "--resolve-authors",
             cwd=source,
         )
         _run("towncrier", "build", "--yes", "--version", version, cwd=source)
@@ -90,46 +88,35 @@ def main() -> None:
         if previous:
             note_args.extend(("--previous", previous))
         notes = _run(*note_args, cwd=source, capture_output=True).stdout
-        if "### " not in notes:
-            msg = f"{version} has no user-facing release notes"
-            raise RuntimeError(msg)
-        try:
-            build_platform: Final = {"linux": "linux", "darwin": "macos", "win32": "windows"}[sys.platform]
-        except KeyError as error:
-            msg = f"unsupported build platform: {sys.platform}"
-            raise RuntimeError(msg) from error
-        build_constraints: Final = Path(temporary_directory) / "build-constraints.txt"
+        build_environment: Final = Path(temporary_directory) / "build"
+        _run("uv", "venv", "--python", "3.15", str(build_environment), cwd=source)
         _run(
-            "release-creator",
-            "build-constraints",
-            "--lock",
-            "pylock.toml",
-            "--group",
-            "build",
-            "--platform",
-            build_platform,
-            "--python-version",
-            f"{sys.version_info.major}.{sys.version_info.minor}.0",
-            "--output",
-            str(build_constraints),
+            "uv",
+            "pip",
+            "sync",
+            "--preview-features",
+            "pylock",
+            "--python",
+            str(build_environment),
+            "--require-hashes",
+            "pylock.build.toml",
             cwd=source,
         )
+        epoch: Final = _run("git", "log", "-1", "--format=%ct", cwd=source, capture_output=True).stdout.strip()
         _run(
             "uv",
             "build",
             "--sdist",
             "--wheel",
             "--python",
-            sys.executable,
+            str(build_environment),
             "--out-dir",
             "dist",
-            "--build-constraints",
-            str(build_constraints),
-            "--require-hashes",
+            "--no-build-isolation",
             cwd=source,
-            env=dict(os.environ, PIPDEPTREE_VERSION=version, UV_EXCLUDE_NEWER="1 week"),
+            env=dict(os.environ, PIPDEPTREE_VERSION=version, SOURCE_DATE_EPOCH=epoch),
         )
-        _run("twine", "check", "dist/*", cwd=source)
+        _run("twine", "check", *(str(path) for path in sorted(source.glob("dist/*"))), cwd=source)
         _run("check-wheel-contents", "--no-config", "dist", cwd=source)
         _run(sys.executable, "tools/check_release_wheels.py", "dist", cwd=source)
         sys.stdout.write(notes)
