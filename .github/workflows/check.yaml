@@ -5,7 +5,7 @@ on:
     branches: ["main"]
     tags-ignore: ["**"]
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened]
   schedule:
     - cron: "0 8 * * *"
 concurrency:
@@ -114,30 +114,6 @@ jobs:
         env:
           PYTEST_ADDOPTS: "-vv --durations=20"
           DIFF_AGAINST: HEAD
-  changelog:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-26.04
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          version: latest-known
-          python-version: "3.15"
-          enable-cache: false
-      - name: Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@801969505384f96d16882e224e98a74bffd09d21
-        with:
-          groups: release-news
-          venv: ${{ runner.temp }}/release-tools
-      - name: Add installed tools to PATH
-        run: echo "$RUNNER_TEMP/release-tools/bin" >>"$GITHUB_PATH"
-      - uses: tox-dev/github-workflows/validate-news@801969505384f96d16882e224e98a74bffd09d21
   hook-update-cooldown:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
@@ -149,7 +125,7 @@ jobs:
       - uses: tox-dev/github-workflows/check-hook-update-cooldown@801969505384f96d16882e224e98a74bffd09d21
   # The one context branch protection requires, so a matrix that grows or renames its cells needs no ruleset edit.
   check:
-    needs: [dist, rust, test, changelog, hook-update-cooldown]
+    needs: [dist, rust, test, hook-update-cooldown]
     if: always()
     runs-on: ubuntu-26.04
     steps:
@@ -161,7 +137,7 @@ jobs:
             all(
               to_entries[];
               .value.result == "success" or
-              ((.key == "changelog" or .key == "hook-update-cooldown") and
+              ((.key == "hook-update-cooldown") and
                .value.result == "skipped" and $event != "pull_request")
             )
           ' <<<"$NEEDS_JSON"
