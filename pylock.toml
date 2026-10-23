@@ -1473,6 +1473,31 @@ size = 542031
 sha256 = "b5c3dec03b89db2bb0df301d316360847eeaf72c6fb6ddde0227326655edabb4"
 
 [[packages]]
+name = "pathspec"
+version = "1.1.1"
+marker = "\"build\" in dependency_groups"
+requires-python = ">=3.9"
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "pathspec-1.1.1.tar.gz"
+upload-time = 2026-04-27 01:46:08.907631+00:00
+url = "https://files.pythonhosted.org/packages/5a/82/42f767fc1c1143d6fd36efb827202a2d997a375e160a71eb2888a925aac1/pathspec-1.1.1.tar.gz"
+size = 135180
+
+[packages.sdist.hashes]
+sha256 = "17db5ecd524104a120e173814c90367a96a98d07c45b2e10c2f3919fff91bf5a"
+
+[[packages.wheels]]
+name = "pathspec-1.1.1-py3-none-any.whl"
+upload-time = 2026-04-27 01:46:07.060850+00:00
+url = "https://files.pythonhosted.org/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/pathspec-1.1.1-py3-none-any.whl"
+size = 57328
+
+[packages.wheels.hashes]
+sha256 = "a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189"
+
+[[packages]]
 name = "prek"
 version = "0.5.5"
 marker = "\"release-check\" in dependency_groups or \"release-prepare\" in dependency_groups or \"release-preview\" in dependency_groups or \"release-validate\" in dependency_groups"
@@ -1974,6 +1999,35 @@ size = 310654
 
 [packages.wheels.hashes]
 sha256 = "33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb"
+
+[[packages]]
+name = "scikit-build-core"
+version = "1.1.1"
+marker = "\"build\" in dependency_groups"
+requires-python = ">=3.9"
+dependencies = [
+    { name = "packaging" },
+    { name = "pathspec" },
+]
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "scikit_build_core-1.1.1.tar.gz"
+upload-time = 2026-10-02 19:18:37.596431+00:00
+url = "https://files.pythonhosted.org/packages/b2/1a/8c00b19c0a1e7acf890676af2efa430339d38e59fa9437f2aab8517af3f4/scikit_build_core-1.1.1.tar.gz"
+size = 516192
+
+[packages.sdist.hashes]
+sha256 = "e347a59193c878ac56a363e57506938652a6dd8c965790cb1cbc6bc7e8d5abad"
+
+[[packages.wheels]]
+name = "scikit_build_core-1.1.1-py3-none-any.whl"
+upload-time = 2026-10-02 19:18:36.087754+00:00
+url = "https://files.pythonhosted.org/packages/01/1b/83913d6d5c6a7f8ad5bf5d67b2d57ab09475f1bb9dd0c7a3f44067d59b90/scikit_build_core-1.1.1-py3-none-any.whl"
+size = 293450
+
+[packages.wheels.hashes]
+sha256 = "6f6d6cf600e2e9639fd258ecd11cfc19bd189354b968916a519c6793e7e26237"
 
 [[packages]]
 name = "secretstorage"
@@ -2494,6 +2548,8 @@ command-line = [
     "nab",
     "lock",
     "--groups",
+    "lock-tools",
+    "pkg-meta",
     "release-check",
     "release-news",
     "release-notes",
@@ -2502,10 +2558,9 @@ command-line = [
     "release-preview",
     "release-validate",
     "release-wheel",
-    "pkg-meta",
-    "lock-tools",
     "--output",
     "pylock.toml",
+    "-q",
 ]
 input-path = "pyproject.toml"
 mode = "universal"
