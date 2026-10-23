@@ -1,11 +1,13 @@
 [build-system]
 build-backend = "mesonpy"
 requires = [
+  "hatch-fancy-pypi-readme>=23.2",
   "meson>=1.12.1",
   "meson-python>=0.22.1",
   "ninja>=1.13.2",
   "patchelf>=0.11; sys_platform=='linux'",
   "scikit-build-core>=0.10",
+  "setuptools-scm",
 ]
 
 [project]
