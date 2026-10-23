@@ -131,13 +131,13 @@ jobs:
           python-version: "3.15"
           enable-cache: false
       - name: Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@cadf58a0dcc5d0c7853b248ab7c2b19bb93675d1
+        uses: tox-dev/github-workflows/install-locked-tools@801969505384f96d16882e224e98a74bffd09d21
         with:
           groups: release-news
           venv: ${{ runner.temp }}/release-tools
       - name: Add installed tools to PATH
         run: echo "$RUNNER_TEMP/release-tools/bin" >>"$GITHUB_PATH"
-      - uses: tox-dev/github-workflows/validate-news@cadf58a0dcc5d0c7853b248ab7c2b19bb93675d1
+      - uses: tox-dev/github-workflows/validate-news@801969505384f96d16882e224e98a74bffd09d21
   hook-update-cooldown:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
@@ -146,7 +146,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: tox-dev/github-workflows/check-hook-update-cooldown@cadf58a0dcc5d0c7853b248ab7c2b19bb93675d1
+      - uses: tox-dev/github-workflows/check-hook-update-cooldown@801969505384f96d16882e224e98a74bffd09d21
   # The one context branch protection requires, so a matrix that grows or renames its cells needs no ruleset edit.
   check:
     needs: [dist, rust, test, changelog, hook-update-cooldown]

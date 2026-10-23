@@ -161,13 +161,13 @@ jobs:
           print("flags=" + " ".join(flags))
           EOF
       - name: Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@cadf58a0dcc5d0c7853b248ab7c2b19bb93675d1
+        uses: tox-dev/github-workflows/install-locked-tools@801969505384f96d16882e224e98a74bffd09d21
         with:
           groups: release-wheel
           venv: ${{ runner.temp }}/release-tools
       - name: Export hashed build constraints
         id: constraints
-        uses: tox-dev/github-workflows/export-build-constraints@cadf58a0dcc5d0c7853b248ab7c2b19bb93675d1
+        uses: tox-dev/github-workflows/export-build-constraints@801969505384f96d16882e224e98a74bffd09d21
         with:
           lock: pylock.build.toml
           target-platform: ${{ matrix.platform.lock_platform }}
@@ -239,13 +239,13 @@ jobs:
           python-version: "3.15"
           enable-cache: false
       - name: Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@cadf58a0dcc5d0c7853b248ab7c2b19bb93675d1
+        uses: tox-dev/github-workflows/install-locked-tools@801969505384f96d16882e224e98a74bffd09d21
         with:
           groups: release-notes
           venv: ${{ runner.temp }}/release-tools
       - name: Export hashed build constraints
         id: constraints
-        uses: tox-dev/github-workflows/export-build-constraints@cadf58a0dcc5d0c7853b248ab7c2b19bb93675d1
+        uses: tox-dev/github-workflows/export-build-constraints@801969505384f96d16882e224e98a74bffd09d21
         with:
           lock: pylock.build.toml
           target-platform: linux_x86_64
