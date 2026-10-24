@@ -80,7 +80,7 @@ pkg-meta = [ { include-group = "release-package" } ]
 release = [
   "check-wheel-contents>=0.6.3",
   "prek>=0.5",
-  "release-creator>=1",
+  "release-creator>=1.1",
   "towncrier>=26.9",
   "twine>=7",
   "uv>=0.12.22",
@@ -90,11 +90,11 @@ release-check = [
   "prek>=0.5",
 ]
 release-news = [
-  "release-creator>=1",
+  "release-creator>=1.1",
   "towncrier>=26.9",
 ]
 release-notes = [
-  "release-creator>=1",
+  "release-creator>=1.1",
 ]
 release-package = [
   "check-wheel-contents>=0.6.3",
@@ -102,7 +102,7 @@ release-package = [
 ]
 release-prepare = [
   "prek>=0.5",
-  "release-creator>=1",
+  "release-creator>=1.1",
   "towncrier>=26.9",
 ]
 release-preview = [
@@ -112,10 +112,10 @@ release-preview = [
 ]
 release-validate = [
   "prek>=0.5",
-  "release-creator>=1",
+  "release-creator>=1.1",
 ]
 release-wheel = [
-  "release-creator>=1",
+  "release-creator>=1.1",
   "wheel>=0.46",
 ]
 
@@ -248,8 +248,11 @@ matrix.overrides.implementations.pypy.platforms = [
   "macos_arm64",
   "windows_amd64"
 ]
-packages.release-creator.uploaded-prior-to = "2026-10-24T06:07:46Z"
+packages.release-creator.uploaded-prior-to = "2026-10-24T09:08:40Z"
 
 [[tool.nab.package-rules]]
 match = [ "nab", "nab-index", "nab-markersets", "nab-project", "nab-provider", "nab-resolver" ]
 uploaded-prior-to = "2026-10-18T05:45:09Z"
+
+[tool.release-creator]
+locks.exclude-newer-package = { release-creator = "2026-10-24T09:08:40Z" }
