@@ -10,7 +10,6 @@ environments = [
 requires-python = ">=3.11"
 dependency-groups = [
     "build",
-    "lock-tools",
     "pkg-meta",
     "project-runtime",
     "release-check",
@@ -80,7 +79,7 @@ sha256 = "c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309"
 [[packages]]
 name = "build"
 version = "1.6.1"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.10"
 dependencies = [
     { name = "colorama" },
@@ -344,7 +343,7 @@ sha256 = "255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360"
 [[packages]]
 name = "colorama"
 version = "0.4.6"
-marker = "(\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups) and sys_platform == \"win32\""
+marker = "\"project-runtime\" in dependency_groups and sys_platform == \"win32\""
 requires-python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 index = "https://pypi.org/simple/"
 
@@ -688,7 +687,7 @@ sha256 = "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c"
 [[packages]]
 name = "installer"
 version = "1.1.0"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.10"
 index = "https://pypi.org/simple/"
 
@@ -1170,7 +1169,7 @@ sha256 = "35a7377edd1dd6608dcb2cdf534ded55ea32d49448875ad042cd3f879fb1ded0"
 [[packages]]
 name = "nab"
 version = "0.0.22"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.10"
 dependencies = [
     { name = "nab-index" },
@@ -1204,7 +1203,7 @@ sha256 = "f62fcf75b28786fbf58627f6d7eaa735daefbc7f736715403bc4357acb57e7bb"
 [[packages]]
 name = "nab-index"
 version = "0.0.22"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.10"
 dependencies = [
     { name = "nab-provider" },
@@ -1236,7 +1235,7 @@ sha256 = "c89ffa607dfe4246dc59e9f5236d54413da3d310183ffa3298ba51a48e7c2ec7"
 [[packages]]
 name = "nab-markersets"
 version = "0.0.22"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.10"
 index = "https://pypi.org/simple/"
 
@@ -1261,7 +1260,7 @@ sha256 = "ad268dcece034495b2ea31a70250cd43cc4f6123039a548762c7ec8826e5d3bd"
 [[packages]]
 name = "nab-project"
 version = "0.0.22"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.10"
 dependencies = [
     { name = "build" },
@@ -1299,7 +1298,7 @@ sha256 = "cb09fa143105fd99a60609b3ff4830924b0d4eaf5abad48678467ec4b73e577f"
 [[packages]]
 name = "nab-provider"
 version = "0.0.22"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.10"
 dependencies = [
     { name = "nab-markersets" },
@@ -1329,7 +1328,7 @@ sha256 = "1450c9dc58b23da1a7bde7fdb43a72b043327bd0e3ef20435254ffcb8b7eae6b"
 [[packages]]
 name = "nab-resolver"
 version = "0.0.22"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.10"
 index = "https://pypi.org/simple/"
 
@@ -1476,7 +1475,7 @@ sha256 = "1db9852e528efa7702f5123969f86678663e46d57ff28ab13f5fd84d64a85fb1"
 [[packages]]
 name = "packaging"
 version = "26.3"
-marker = "\"build\" in dependency_groups or \"lock-tools\" in dependency_groups or \"pkg-meta\" in dependency_groups or \"project-runtime\" in dependency_groups or \"release-news\" in dependency_groups or \"release-notes\" in dependency_groups or \"release-package\" in dependency_groups or \"release-prepare\" in dependency_groups or \"release-preview\" in dependency_groups or \"release-validate\" in dependency_groups or \"release-wheel\" in dependency_groups"
+marker = "\"build\" in dependency_groups or \"pkg-meta\" in dependency_groups or \"project-runtime\" in dependency_groups or \"release-news\" in dependency_groups or \"release-notes\" in dependency_groups or \"release-package\" in dependency_groups or \"release-prepare\" in dependency_groups or \"release-preview\" in dependency_groups or \"release-validate\" in dependency_groups or \"release-wheel\" in dependency_groups"
 requires-python = ">=3.9"
 index = "https://pypi.org/simple/"
 
@@ -1818,7 +1817,7 @@ sha256 = "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9"
 [[packages]]
 name = "pyproject-hooks"
 version = "1.3.3"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.8"
 index = "https://pypi.org/simple/"
 
@@ -1941,11 +1940,12 @@ sha256 = "d0dae1f74bb273b534770cb4cccb6bb78735540afdb03c2146f4e19dcd412560"
 
 [[packages]]
 name = "release-creator"
-version = "0.6.5"
+version = "1.0.0"
 marker = "\"release-news\" in dependency_groups or \"release-notes\" in dependency_groups or \"release-prepare\" in dependency_groups or \"release-preview\" in dependency_groups or \"release-validate\" in dependency_groups or \"release-wheel\" in dependency_groups"
 requires-python = ">=3.15"
 dependencies = [
     { name = "docutils" },
+    { name = "markdown-it-py" },
     { name = "mdformat" },
     { name = "mdformat-gfm" },
     { name = "packaging" },
@@ -1955,22 +1955,22 @@ dependencies = [
 index = "https://pypi.org/simple/"
 
 [packages.sdist]
-name = "release_creator-0.6.5.tar.gz"
-upload-time = 2026-10-23 19:54:49.281646+00:00
-url = "https://files.pythonhosted.org/packages/a0/da/7195823b3d0ab066f518d8bd987f88a39e0e39da33f629e021346209a7cb/release_creator-0.6.5.tar.gz"
-size = 135158
+name = "release_creator-1.0.0.tar.gz"
+upload-time = 2026-10-24 06:07:45.789370+00:00
+url = "https://files.pythonhosted.org/packages/e2/92/dfc1c6e8f52d50d91a05f77f67592c2408cabd9d96079fedbe551f24530d/release_creator-1.0.0.tar.gz"
+size = 134186
 
 [packages.sdist.hashes]
-sha256 = "954247b06b7b9a8c196a782252e3d980d33a9e9b7f9e5aea7647ef6c758d4275"
+sha256 = "1174e3a3fd39e9117eb9c34e3fbc58a8e32c49f5f65d01f39195231b967807f6"
 
 [[packages.wheels]]
-name = "release_creator-0.6.5-py3-none-any.whl"
-upload-time = 2026-10-23 19:54:47.716775+00:00
-url = "https://files.pythonhosted.org/packages/f1/4c/6215690fc2b48f3d927699bb16f5c8bcf26b8862e378df33a2581a45215b/release_creator-0.6.5-py3-none-any.whl"
-size = 46723
+name = "release_creator-1.0.0-py3-none-any.whl"
+upload-time = 2026-10-24 06:07:44.366184+00:00
+url = "https://files.pythonhosted.org/packages/6a/17/b1cd851932786f3e9e9f2187d150bc0860e04adf76cbfd45e6531715bf97/release_creator-1.0.0-py3-none-any.whl"
+size = 53396
 
 [packages.wheels.hashes]
-sha256 = "dd109f7fb64808a83833c332b8563c56bd943c4a8de79b440eab475b5ca9a73e"
+sha256 = "613a26a0d1b0042d9dad60dfc00f3e78208d84ab9f78cec792a407b6a0a75c24"
 
 [[packages]]
 name = "requests"
@@ -2201,7 +2201,7 @@ sha256 = "82f34c3e3084fc2b57d397200637cc13f2338004052d2fee47baa5f0e902464e"
 [[packages]]
 name = "tomli"
 version = "2.5.0"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.8"
 index = "https://pypi.org/simple/"
 
@@ -2280,7 +2280,7 @@ sha256 = "32a7b79ac57a2e83670ce329ccf675798bc5a2094783a63676866b70503f2e2b"
 [[packages]]
 name = "tomli-w"
 version = "1.2.0"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.9"
 index = "https://pypi.org/simple/"
 
@@ -2383,7 +2383,7 @@ sha256 = "8b1ff4f9c191b1040b71c37f1e445ab99732911e3cd91de52838453a854d7a17"
 [[packages]]
 name = "truststore"
 version = "0.10.5"
-marker = "\"lock-tools\" in dependency_groups or \"project-runtime\" in dependency_groups"
+marker = "\"project-runtime\" in dependency_groups"
 requires-python = ">=3.10"
 index = "https://pypi.org/simple/"
 
@@ -2444,7 +2444,7 @@ sha256 = "b854164df26db268af05f49aa5c0344b10e27a494343ff05b1e0bad3b135f5a7"
 [[packages]]
 name = "typing-extensions"
 version = "4.16.0"
-marker = "\"lock-tools\" in dependency_groups or \"pkg-meta\" in dependency_groups or \"project-runtime\" in dependency_groups or \"release-package\" in dependency_groups or \"release-preview\" in dependency_groups"
+marker = "\"pkg-meta\" in dependency_groups or \"project-runtime\" in dependency_groups or \"release-package\" in dependency_groups or \"release-preview\" in dependency_groups"
 requires-python = ">=3.9"
 index = "https://pypi.org/simple/"
 
@@ -2497,7 +2497,7 @@ sha256 = "65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147"
 [[packages]]
 name = "urllib3"
 version = "2.8.0"
-marker = "\"lock-tools\" in dependency_groups or \"pkg-meta\" in dependency_groups or \"project-runtime\" in dependency_groups or \"release-package\" in dependency_groups or \"release-preview\" in dependency_groups"
+marker = "\"pkg-meta\" in dependency_groups or \"project-runtime\" in dependency_groups or \"release-package\" in dependency_groups or \"release-preview\" in dependency_groups"
 requires-python = ">=3.10"
 index = "https://pypi.org/simple/"
 
@@ -2760,11 +2760,13 @@ sha256 = "3fa599046443d4ca830d06e3d180cd0a675d5871af0a68daa5623318bb4d17e3"
 
 [tool.nab]
 nab-version = "0.0.22"
-created-at = 2026-10-23 20:06:24.072649+00:00
+created-at = 2026-10-24 06:24:14.555951+00:00
 command-line = [
     "nab",
     "lock",
+    "--no-cache",
     "--groups",
+    "pkg-meta",
     "release-check",
     "release-news",
     "release-notes",
@@ -2773,12 +2775,9 @@ command-line = [
     "release-preview",
     "release-validate",
     "release-wheel",
-    "pkg-meta",
-    "lock-tools",
     "--output",
     "pylock.toml",
     "--upgrade",
-    "--no-cache",
 ]
 input-path = "pyproject.toml"
 mode = "universal"

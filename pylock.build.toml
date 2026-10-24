@@ -482,10 +482,11 @@ sha256 = "f8bebd1302ebc12e67ceb30fc7dd698ec969414b6fa43b30c3f14ac9b1e72c41"
 
 [tool.nab]
 nab-version = "0.0.22"
-created-at = 2026-10-23 20:06:25.778197+00:00
+created-at = 2026-10-24 06:24:40.445798+00:00
 command-line = [
     "nab",
     "lock",
+    "--no-cache",
     "pyproject.toml",
     "--build-requirements",
     "--project-matrix-python",
@@ -503,7 +504,6 @@ command-line = [
     "--output",
     "pylock.build.toml",
     "--upgrade",
-    "--no-cache",
 ]
 input-path = "pyproject.toml"
 mode = "universal"
