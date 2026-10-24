@@ -1,0 +1,30 @@
+name: Upgrade release tools
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * 2"
+permissions: {}
+concurrency:
+  group: upgrade-release-tools
+  cancel-in-progress: false
+jobs:
+  upgrade:
+    uses: tox-dev/github-workflows/.github/workflows/upgrade-release-tools.yaml@55f51f9b5cc0b40f280155a95de2d4f0ecbf7be1 # v3.0.0
+    permissions:
+      contents: read
+    secrets:
+      RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+    with:
+      lock-groups: >-
+        release-check release-news release-notes release-package release-prepare release-preview release-validate release-wheel pkg-meta
+      additional-lock: pylock.build.toml
+      additional-lock-groups: ""
+      additional-matrix-python: ">=3.14,<3.16"
+      additional-matrix-platforms: >-
+        linux_x86_64 linux_aarch64 macos_x86_64 macos_arm64 windows_amd64 windows_arm64
+      additional-matrix-implementations: cpython pypy
+      commit-message: "build(deps): refresh release lock"
+      pull-request-title: "build(deps): refresh release tool lock"
+      pull-request-body: |-
+        Refresh the locked release tools across the job-specific dependency groups.
+        `pylock.toml` records release tools; `pylock.build.toml` records cibuildwheel build dependencies.

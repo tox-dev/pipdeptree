@@ -6,3 +6,4 @@ dist/
 /.python-packages/
 /src/pipdeptree/_rust*.so
 /target
+/uv.lock

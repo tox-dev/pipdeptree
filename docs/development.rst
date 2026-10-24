@@ -124,17 +124,37 @@ Package maintainers building without Git history or distribution metadata can su
 
 The override takes precedence over tags and metadata; the build uses the value the maintainer supplies.
 
-Every user-visible change brings a news fragment under ``docs/changelog``, named ``<issue>.<type>.rst`` with one of the
-types ``breaking``, ``feature``, ``bugfix``, ``doc`` or ``packaging``. The unreleased fragments render as a draft
-section at the top of :doc:`changelog`, and the release folds them into it.
+Every user-visible change brings a news fragment under ``docs/changelog``. Name it for the change, such as
+``+python-support.feature.rst``; you do not need a pull request number when writing it. Release preparation links the
+fragment to its merged squash pull request and credits its human authors. Cite a separate issue with ``:issue:`123```
+in the fragment text when that issue helps explain the change. The fragments appear in the draft section of
+:doc:`changelog` until release.
 
-Cut a release by running the ``Prepare release`` workflow and choosing a bump. It builds the changelog, commits it on
-the upstream ``main`` branch, tags that commit and opens the GitHub release, and that tag push starts the publish
-workflow. The same steps run from a checkout against the upstream remote:
+Use ``feature`` for added or removed Python version support and other new capabilities, ``change`` for changed
+behavior, ``bugfix`` for fixes, and ``doc`` for documentation that helps users. Use ``security``, ``performance``,
+``deprecation``, ``removal``, ``breaking`` or ``packaging`` when the change directly affects users. A maintenance-only
+pull request needs the ``skip news`` label rather than a fragment. Bot pull requests without a fragment receive that
+label automatically.
+
+Cut a release by running the ``Prepare release`` workflow with ``auto``. Feature fragments select a minor version;
+other fragments select a patch version. The workflow builds and checks the changelog, commits it on upstream ``main``,
+and pushes an annotated tag. The tag workflow checks the source archive and every wheel, renders GitHub notes from the
+tagged changelog, publishes to PyPI, then creates the GitHub Release. The GitHub notes link to PyPI, the version diff,
+and credited contributors; the documentation changelog keeps the RST links and section anchors.
+
+Preview preparation, notes, the package build and package checks from a clean checkout. The preview uses a temporary
+clone and does not push a commit, tag or release:
 
 .. code-block:: bash
 
-    tox run -e release -- --bump minor
+    tox run -e release
+
+Use ``-- --bump minor`` to override automatic version selection. After reviewing the preview, dispatch the protected
+workflow on ``main``:
+
+.. code-block:: bash
+
+    tox run -e release -- --dispatch
 
 Contributing
 ------------

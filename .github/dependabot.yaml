@@ -41,3 +41,17 @@ updates:
       rust-toolchain:
         patterns:
           - "*"
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    allow:
+      - dependency-name: mdformat-gfm
+      - dependency-name: mdformat-ruff
+      - dependency-name: sphinx
+    labels:
+      - dependencies
+      - skip news
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+    cooldown:
+      default-days: 7

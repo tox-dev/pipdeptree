@@ -7,91 +7,240 @@ permissions:
 jobs:
   dist:
     uses: $/.github/workflows/dist.yaml
-  release:
+  dist-check:
     needs: dist
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: latest-known
+          python-version: "3.15"
+          enable-cache: false
+      - name: Install locked release checks
+        uses: tox-dev/github-workflows/install-locked-tools@55f51f9b5cc0b40f280155a95de2d4f0ecbf7be1 # v3.0.0
+        with:
+          groups: release-package
+          venv: ${{ runner.temp }}/release-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          merge-multiple: true
+          pattern: dists-*
+          path: dist/
+      - name: Check artifact versions
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          sdists=(dist/*.tar.gz)
+          ((${#wheels[@]} && ${#sdists[@]} == 1))
+          for path in "${wheels[@]}" "${sdists[@]}"; do
+            case "${path#dist/}" in
+            pipdeptree-"$TAG"-*.whl | pipdeptree-"$TAG".tar.gz) ;;
+            *)
+              echo "::error::$path is not version $TAG"
+              exit 1
+              ;;
+            esac
+          done
+      - name: Check package descriptions
+        run: twine check dist/*
+      - name: Check every wheel
+        run: check-wheel-contents --no-config --ignore W009,W010 dist
+      - name: Check bundled wheel libraries
+        run: python3 tools/check_release_wheels.py dist
+  previous:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.previous.outputs.previous }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: latest-known
+          python-version: "3.15"
+          enable-cache: false
+      - name: Install locked release tools
+        uses: tox-dev/github-workflows/install-locked-tools@55f51f9b5cc0b40f280155a95de2d4f0ecbf7be1 # v3.0.0
+        with:
+          groups: release-notes
+          venv: ${{ runner.temp }}/release-tools
+      - name: Find previous release
+        id: previous
+        uses: tox-dev/github-workflows/select-previous-tag@55f51f9b5cc0b40f280155a95de2d4f0ecbf7be1 # v3.0.0
+        with:
+          tag: ${{ github.ref_name }}
+  metadata:
+    needs: previous
+    runs-on: ubuntu-26.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Fetch contributor metadata
+        if: needs.previous.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          PREVIOUS: ${{ needs.previous.outputs.tag }}
+        run: |
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="$TAG" -f previous_tag_name="$PREVIOUS" \
+            --jq .body >"$RUNNER_TEMP/generated-notes.md"
+      - name: Fetch first-release metadata
+        if: needs.previous.outputs.tag == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="$TAG" --jq .body >"$RUNNER_TEMP/generated-notes.md"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: contributor-metadata
+          path: ${{ runner.temp }}/generated-notes.md
+          if-no-files-found: error
+  notes:
+    needs: [metadata, previous]
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: latest-known
+          python-version: "3.15"
+          enable-cache: false
+      - name: Install locked release tools
+        uses: tox-dev/github-workflows/install-locked-tools@55f51f9b5cc0b40f280155a95de2d4f0ecbf7be1 # v3.0.0
+        with:
+          groups: release-notes
+          venv: ${{ runner.temp }}/release-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: contributor-metadata
+          path: ${{ runner.temp }}/contributor-metadata
+      - uses: tox-dev/github-workflows/render-release-notes@55f51f9b5cc0b40f280155a95de2d4f0ecbf7be1 # v3.0.0
+        with:
+          tag: ${{ github.ref_name }}
+          previous: ${{ needs.previous.outputs.tag }}
+          changelog: docs/changelog.rst
+          artifact-url: https://pypi.org/project/pipdeptree/${{ github.ref_name }}/
+          generated-notes: ${{ runner.temp }}/contributor-metadata/generated-notes.md
+          output: ${{ runner.temp }}/release-notes.md
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: github-release-notes
+          path: ${{ runner.temp }}/release-notes.md
+          if-no-files-found: error
+  github-release-draft:
+    needs:
+      - dist-check
+      - notes
+    runs-on: ubuntu-26.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: github-release-notes
+          path: ${{ runner.temp }}/release-notes
+      - name: Stage GitHub Release
+        uses: tox-dev/github-workflows/publish-github-release@55f51f9b5cc0b40f280155a95de2d4f0ecbf7be1 # v3.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          tag: ${{ github.ref_name }}
+          commit: ${{ github.sha }}
+          title: ${{ github.ref_name }}
+          notes-file: ${{ runner.temp }}/release-notes/release-notes.md
+          mode: stage
+  release:
+    needs:
+      - dist-check
+      - notes
+      - github-release-draft
     runs-on: ubuntu-26.04
     environment:
       name: release
       url: https://pypi.org/project/pipdeptree/${{ github.ref_name }}
     permissions:
-      contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Require a changelog section for the tag
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::unexpected release tag $TAG"
-            exit 1
-          fi
-          if ! grep -qE "^ ${TAG//./\\.} \\(" docs/changelog.rst; then
-            echo "::error::docs/changelog.rst has no section for $TAG"
-            exit 1
-          fi
       - name: Download all the dists
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           merge-multiple: true
           pattern: dists-*
           path: dist/
-      - name: Check the dists carry the tag version
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          for path in dist/*; do
-            case "${path#dist/}" in
-              pipdeptree-"$TAG"-*.whl | pipdeptree-"$TAG".tar.gz) ;;
-              *) echo "::error::$path is not version $TAG"; exit 1 ;;
-            esac
-          done
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
+          packages-dir: dist
           attestations: true
-  github-release:
-    needs: release
+          skip-existing: true
+  verify:
+    needs:
+      - dist-check
+      - notes
+      - github-release-draft
+      - release
     runs-on: ubuntu-26.04
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: latest-known
+          python-version: "3.15"
+          enable-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          merge-multiple: true
+          pattern: dists-*
+          path: dist/
+      - name: Verify complete PyPI release
+        uses: tox-dev/github-workflows/reconcile-pypi-artifacts@55f51f9b5cc0b40f280155a95de2d4f0ecbf7be1 # v3.0.0
+        with:
+          project: pipdeptree
+          version: ${{ github.ref_name }}
+          dist: dist
+  github-release:
+    needs: verify
+    runs-on: ubuntu-26.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: github-release-notes
+          path: ${{ runner.temp }}/release-notes
       - name: Publish GitHub Release
+        uses: tox-dev/github-workflows/publish-github-release@55f51f9b5cc0b40f280155a95de2d4f0ecbf7be1 # v3.0.0
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          awk -v tag="$TAG" '
-            index($0, " " tag " (") == 1 { found = 1; next }
-            found && /^ [0-9]+\.[0-9]+\.[0-9]+ \(/ { exit }
-            found && $0 !~ /^\*+$/ { print }
-          ' docs/changelog.rst > "$RUNNER_TEMP/release-notes.md"
-          python3 - "$RUNNER_TEMP/release-notes.md" <<'PY'
-          import re
-          import sys
-          from pathlib import Path
-
-          path = Path(sys.argv[1])
-          body = path.read_text()
-          body = re.sub(r":user:`([^`]+)`", r"\1", body)
-          body = re.sub(r":(?:issue|pr):`(\d+)`", r"#\1", body)
-          body = re.sub(r":[a-z]+:`~?([^`]+)`", lambda match: f"`{match.group(1).split('.')[-1]}`", body)
-          body = body.replace("``", "`").strip()
-          if not body:
-              raise SystemExit("release notes are empty")
-          path.write_text(f"{body}\n")
-          PY
-          printf '\n[PyPI release](https://pypi.org/project/pipdeptree/%s/)\n' "$TAG" >> "$RUNNER_TEMP/release-notes.md"
-          previous=$({ gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[].tag_name'; printf '%s\n' "$TAG"; } | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -Vu | awk -v tag="$TAG" '$0 == tag { print previous; exit } { previous = $0 }')
-          if [[ -n "$previous" ]]; then
-            printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' "$GITHUB_REPOSITORY" "$previous" "$TAG" >> "$RUNNER_TEMP/release-notes.md"
-          else
-            printf '\n**Full Changelog**: https://github.com/%s/commits/%s\n' "$GITHUB_REPOSITORY" "$TAG" >> "$RUNNER_TEMP/release-notes.md"
-          fi
-          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+        with:
+          tag: ${{ github.ref_name }}
+          commit: ${{ github.sha }}
+          title: ${{ github.ref_name }}
+          notes-file: ${{ runner.temp }}/release-notes/release-notes.md
+          mode: publish

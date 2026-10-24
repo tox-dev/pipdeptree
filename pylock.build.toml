@@ -1,0 +1,523 @@
+lock-version = "1.0"
+environments = [
+    "python_version == \"3.11\" and sys_platform == \"linux\" and platform_machine == \"x86_64\" and implementation_name == \"pypy\" and platform_python_implementation == \"PyPy\"",
+    "python_version == \"3.11\" and sys_platform == \"linux\" and platform_machine == \"aarch64\" and implementation_name == \"pypy\" and platform_python_implementation == \"PyPy\"",
+    "python_version == \"3.11\" and sys_platform == \"darwin\" and platform_machine == \"x86_64\" and implementation_name == \"pypy\" and platform_python_implementation == \"PyPy\"",
+    "python_version == \"3.11\" and sys_platform == \"darwin\" and platform_machine == \"arm64\" and implementation_name == \"pypy\" and platform_python_implementation == \"PyPy\"",
+    "python_version == \"3.11\" and sys_platform == \"win32\" and platform_machine == \"AMD64\" and implementation_name == \"pypy\" and platform_python_implementation == \"PyPy\"",
+    "python_version == \"3.14\" and sys_platform == \"linux\" and platform_machine == \"x86_64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.14\" and sys_platform == \"linux\" and platform_machine == \"aarch64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.14\" and sys_platform == \"darwin\" and platform_machine == \"x86_64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.14\" and sys_platform == \"darwin\" and platform_machine == \"arm64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.14\" and sys_platform == \"win32\" and platform_machine == \"AMD64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.14\" and sys_platform == \"win32\" and platform_machine == \"ARM64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.15\" and sys_platform == \"linux\" and platform_machine == \"x86_64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.15\" and sys_platform == \"linux\" and platform_machine == \"aarch64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.15\" and sys_platform == \"darwin\" and platform_machine == \"x86_64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.15\" and sys_platform == \"darwin\" and platform_machine == \"arm64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.15\" and sys_platform == \"win32\" and platform_machine == \"AMD64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+    "python_version == \"3.15\" and sys_platform == \"win32\" and platform_machine == \"ARM64\" and implementation_name == \"cpython\" and platform_python_implementation == \"CPython\"",
+]
+requires-python = ">=3.11"
+created-by = "nab"
+
+[[packages]]
+name = "hatch-fancy-pypi-readme"
+version = "25.1.0"
+requires-python = ">=3.8"
+dependencies = [
+    { name = "hatchling" },
+]
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "hatch_fancy_pypi_readme-25.1.0.tar.gz"
+upload-time = 2025-05-01 10:34:42.989334+00:00
+url = "https://files.pythonhosted.org/packages/f3/0f/aed57c301f339936eb91cb4d8c1e5088a101081854bd3ec18a889df32365/hatch_fancy_pypi_readme-25.1.0.tar.gz"
+size = 29701
+
+[packages.sdist.hashes]
+sha256 = "9c58ed3dff90d51f43414ce37009ad1d5b0f08ffc9fc216998a06380f01c0045"
+
+[[packages.wheels]]
+name = "hatch_fancy_pypi_readme-25.1.0-py3-none-any.whl"
+upload-time = 2025-05-01 10:34:41.204793+00:00
+url = "https://files.pythonhosted.org/packages/58/b4/ad71e051b34f1935783de37beffee16e343ff2514b204dc515f9e939d4af/hatch_fancy_pypi_readme-25.1.0-py3-none-any.whl"
+size = 10046
+
+[packages.wheels.hashes]
+sha256 = "ce0134c40d63d874ac48f48ccc678b8f3b62b8e50e9318520d2bffc752eedaf3"
+
+[[packages]]
+name = "hatchling"
+version = "1.32.4"
+requires-python = ">=3.10"
+dependencies = [
+    { name = "packaging" },
+    { name = "pathspec" },
+    { name = "pluggy" },
+    { name = "tomlkit" },
+    { name = "trove-classifiers" },
+]
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "hatchling-1.32.4.tar.gz"
+upload-time = 2026-09-20 22:48:45.398505+00:00
+url = "https://files.pythonhosted.org/packages/f6/97/b5312f01a8c6daf729a9d272dd442e0c546dbcc630495788786c4b567ed0/hatchling-1.32.4.tar.gz"
+size = 58065
+
+[packages.sdist.hashes]
+sha256 = "c4468f73144c054d2aab4ef0f0378c43b9878bf07f8ffd6b79690e970d375f07"
+
+[[packages.wheels]]
+name = "hatchling-1.32.4-py3-none-any.whl"
+upload-time = 2026-09-20 22:48:44.190681+00:00
+url = "https://files.pythonhosted.org/packages/5f/80/91f51f439c05d4ec4623c22928ce16a938d6d793bf709477830823497859/hatchling-1.32.4-py3-none-any.whl"
+size = 78748
+
+[packages.wheels.hashes]
+sha256 = "08ecf7548fb48205e7f213d70c71e67b8271b7242093dc3f1da578b42c734a2c"
+
+[[packages]]
+name = "meson"
+version = "1.12.1"
+requires-python = ">=3.10"
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "meson-1.12.1.tar.gz"
+upload-time = 2026-09-22 22:58:28.875366+00:00
+url = "https://files.pythonhosted.org/packages/f9/c9/8c9983f4f3d9c4e22fd76bcf8cd053e4472aefae45fd044669b6daa34b53/meson-1.12.1.tar.gz"
+size = 2524665
+
+[packages.sdist.hashes]
+sha256 = "ab0a6ca09f8ef70c564c8241fb5a23957886a0b53fb58412b5e07eaf07dba743"
+
+[[packages.wheels]]
+name = "meson-1.12.1-py3-none-any.whl"
+upload-time = 2026-09-22 22:58:26.047814+00:00
+url = "https://files.pythonhosted.org/packages/57/99/36cd25f9598eef70db97577440a70a360af505f6f01c2338a18d1556079c/meson-1.12.1-py3-none-any.whl"
+size = 1108668
+
+[packages.wheels.hashes]
+sha256 = "930bc7542cbd9f57009e182fd014eba48cf1a0180a7b9006d2d32d8f168d8b02"
+
+[[packages]]
+name = "meson-python"
+version = "0.22.1"
+requires-python = ">=3.10"
+dependencies = [
+    { name = "meson" },
+    { name = "packaging" },
+    { name = "pyproject-metadata" },
+]
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "meson_python-0.22.1.tar.gz"
+upload-time = 2026-10-01 23:17:15.251548+00:00
+url = "https://files.pythonhosted.org/packages/b4/40/343ae23722d5d66a7b94b752d1b194202640995296379333b274b1860871/meson_python-0.22.1.tar.gz"
+size = 121887
+
+[packages.sdist.hashes]
+sha256 = "52c88628b0e5671592dc2306613fb5f6f3615fd24def059b9894f143b7f9a139"
+
+[[packages.wheels]]
+name = "meson_python-0.22.1-py3-none-any.whl"
+upload-time = 2026-10-01 23:17:13.760319+00:00
+url = "https://files.pythonhosted.org/packages/96/62/0c1cf20fe158b0e623e78acbf5fb6de5f1410a408f65f727e4090497627b/meson_python-0.22.1-py3-none-any.whl"
+size = 31271
+
+[packages.wheels.hashes]
+sha256 = "258fde948cf45aab5df23fcc9e17a9050ee73d4e1002fe6cf86519f61c414778"
+
+[[packages]]
+name = "ninja"
+version = "1.13.2"
+requires-python = ">=3.8"
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "ninja-1.13.2.tar.gz"
+upload-time = 2026-08-30 15:49:51.897613+00:00
+url = "https://files.pythonhosted.org/packages/ac/92/410b7917d16ab54c04b05cc32b9284803671d91cf79d33be6009c28d4ea8/ninja-1.13.2.tar.gz"
+size = 243739
+
+[packages.sdist.hashes]
+sha256 = "525bfa3fc88aa30a4467df270fd5be6f9fcae8061d54d4df74ea1dc5abd5a975"
+
+[[packages.wheels]]
+name = "ninja-1.13.2-py3-none-macosx_10_9_universal2.whl"
+upload-time = 2026-08-30 15:49:28.267803+00:00
+url = "https://files.pythonhosted.org/packages/b5/b8/90a9518f2264637084d6199bc20c2f3fb97fefc4c474d277720150c3bd6d/ninja-1.13.2-py3-none-macosx_10_9_universal2.whl"
+size = 306611
+
+[packages.wheels.hashes]
+sha256 = "fd82e26c0706ad4ab88e5fdd26f3fab0a987a90f810160f6c322e752c6af298b"
+
+[[packages.wheels]]
+name = "ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl"
+upload-time = 2026-08-30 15:49:29.590314+00:00
+url = "https://files.pythonhosted.org/packages/35/54/7368ce188625e39acc03ee362bb86cc9bfa6ad15e25c50889ae36e2889b3/ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl"
+size = 177180
+
+[packages.wheels.hashes]
+sha256 = "d775a5e43e9088f507a6250d57fcf5678eb31268c545feb5064ffeee33735622"
+
+[[packages.wheels]]
+name = "ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl"
+upload-time = 2026-08-30 15:49:34.530024+00:00
+url = "https://files.pythonhosted.org/packages/6e/53/ebfed7b689c338dd8ebeec9c0730c8d56821292f14e2536e5f3ef1a05744/ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl"
+size = 183365
+
+[packages.wheels.hashes]
+sha256 = "65a24341b5ac09fcadcc37082660be40a94174e51a937fabf6e2cae26225fa2c"
+
+[[packages.wheels]]
+name = "ninja-1.13.2-py3-none-win_amd64.whl"
+upload-time = 2026-08-30 15:49:49.351797+00:00
+url = "https://files.pythonhosted.org/packages/3f/dd/3766b5f4d32e8a9b97d195496b0b01fbbe2e1a41669dab0cd6492a6ce199/ninja-1.13.2-py3-none-win_amd64.whl"
+size = 311798
+
+[packages.wheels.hashes]
+sha256 = "1293f4078278b70d0ee4b6cc8f3a9e030656c9b2f59909970343c4fe76070118"
+
+[[packages.wheels]]
+name = "ninja-1.13.2-py3-none-win_arm64.whl"
+upload-time = 2026-08-30 15:49:50.639085+00:00
+url = "https://files.pythonhosted.org/packages/b7/8d/59a31fa508070d042571d9d226b541a21000756817313f397da22287ad34/ninja-1.13.2-py3-none-win_arm64.whl"
+size = 290620
+
+[packages.wheels.hashes]
+sha256 = "1db9852e528efa7702f5123969f86678663e46d57ff28ab13f5fd84d64a85fb1"
+
+[[packages]]
+name = "packaging"
+version = "26.3"
+requires-python = ">=3.9"
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "packaging-26.3.tar.gz"
+upload-time = 2026-08-04 18:15:28.737071+00:00
+url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz"
+size = 313412
+
+[packages.sdist.hashes]
+sha256 = "94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79"
+
+[[packages.wheels]]
+name = "packaging-26.3-py3-none-any.whl"
+upload-time = 2026-08-04 18:15:27.159957+00:00
+url = "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl"
+size = 129956
+
+[packages.wheels.hashes]
+sha256 = "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"
+
+[[packages]]
+name = "patchelf"
+version = "0.19.1.0"
+marker = "sys_platform == \"linux\""
+requires-python = ">=3.7"
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "patchelf-0.19.1.0.tar.gz"
+upload-time = 2026-08-08 05:07:29.253793+00:00
+url = "https://files.pythonhosted.org/packages/5a/0b/691b49b40201a80cb09dbf2003eef0e36270ae07b00de99baa915df1d274/patchelf-0.19.1.0.tar.gz"
+size = 371787
+
+[packages.sdist.hashes]
+sha256 = "8976fbdef7d3e461d623e703024b70db6b6e3308f7e389930f39a71a1e347a2c"
+
+[[packages.wheels]]
+name = "patchelf-0.19.1.0-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.musllinux_1_1_x86_64.whl"
+upload-time = 2026-08-08 05:07:21.583327+00:00
+url = "https://files.pythonhosted.org/packages/e7/03/afd9bdd2ba5f96997196109f25dadbe5141bc6e70dffd85f3f84cc85d69c/patchelf-0.19.1.0-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.musllinux_1_1_x86_64.whl"
+size = 549422
+
+[packages.wheels.hashes]
+sha256 = "a8f6331ccf40c345507279f755f4a38c2cb00b9efda746fd43c17713cce0aba4"
+
+[[packages.wheels]]
+name = "patchelf-0.19.1.0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.musllinux_1_1_aarch64.whl"
+upload-time = 2026-08-08 05:07:22.836534+00:00
+url = "https://files.pythonhosted.org/packages/cc/e6/1c78ad10adfc4b00a642ab518c246dd88dc826d641eb31faca5eaddc8b97/patchelf-0.19.1.0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.musllinux_1_1_aarch64.whl"
+size = 542031
+
+[packages.wheels.hashes]
+sha256 = "b5c3dec03b89db2bb0df301d316360847eeaf72c6fb6ddde0227326655edabb4"
+
+[[packages]]
+name = "pathspec"
+version = "1.1.1"
+requires-python = ">=3.9"
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "pathspec-1.1.1.tar.gz"
+upload-time = 2026-04-27 01:46:08.907631+00:00
+url = "https://files.pythonhosted.org/packages/5a/82/42f767fc1c1143d6fd36efb827202a2d997a375e160a71eb2888a925aac1/pathspec-1.1.1.tar.gz"
+size = 135180
+
+[packages.sdist.hashes]
+sha256 = "17db5ecd524104a120e173814c90367a96a98d07c45b2e10c2f3919fff91bf5a"
+
+[[packages.wheels]]
+name = "pathspec-1.1.1-py3-none-any.whl"
+upload-time = 2026-04-27 01:46:07.060850+00:00
+url = "https://files.pythonhosted.org/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/pathspec-1.1.1-py3-none-any.whl"
+size = 57328
+
+[packages.wheels.hashes]
+sha256 = "a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189"
+
+[[packages]]
+name = "pluggy"
+version = "1.7.0"
+requires-python = ">=3.10"
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "pluggy-1.7.0.tar.gz"
+upload-time = 2026-10-15 09:50:58.343484+00:00
+url = "https://files.pythonhosted.org/packages/bf/db/7fc19e6f2dc92a966727031389fc2e08b558f0f25eb7403c1119ad4713cd/pluggy-1.7.0.tar.gz"
+size = 123304
+
+[packages.sdist.hashes]
+sha256 = "d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8"
+
+[[packages.wheels]]
+name = "pluggy-1.7.0-py3-none-any.whl"
+upload-time = 2026-10-15 09:50:56.808462+00:00
+url = "https://files.pythonhosted.org/packages/40/9e/2b38731e0fc536806f16490e1a12d7f0dc2a1235aa8cc07bcc75416a7daa/pluggy-1.7.0-py3-none-any.whl"
+size = 27082
+
+[packages.wheels.hashes]
+sha256 = "7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec"
+
+[[packages]]
+name = "pyproject-metadata"
+version = "0.12.1"
+requires-python = ">=3.8"
+dependencies = [
+    { name = "packaging" },
+]
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "pyproject_metadata-0.12.1.tar.gz"
+upload-time = 2026-07-04 02:19:32.029773+00:00
+url = "https://files.pythonhosted.org/packages/4f/76/1cae539918a7b1746d624c2f01560b793c22cd8c081157505bb9bbf0e34d/pyproject_metadata-0.12.1.tar.gz"
+size = 48457
+
+[packages.sdist.hashes]
+sha256 = "8809a4df6fe08279b39a8890669506ed3158e0617855ac9aff098fcbe772ae4c"
+
+[[packages.wheels]]
+name = "pyproject_metadata-0.12.1-py3-none-any.whl"
+upload-time = 2026-07-04 02:19:30.657500+00:00
+url = "https://files.pythonhosted.org/packages/b9/8e/d883718e872abc214ba053f60f7e6edc2abd5ffbd1544beb01a9c92ddd3c/pyproject_metadata-0.12.1-py3-none-any.whl"
+size = 23452
+
+[packages.wheels.hashes]
+sha256 = "f7162d580a96386a8eb096da06215f981f547d1490f03055ef99e323bc2da427"
+
+[[packages]]
+name = "scikit-build-core"
+version = "1.1.1"
+requires-python = ">=3.9"
+dependencies = [
+    { name = "packaging" },
+    { name = "pathspec" },
+]
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "scikit_build_core-1.1.1.tar.gz"
+upload-time = 2026-10-02 19:18:37.596431+00:00
+url = "https://files.pythonhosted.org/packages/b2/1a/8c00b19c0a1e7acf890676af2efa430339d38e59fa9437f2aab8517af3f4/scikit_build_core-1.1.1.tar.gz"
+size = 516192
+
+[packages.sdist.hashes]
+sha256 = "e347a59193c878ac56a363e57506938652a6dd8c965790cb1cbc6bc7e8d5abad"
+
+[[packages.wheels]]
+name = "scikit_build_core-1.1.1-py3-none-any.whl"
+upload-time = 2026-10-02 19:18:36.087754+00:00
+url = "https://files.pythonhosted.org/packages/01/1b/83913d6d5c6a7f8ad5bf5d67b2d57ab09475f1bb9dd0c7a3f44067d59b90/scikit_build_core-1.1.1-py3-none-any.whl"
+size = 293450
+
+[packages.wheels.hashes]
+sha256 = "6f6d6cf600e2e9639fd258ecd11cfc19bd189354b968916a519c6793e7e26237"
+
+[[packages]]
+name = "setuptools"
+version = "84.0.0"
+requires-python = ">=3.10"
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "setuptools-84.0.0.tar.gz"
+upload-time = 2026-08-08 18:27:58.365696+00:00
+url = "https://files.pythonhosted.org/packages/6d/44/f5da03a8ef95d369145c5bb53050e7877c9f3d312e128605fd9504829143/setuptools-84.0.0.tar.gz"
+size = 1168449
+
+[packages.sdist.hashes]
+sha256 = "f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73"
+
+[[packages.wheels]]
+name = "setuptools-84.0.0-py3-none-any.whl"
+upload-time = 2026-08-08 18:27:56.719708+00:00
+url = "https://files.pythonhosted.org/packages/95/9c/c510029fc6ef33a6275cd2c5d3cecd6613dfd6aa401d57c54f1c18852ccf/setuptools-84.0.0-py3-none-any.whl"
+size = 818216
+
+[packages.wheels.hashes]
+sha256 = "51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670"
+
+[[packages]]
+name = "setuptools-scm"
+version = "10.3.4"
+requires-python = ">=3.8"
+dependencies = [
+    { name = "packaging" },
+    { name = "setuptools" },
+    { name = "vcs-versioning" },
+]
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "setuptools_scm-10.3.4.tar.gz"
+upload-time = 2026-09-23 19:21:42.950372+00:00
+url = "https://files.pythonhosted.org/packages/85/d8/fc143f88819ccf10ba2388ba86732ee2de193e578234e25a783f6cc14bf7/setuptools_scm-10.3.4.tar.gz"
+size = 78410
+
+[packages.sdist.hashes]
+sha256 = "a69f28bfc245608781205e912faae437c2b2165773afa4e7b979d77447a69dd2"
+
+[[packages.wheels]]
+name = "setuptools_scm-10.3.4-py3-none-any.whl"
+upload-time = 2026-09-23 19:21:41.607429+00:00
+url = "https://files.pythonhosted.org/packages/da/f5/54538a1f17ea753c42b0928dc2e62986d463f8c393340b9a1e602f2d4dd9/setuptools_scm-10.3.4-py3-none-any.whl"
+size = 33366
+
+[packages.wheels.hashes]
+sha256 = "82f34c3e3084fc2b57d397200637cc13f2338004052d2fee47baa5f0e902464e"
+
+[[packages]]
+name = "tomlkit"
+version = "0.15.2"
+requires-python = ">=3.9"
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "tomlkit-0.15.2.tar.gz"
+upload-time = 2026-10-16 04:07:08.166827+00:00
+url = "https://files.pythonhosted.org/packages/08/72/fc01563df95c189a9f65850096bdc205bc2fe37da6c740cd64afaf18d07e/tomlkit-0.15.2.tar.gz"
+size = 190522
+
+[packages.sdist.hashes]
+sha256 = "83e32755ba1d20d9340bd069ee97e9f6232ba2346b63ffcba425de01f7e327a6"
+
+[[packages.wheels]]
+name = "tomlkit-0.15.2-py3-none-any.whl"
+upload-time = 2026-10-16 04:07:09.216014+00:00
+url = "https://files.pythonhosted.org/packages/da/46/7d84138a60a8bd796825b2d38ebe92d0d16501ca57d501b7c5d677401bbc/tomlkit-0.15.2-py3-none-any.whl"
+size = 52225
+
+[packages.wheels.hashes]
+sha256 = "05562412163a3037b94497385fb7f9204c637bc605af7a48199e41cf2272f437"
+
+[[packages]]
+name = "trove-classifiers"
+version = "2026.9.21.13"
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "trove_classifiers-2026.9.21.13.tar.gz"
+upload-time = 2026-09-21 13:29:07.301512+00:00
+url = "https://files.pythonhosted.org/packages/bf/93/af436dfaa845cab5d96f0adbc1e4f3730532d37fa249e4eb796fb1d7fc82/trove_classifiers-2026.9.21.13.tar.gz"
+size = 17085
+
+[packages.sdist.hashes]
+sha256 = "0a9ebc8d4e2f3e8a22848c5258033035bec17a3012ac3fea16dbaa764489eb71"
+
+[[packages.wheels]]
+name = "trove_classifiers-2026.9.21.13-py3-none-any.whl"
+upload-time = 2026-09-21 13:29:06.123578+00:00
+url = "https://files.pythonhosted.org/packages/30/81/0da8afb52a71d0a4f2bd3152357b1a441e393b286374802b9d3addab4ab5/trove_classifiers-2026.9.21.13-py3-none-any.whl"
+size = 14232
+
+[packages.wheels.hashes]
+sha256 = "8b1ff4f9c191b1040b71c37f1e445ab99732911e3cd91de52838453a854d7a17"
+
+[[packages]]
+name = "vcs-versioning"
+version = "2.6.0"
+requires-python = ">=3.8"
+dependencies = [
+    { name = "packaging" },
+]
+index = "https://pypi.org/simple/"
+
+[packages.sdist]
+name = "vcs_versioning-2.6.0.tar.gz"
+upload-time = 2026-10-06 22:21:55.024903+00:00
+url = "https://files.pythonhosted.org/packages/ad/e7/2a691db7d076b75d099fdba1a14cd966931f2aeb591e77f6d22f15097326/vcs_versioning-2.6.0.tar.gz"
+size = 166800
+
+[packages.sdist.hashes]
+sha256 = "22e9159288e2d8bca2fa6f6c31c34c9c66aec157f60e9e526f5d160d2516d60f"
+
+[[packages.wheels]]
+name = "vcs_versioning-2.6.0-py3-none-any.whl"
+upload-time = 2026-10-06 22:21:53.267565+00:00
+url = "https://files.pythonhosted.org/packages/73/1d/ad4064bf12f4503bf61e65d74c93c523672776d25ee0a06aaf42ae09ef3f/vcs_versioning-2.6.0-py3-none-any.whl"
+size = 123154
+
+[packages.wheels.hashes]
+sha256 = "f8bebd1302ebc12e67ceb30fc7dd698ec969414b6fa43b30c3f14ac9b1e72c41"
+
+[tool.nab]
+nab-version = "0.0.22"
+created-at = 2026-10-24 06:24:40.445798+00:00
+command-line = [
+    "nab",
+    "lock",
+    "--no-cache",
+    "pyproject.toml",
+    "--build-requirements",
+    "--project-matrix-python",
+    ">=3.14,<3.16",
+    "--project-matrix-platforms",
+    "linux_x86_64",
+    "linux_aarch64",
+    "macos_x86_64",
+    "macos_arm64",
+    "windows_amd64",
+    "windows_arm64",
+    "--project-matrix-implementations",
+    "cpython",
+    "pypy",
+    "--output",
+    "pylock.build.toml",
+    "--upgrade",
+]
+input-path = "pyproject.toml"
+mode = "universal"
+python-specifier = ">=3.14,<3.16"
+platforms = [
+    "linux_x86_64",
+    "linux_aarch64",
+    "macos_x86_64",
+    "macos_arm64",
+    "windows_amd64",
+    "windows_arm64",
+]
+cli-project-overrides = [
+    "--project-matrix-python=>=3.14,<3.16",
+    "--project-matrix-platforms=linux_x86_64 linux_aarch64 macos_x86_64 macos_arm64 windows_amd64 windows_arm64",
+    "--project-matrix-implementations=cpython pypy",
+]
