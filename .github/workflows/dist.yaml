@@ -1,4 +1,4 @@
-name: dist
+name: 🏗️ dist
 on:
   workflow_call:
 permissions:
@@ -9,7 +9,7 @@ jobs:
   # runners are capped and shared across the org, so a job per interpreter there only queues, and the four builds
   # stay in one job that reuses a single Cargo target directory instead.
   wheels:
-    name: wheels ${{ matrix.build }} ${{ matrix.platform.os }}
+    name: 🏗️ wheels ${{ matrix.build }} ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -19,12 +19,20 @@ jobs:
         platform:
           - os: ubuntu-26.04
             arch: x86_64
+            lock_platform: linux_x86_64
+            rustup-gnu-sha: 4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10
+            rustup-musl-sha: 9cd3fda5fd293890e36ab271af6a786ee22084b5f6c2b83fd8323cec6f0992c1
           - os: ubuntu-26.04-arm
             arch: aarch64
-          - os: windows-latest
+            lock_platform: linux_aarch64
+            rustup-gnu-sha: 9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792
+            rustup-musl-sha: 88761caacddb92cd79b0b1f939f3990ba1997d701a38b3e8dd6746a562f2a759
+          - os: windows-2025
             arch: AMD64
+            lock_platform: windows_amd64
           - os: windows-11-arm
             arch: ARM64
+            lock_platform: windows_arm64
         exclude:
           # PyPy ships no Windows arm64 interpreter, and cibuildwheel stops a job whose selector matches nothing.
           - build: pp311
@@ -32,54 +40,88 @@ jobs:
               os: windows-11-arm
               arch: ARM64
         include:
+          - build: cp315
+            targets: "3.15.0:cpython"
+          - build: cp314t
+            targets: "3.14.0:cpython"
+          - build: cp315t
+            targets: "3.15.0:cpython"
+          - build: pp311
+            targets: "3.11.0:pypy"
           # The Intel runner takes about twice as long as the arm one for the same work, so it splits its four
           # builds over two jobs; three macOS jobs stay well inside the cap that made a job per interpreter queue.
           - build: gil
             identifiers: cp315-* pp311-*
+            targets: "3.15.0:cpython 3.11.0:pypy"
             platform:
               os: macos-26-intel
               arch: x86_64
+              lock_platform: macos_x86_64
           - build: free-threaded
             identifiers: cp314t-* cp315t-*
+            targets: "3.14.0:cpython 3.15.0:cpython"
             platform:
               os: macos-26-intel
               arch: x86_64
+              lock_platform: macos_x86_64
           - build: every
             identifiers: cp315-* cp314t-* cp315t-* pp311-*
+            targets: "3.15.0:cpython 3.14.0:cpython 3.11.0:pypy"
             platform:
               os: macos-26
               arch: arm64
+              lock_platform: macos_arm64
     runs-on: ${{ matrix.platform.os }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 📥 Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # The build reads the version off the tags.
           persist-credentials: false
-      - name: Install Rust
+      - name: ⚙️ Set stable build timestamp
+        shell: bash
+        run: git log -1 --format='SOURCE_DATE_EPOCH=%ct' "$GITHUB_SHA^{commit}" >> "$GITHUB_ENV"
+      - name: 🦀 Install Rust toolchain
         if: runner.os != 'Linux'
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
           cache: false
-      - name: Install uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: 🐍 Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
+          version: latest-known
           python-version: "3.15"
           enable-cache: false
-      - name: Resolve the version
+      - name: 🏷️ Resolve the version
         id: version
         shell: bash
         run: echo "value=$(uv run --no-project --python 3.15 python tools/version.py)" >> "$GITHUB_OUTPUT"
       # cibuildwheel pulls its container inside docker create, and a slow quay.io response there fails the job.
-      # It skips that pull when the image is already on the runner, so fetch the image here with retries and point
-      # cibuildwheel at the same tag rather than at the digest it pins itself.
-      - name: Pull the build containers
+      # It skips that pull when the image is already on the runner, so fetch the digest-pinned images of the
+      # cibuildwheel release below here with retries, and point cibuildwheel at the same digests.
+      - name: 🐳 Pull the build containers
         if: runner.os == 'Linux'
         env:
           ARCH: ${{ matrix.platform.arch }}
           BUILD: ${{ matrix.build }}
+          CIBUILDWHEEL_COMMIT: b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1, keep in step with the Build wheels step
         run: |
-          manylinux="quay.io/pypa/manylinux_2_28_$ARCH"
-          musllinux="quay.io/pypa/musllinux_1_2_$ARCH"
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 3 \
+            "https://raw.githubusercontent.com/pypa/cibuildwheel/$CIBUILDWHEEL_COMMIT/cibuildwheel/resources/pinned_docker_images.cfg" \
+            -o "$RUNNER_TEMP/pinned_docker_images.cfg"
+          read -r manylinux musllinux < <(uv run --no-project --python 3.15 python - "$RUNNER_TEMP/pinned_docker_images.cfg" "$ARCH" <<'EOF'
+          import sys
+          from configparser import ConfigParser
+
+          pinned = ConfigParser(inline_comment_prefixes="#")
+          pinned.read(sys.argv[1])
+          images = [pinned[sys.argv[2]][name] for name in ("manylinux_2_28", "musllinux_1_2")]
+          if any("@sha256:" not in image for image in images):
+              sys.exit(f"{images} lack a digest")
+          print(*images)
+          EOF
+          )
           images="$manylinux"
           if [ "$BUILD" != pp311 ]; then # PyPy publishes no musllinux wheel, so that container stays unused
             images="$images $musllinux"
@@ -96,7 +138,32 @@ jobs:
           done
           echo "CIBW_MANYLINUX_${ARCH^^}_IMAGE=$manylinux" >> "$GITHUB_ENV"
           echo "CIBW_MUSLLINUX_${ARCH^^}_IMAGE=$musllinux" >> "$GITHUB_ENV"
-      - name: Read the toolchain rustup should install
+      - name: 🦀 Download checked GNU Rustup installer
+        if: runner.os == 'Linux'
+        env:
+          ARCH: ${{ matrix.platform.arch }}
+          SHA256: ${{ matrix.platform.rustup-gnu-sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p .release-tools
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 3 \
+            "https://static.rust-lang.org/rustup/archive/1.29.0/${ARCH}-unknown-linux-gnu/rustup-init" \
+            -o .release-tools/rustup-init-gnu
+          printf '%s  %s\n' "$SHA256" .release-tools/rustup-init-gnu | sha256sum --check
+          chmod +x .release-tools/rustup-init-gnu
+      - name: 🦀 Download checked musl Rustup installer
+        if: runner.os == 'Linux' && matrix.build != 'pp311'
+        env:
+          ARCH: ${{ matrix.platform.arch }}
+          SHA256: ${{ matrix.platform.rustup-musl-sha }}
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 3 \
+            "https://static.rust-lang.org/rustup/archive/1.29.0/${ARCH}-unknown-linux-musl/rustup-init" \
+            -o .release-tools/rustup-init-musl
+          printf '%s  %s\n' "$SHA256" .release-tools/rustup-init-musl | sha256sum --check
+          chmod +x .release-tools/rustup-init-musl
+      - name: ⚙️ Read the toolchain rustup should install
         id: rust
         shell: bash
         run: |
@@ -109,57 +176,105 @@ jobs:
           flags += [word for name in toolchain["components"] for word in ("--component", name)]
           print("flags=" + " ".join(flags))
           EOF
-      - name: Build wheels
+      - name: 📦 Install locked release tools
+        uses: tox-dev/github-workflows/install-locked-tools@259a3d3fb578d00517ffb73341fdd463259b0b2f # 6.0.1
+        with:
+          groups: release-wheel
+          venv: ${{ runner.temp }}/release-tools
+      - name: 📦 Export hashed build constraints
+        id: constraints
+        uses: tox-dev/github-workflows/export-build-constraints@259a3d3fb578d00517ffb73341fdd463259b0b2f # 6.0.1
+        with:
+          lock: pylock.build.toml
+          target-platform: ${{ matrix.platform.lock_platform }}
+          targets: ${{ matrix.targets }}
+      - name: ⚙️ Stage build constraints for cibuildwheel
+        shell: bash
+        env:
+          CONSTRAINTS_PATH: ${{ steps.constraints.outputs.path }}
+        run: cp "$CONSTRAINTS_PATH" .release-build-constraints.txt
+      - name: 🏗️ Build wheels
         uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
         env:
           CIBW_ARCHS: ${{ matrix.platform.arch }}
+          CIBW_BUILD_FRONTEND: "uv; args: --build-constraint .release-build-constraints.txt --require-hashes"
+          UV_PYTHON: ""
           # Install the toolchain and its components up front. Left to rust-toolchain.toml, the first cargo
           # call in each container provisions them on demand, which races and conflicts on the cargo-clippy
           # hardlink on aarch64.
-          CIBW_BEFORE_ALL_LINUX: >-
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal ${{ steps.rust.outputs.flags }}
+          CIBW_BEFORE_ALL_LINUX: |-
+            if [ -f /etc/alpine-release ]; then installer=musl; else installer=gnu; fi
+            ./.release-tools/rustup-init-$installer -y --profile minimal ${{ steps.rust.outputs.flags }}
           CIBW_BUILD: ${{ matrix.identifiers || format('{0}-*', matrix.build) }}
           CIBW_ENABLE: pypy cpython-prerelease
           # The Linux builds run as root in a container over a checkout owned by the runner user, and git
           # refuses to read the tags there, so the runner resolves the version once for every build.
-          CIBW_ENVIRONMENT: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }}
+          CIBW_ENVIRONMENT: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PIPDEPTREE_ABI3=${{ (matrix.build == 'cp315' || matrix.build == 'gil') && '1' || '0' }} UV_EXCLUDE_NEWER="1 week"
           # musl targets default to a static CRT, which makes Cargo drop the cdylib crate type
-          CIBW_ENVIRONMENT_LINUX: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
+          CIBW_ENVIRONMENT_LINUX: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PIPDEPTREE_ABI3=${{ matrix.build == 'cp315' && '1' || '0' }} UV_EXCLUDE_NEWER="1 week" PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
           # One target directory across the four builds leaves the dependency graph compiled after the first;
           # arm64 macOS starts at 11.0, so only the x86_64 wheels can reach back to 10.15
-          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} MACOSX_DEPLOYMENT_TARGET=${{ matrix.platform.arch == 'arm64' && '11.0' || '10.15' }} CARGO_TARGET_DIR=$HOME/cargo-target
+          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PIPDEPTREE_ABI3=${{ matrix.build == 'gil' && '1' || '0' }} UV_EXCLUDE_NEWER="1 week" MACOSX_DEPLOYMENT_TARGET=${{ matrix.platform.arch == 'arm64' && '11.0' || '10.15' }} CARGO_TARGET_DIR=$HOME/cargo-target
           CIBW_TEST_COMMAND: pipdeptree --version
         with:
           output-dir: dist
-      - name: Set the stable ABI minimum
+      - name: 🏗️ Set the stable ABI minimum
         shell: bash
         run: |
           # meson-python tags abi3 wheels with the build interpreter rather than the PyO3 ABI floor.
           shopt -s nullglob
           wheels=(dist/*-abi3-*.whl)
           if ((${#wheels[@]})); then
-            uvx --python 3.15 --from wheel wheel tags --python-tag cp311 --remove "${wheels[@]}"
+            if [[ "$RUNNER_OS" == Windows ]]; then
+              wheel="$RUNNER_TEMP/release-tools/Scripts/wheel.exe"
+            else
+              wheel="$RUNNER_TEMP/release-tools/bin/wheel"
+            fi
+            "$wheel" tags --python-tag cp311 --remove "${wheels[@]}"
           fi
-      - name: Store wheels
+      - name: 📤 Store wheels
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dists-${{ matrix.platform.os }}-${{ matrix.build }}
           path: dist/*
   sdist:
+    name: 🏗️ sdist
     runs-on: ubuntu-26.04
+    env:
+      UV_EXCLUDE_NEWER: "1 week"
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 📥 Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # The build reads the version off the tags.
           persist-credentials: false
-      - name: Install uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: ⚙️ Set stable build timestamp
+        run: git log -1 --format='SOURCE_DATE_EPOCH=%ct' "$GITHUB_SHA^{commit}" >> "$GITHUB_ENV"
+      - name: 🐍 Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
+          version: latest-known
           python-version: "3.15"
           enable-cache: false
-      - name: Build source distribution
-        run: uv build --sdist --out-dir dist
-      - name: Store source distribution
+      - name: 📦 Install locked release tools
+        uses: tox-dev/github-workflows/install-locked-tools@259a3d3fb578d00517ffb73341fdd463259b0b2f # 6.0.1
+        with:
+          groups: release-notes
+          venv: ${{ runner.temp }}/release-tools
+      - name: 📦 Export hashed build constraints
+        id: constraints
+        uses: tox-dev/github-workflows/export-build-constraints@259a3d3fb578d00517ffb73341fdd463259b0b2f # 6.0.1
+        with:
+          lock: pylock.build.toml
+          target-platform: linux_x86_64
+          targets: 3.15.0:cpython
+      - name: 🏗️ Build source distribution
+        env:
+          CONSTRAINTS_PATH: ${{ steps.constraints.outputs.path }}
+        run: |
+          uv build --sdist --python 3.15 --out-dir dist \
+            --build-constraints "$CONSTRAINTS_PATH" --require-build-hashes
+      - name: 📤 Store source distribution
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dists-sdist

@@ -31,6 +31,8 @@ intersphinx_mapping = {
 }
 
 autosectionlabel_prefix_document = True
+# Release categories repeat across versions and have explicit per-release targets.
+autosectionlabel_maxdepth = 1
 
 templates_path = []
 unused_docs = []
