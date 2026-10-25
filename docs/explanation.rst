@@ -71,7 +71,9 @@ from-index: resolving from an index instead of inspecting
 
 The default command reads the selected environment's package metadata. Installed distributions have a
 ``METADATA`` or ``PKG-INFO`` file and may have real files on disk, so pipdeptree can report versions, dependencies,
-licenses, requested metadata fields and on-disk size.
+licenses, requested metadata fields and on-disk size. Dependency version lookup does not import modules from the
+inspected environment. Dependencies without distribution metadata appear with an unknown installed version (``?``)
+and are reported as missing, even if an importable module defines ``__version__``.
 
 The ``from-index`` subcommand calculates a tree before installation. It hands requirements to the bundled index
 resolver, which runs a PubGrub solve against a package index and picks a consistent set of versions without downloading
