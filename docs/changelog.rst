@@ -6,6 +6,21 @@
 
 .. towncrier release notes start
 
+.. _release-4-2-10:
+
+*********************
+ 4.2.10 (2026-10-27)
+*********************
+
+.. _release-4-2-10-fixed:
+
+Fixed
+-----
+
+- Remove the module import fallback for dependency versions. Dependencies without distribution metadata now report an
+  unknown version and are treated as missing across environment scans, lock inputs and the Python API (:pr:`743`) by
+  :user:`kemzeb`.
+
 .. _release-4-2-9:
 
 ********************
