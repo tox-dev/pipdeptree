@@ -63,6 +63,7 @@ towncrier_draft_working_directory = Path(__file__).parent.parent
 extlinks = {
     "issue": ("https://github.com/tox-dev/pipdeptree/issues/%s", "#%s"),
     "pull": ("https://github.com/tox-dev/pipdeptree/pull/%s", "PR #%s"),
+    "pr": ("https://github.com/tox-dev/pipdeptree/pull/%s", "PR #%s"),
     "user": ("https://github.com/%s", "@%s"),
     "pypi": ("https://pypi.org/project/%s", "%s"),
 }
