@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import py_compile
 import sys
 from typing import TYPE_CHECKING, cast
 
@@ -33,6 +34,41 @@ if TYPE_CHECKING:
 )
 def test_render_formats(output_format: str, expected: str) -> None:
     assert expected in pipdeptree.render(packages="pipdeptree", output_format=output_format)
+
+
+@pytest.mark.parametrize("output_format", ["text", "json", "json-tree", "cyclonedx-json", "mermaid", "dot"])
+@pytest.mark.parametrize("module_kind", ["source", "package", "bytecode"])
+def test_render_ignores_module_versions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    output_format: str,
+    module_kind: str,
+) -> None:
+    metadata = tmp_path / "root-1.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text("Name: root\nVersion: 1\nRequires-Dist: fallbackdemo>=2\n")
+    marker = tmp_path / "imported"
+    source = tmp_path / "fallbackdemo.py"
+    if module_kind == "package":
+        package = tmp_path / "fallbackdemo"
+        package.mkdir()
+        source = package / "__init__.py"
+    source.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('imported')\n__version__ = '2.0'\n")
+    if module_kind == "bytecode":
+        py_compile.compile(str(source), cfile=str(tmp_path / "fallbackdemo.pyc"), doraise=True)
+        source.unlink()
+    monkeypatch.setattr(sys, "path", [str(tmp_path)])
+
+    result = pipdeptree.render(output_format=output_format)
+
+    assert not marker.exists()
+    assert "2.0" not in result
+    assert "fallbackdemo" in result
+    if output_format == "text":
+        assert "installed: ?" in result
+        with pytest.raises(ValueError, match="fallbackdemo"):
+            pipdeptree.render(warn="fail")
+        assert not marker.exists()
 
 
 def test_render_text_notebook_bundle() -> None:

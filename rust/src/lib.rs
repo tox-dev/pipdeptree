@@ -326,15 +326,10 @@ fn prepare_graph(
             .apply_filters(&filter_spec)
             .map_err(|error| filter_failure(&error, ctx, stderr, warned))
     };
-    // Warnings cover the whole environment, so filters wait for them; with warnings silenced,
-    // filtering first keeps version resolution (and its module-import fallback) away from
-    // packages that never render.
+    // Warnings cover the whole environment, so filters wait for them.
     if ctx.warning_mode == WarningMode::Silence {
         filtered(&mut graph, stderr.clone(), warned)?;
     }
-    graph
-        .resolve_missing_versions(py, &runtime.paths)
-        .map_err(|error| failure(1, format!("{stderr}{error}\n")))?;
     if ctx.warning_mode != WarningMode::Silence {
         graph.validate();
         for warning in &graph.warnings {

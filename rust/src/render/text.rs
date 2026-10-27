@@ -45,7 +45,7 @@ pub(super) fn render(
                     renderer.walk_reverse(index, None, "", 0);
                 }
                 ReverseRoot::Missing { name, parents } => {
-                    let version = graph.missing_version(name);
+                    let version = "?";
                     renderer.lines.push(if style == TextStyle::Rich && color {
                         rich_text::root(name, version, "")
                     } else {

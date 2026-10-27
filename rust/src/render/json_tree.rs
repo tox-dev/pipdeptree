@@ -72,7 +72,7 @@ fn forward_tree_json(
     let mut dependencies = Vec::new();
     for dependency in children {
         let Some(target) = dependency.target else {
-            dependencies.push(missing_dependency_json(graph, dependency, options));
+            dependencies.push(missing_dependency_json(dependency, options));
             continue;
         };
         if !path.contains(&target) {
@@ -129,7 +129,7 @@ fn reverse_tree_json(
     value
 }
 
-fn missing_dependency_json(graph: &Graph, dependency: &Dependency, options: &Options) -> Value {
+fn missing_dependency_json(dependency: &Dependency, options: &Options) -> Value {
     let name = dependency.key();
     let mut object = Map::from_iter([
         ("key".to_string(), Value::String(name.to_string())),
@@ -141,7 +141,7 @@ fn missing_dependency_json(graph: &Graph, dependency: &Dependency, options: &Opt
                 "installed_version"
             }
             .to_string(),
-            Value::String(graph.missing_version(name).to_string()),
+            Value::String("?".to_string()),
         ),
     ]);
     add_requirement_json(&mut object, dependency, options);
@@ -165,13 +165,13 @@ fn missing_reverse_json(
                 "installed_version"
             }
             .to_string(),
-            Value::String(graph.missing_version(name).to_string()),
+            Value::String("?".to_string()),
         ),
     ]);
     if !options.resolved() {
         object.insert(
             "required_version".to_string(),
-            Value::String(graph.missing_version(name).to_string()),
+            Value::String("?".to_string()),
         );
     }
     // Optional dependencies without an installed target never render, so missing reverse

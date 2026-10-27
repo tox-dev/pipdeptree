@@ -16,7 +16,6 @@ use crate::options::ExtrasMode;
 
 mod extras;
 mod filter;
-mod version;
 
 pub use filter::FilterSpec;
 
@@ -56,7 +55,6 @@ pub struct Graph {
     pub visible: Vec<bool>,
     pub global_extras: HashMap<usize, BTreeSet<String>>,
     requested_extras: HashMap<usize, BTreeSet<String>>,
-    missing_versions: HashMap<String, String>,
     expanded: OnceLock<Vec<Vec<usize>>>,
     reverse_edges: OnceLock<Vec<Vec<(usize, usize)>>>,
     cycles: OnceLock<Vec<Vec<usize>>>,
@@ -133,28 +131,21 @@ impl Dependency {
     }
 
     pub fn is_conflicting(&self, graph: &Graph) -> bool {
-        let Some(installed) = self.installed_version(graph) else {
+        let Some(target) = self.target else {
             return true;
         };
         let Some(VersionOrUrl::VersionSpecifier(specifiers)) = &self.requirement.version_or_url
         else {
             return false;
         };
-        self.target.map_or_else(
-            || Version::from_str(installed).map_or(true, |version| !specifiers.contains(&version)),
-            |target| {
-                graph
-                    .parsed_version(target)
-                    .is_none_or(|version| !specifiers.contains(version))
-            },
-        )
+        graph
+            .parsed_version(target)
+            .is_none_or(|version| !specifiers.contains(version))
     }
 
     pub fn installed_version<'a>(&self, graph: &'a Graph) -> Option<&'a str> {
-        self.target.map_or_else(
-            || graph.missing_versions.get(self.key()).map(String::as_str),
-            |target| Some(graph.nodes[target].package.version.as_str()),
-        )
+        self.target
+            .map(|target| graph.nodes[target].package.version.as_str())
     }
 }
 
@@ -186,7 +177,6 @@ impl Graph {
             nodes,
             global_extras: HashMap::default(),
             requested_extras: HashMap::default(),
-            missing_versions: HashMap::default(),
             expanded: OnceLock::new(),
             reverse_edges: OnceLock::new(),
             cycles: OnceLock::new(),
@@ -479,10 +469,6 @@ impl Graph {
         self.expanded_children_cache()[index]
             .iter()
             .filter_map(move |slot| self.nodes[index].dependencies[*slot].target)
-    }
-
-    pub fn missing_version(&self, name: &str) -> &str {
-        self.missing_versions.get(name).map_or("?", String::as_str)
     }
 
     pub fn roots(&self, reverse: bool, list_all: bool) -> Vec<usize> {

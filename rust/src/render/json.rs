@@ -66,7 +66,6 @@ impl Serialize for JsonMissingEntry<'_> {
         S: Serializer,
     {
         let package = MissingPackage {
-            graph: self.graph,
             options: self.options,
             name: self.name,
         };
@@ -88,7 +87,6 @@ impl Serialize for JsonMissingEntry<'_> {
 }
 
 struct MissingPackage<'a> {
-    graph: &'a Graph,
     options: &'a Options,
     name: &'a str,
 }
@@ -106,7 +104,7 @@ impl Serialize for MissingPackage<'_> {
         };
         object.serialize_entry("key", self.name)?;
         object.serialize_entry("package_name", self.name)?;
-        object.serialize_entry(version_key, self.graph.missing_version(self.name))?;
+        object.serialize_entry(version_key, "?")?;
         object.end()
     }
 }
