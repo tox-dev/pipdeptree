@@ -66,7 +66,7 @@ For the full documentation, visit [pipdeptree.readthedocs.io](https://pipdeptree
 
 - [Installation](https://pipdeptree.readthedocs.io/en/latest/tutorial/getting-started.html)
 - [Usage](https://pipdeptree.readthedocs.io/en/latest/how-to/usage.html)
-- [Changelog](https://github.com/tox-dev/pipdeptree/releases)
+- [Changelog](https://pipdeptree.readthedocs.io/en/latest/changelog.html)
 - [Issues](https://github.com/tox-dev/pipdeptree/issues)
 - [PyPI](https://pypi.org/project/pipdeptree)
 - [GitHub](https://github.com/tox-dev/pipdeptree)

@@ -1,21 +1,24 @@
 [build-system]
 build-backend = "mesonpy"
 requires = [
+  "hatch-fancy-pypi-readme>=23.2",
   "meson>=1.12.1",
   "meson-python>=0.22.1",
   "ninja>=1.13.2",
+  "patchelf>=0.11; sys_platform=='linux'",
+  "scikit-build-core>=0.10",
+  "setuptools-scm",
 ]
 
 [project]
 name = "pipdeptree"
+import-names = [ "pipdeptree" ]
 description = "Command line utility to show dependency tree of packages."
 readme = "README.md"
 keywords = [
-  "application",
-  "cache",
-  "directory",
-  "log",
-  "user",
+  "dependencies",
+  "dependency-tree",
+  "packages",
 ]
 license = "MIT"
 license-files = [
@@ -61,6 +64,7 @@ test = [
   "diff-cover>=10.6",
   "pytest>=9.1.1",
   "pytest-cov>=7.1",
+  "pytest-mock>=3.15",
 ]
 docs = [
   "furo>=2025.12.19",
@@ -72,16 +76,47 @@ docs = [
   "sphinxcontrib-towncrier>=0.5.0a0",
   "towncrier>=26.9",
 ]
+build = [
+  "cython>=3",
+  "hatch-fancy-pypi-readme>=23.2",
+  "meson>=1.12.1",
+  "meson-python>=0.22.1",
+  "ninja>=1.13.2",
+  "patchelf>=0.11; sys_platform=='linux'",
+  "scikit-build-core>=0.10",
+  "setuptools>=80",
+  "setuptools-scm",
+]
+release-news = [
+  "release-creator>=4.1",
+  "towncrier>=26.9",
+]
+release-notes = [
+  "release-creator>=4.1",
+]
+release-prepare = [
+  "prek>=0.5",
+  "release-creator>=4.1",
+  "towncrier>=26.9",
+]
+release-preview = [
+  "uv>=0.12.22",
+  { include-group = "release-prepare" },
+]
+release-wheel = [
+  "release-creator>=4.1",
+  "wheel>=0.46",
+]
 
 [tool.meson-python]
 limited-api = true
 
-[tool.cibuildwheel]
-overrides = [
-  # The limited API is off by default so every source build works; the single GIL wheel opts back in to ship
-  # one abi3 wheel across CPython versions.
-  { select = "cp315-*", config-settings.setup-args = "-Dpython.allow_limited_api=true" },
-]
+[tool.uv]
+dependency-groups.docs = { requires-python = ">=3.12" }
+dependency-groups.release-news = { requires-python = ">=3.15" }
+dependency-groups.release-notes = { requires-python = ">=3.15" }
+dependency-groups.release-prepare = { requires-python = ">=3.15" }
+dependency-groups.release-wheel = { requires-python = ">=3.15" }
 
 [tool.ruff]
 line-length = 120
@@ -160,11 +195,42 @@ directory = "docs/changelog"
 filename = "docs/changelog.rst"
 template = "docs/changelog/template.jinja2"
 title_format = false
-issue_format = ":issue:`{issue}`"
+issue_format = ""
 type = [
-  { directory = "breaking", name = "Backward incompatible changes", showcontent = true },
-  { directory = "feature", name = "Features", showcontent = true },
-  { directory = "bugfix", name = "Bug fixes", showcontent = true },
-  { directory = "doc", name = "Improved documentation", showcontent = true },
-  { directory = "packaging", name = "Packaging updates", showcontent = true },
+  { directory = "feature", name = "Added", showcontent = true },
+  { directory = "change", name = "Changes", showcontent = true },
+  { directory = "bugfix", name = "Fixed", showcontent = true },
+  { directory = "doc", name = "Documentation", showcontent = true },
+  { directory = "security", name = "Security", showcontent = true },
+  { directory = "performance", name = "Performance", showcontent = true },
+  { directory = "deprecation", name = "Deprecated", showcontent = true },
+  { directory = "removal", name = "Removed", showcontent = true },
+  { directory = "breaking", name = "Breaking changes", showcontent = true },
+  { directory = "packaging", name = "Packaging", showcontent = true },
 ]
+
+[tool.nab]
+mode = "universal"
+base-group = "project-runtime"
+default-groups = []
+uploaded-prior-to = "P7D"
+decision-order = "stable"
+matrix.python = ">=3.15,<3.16"
+matrix.platforms = [
+  "linux_x86_64",
+  "linux_aarch64",
+  "macos_x86_64",
+  "macos_arm64",
+  "windows_amd64",
+  "windows_arm64",
+]
+matrix.overrides.implementations.pypy.python = "==3.11"
+matrix.overrides.implementations.pypy.platforms = [
+  "linux_x86_64",
+  "linux_aarch64",
+  "macos_x86_64",
+  "macos_arm64",
+  "windows_amd64"
+]
+# temporary, delete after 2026-11-02
+packages.release-creator.uploaded-prior-to = 2026-10-26T18:24:46Z
