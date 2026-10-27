@@ -40,7 +40,7 @@ pyo3 = { version = "0.30.1", features = ["generate-import-lib"] }
 
 [dev-dependencies]
 mockall = "0.15.0"
-rstest = "0.27.0"
+rstest = "0.28.0"
 temp-env = "0.3.6"
 
 [features]
