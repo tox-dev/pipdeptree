@@ -1,53 +1,34 @@
 version: 2
-updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+multi-ecosystem-groups:
+  dependencies:
+    schedule:
+      interval: weekly
+      day: tuesday
     labels:
       - dependencies
-      - github_actions
       - skip news
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    patterns:
+      - '*'
+    multi-ecosystem-group: dependencies
     cooldown:
       default-days: 7
-  - package-ecosystem: "cargo"
-    directory: "/"
-    labels:
-      - dependencies
-      - skip news
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "14:00"
-    groups:
-      cargo:
-        patterns:
-          - "*"
-  - package-ecosystem: "rust-toolchain"
-    directory: "/"
-    labels:
-      - dependencies
-      - skip news
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "14:00"
-    groups:
-      rust-toolchain:
-        patterns:
-          - "*"
-  - package-ecosystem: "pre-commit"
-    directory: "/"
-    labels:
-      - dependencies
-      - skip news
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
+  - package-ecosystem: cargo
+    directory: /
+    patterns:
+      - '*'
+    multi-ecosystem-group: dependencies
+  - package-ecosystem: rust-toolchain
+    directory: /
+    patterns:
+      - '*'
+    multi-ecosystem-group: dependencies
+  - package-ecosystem: pre-commit
+    directory: /
+    patterns:
+      - '*'
+    multi-ecosystem-group: dependencies
     cooldown:
       default-days: 7
