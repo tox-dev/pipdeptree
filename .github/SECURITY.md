@@ -45,6 +45,8 @@ open and publish no advisory. Classify by who supplies the dangerous input, not 
 - Unbounded allocation or recursion from long fields, many packages, duplicate records or deep cycles.
 - `from-index` sending requests to a host other than the configured indexes, or leaking index credentials into output.
 - Rendering that runs anything other than the Graphviz `dot` binary, or passes it more than the DOT text.
+- Code or package metadata from the working directory, or from files another local user can write, being run or reported
+  as installed.
 
 **Out of scope**
 
