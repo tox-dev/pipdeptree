@@ -1,8 +1,9 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rstest::{fixture, rstest};
 use serde_json::{Value, json};
+use tempfile::TempDir;
 
 use super::common::{PackageSite, execute, execute_in, execute_with_python, stdout, with_python};
 
@@ -116,17 +117,16 @@ fn counts_record_rows_inside_the_installation_prefix(
     );
 }
 
-#[test]
-fn ignores_absolute_record_rows_outside_the_site() {
+#[rstest]
+fn ignores_absolute_record_rows_outside_the_site(outside_file: (TempDir, PathBuf)) {
+    let (_outside, file) = outside_file;
     let site = PackageSite::new();
-    let outside = tempfile::tempdir().unwrap();
-    let file = outside.path().join("secret");
-    fs::write(&file, "x".repeat(100)).unwrap();
     site.write_file("demo.py", "data");
 
-    let record = format!("demo.py,,\n{},,\n", file.display());
-
-    assert_eq!(sized_distribution(site.path(), &record), json!(4));
+    assert_eq!(
+        sized_distribution(site.path(), &format!("demo.py,,\n{},,\n", file.display())),
+        json!(4)
+    );
 }
 
 #[test]
@@ -142,12 +142,10 @@ fn ignores_record_rows_that_are_not_regular_files() {
 }
 
 #[cfg(unix)]
-#[test]
-fn ignores_record_rows_linked_outside_the_site() {
+#[rstest]
+fn ignores_record_rows_linked_outside_the_site(outside_file: (TempDir, PathBuf)) {
+    let (_outside, file) = outside_file;
     let site = PackageSite::new();
-    let outside = tempfile::tempdir().unwrap();
-    let file = outside.path().join("secret");
-    fs::write(&file, "x".repeat(100)).unwrap();
     site.write_file("demo.py", "data");
     std::os::unix::fs::symlink(&file, site.path().join("link.py")).unwrap();
 
@@ -186,6 +184,14 @@ fn counts_files_of_a_distribution_linked_into_the_site() {
     .unwrap();
 
     assert_eq!(size_raw(&site), json!(8));
+}
+
+#[fixture]
+fn outside_file() -> (TempDir, PathBuf) {
+    let directory = tempfile::tempdir().unwrap();
+    let file = directory.path().join("secret");
+    fs::write(&file, "x".repeat(100)).unwrap();
+    (directory, file)
 }
 
 fn sized_distribution(site: &Path, record: &str) -> Value {
