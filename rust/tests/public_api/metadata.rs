@@ -380,7 +380,7 @@ fn replaces_control_characters_in_header_values() {
     let site = PackageSite::new();
     site.write(
         "hostile-1.dist-info",
-        "Name: hostile\x1b[2K\nVersion: 1.0\x1b]52;c;QUJD\x07\nLicense-Expression: MIT\r\x00\u{9b}\n",
+        "Name: hostile\x1b[2K\nVersion: 1.0\x1b]52;c;QUJD\x07\nLicense-Expression: MIT\r\x00\n \u{9b}\n",
     );
 
     let output = execute_in(&site, &["--license"]);
@@ -389,7 +389,7 @@ fn replaces_control_characters_in_header_values() {
         (output.code, stdout(&output), output.stderr.as_str()),
         (
             0,
-            "hostile\u{fffd}[2K==1.0\u{fffd}]52;c;QUJD\u{fffd} (MIT\u{fffd}\u{fffd}\u{fffd} License)\n",
+            "hostile\u{fffd}[2K==1.0\u{fffd}]52;c;QUJD\u{fffd} (MIT\u{fffd}\u{fffd} \u{fffd} License)\n",
             ""
         )
     );
