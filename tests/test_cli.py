@@ -277,23 +277,6 @@ def test_cli_index_empty_project(
     assert (code, json.loads(captured.out), captured.err) == (0, [], "")
 
 
-def _write_dynamic_project(directory: Path, name: str, marker: Path) -> None:
-    directory.mkdir()
-    (directory / "pyproject.toml").write_text(
-        '[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["."]\n'
-        f'[project]\nname = "{name}"\nversion = "1"\ndynamic = ["dependencies"]\n'
-    )
-    (directory / "PKG-INFO").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: 1\n")
-    (directory / "backend.py").write_text(
-        f"import os\nopen({str(marker)!r}, 'w').close()\n"
-        "def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):\n"
-        f"    os.mkdir(os.path.join(metadata_directory, '{name}-1.dist-info'))\n"
-        f"    with open(os.path.join(metadata_directory, '{name}-1.dist-info', 'METADATA'), 'w') as metadata:\n"
-        f"        metadata.write('Metadata-Version: 2.1\\nName: {name}\\nVersion: 1\\n')\n"
-        f"    return '{name}-1.dist-info'\n"
-    )
-
-
 def test_cli_index_local_source_leaves_index_sdist_unbuilt(
     entry_point: Callable[[Sequence[str] | None], int | None],
     tmp_path: Path,
@@ -329,6 +312,23 @@ def test_cli_index_builds_dynamic_local_source(
     code: Final = entry_point(["from-index", str(tmp_path / "local"), "--index-url", (tmp_path / "index").as_uri()])
 
     assert (code, capsys.readouterr().out) == (0, "local==1\n")
+
+
+def _write_dynamic_project(directory: Path, name: str, marker: Path) -> None:
+    directory.mkdir()
+    (directory / "pyproject.toml").write_text(
+        '[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["."]\n'
+        f'[project]\nname = "{name}"\nversion = "1"\ndynamic = ["dependencies"]\n'
+    )
+    (directory / "PKG-INFO").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: 1\n")
+    (directory / "backend.py").write_text(
+        f"import os\nopen({str(marker)!r}, 'w').close()\n"
+        "def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):\n"
+        f"    os.mkdir(os.path.join(metadata_directory, '{name}-1.dist-info'))\n"
+        f"    with open(os.path.join(metadata_directory, '{name}-1.dist-info', 'METADATA'), 'w') as metadata:\n"
+        f"        metadata.write('Metadata-Version: 2.1\\nName: {name}\\nVersion: 1\\n')\n"
+        f"    return '{name}-1.dist-info'\n"
+    )
 
 
 def test_module_entrypoint(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
