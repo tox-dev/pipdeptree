@@ -217,7 +217,10 @@ json-tree
 mermaid
 -------
 
-`Mermaid <https://mermaid.js.org>`_ flowchart diagram:
+`Mermaid <https://mermaid.js.org>`_ flowchart diagram. Quotes, ``#``, ``&``, ``<``, ``>``, backticks and control
+characters in node labels appear as `entity codes
+<https://mermaid.js.org/syntax/flowchart.html#entity-codes-to-escape-characters>`_ such as ``#34;``, and a package whose
+name is not a valid canonical name gets a ``package_<n>`` node id:
 
 .. code-block:: console
 
