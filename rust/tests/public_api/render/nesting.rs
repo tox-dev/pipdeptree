@@ -7,7 +7,8 @@ use super::{lock_file, path};
 
 const LIMIT_MESSAGE: &str = "dependency tree nests deeper than 500 levels";
 
-fn chain_lock(packages: usize, closed: bool) -> String {
+// Each package requires the next one; the last requires `tail` when given.
+fn chain_lock(packages: usize, tail: Option<&str>) -> String {
     let mut content = String::from("lock-version = '1.0'\n");
     for position in 0..packages {
         write!(
@@ -16,10 +17,10 @@ fn chain_lock(packages: usize, closed: bool) -> String {
         )
         .unwrap();
         if let Some(next) = (position + 1 < packages)
-            .then_some(position + 1)
-            .or_else(|| closed.then_some(0))
+            .then(|| format!("p{:05}", position + 1))
+            .or_else(|| tail.map(str::to_string))
         {
-            writeln!(content, "dependencies = [{{ name = 'p{next:05}' }}]").unwrap();
+            writeln!(content, "dependencies = [{{ name = '{next}' }}]").unwrap();
         }
     }
     content
@@ -38,7 +39,30 @@ fn bounds_tree_nesting(
     #[case] args: &[&str],
     #[values((501, 0), (502, 1))] (packages, code): (usize, i32),
 ) {
-    let (_directory, lock) = lock_file(&chain_lock(packages, false));
+    let (_directory, lock) = lock_file(&chain_lock(packages, None));
+
+    let output = execute(
+        &args
+            .iter()
+            .copied()
+            .chain(["--warn", "silence", "from-lock", path(&lock)])
+            .collect::<Vec<_>>(),
+    );
+
+    assert_eq!(
+        (output.code, output.stderr.contains(LIMIT_MESSAGE)),
+        (code, code == 1)
+    );
+}
+
+#[rstest]
+#[case::text(&["--reverse"])]
+#[case::json_tree(&["--json-tree", "--reverse"])]
+fn bounds_tree_nesting_below_missing_roots(
+    #[case] args: &[&str],
+    #[values((500, 0), (501, 1))] (packages, code): (usize, i32),
+) {
+    let (_directory, lock) = lock_file(&chain_lock(packages, Some("ghost")));
 
     let output = execute(
         &args
@@ -56,7 +80,7 @@ fn bounds_tree_nesting(
 
 #[test]
 fn renders_deep_chains_within_requested_depth() {
-    let (_directory, lock) = lock_file(&chain_lock(2_000, false));
+    let (_directory, lock) = lock_file(&chain_lock(2_000, None));
 
     let output = execute(&["--depth", "2", "from-lock", path(&lock)]);
 
@@ -72,7 +96,7 @@ fn renders_deep_chains_within_requested_depth() {
 
 #[test]
 fn reports_cycles_spanning_every_package() {
-    let (_directory, lock) = lock_file(&chain_lock(50_000, true));
+    let (_directory, lock) = lock_file(&chain_lock(50_000, Some("p00000")));
 
     let output = execute(&["--depth", "0", "from-lock", path(&lock)]);
 

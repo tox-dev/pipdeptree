@@ -17,7 +17,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<String, Error> 
             .into_iter()
             .map(|root| match root {
                 ReverseRoot::Installed(index) => {
-                    reverse_tree_json(graph, index, None, None, &mut HashSet::new(), options)
+                    reverse_tree_json(graph, index, None, None, 0, &mut HashSet::new(), options)
                 }
                 ReverseRoot::Missing { name, parents } => {
                     missing_reverse_json(graph, name, &parents, options)
@@ -34,6 +34,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<String, Error> 
                     root,
                     None,
                     &BTreeSet::new(),
+                    0,
                     &mut HashSet::new(),
                     options,
                 )
@@ -54,10 +55,11 @@ fn forward_tree_json(
     index: usize,
     incoming: Option<&Dependency>,
     extras: &BTreeSet<String>,
+    level: usize,
     path: &mut HashSet<usize>,
     options: &Options,
 ) -> Result<Value, Error> {
-    check_tree_depth(path.len())?;
+    check_tree_depth(level)?;
     path.insert(index);
     let mut value = incoming.map_or_else(
         || package_json(graph, index, options),
@@ -83,6 +85,7 @@ fn forward_tree_json(
                 target,
                 Some(dependency),
                 &dependency.requested_extras(),
+                level + 1,
                 path,
                 options,
             )?);
@@ -98,10 +101,11 @@ fn reverse_tree_json(
     index: usize,
     incoming: Option<&Dependency>,
     required_extras: Option<&BTreeSet<String>>,
+    level: usize,
     path: &mut HashSet<usize>,
     options: &Options,
 ) -> Result<Value, Error> {
-    check_tree_depth(path.len())?;
+    check_tree_depth(level)?;
     path.insert(index);
     let mut value = package_json(graph, index, options);
     if let Some(dependency) = incoming {
@@ -122,6 +126,7 @@ fn reverse_tree_json(
                 parent,
                 Some(dependency),
                 required_extras.as_ref(),
+                level + 1,
                 path,
                 options,
             )?);
@@ -187,6 +192,7 @@ fn missing_reverse_json(
                 *parent,
                 Some(dependency),
                 None,
+                1,
                 &mut HashSet::new(),
                 options,
             )
