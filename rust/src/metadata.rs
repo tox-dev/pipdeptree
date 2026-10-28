@@ -493,7 +493,8 @@ fn classify(
     let kind = fs::metadata(entry).ok()?.file_type();
     let name = entry.file_name()?.to_string_lossy();
     if kind.is_file() && name.ends_with(".egg-link") {
-        return Some(Found::EggLink(search, entry.to_path_buf()));
+        // Its first line reaches the freeze output, so a linked egg-link could print any readable file.
+        return (!entry.is_symlink()).then(|| Found::EggLink(search, entry.to_path_buf()));
     }
     let (metadata_file, package_metadata_dir) = if kind.is_dir() && name.ends_with(".dist-info") {
         (entry.join("METADATA"), entry.to_path_buf())

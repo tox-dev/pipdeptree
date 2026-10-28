@@ -673,6 +673,27 @@ fn ignores_empty_legacy_editable_links() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn ignores_symlinked_legacy_editable_links() {
+    let site = PackageSite::new();
+    site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join("file"), "first line\n").unwrap();
+    std::os::unix::fs::symlink(
+        outside.path().join("file"),
+        site.path().join("demo.egg-link"),
+    )
+    .unwrap();
+
+    let output = execute_in(&site, &["--freeze"]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, "demo==1\n", "")
+    );
+}
+
 fn visible_names(output: &_pipdeptree::Execution) -> Vec<String> {
     serde_json::from_slice::<Vec<Value>>(&output.stdout)
         .unwrap()
