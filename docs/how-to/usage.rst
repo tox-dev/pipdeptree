@@ -566,6 +566,9 @@ pipdeptree reports the parse error for an invalid package entry:
     $ pipdeptree from-lock pylock.toml
     package is missing 'name'
 
+A package ``name`` or ``version`` longer than 255 bytes is rejected the same way, for example with ``package 'name' is
+longer than 255 bytes``.
+
 Filtering packages
 ------------------
 

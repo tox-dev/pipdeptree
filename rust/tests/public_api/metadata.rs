@@ -140,6 +140,34 @@ fn discovers_metadata_forms(metadata_sites: (PackageSite, PackageSite)) {
 }
 
 #[rstest]
+#[case::name_at_limit(255, 255, true)]
+#[case::name_over_limit(256, 1, false)]
+#[case::version_over_limit(1, 256, false)]
+fn limits_metadata_name_and_version_length(
+    #[case] name: usize,
+    #[case] version: usize,
+    #[case] listed: bool,
+) {
+    let name = "p".repeat(name);
+    let site = PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        &format!("Name: {name}\nVersion: {}\n", "1".repeat(version)),
+    );
+
+    let output = execute(&["--path", site.path().to_str().unwrap()]);
+
+    assert_eq!(
+        (
+            output.code,
+            stdout(&output).contains(&name),
+            output.stderr.contains("missing or invalid metadata"),
+        ),
+        (0, listed, !listed)
+    );
+}
+
+#[rstest]
 #[case::suppress("suppress", 0)]
 #[case::fail("fail", 1)]
 fn reports_metadata_warnings(
