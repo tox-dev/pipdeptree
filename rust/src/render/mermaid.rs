@@ -101,9 +101,10 @@ fn mermaid_id(key: &str, ids: &mut HashMap<String, String>) -> String {
     }
     // Canonical names hold only these characters and never `_`, so a placeholder cannot collide
     // with a real key, while any other character could end the id or the statement.
-    let mut value = if key
-        .bytes()
-        .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+    let mut value = if !key.is_empty()
+        && key
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
     {
         key.to_string()
     } else {

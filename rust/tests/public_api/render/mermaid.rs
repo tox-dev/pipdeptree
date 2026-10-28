@@ -42,6 +42,7 @@ fn renders_mermaid(#[case] args: &[&str], #[case] expected: &str) {
     "Name: demo; other[forged]; demo\nVersion: 1\n",
     "    package_0[\"demo; other[forged]; demo<br/>1\"]\n"
 )]
+#[case::empty_name("Name: \nVersion: 1\n", "    package_0[\"<br/>1\"]\n")]
 fn escapes_mermaid_node(#[case] metadata: &str, #[case] expected: &str) {
     let site = PackageSite::new();
     site.write("demo-1.dist-info", metadata);
