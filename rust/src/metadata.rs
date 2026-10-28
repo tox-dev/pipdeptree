@@ -279,21 +279,71 @@ impl Package {
             .metadata_dir
             .as_ref()
             .expect("resolved package sizes are initialized at construction");
-        let record = metadata_dir.join("RECORD");
-        let root = metadata_dir.parent().unwrap_or(metadata_dir);
-        let Ok(file) = fs::File::open(record) else {
+        let site = metadata_dir.parent().unwrap_or(metadata_dir);
+        let Ok(file) = fs::File::open(metadata_dir.join("RECORD")) else {
             return 0;
         };
+        let prefixes = installation_prefixes(site, metadata_dir);
         csv::ReaderBuilder::new()
             .has_headers(false)
             .from_reader(file)
             .records()
             .filter_map(Result::ok)
-            .filter_map(|row| row.get(0).map(|path| root.join(path)))
+            .filter_map(|row| {
+                row.get(0)
+                    .and_then(|path| site.join(path).canonicalize().ok())
+            })
+            .filter(|path| prefixes.iter().any(|prefix| path.starts_with(prefix)))
             .filter_map(|path| fs::metadata(path).ok())
+            .filter(fs::Metadata::is_file)
             .map(|metadata| metadata.len())
             .sum()
     }
+}
+
+// RECORD rows come from whoever built the distribution, so a row counts only when it resolves to
+// a regular file inside the installation. pip records console scripts and data files relative to
+// the site directory (`../../../bin/demo`), so the boundary is the prefix that holds the site
+// directory. A dist-info linked in from elsewhere (Nix profiles, symlink farms) keeps its files
+// under the prefix of its real location.
+fn installation_prefixes(site: &Path, metadata_dir: &Path) -> Vec<PathBuf> {
+    [
+        site.canonicalize().ok(),
+        metadata_dir
+            .canonicalize()
+            .ok()
+            .and_then(|directory| directory.parent().map(Path::to_path_buf)),
+    ]
+    .into_iter()
+    .flatten()
+    .map(|site| installation_prefix(&site).to_path_buf())
+    .collect()
+}
+
+// lib/pythonX.Y/site-packages (POSIX, Debian dist-packages, PyPy, macOS user site),
+// Lib/site-packages (Windows) and PythonXY/site-packages (Windows user site); any other directory,
+// such as a --target install, is its own prefix.
+fn installation_prefix(site: &Path) -> &Path {
+    let [own, parent, grandparent] = [0, 1, 2].map(|level| {
+        site.ancestors()
+            .nth(level)
+            .and_then(Path::file_name)
+            .map_or_else(String::new, |name| {
+                name.to_string_lossy().to_ascii_lowercase()
+            })
+    });
+    let levels = if !matches!(own.as_str(), "site-packages" | "dist-packages") {
+        0
+    } else if (parent.starts_with("python") || parent.starts_with("pypy"))
+        && grandparent.starts_with("lib")
+    {
+        3
+    } else if parent == "lib" {
+        2
+    } else {
+        1
+    };
+    site.ancestors().nth(levels).unwrap_or(site)
 }
 
 impl Headers {
