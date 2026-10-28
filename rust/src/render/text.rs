@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 
 use crate::graph::{Dependency, Graph, ReverseRoot};
@@ -31,11 +31,13 @@ pub(super) fn render(
         color,
         unicode: is_unicode(&options.encoding),
         path: HashSet::new(),
+        expanded: HashMap::new(),
         lines: Vec::new(),
     };
     if options.reverse && style != TextStyle::Frozen {
         for root in graph.reverse_roots(options.all) {
             renderer.path.clear();
+            renderer.expanded.clear();
             match root {
                 ReverseRoot::Installed(index) => {
                     renderer
@@ -62,6 +64,7 @@ pub(super) fn render(
             .lines
             .push(root_label(processes, graph, root, style, options, color));
         renderer.path.clear();
+        renderer.expanded.clear();
         renderer.path.insert(root);
         if options.reverse {
             renderer.walk_reverse(root, None, "", 0);
@@ -80,6 +83,9 @@ struct TreeRenderer<'a> {
     color: bool,
     unicode: bool,
     path: HashSet<usize>,
+    // Subtrees already printed under the current root, keyed by package and the extras that
+    // select its edges, with the number of levels --depth left for them.
+    expanded: HashMap<(usize, Option<BTreeSet<String>>), usize>,
     lines: Vec<String>,
 }
 
@@ -101,35 +107,66 @@ impl TreeRenderer<'_> {
         let unique = (self.style == TextStyle::Rich
             && self.options.computed.iter().any(|field| field.is_unique()))
         .then(|| self.graph.unique_dependencies(parent));
-        // A child already on the path closes a cycle; the chain stops without re-printing it.
-        let children = children
-            .filter(|dependency| {
-                dependency
-                    .target
-                    .is_none_or(|target| !self.path.contains(&target))
-            })
-            .collect::<Vec<_>>();
+        let children = children.collect::<Vec<_>>();
         let count = children.len();
         for (position, dependency) in children.into_iter().enumerate() {
             let last = position + 1 == count;
+            let extras = dependency.requested_extras();
+            let repeated = dependency.target.is_some_and(|child| {
+                self.repeats(child, Some(&extras), depth + 1)
+                    && self.graph.children(child, &extras).next().is_some()
+            });
+            let label = self.dependency_label(
+                dependency,
+                dependency
+                    .target
+                    .is_some_and(|target| unique.is_some_and(|unique| unique.contains(&target))),
+            );
             self.lines.push(format!(
-                "{}{}",
+                "{}{label}{}",
                 tree_prefix(prefix, self.style, last, self.color, self.unicode),
-                self.dependency_label(
-                    dependency,
-                    dependency.target.is_some_and(|target| {
-                        unique.is_some_and(|unique| unique.contains(&target))
-                    }),
-                )
+                self.repeat_marker(repeated)
             ));
-            let Some(child) = dependency.target else {
+            let Some(child) = dependency.target.filter(|_| !repeated) else {
                 continue;
             };
             self.path.insert(child);
-            let extras = dependency.requested_extras();
             let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
             self.walk_forward(child, Some(&extras), &next_prefix, depth + 1);
             self.path.remove(&child);
+        }
+    }
+
+    // A package already on the path closes a cycle, and one printed earlier under the same root
+    // with at least as many levels left has its subtree shown already; either way the line is
+    // kept, so every edge still prints once, but the walk does not descend again. Recording the
+    // expansion here bounds each root's tree by its edges rather than its paths.
+    fn repeats(&mut self, node: usize, extras: Option<&BTreeSet<String>>, depth: usize) -> bool {
+        let Some(levels) = self.options.depth.map_or(Some(usize::MAX), |limit| {
+            limit.checked_sub(depth).filter(|levels| *levels > 0)
+        }) else {
+            return false;
+        };
+        if self.path.contains(&node) {
+            return true;
+        }
+        let key = (node, extras.cloned());
+        if self
+            .expanded
+            .get(&key)
+            .is_some_and(|shown| *shown >= levels)
+        {
+            return true;
+        }
+        self.expanded.insert(key, levels);
+        false
+    }
+
+    const fn repeat_marker(&self, repeated: bool) -> &'static str {
+        if repeated && !matches!(self.style, TextStyle::Frozen) {
+            " (*)"
+        } else {
+            ""
         }
     }
 
@@ -156,11 +193,15 @@ impl TreeRenderer<'_> {
         if self.options.depth.is_some_and(|limit| depth >= limit) {
             return;
         }
-        let mut parents = parents;
-        parents.retain(|(parent, _)| !self.path.contains(parent));
         let count = parents.len();
         for (position, (parent, dependency)) in parents.into_iter().enumerate() {
             let last = position + 1 == count;
+            let required_extras = reverse_required_extras(self.graph, parent, dependency);
+            let repeated = self.repeats(parent, required_extras.as_ref(), depth + 1)
+                && !self
+                    .graph
+                    .parents_for(parent, required_extras.as_ref())
+                    .is_empty();
             let label = reverse_label(
                 self.processes,
                 self.graph,
@@ -171,12 +212,14 @@ impl TreeRenderer<'_> {
                 self.color,
             );
             self.lines.push(format!(
-                "{}{}",
+                "{}{label}{}",
                 tree_prefix(prefix, self.style, last, self.color, self.unicode),
-                label
+                self.repeat_marker(repeated)
             ));
+            if repeated {
+                continue;
+            }
             self.path.insert(parent);
-            let required_extras = reverse_required_extras(self.graph, parent, dependency);
             let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
             self.walk_reverse(parent, required_extras.as_ref(), &next_prefix, depth + 1);
             self.path.remove(&parent);

@@ -19,6 +19,13 @@ Unicode box-drawing tree:
     ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
     └── Pygments [required: >=2.7.2, installed: 2.20.0]
 
+Each tree lists a package's dependencies once per top-level package. A later line for the same package, reached with the
+same extras, ends in ``(*)``: its dependencies appear above, under its first line. A line that closes a dependency cycle
+ends in ``(*)`` too, since the package it names is one of its own ancestors. A package without dependencies never gets
+the marker. When ``--depth`` cut the first listing short, a later line with more levels left below it lists the
+dependencies again. ``rich`` uses the same marker, and ``freeze`` keeps the line without it, so the output stays a valid
+requirements file.
+
 rich
 ----
 
@@ -213,6 +220,8 @@ json-tree
             ]
         }
     ]
+
+Where the text tree ends a line in ``(*)``, the object carries ``"repeated": true`` and an empty ``dependencies`` list.
 
 mermaid
 -------

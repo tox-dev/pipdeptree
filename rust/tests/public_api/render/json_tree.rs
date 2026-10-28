@@ -1,6 +1,7 @@
-use super::{execute, lock_file, path, render_site, text};
+use super::{crossed_cycle_site, execute, layered_site, lock_file, path, render_site, text};
 use rstest::rstest;
 use serde_json::{Value, json};
+use std::collections::BTreeSet;
 
 #[rstest]
 #[case::forward(&["--json-tree"] as &[&str])]
@@ -97,7 +98,7 @@ fn lists_missing_packages_in_reverse_json_tree() {
 }
 
 #[test]
-fn stops_reverse_json_tree_cycles() {
+fn marks_reverse_json_tree_cycles() {
     let site = super::PackageSite::new();
     site.write(
         "first-1.dist-info",
@@ -116,9 +117,18 @@ fn stops_reverse_json_tree_cycles() {
             output.code,
             &value[0]["key"],
             &value[0]["dependencies"][0]["key"],
-            &value[0]["dependencies"][0]["dependencies"][0],
+            &value[0]["dependencies"][0]["dependencies"][0]["key"],
+            &value[0]["dependencies"][0]["dependencies"][0]["repeated"],
+            &value[0]["dependencies"][0]["dependencies"][0]["dependencies"],
         ),
-        (0, &json!("first"), &json!("second"), &Value::Null)
+        (
+            0,
+            &json!("first"),
+            &json!("second"),
+            &json!("first"),
+            &json!(true),
+            &json!([])
+        )
     );
 }
 
@@ -147,5 +157,55 @@ fn lists_missing_candidates_in_resolved_reverse_json_tree() {
             &entry["dependencies"][0]["package_name"],
         ),
         (&json!("?"), &Value::Null, &json!("root"))
+    );
+}
+
+#[rstest]
+#[case::forward(&["--json-tree"] as &[&str])]
+#[case::reverse(&["--json-tree", "--reverse"])]
+fn writes_each_edge_of_a_root_once(#[case] args: &[&str]) {
+    let site = layered_site(20);
+    let output = execute(&site, args);
+
+    assert_eq!(text(&output).matches("\"key\"").count(), 1 + 20 * 19 / 2);
+}
+
+#[test]
+fn keeps_every_edge_of_a_json_tree_cycle() {
+    let site = crossed_cycle_site();
+    let output = execute(&site, &["--json-tree"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let mut edges = BTreeSet::new();
+    let mut pending = value.as_array().unwrap().iter().collect::<Vec<_>>();
+    while let Some(entry) = pending.pop() {
+        for child in entry["dependencies"].as_array().unwrap() {
+            edges.insert((
+                entry["key"].as_str().unwrap(),
+                child["key"].as_str().unwrap(),
+            ));
+            pending.push(child);
+        }
+    }
+
+    assert_eq!(
+        edges,
+        BTreeSet::from([("a", "x"), ("a", "y"), ("x", "y"), ("y", "w"), ("y", "x")])
+    );
+}
+
+#[test]
+fn marks_repeated_json_tree_subtrees() {
+    let site = crossed_cycle_site();
+    let output = execute(&site, &["--json-tree"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let repeated = &value[0]["dependencies"][1];
+
+    assert_eq!(
+        (
+            &repeated["key"],
+            &repeated["repeated"],
+            &repeated["dependencies"]
+        ),
+        (&json!("y"), &json!(true), &json!([]))
     );
 }
