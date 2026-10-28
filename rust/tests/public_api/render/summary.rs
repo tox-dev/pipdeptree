@@ -97,6 +97,21 @@ fn preserves_wrapped_summary_licenses(
 }
 
 #[rstest]
+fn renders_summary_licenses_with_unterminated_escapes(
+    #[with(&format!("\x1b] {}", "\x1b[0000000000 ".repeat(40)))] licensed_site: PackageSite,
+) {
+    let output = execute_at_width(&licensed_site, 200, "utf-8", false);
+
+    assert_eq!(
+        (
+            output.code,
+            text(&output).contains("(\u{fffd}] \u{fffd}[0000000000")
+        ),
+        (0, true)
+    );
+}
+
+#[rstest]
 fn aligns_unicode_summary_borders(
     #[with("许可证许可证许可证许可证许可证")] licensed_site: PackageSite,
 ) {

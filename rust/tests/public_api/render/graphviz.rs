@@ -1,5 +1,5 @@
 use super::super::common::MockProcesses;
-use super::{execute, execute_with, render_site, text};
+use super::{PackageSite, execute, execute_with, render_site, text};
 use _pipdeptree::{ProcessError, ProcessOutput};
 use rstest::rstest;
 
@@ -156,5 +156,21 @@ fn keeps_parentheses_in_graph_labels() {
             text(&dot).contains("GNU General Public License v3 (GPLv3+)\""),
         ),
         (true, true)
+    );
+}
+
+#[test]
+fn replaces_nul_in_graphviz_labels() {
+    let site = PackageSite::new();
+    site.write(
+        "hostile-1.dist-info",
+        "Name: hostile\nVersion: 1.0\x00\" image=<private.png>] //\n",
+    );
+
+    let output = execute(&site, &["--output", "graphviz-dot"]);
+
+    assert!(
+        text(&output)
+            .contains("hostile [label=\"hostile\\n1.0\u{fffd}\\\" image=<private.png>] //\"]")
     );
 }

@@ -376,6 +376,26 @@ fn freezes_arbitrary_versions() {
 }
 
 #[test]
+fn replaces_control_characters_in_header_values() {
+    let site = PackageSite::new();
+    site.write(
+        "hostile-1.dist-info",
+        "Name: hostile\x1b[2K\nVersion: 1.0\x1b]52;c;QUJD\x07\nLicense-Expression: MIT\r\x00\u{9b}\n",
+    );
+
+    let output = execute_in(&site, &["--license"]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (
+            0,
+            "hostile\u{fffd}[2K==1.0\u{fffd}]52;c;QUJD\u{fffd} (MIT\u{fffd}\u{fffd}\u{fffd} License)\n",
+            ""
+        )
+    );
+}
+
+#[test]
 fn discovers_empty_runtime_path_from_current_directory() {
     let directory = tempfile::tempdir().unwrap();
     let metadata = directory.path().join("demo-1.dist-info");
@@ -505,6 +525,10 @@ fn discovers_empty_runtime_path_from_current_directory() {
 #[case::no_scheme(
     r#"{"url":"local-demo.whl","archive_info":{}}"#,
     "demo @ local-demo.whl\n"
+)]
+#[case::control_characters(
+    r#"{"url":"https://example.com/demo\u001b[A.whl","subdirectory":"s\u0007","archive_info":{"hashes":{"sha256":"ab\u009bcd"}}}"#,
+    "demo @ https://example.com/demo\u{fffd}[A.whl#sha256=ab\u{fffd}cd&subdirectory=s\u{fffd}\n"
 )]
 fn freezes_direct_urls(#[case] direct_url: &str, #[case] expected: &str) {
     let site = PackageSite::new();

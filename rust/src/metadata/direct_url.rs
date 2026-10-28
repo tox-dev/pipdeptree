@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
 
+use super::printable;
+
 #[derive(Debug)]
 pub(super) struct DirectUrl {
     pub(super) url: String,
@@ -33,10 +35,8 @@ impl DirectUrl {
         let object = value
             .as_object()
             .ok_or_else(|| "direct_url.json must be a JSON object".to_string())?;
-        let url = string_field(object, "url", true)?
-            .expect("required URL was checked")
-            .to_string();
-        let subdirectory = string_field(object, "subdirectory", false)?.map(ToOwned::to_owned);
+        let url = printable(string_field(object, "url", true)?.expect("required URL was checked"));
+        let subdirectory = string_field(object, "subdirectory", false)?.map(printable);
         let infos = ["vcs_info", "archive_info", "dir_info"]
             .into_iter()
             .filter(|name| object.contains_key(*name))
@@ -97,15 +97,13 @@ impl ArchiveInfo {
 
 fn parse_vcs(object: &Map<String, Value>) -> Result<VcsInfo, String> {
     Ok(VcsInfo {
-        vcs: string_field(object, "vcs", true)?
-            .expect("required VCS was checked")
-            .to_string(),
-        commit_id: string_field(object, "commit_id", false)?.map(ToOwned::to_owned),
+        vcs: printable(string_field(object, "vcs", true)?.expect("required VCS was checked")),
+        commit_id: string_field(object, "commit_id", false)?.map(printable),
     })
 }
 
 fn parse_archive(object: &Map<String, Value>) -> Result<ArchiveInfo, String> {
-    let hash = string_field(object, "hash", false)?.map(ToOwned::to_owned);
+    let hash = string_field(object, "hash", false)?.map(printable);
     if hash.as_deref().is_some_and(|value| {
         value
             .split_once('=')
@@ -120,9 +118,9 @@ fn parse_archive(object: &Map<String, Value>) -> Result<ArchiveInfo, String> {
             .ok_or_else(|| "archive_info.hashes must be an object".to_string())?;
         for (algorithm, digest) in object {
             hashes.insert(
-                algorithm.clone(),
+                printable(algorithm),
                 match digest {
-                    Value::String(digest) => digest.clone(),
+                    Value::String(digest) => printable(digest),
                     digest => digest.to_string(),
                 },
             );
