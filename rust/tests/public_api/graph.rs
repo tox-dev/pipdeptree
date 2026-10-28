@@ -115,6 +115,26 @@ fn keeps_duplicate_requirement_edges() {
 }
 
 #[test]
+fn keeps_environment_variable_references_in_direct_urls_literal() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        concat!(
+            "Name: root\n",
+            "Version: 1\n",
+            "Requires-Dist: child @ https://example.invalid/${PIPDEPTREE_TEST_SECRET}\n",
+            "Requires-Dist: child @ https://example.invalid/hunter2\n",
+        ),
+    );
+
+    let output = temp_env::with_var("PIPDEPTREE_TEST_SECRET", Some("hunter2"), || {
+        execute_in(&site, &["--packages", "root"])
+    });
+
+    assert_eq!(stdout(&output).matches("child").count(), 2);
+}
+
+#[test]
 fn keeps_requirement_edges_activated_by_distinct_extras() {
     let site = PackageSite::new();
     site.write(
