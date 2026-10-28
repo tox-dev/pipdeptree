@@ -53,7 +53,9 @@ def test_render_ignores_module_versions(
         package = tmp_path / "fallbackdemo"
         package.mkdir()
         source = package / "__init__.py"
-    source.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('imported')\n__version__ = '2.0'\n")
+    source.write_text(
+        f"from pathlib import Path\nPath({str(marker)!r}).write_text('imported')\n__version__ = '9.8.7.6'\n"
+    )
     if module_kind == "bytecode":
         py_compile.compile(str(source), cfile=str(tmp_path / "fallbackdemo.pyc"), doraise=True)
         source.unlink()
@@ -62,7 +64,7 @@ def test_render_ignores_module_versions(
     result = pipdeptree.render(output_format=output_format)
 
     assert not marker.exists()
-    assert "2.0" not in result
+    assert "9.8.7.6" not in result
     assert "fallbackdemo" in result
     if output_format == "text":
         assert "installed: ?" in result

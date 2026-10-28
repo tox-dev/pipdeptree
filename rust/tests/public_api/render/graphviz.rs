@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use super::super::common::MockProcesses;
 use super::{PackageSite, execute, execute_with, render_site, text};
 use _pipdeptree::{ProcessError, ProcessOutput};
@@ -86,6 +88,13 @@ fn limits_graphviz_to_roots_at_depth_zero() {
     b"",
     "graphviz is not available: command not found\n"
 )]
+#[case::timed_out(
+    "png",
+    Err(ProcessError::TimedOut),
+    1,
+    b"",
+    "graphviz did not finish within 300 seconds; use graphviz-dot and run dot on its output\n"
+)]
 fn pipes_graphviz_formats(
     #[case] format: &str,
     #[case] result: Result<ProcessOutput, ProcessError>,
@@ -102,6 +111,7 @@ fn pipes_graphviz_formats(
             request.program == "dot"
                 && request.args == [graphviz_arg.as_str()]
                 && request.stdin.starts_with(b"digraph {\n")
+                && request.timeout == Some(Duration::from_secs(300))
         })
         .return_once(move |_| result);
 
