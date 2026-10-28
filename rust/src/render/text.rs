@@ -139,7 +139,7 @@ impl TreeRenderer<'_> {
 
     // A package already on the path closes a cycle, and one printed earlier under the same root
     // with at least as many levels left has its subtree shown already; either way the line is
-    // kept, so every edge still prints once, but the walk does not descend again. Recording the
+    // kept, so every edge still prints, but the walk does not descend again. Recording the
     // expansion here bounds each root's tree by its edges rather than its paths.
     fn repeats(&mut self, node: usize, extras: Option<&BTreeSet<String>>, depth: usize) -> bool {
         let Some(levels) = self.options.depth.map_or(Some(usize::MAX), |limit| {
