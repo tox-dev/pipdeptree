@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import webbrowser
+import zipfile
 from functools import partial
 from typing import TYPE_CHECKING, Final
 from unittest.mock import MagicMock, create_autospec
@@ -274,6 +275,41 @@ def test_cli_index_empty_project(
     captured: Final = capsys.readouterr()
 
     assert (code, json.loads(captured.out), captured.err) == (0, [], "")
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        pytest.param(["member"], "member==2\n", id="generated"),
+        pytest.param(["--pyproject", "project/pyproject.toml"], "member==1\n", id="pyproject"),
+    ],
+)
+def test_cli_index_workspace_above_project(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    source: list[str],
+    expected: str,
+) -> None:
+    (tmp_path / "nab.toml").write_text('[workspace]\nmembers = ["member"]\n')
+    for name, dependencies in (("member", []), ("project", ["member"])):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "pyproject.toml").write_text(
+            f'[project]\nname = "{name}"\nversion = "1"\ndependencies = {dependencies}\n'
+        )
+    index: Final = tmp_path / "index"
+    index.mkdir()
+    with zipfile.ZipFile(index / "member-2-py3-none-any.whl", "w") as wheel:
+        wheel.writestr("member-2.dist-info/METADATA", "Metadata-Version: 2.1\nName: member\nVersion: 2\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
+    for name in ("TMPDIR", "TMP", "TEMP"):
+        monkeypatch.setenv(name, str(tmp_path))
+
+    code: Final = entry_point(["from-index", *source, "--index-url", index.as_uri()])
+
+    assert (code, capsys.readouterr().out) == (0, expected)
 
 
 def test_module_entrypoint(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
