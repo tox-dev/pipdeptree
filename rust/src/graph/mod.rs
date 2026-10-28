@@ -1,8 +1,7 @@
-use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 use std::str::FromStr;
-use std::sync::OnceLock;
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -26,6 +25,8 @@ pub struct Dependency {
     pub activated_by: Option<String>,
     pub declaration: Option<ResolvedDeclaration>,
     version_spec: OnceLock<Option<String>>,
+    children: OnceLock<Arc<[usize]>>,
+    conflicting: OnceLock<bool>,
 }
 
 impl Clone for Dependency {
@@ -36,6 +37,8 @@ impl Clone for Dependency {
             activated_by: self.activated_by.clone(),
             declaration: self.declaration.clone(),
             version_spec: OnceLock::new(),
+            children: OnceLock::new(),
+            conflicting: OnceLock::new(),
         }
     }
 }
@@ -56,6 +59,7 @@ pub struct Graph {
     pub global_extras: HashMap<usize, BTreeSet<String>>,
     requested_extras: HashMap<usize, BTreeSet<String>>,
     expanded: OnceLock<Vec<Vec<usize>>>,
+    selected: Mutex<SelectedChildren>,
     reverse_edges: OnceLock<Vec<Vec<(usize, usize)>>>,
     cycles: OnceLock<Vec<Vec<usize>>>,
     unique_dependencies: OnceLock<UniqueDependencyCache>,
@@ -65,7 +69,7 @@ pub struct Graph {
 pub struct Children<'a> {
     graph: &'a Graph,
     node: usize,
-    indices: Cow<'a, [usize]>,
+    indices: &'a [usize],
     position: usize,
 }
 
@@ -78,6 +82,7 @@ pub enum ReverseRoot<'a> {
 }
 
 type UniqueDependencyCache = (Vec<usize>, Vec<OnceLock<BTreeSet<usize>>>);
+type SelectedChildren = HashMap<(usize, BTreeSet<String>), Arc<[usize]>>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FilterError {
@@ -131,16 +136,18 @@ impl Dependency {
     }
 
     pub fn is_conflicting(&self, graph: &Graph) -> bool {
-        let Some(target) = self.target else {
-            return true;
-        };
-        let Some(VersionOrUrl::VersionSpecifier(specifiers)) = &self.requirement.version_or_url
-        else {
-            return false;
-        };
-        graph
-            .parsed_version(target)
-            .is_none_or(|version| !specifiers.contains(version))
+        *self.conflicting.get_or_init(|| {
+            let Some(target) = self.target else {
+                return true;
+            };
+            let Some(VersionOrUrl::VersionSpecifier(specifiers)) = &self.requirement.version_or_url
+            else {
+                return false;
+            };
+            graph
+                .parsed_version(target)
+                .is_none_or(|version| !specifiers.contains(version))
+        })
     }
 
     pub fn installed_version<'a>(&self, graph: &'a Graph) -> Option<&'a str> {
@@ -178,6 +185,7 @@ impl Graph {
             global_extras: HashMap::default(),
             requested_extras: HashMap::default(),
             expanded: OnceLock::new(),
+            selected: Mutex::default(),
             reverse_edges: OnceLock::new(),
             cycles: OnceLock::new(),
             unique_dependencies: OnceLock::new(),
@@ -211,6 +219,8 @@ impl Graph {
                     activated_by: None,
                     declaration: edge.declaration,
                     version_spec: OnceLock::new(),
+                    children: OnceLock::new(),
+                    conflicting: OnceLock::new(),
                 }
             }));
         }
@@ -233,6 +243,8 @@ impl Graph {
                 activated_by: None,
                 declaration: None,
                 version_spec: OnceLock::new(),
+                children: OnceLock::new(),
+                conflicting: OnceLock::new(),
             };
             if dependency.requirement.evaluate_markers(marker, &[]) {
                 mandatory.push(dependency);
@@ -283,15 +295,26 @@ impl Graph {
         self.collect_validation_warnings();
     }
 
-    pub(super) fn children<'a>(
-        &'a self,
-        index: usize,
-        incoming_extras: &BTreeSet<String>,
-    ) -> Children<'a> {
+    // A tree reaches a package once per path, so each edge selects the target's requirements for
+    // the extras it requests once, and edges that request the same extras share that list.
+    pub(super) fn children<'a>(&'a self, incoming: &'a Dependency) -> Children<'a> {
+        let node = incoming
+            .target
+            .expect("tree walks only descend into installed packages");
+        let indices = incoming.children.get_or_init(|| {
+            let key = (node, incoming.requested_extras());
+            let mut selected = self.selected.lock().unwrap_or_else(PoisonError::into_inner);
+            if let Some(indices) = selected.get(&key) {
+                return Arc::clone(indices);
+            }
+            let indices = Arc::<[usize]>::from(self.selected_children(node, &key.1));
+            selected.insert(key, Arc::clone(&indices));
+            indices
+        });
         Children {
             graph: self,
-            node: index,
-            indices: Cow::Owned(self.selected_children(index, incoming_extras)),
+            node,
+            indices,
             position: 0,
         }
     }
@@ -300,7 +323,7 @@ impl Graph {
         Children {
             graph: self,
             node: index,
-            indices: Cow::Borrowed(&self.expanded_children_cache()[index]),
+            indices: &self.expanded_children_cache()[index],
             position: 0,
         }
     }
@@ -723,21 +746,34 @@ impl Graph {
     }
 }
 
+impl<'a> Children<'a> {
+    // Requirements sort by key and a key names one target, so a rejected target's requirements
+    // form one run that a binary search skips; a package can list the same name any number of
+    // times.
+    pub(super) fn next_where(&mut self, keep: impl Fn(usize) -> bool) -> Option<&'a Dependency> {
+        let dependencies = &self.graph.nodes[self.node].dependencies;
+        while let Some(index) = self.indices.get(self.position) {
+            let dependency = &dependencies[*index];
+            match dependency.target {
+                Some(target) if !(self.graph.visible[target] && keep(target)) => {
+                    self.position += self.indices[self.position..]
+                        .partition_point(|other| dependencies[*other].key() == dependency.key());
+                }
+                _ => {
+                    self.position += 1;
+                    return Some(dependency);
+                }
+            }
+        }
+        None
+    }
+}
+
 impl<'a> Iterator for Children<'a> {
     type Item = &'a Dependency;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(index) = self.indices.get(self.position) {
-            self.position += 1;
-            let dependency = &self.graph.nodes[self.node].dependencies[*index];
-            if dependency
-                .target
-                .is_none_or(|target| self.graph.visible[target])
-            {
-                return Some(dependency);
-            }
-        }
-        None
+        self.next_where(|_| true)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

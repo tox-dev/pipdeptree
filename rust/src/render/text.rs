@@ -83,32 +83,28 @@ struct TreeRenderer<'a> {
     lines: Vec<String>,
 }
 
-impl TreeRenderer<'_> {
+impl<'a> TreeRenderer<'a> {
     fn walk_forward(
         &mut self,
         parent: usize,
-        extras: Option<&BTreeSet<String>>,
+        incoming: Option<&'a Dependency>,
         prefix: &str,
         depth: usize,
     ) {
         if self.options.depth.is_some_and(|limit| depth >= limit) {
             return;
         }
-        let children = extras.map_or_else(
+        let mut children = incoming.map_or_else(
             || self.graph.expanded_children(parent),
-            |extras| self.graph.children(parent, extras),
+            |incoming| self.graph.children(incoming),
         );
         let unique = (self.style == TextStyle::Rich
             && self.options.computed.iter().any(|field| field.is_unique()))
         .then(|| self.graph.unique_dependencies(parent));
         // A child already on the path closes a cycle; the chain stops without re-printing it.
-        let children = children
-            .filter(|dependency| {
-                dependency
-                    .target
-                    .is_none_or(|target| !self.path.contains(&target))
-            })
-            .collect::<Vec<_>>();
+        let children =
+            std::iter::from_fn(|| children.next_where(|target| !self.path.contains(&target)))
+                .collect::<Vec<_>>();
         let count = children.len();
         for (position, dependency) in children.into_iter().enumerate() {
             let last = position + 1 == count;
@@ -126,9 +122,8 @@ impl TreeRenderer<'_> {
                 continue;
             };
             self.path.insert(child);
-            let extras = dependency.requested_extras();
             let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
-            self.walk_forward(child, Some(&extras), &next_prefix, depth + 1);
+            self.walk_forward(child, Some(dependency), &next_prefix, depth + 1);
             self.path.remove(&child);
         }
     }

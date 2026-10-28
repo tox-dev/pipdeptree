@@ -27,16 +27,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
         graph
             .roots(false, false)
             .into_iter()
-            .map(|root| {
-                forward_tree_json(
-                    graph,
-                    root,
-                    None,
-                    &BTreeSet::new(),
-                    &mut HashSet::new(),
-                    options,
-                )
-            })
+            .map(|root| forward_tree_json(graph, root, None, &mut HashSet::new(), options))
             .collect::<Vec<_>>()
     };
     let mut output = Vec::new();
@@ -52,7 +43,6 @@ fn forward_tree_json(
     graph: &Graph,
     index: usize,
     incoming: Option<&Dependency>,
-    extras: &BTreeSet<String>,
     path: &mut HashSet<usize>,
     options: &Options,
 ) -> Value {
@@ -64,27 +54,16 @@ fn forward_tree_json(
     if !options.resolved() && incoming.is_none() {
         value["required_version"] = Value::String(graph.nodes[index].package.version.clone());
     }
-    let children = if incoming.is_none() {
-        graph.expanded_children(index)
-    } else {
-        graph.children(index, extras)
-    };
+    let mut children = incoming.map_or_else(
+        || graph.expanded_children(index),
+        |incoming| graph.children(incoming),
+    );
     let mut dependencies = Vec::new();
-    for dependency in children {
-        let Some(target) = dependency.target else {
-            dependencies.push(missing_dependency_json(dependency, options));
-            continue;
-        };
-        if !path.contains(&target) {
-            dependencies.push(forward_tree_json(
-                graph,
-                target,
-                Some(dependency),
-                &dependency.requested_extras(),
-                path,
-                options,
-            ));
-        }
+    while let Some(dependency) = children.next_where(|target| !path.contains(&target)) {
+        dependencies.push(dependency.target.map_or_else(
+            || missing_dependency_json(dependency, options),
+            |target| forward_tree_json(graph, target, Some(dependency), path, options),
+        ));
     }
     value["dependencies"] = Value::Array(dependencies);
     path.remove(&index);

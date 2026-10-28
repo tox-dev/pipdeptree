@@ -1,3 +1,6 @@
+use std::fmt::Write as _;
+use std::time::{Duration, Instant};
+
 use super::{execute, lock_file, path, render_site, text};
 use rstest::rstest;
 
@@ -127,4 +130,87 @@ fn marks_unique_conflicts_and_stops_reverse_cycles() {
         ),
         (true, 2)
     );
+}
+
+// Every requirement hub files under the extras it is asked for points back up the path, so
+// none of them prints; rebuilding and scanning that list on each of the 27,000 visits to hub
+// overruns the budget.
+#[rstest]
+#[case::text(&[])]
+#[case::rich(&["--output", "rich"])]
+fn skips_unprinted_requirements_of_a_revisited_package(#[case] args: &[&str]) {
+    let extras = (0..50)
+        .map(|number| format!("x{number}"))
+        .collect::<Vec<_>>();
+    let marker = extras
+        .iter()
+        .map(|extra| format!("extra == '{extra}'"))
+        .collect::<Vec<_>>()
+        .join(" or ");
+    let site = super::PackageSite::new();
+    for (name, requires) in [
+        ("r", requirements("a", 30, "")),
+        ("a", requirements("b", 30, "")),
+        (
+            "b",
+            requirements(&format!("hub[{}]", extras.join(",")), 30, ""),
+        ),
+        ("hub", requirements("a", 100, &format!("; {marker}"))),
+    ] {
+        site.write(
+            &format!("{name}-1.dist-info"),
+            &format!("Name: {name}\nVersion: 1\n{requires}"),
+        );
+    }
+    let start = Instant::now();
+
+    let output = execute(&site, args);
+
+    assert_eq!(
+        (text(&output).lines().count(), start.elapsed() < BUDGET),
+        (1 + 30 + 900 + 27000, true)
+    );
+}
+
+// The conflict check walks every specifier against every segment of the installed version, and
+// the rich tree prints the lib -> ghost edge once per path to lib.
+#[test]
+fn checks_each_rich_edge_for_conflicts_once() {
+    let site = super::PackageSite::new();
+    let local = vec!["1"; 2000].join(".");
+    site.write(
+        "app-1.dist-info",
+        &format!("Name: app\nVersion: 1\n{}", requirements("lib", 1000, "")),
+    );
+    site.write(
+        "lib-1.dist-info",
+        &format!(
+            "Name: lib\nVersion: 1\nRequires-Dist: ghost{}\n",
+            (0..2000)
+                .map(|number| format!("!=0.{number}"))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+    );
+    site.write(
+        "ghost-1.dist-info",
+        &format!("Name: ghost\nVersion: 1+{local}\n"),
+    );
+    let start = Instant::now();
+
+    let output = execute(&site, &["--output", "rich"]);
+
+    assert_eq!(
+        (text(&output).lines().count(), start.elapsed() < BUDGET),
+        (1 + 1000 + 1000, true)
+    );
+}
+
+const BUDGET: Duration = Duration::from_secs(10);
+
+fn requirements(name: &str, count: usize, marker: &str) -> String {
+    (1..=count).fold(String::new(), |mut lines, number| {
+        let _ = writeln!(lines, "Requires-Dist: {name}<{number}{marker}");
+        lines
+    })
 }
