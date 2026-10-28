@@ -293,8 +293,9 @@ def test_cli_index_local_source_leaves_index_sdist_unbuilt(
     local.mkdir()
     (local / "pyproject.toml").write_text('[project]\nname = "local"\nversion = "1"\ndependencies = ["remote"]\n')
     monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.chdir(tmp_path)
 
-    entry_point(["from-index", str(local), "--index-url", index.as_uri()])
+    entry_point(["from-index", "./local", "--index-url", index.as_uri()])
 
     assert (built.exists(), "remote: every version in range was rejected" in capsys.readouterr().err) == (False, True)
 
@@ -308,20 +309,21 @@ def test_cli_index_builds_dynamic_local_source(
     _write_dynamic_project(tmp_path / "local", "local", tmp_path / "built")
     (tmp_path / "index").mkdir()
     monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.chdir(tmp_path)
 
-    code: Final = entry_point(["from-index", str(tmp_path / "local"), "--index-url", (tmp_path / "index").as_uri()])
+    code: Final = entry_point(["from-index", "./local", "--index-url", (tmp_path / "index").as_uri()])
 
     assert (code, capsys.readouterr().out) == (0, "local==1\n")
 
 
 def _write_dynamic_project(directory: Path, name: str, marker: Path) -> None:
-    directory.mkdir()
+    (directory / "hooks").mkdir(parents=True)
     (directory / "pyproject.toml").write_text(
-        '[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["."]\n'
+        '[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["hooks"]\n'
         f'[project]\nname = "{name}"\nversion = "1"\ndynamic = ["dependencies"]\n'
     )
     (directory / "PKG-INFO").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: 1\n")
-    (directory / "backend.py").write_text(
+    (directory / "hooks" / "backend.py").write_text(
         f"import os\nopen({str(marker)!r}, 'w').close()\n"
         "def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):\n"
         f"    os.mkdir(os.path.join(metadata_directory, '{name}-1.dist-info'))\n"
