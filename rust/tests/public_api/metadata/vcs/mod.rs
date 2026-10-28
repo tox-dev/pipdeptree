@@ -33,6 +33,15 @@ mod svn;
     "first\n42\n",
     "-e bzr+https://example.com/repo@42#egg=demo"
 )]
+#[case::bzr_credentials(
+    ".bzr",
+    "bzr",
+    &["info"],
+    "  checkout of branch: https://ci:token@example.com/repo\n",
+    &["revno"],
+    "42\n",
+    "-e bzr+https://example.com/repo@42#egg=demo"
+)]
 #[case::svn(
     ".svn",
     "svn",
