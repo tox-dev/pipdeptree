@@ -36,18 +36,25 @@ open and publish no advisory. Classify by who supplies the dangerous input, not 
 
 **In scope**
 
-- Package metadata from an index (`from-index`) or a crafted installed distribution breaking out of its field in JSON,
+- Package metadata from an index, a lock file or a crafted installed distribution breaking out of its field in JSON,
   CycloneDX, DOT or Mermaid output, so the output describes packages or edges that do not exist.
+- Parsing metadata (`METADATA`, `direct_url.json`, `RECORD`, `entry_points.txt`, egg-links) executing code, or following
+  links out of the inspected environment.
+- A malformed input causing a Rust panic, an invalid lifetime or a memory-safety defect at the Python boundary instead
+  of an ordinary error.
+- Unbounded allocation or recursion from long fields, many packages, duplicate records or deep cycles.
 - `from-index` sending requests to a host other than the configured indexes, or leaking index credentials into output.
 - Rendering that runs anything other than the Graphviz `dot` binary, or passes it more than the DOT text.
 
 **Out of scope**
 
 - The interpreter given with `--python`, or auto-detected from the active virtual environment: pipdeptree runs it to
-  read the environment.
+  read the environment, and its startup runs the environment's `.pth` files.
 - Packages installed in the inspected environment; pipdeptree reads their metadata but installing them already ran their
   code.
+- Build backends that run when `from-index` resolves a local path or VCS requirement, which Nab may build.
 - Index URLs and credentials from options or `PIP_INDEX_URL`, `UV_INDEX_URL` and friends.
+- Dependency data that is wrong but faithfully reported: pipdeptree shows the metadata it receives.
 - What a program that consumes the JSON, SBOM or graph output does with names that are valid but misleading.
 
 If you cannot tell which side a finding falls on, report it privately and we will decide.

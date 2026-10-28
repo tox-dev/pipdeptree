@@ -6,10 +6,13 @@ SECURITY.md wins and we fix this file.
 
 ## How pipdeptree works
 
-pipdeptree reads the distribution metadata of an environment, either in the running interpreter or by querying the one
-named with `--python`, and builds a graph of requirements, versions and conflicts. The `from-index` subcommand instead
-resolves requirements against package indexes with Nab and renders the resolution. Output goes to the terminal as text
-or in machine formats (JSON, CycloneDX SBOM, Mermaid, DOT); `graphviz-FMT` pipes DOT text to the `dot` binary.
+pipdeptree's parsing, graph building and rendering run in a Rust extension; a thin Python layer connects it to the
+streams and the desktop opener. It reads the distribution metadata of an environment, either the running interpreter's
+or one it queries with `--python`, and builds a graph of requirements, versions and conflicts. `from-index` resolves
+requirements, requirement files or `pyproject.toml` files against package indexes with Nab, and `from-lock` renders a
+PEP 751 lock without network access. Output is text or a machine format (JSON, CycloneDX SBOM, Mermaid, DOT);
+`graphviz-FMT` pipes DOT text to the `dot` binary, and binary output on a terminal goes to a temporary file opened with
+the default application.
 
 ```mermaid
 flowchart LR
@@ -33,11 +36,11 @@ which first needs a trusted element compromised is out of scope; the first triag
 [DOMPurify](https://github.com/cure53/DOMPurify/blob/main/SECURITY.md#what-we-consider-a-vulnerability) puts it, is what
 the attacker controls.
 
-| Project                                                             | Language   | Where it draws the line                                                                       |
-| ------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------- |
-| [npm CLI (`npm ls`)](https://github.com/npm/cli/security/policy)    | JavaScript | Reports through a private channel; the installed tree it lists is the user's own and trusted. |
-| [pnpm](https://github.com/pnpm/pnpm/security/policy)                | JavaScript | Treats registry metadata as untrusted and the local store and project as trusted.             |
-| [Cargo (`cargo tree`)](https://www.rust-lang.org/policies/security) | Rust       | The Rust security policy covers Cargo; registry index data is the untrusted input.            |
+| Project                                                             | Language   | Where it draws the line                                                                                                                                                  |
+| ------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [npm CLI (`npm ls`)](https://github.com/npm/cli/security/policy)    | JavaScript | Follows GitHub's open source reporting policy, which defines no scope of its own.                                                                                        |
+| [pnpm](https://github.com/pnpm/pnpm/security/policy)                | JavaScript | Draws its boundary at filesystem permissions: the store, project, lockfile and configuration are trusted, and running it in a repository means trusting that repository. |
+| [Cargo (`cargo tree`)](https://www.rust-lang.org/policies/security) | Rust       | The Rust toolchain, Cargo included, assumes the user's code and dependencies are trusted; compiling or analyzing a malicious project is out of scope.                    |
 
 ## Trusted
 
@@ -49,23 +52,24 @@ An attacker who controls any of these already has what pipdeptree could give the
 
 ## Untrusted inputs
 
-| Input                               | Comes from                                      | What pipdeptree guarantees                                                                          |
-| ----------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Package metadata from `from-index`  | Any package published to the configured indexes | Requirements are parsed as PEP 508; names and versions are emitted as data, quoted in DOT and JSON. |
-| Metadata of installed distributions | Whoever published a package the user installed  | Rendered as data in every output format.                                                            |
+| Input                                              | Comes from                                                                          | What pipdeptree guarantees                                                                         |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Package metadata from `from-index` and `from-lock` | Any package published to the configured indexes, or a lock file from a pull request | Requirements are parsed as PEP 508; names and versions are emitted as data in every output format. |
+| Metadata of installed distributions                | Whoever published a package the user installed                                      | Read from files, never imported; rendered as data in every output format.                          |
 
 ## Threats and controls
 
-| STRIDE            | Threat                                                           | Control                                                       |
-| ----------------- | ---------------------------------------------------------------- | ------------------------------------------------------------- |
-| Tampering         | A crafted version string closes a DOT label and adds fake edges. | DOT identifiers are quoted and escaped; labels escape quotes. |
-| Denial of service | A dependency cycle or huge index response stalls rendering.      | Cycles are detected and reported; no other bound is promised. |
+| STRIDE                 | Threat                                                                      | Control                                                                                                              |
+| ---------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Tampering              | A crafted version string closes a DOT or Mermaid label and adds fake edges. | DOT identifiers are quoted with backslashes and quotes escaped; labels escape quotes. Report any label that escapes. |
+| Denial of service      | A dependency cycle or huge response stalls rendering.                       | Cycles are detected and reported; report anything unbounded.                                                         |
+| Elevation of privilege | Inspecting metadata runs package code.                                      | Metadata files are parsed in Rust; the environment's interpreter runs only to report its paths.                      |
 
 ## Release chain
 
 Releases run on the shared [tox-dev/github-workflows](https://github.com/tox-dev/github-workflows) pipeline. A release
-App, not a person, pushes the release commit and tag; the build installs its tools hash-checked from `pylock.toml` with
-a seven-day upload cooldown; PyPI receives the files through
+App, not a person, pushes the release commit and tag; the build installs its tools from a hash-checked `pylock.toml`
+resolved with a seven-day upload cooldown by default; PyPI receives the files through
 [trusted publishing](https://docs.pypi.org/trusted-publishers/) with attestations, and the GitHub Release is immutable.
 Every workflow pins third-party actions to a commit SHA.
 
@@ -76,6 +80,13 @@ Every workflow pins third-party actions to a commit SHA.
 | A package on PyPI with `"` in its metadata injects a node into `-o graphviz-svg` output | Vulnerability       | Untrusted metadata escapes its field.            |
 | `pipdeptree --python ./evil` runs `./evil`                                              | Not a vulnerability | The interpreter is the user's choice.            |
 | The tree shows a misleading but valid package name                                      | Not a vulnerability | pipdeptree reports metadata; it does not vet it. |
+
+## Severity
+
+- **High:** inspecting metadata executes code, or a fixed `dot` invocation runs something else.
+- **Medium:** metadata escapes its field and forges packages or edges in JSON, CycloneDX, DOT or Mermaid output, or
+  index credentials reach the output.
+- **Low:** a crash, panic or hang on malformed input, or a rendering defect that forges nothing.
 
 ## Accepted risks
 
