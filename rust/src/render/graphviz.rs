@@ -129,7 +129,7 @@ pub(super) fn dot_id(value: &str) -> String {
 }
 
 fn dot_label_component(value: &str) -> String {
-    value.replace('"', "\\\"")
+    value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 pub(super) fn pipe(
