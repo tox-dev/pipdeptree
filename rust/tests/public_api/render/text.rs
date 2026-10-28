@@ -136,9 +136,13 @@ fn marks_unique_conflicts_and_stops_reverse_cycles() {
 // none of them prints; rebuilding and scanning that list on each of the 27,000 visits to hub
 // overruns the budget.
 #[rstest]
-#[case::text(&[])]
-#[case::rich(&["--output", "rich"])]
-fn skips_unprinted_requirements_of_a_revisited_package(#[case] args: &[&str]) {
+#[case::text(&[], "required: <")]
+#[case::rich(&["--output", "rich"], "required: <")]
+#[case::json_tree(&["--output", "json-tree"], "\"required_version\": \"<")]
+fn skips_unprinted_requirements_of_a_revisited_package(
+    #[case] args: &[&str],
+    #[case] dependency: &str,
+) {
     let extras = (0..50)
         .map(|number| format!("x{number}"))
         .collect::<Vec<_>>();
@@ -167,8 +171,11 @@ fn skips_unprinted_requirements_of_a_revisited_package(#[case] args: &[&str]) {
     let output = execute(&site, args);
 
     assert_eq!(
-        (text(&output).lines().count(), start.elapsed() < BUDGET),
-        (1 + 30 + 900 + 27000, true)
+        (
+            text(&output).matches(dependency).count(),
+            start.elapsed() < BUDGET
+        ),
+        (30 + 900 + 27000, true)
     );
 }
 
