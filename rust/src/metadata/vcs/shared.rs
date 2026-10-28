@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use crate::metadata::direct_url::redact_url;
 use crate::process::{ProcessError, ProcessRequest, ProcessRunner};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -78,15 +79,15 @@ pub(super) fn command(
 }
 
 pub(super) fn build_requirement(input: VcsRequirement<'_>) -> VcsResult {
+    let remote = redact_url(input.remote, input.vcs == "git");
     let remote = if input.always_prefix
-        || !input
-            .remote
+        || !remote
             .to_ascii_lowercase()
             .starts_with(&format!("{}:", input.vcs))
     {
-        format!("{}+{}", input.vcs, input.remote)
+        format!("{}+{remote}", input.vcs)
     } else {
-        input.remote.to_string()
+        remote
     };
     let mut requirement = format!(
         "{remote}@{}#egg={}",
