@@ -284,6 +284,9 @@ that executable:
 Use ``graphviz-<format>``, where ``<format>`` is any
 `Graphviz output format <https://graphviz.org/docs/outputs/>`_ (dot, pdf, png, svg, jpeg, etc.).
 
+pipdeptree stops ``dot`` and exits with an error when the layout takes longer than 300 seconds. For a graph that needs
+more time, write ``-o graphviz-dot`` to a file and run ``dot`` on it yourself.
+
 summary
 -------
 

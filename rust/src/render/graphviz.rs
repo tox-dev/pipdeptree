@@ -1,9 +1,10 @@
 use std::collections::{HashMap, VecDeque};
+use std::time::Duration;
 
 use crate::Error;
 use crate::graph::Graph;
 use crate::options::Options;
-use crate::process::{ProcessRequest, ProcessRunner};
+use crate::process::{ProcessError, ProcessRequest, ProcessRunner};
 
 use super::shared::edge_label;
 use super::text::node_suffix_parts;
@@ -136,9 +137,22 @@ pub(super) fn pipe(
     dot: &str,
     format: &str,
 ) -> Result<Vec<u8>, Error> {
+    // Layout time follows the shape of the graph more than its size: a lock file of about 10 KB can keep dot busy for
+    // tens of minutes, so an inspected graph must not hold pipdeptree indefinitely.
+    const DOT_TIMEOUT: Duration = Duration::from_secs(300);
     let output = processes
-        .run(&ProcessRequest::new("dot", [format!("-T{format}")]).with_stdin(dot.as_bytes()))
-        .map_err(|error| Error::message(format!("graphviz is not available: {error}")))?;
+        .run(
+            &ProcessRequest::new("dot", [format!("-T{format}")])
+                .with_stdin(dot.as_bytes())
+                .with_timeout(DOT_TIMEOUT),
+        )
+        .map_err(|error| match error {
+            ProcessError::TimedOut => Error::message(format!(
+                "graphviz did not finish within {} seconds; use graphviz-dot and run dot on its output",
+                DOT_TIMEOUT.as_secs()
+            )),
+            error => Error::message(format!("graphviz is not available: {error}")),
+        })?;
     if !output.success {
         return Err(Error::message(
             String::from_utf8_lossy(&output.stderr).trim().to_string(),
