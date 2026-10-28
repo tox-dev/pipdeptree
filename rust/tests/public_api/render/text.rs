@@ -1,3 +1,7 @@
+use std::time::{Duration, Instant};
+
+use _pipdeptree::SystemProcessRunner;
+
 use super::{execute, lock_file, path, render_site, text};
 use rstest::rstest;
 
@@ -126,5 +130,53 @@ fn marks_unique_conflicts_and_stops_reverse_cycles() {
             text(&reverse).matches("first==1").count(),
         ),
         (true, 2)
+    );
+}
+
+// A tree shows a package once per path that reaches it, so the cost of building its metadata
+// suffix on every line grows with the paths times the stored value's length, blanks included.
+#[rstest]
+#[case::forward(&[])]
+#[case::reverse(&["--reverse"])]
+#[case::rich(&["--output", "rich"])]
+fn builds_padded_metadata_suffix_once_per_package(#[case] args: &[&str]) {
+    let license = format!("License-Expression: a{}b\n", " ".repeat(500_000));
+    let site = super::PackageSite::new();
+    for (name, child) in [
+        ("app", Some("one")),
+        ("one", Some("two")),
+        ("two", Some("leaf")),
+        ("leaf", None),
+    ] {
+        let requires = child.map_or_else(String::new, |child| {
+            (0..10)
+                .map(|number| format!("Requires-Dist: {child}!={number}\n"))
+                .collect::<Vec<_>>()
+                .concat()
+        });
+        site.write(
+            &format!("{name}-1.dist-info"),
+            &format!("Name: {name}\nVersion: 1\n{license}{requires}"),
+        );
+    }
+
+    let args = [
+        &["--path", super::path(site.path()), "--metadata", "license"],
+        args,
+    ]
+    .concat();
+    let (output, elapsed) = super::with_python(|python| {
+        let start = Instant::now();
+        let output = super::execute_with_runner(&SystemProcessRunner, python, &args, false);
+        (output, start.elapsed())
+    });
+
+    assert_eq!(
+        (
+            text(&output).matches(" (a b License)").count(),
+            elapsed < Duration::from_secs(3),
+        ),
+        (1 + 10 + 100 + 1000, true),
+        "took {elapsed:?}"
     );
 }
