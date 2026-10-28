@@ -193,8 +193,8 @@ impl Package {
                     return vcs::editable_requirement(
                         processes,
                         &location,
-                        &self.name,
-                        &self.version,
+                        &requirement_text(&self.name),
+                        &requirement_text(&self.version),
                     );
                 }
             } else {
@@ -202,13 +202,18 @@ impl Package {
             }
         }
         if let Some(location) = &self.legacy_editable {
-            return vcs::editable_requirement(processes, location, &self.name, &self.version);
+            return vcs::editable_requirement(
+                processes,
+                location,
+                &requirement_text(&self.name),
+                &requirement_text(&self.version),
+            );
         }
         self.regular_specifier()
     }
 
     fn direct_specifier(&self, direct: &DirectUrl) -> String {
-        let mut result = format!("{} @ ", self.name);
+        let mut result = format!("{} @ ", requirement_text(&self.name));
         match &direct.info {
             DirectInfo::Vcs(info) => {
                 result.push_str(&info.vcs);
@@ -237,10 +242,12 @@ impl Package {
     }
 
     fn regular_specifier(&self) -> String {
-        if Version::from_str(&self.version).is_ok() {
-            format!("{}=={}", self.name, self.version)
+        let name = requirement_text(&self.name);
+        let version = requirement_text(&self.version);
+        if Version::from_str(&version).is_ok() {
+            format!("{name}=={version}")
         } else {
-            format!("{}==={}", self.name, self.version)
+            format!("{name}==={version}")
         }
     }
 
@@ -582,6 +589,25 @@ fn read_headers(path: &Path) -> Result<String, Error> {
             headers.push('\n');
         }
     }
+}
+
+// Freeze output is a pip requirements file, read line by line: a line break starts a new line, a
+// leading '-' an option and '#' a comment, and a "coding:" in a comment on the first two lines makes
+// pip decode the whole file with that codec (PEP 263). Valid project names and versions use none of
+// these characters, so anything outside their alphabet, and a leading non-alphanumeric, become '?'.
+fn requirement_text(value: &str) -> String {
+    value
+        .char_indices()
+        .map(|(index, character)| {
+            if character.is_ascii_alphanumeric()
+                || (index > 0 && matches!(character, '.' | '_' | '-' | '!' | '+'))
+            {
+                character
+            } else {
+                '?'
+            }
+        })
+        .collect()
 }
 
 // PEP 503: collapse each separator run to '-' and lowercase, keeping boundary separators.
