@@ -531,10 +531,21 @@ impl Graph {
     }
 
     fn cycles(&self) -> &[Vec<usize>] {
-        self.cycles.get_or_init(|| self.compute_cycles())
+        self.cycles.get_or_init(|| {
+            self.components()
+                .into_iter()
+                .filter(|component| {
+                    component.len() > 1
+                        || self
+                            .active_targets(component[0])
+                            .any(|child| child == component[0])
+                })
+                .collect()
+        })
     }
 
-    fn compute_cycles(&self) -> Vec<Vec<usize>> {
+    // Strongly connected components, each listed ahead of the components it depends on.
+    pub(crate) fn components(&self) -> Vec<Vec<usize>> {
         let mut outgoing = vec![Vec::new(); self.nodes.len()];
         let mut incoming = vec![Vec::new(); self.nodes.len()];
         for parent in self.visible_indices() {
@@ -589,9 +600,7 @@ impl Graph {
                     }
                 }
             }
-            if component.len() > 1 || outgoing[start].contains(&start) {
-                result.push(component);
-            }
+            result.push(component);
         }
         result
     }
