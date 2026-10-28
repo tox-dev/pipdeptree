@@ -297,7 +297,7 @@ impl Package {
         ]
         .into_iter()
         .flatten()
-        .map(|site| installation_prefix(&site).to_path_buf())
+        .map(|site| Self::installation_prefix(&site).to_path_buf())
         .collect::<Vec<_>>();
         let inside = |path: &Path| prefixes.iter().any(|prefix| path.starts_with(prefix));
         // A distribution has far fewer directories than files: resolve each directory once and
@@ -330,32 +330,34 @@ impl Package {
             .map(|metadata| metadata.len())
             .sum()
     }
-}
 
-// lib/pythonX.Y/site-packages (POSIX, Debian dist-packages, PyPy, macOS user site),
-// Lib/site-packages (Windows) and PythonXY/site-packages (Windows user site); any other directory,
-// such as a --target install, is its own prefix.
-fn installation_prefix(site: &Path) -> &Path {
-    let [own, parent, grandparent] = [0, 1, 2].map(|level| {
+    // lib/pythonX.Y/site-packages (POSIX, Debian dist-packages, PyPy, macOS user site),
+    // Lib/site-packages (Windows) and PythonXY/site-packages (Windows user site); any other
+    // directory, such as a --target install, is its own prefix.
+    fn installation_prefix(site: &Path) -> &Path {
+        let [own, parent, grandparent] = [0, 1, 2].map(|level| {
+            site.ancestors()
+                .nth(level)
+                .and_then(Path::file_name)
+                .map_or_else(String::new, |name| {
+                    name.to_string_lossy().to_ascii_lowercase()
+                })
+        });
+        let levels = if !matches!(own.as_str(), "site-packages" | "dist-packages") {
+            0
+        } else if (parent.starts_with("python") || parent.starts_with("pypy"))
+            && grandparent.starts_with("lib")
+        {
+            3
+        } else if parent == "lib" {
+            2
+        } else {
+            1
+        };
         site.ancestors()
-            .nth(level)
-            .and_then(Path::file_name)
-            .map_or_else(String::new, |name| {
-                name.to_string_lossy().to_ascii_lowercase()
-            })
-    });
-    let levels = if !matches!(own.as_str(), "site-packages" | "dist-packages") {
-        0
-    } else if (parent.starts_with("python") || parent.starts_with("pypy"))
-        && grandparent.starts_with("lib")
-    {
-        3
-    } else if parent == "lib" {
-        2
-    } else {
-        1
-    };
-    site.ancestors().nth(levels).unwrap_or(site)
+            .nth(levels)
+            .expect("every matched name has a parent directory")
+    }
 }
 
 impl Headers {
