@@ -42,6 +42,10 @@ the attacker controls.
 | [pnpm](https://github.com/pnpm/pnpm/security/policy)                | JavaScript | Draws its boundary at filesystem permissions: the store, project, lockfile and configuration are trusted, and running it in a repository means trusting that repository. |
 | [Cargo (`cargo tree`)](https://www.rust-lang.org/policies/security) | Rust       | The Rust toolchain, Cargo included, assumes the user's code and dependencies are trusted; compiling or analyzing a malicious project is out of scope.                    |
 
+pnpm and Cargo act on the project in the working directory, so they trust it. pipdeptree inspects an environment, not
+the project it runs in, so the working directory is not trusted: running pipdeptree inside a cloned repository must not
+run or report anything from that repository unless an option points at it.
+
 ## Trusted
 
 An attacker who controls any of these already has what pipdeptree could give them:
@@ -52,10 +56,12 @@ An attacker who controls any of these already has what pipdeptree could give the
 
 ## Untrusted inputs
 
-| Input                                              | Comes from                                                                          | What pipdeptree guarantees                                                                         |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Package metadata from `from-index` and `from-lock` | Any package published to the configured indexes, or a lock file from a pull request | Requirements are parsed as PEP 508; names and versions are emitted as data in every output format. |
-| Metadata of installed distributions                | Whoever published a package the user installed                                      | Read from files, never imported; rendered as data in every output format.                          |
+| Input                                              | Comes from                                                                            | What pipdeptree guarantees                                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Package metadata from `from-index` and `from-lock` | Any package published to the configured indexes, or a lock file from a pull request   | Requirements are parsed as PEP 508; names and versions are emitted as data in every output format. |
+| Metadata of installed distributions                | Whoever published a package the user installed                                        | Read from files, never imported; rendered as data in every output format.                          |
+| The working directory                              | Whoever wrote the repository, checkout or archive pipdeptree runs in                  | Nothing in it is imported, run or reported as installed unless an option names it.                 |
+| Files other local users can write                  | Another account on the same machine, for example through a shared temporary directory | Never read as configuration or built; temporary files are created where only the user can write.   |
 
 ## Threats and controls
 
