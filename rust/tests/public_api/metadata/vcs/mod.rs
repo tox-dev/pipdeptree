@@ -15,15 +15,6 @@ mod hg;
 mod svn;
 
 #[rstest]
-#[case::hg(
-    ".hg",
-    "hg",
-    &["showconfig", "paths.default"],
-    "https://example.com/repo",
-    &["parents", "--template={node}"],
-    "abc",
-    "-e hg+https://example.com/repo@abc#egg=demo"
-)]
 #[case::bzr(
     ".bzr",
     "bzr",
