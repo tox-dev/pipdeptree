@@ -68,7 +68,7 @@ An attacker who controls any of these already has what pipdeptree could give the
 | STRIDE                 | Threat                                                                      | Control                                                                                                              |
 | ---------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Tampering              | A crafted version string closes a DOT or Mermaid label and adds fake edges. | DOT identifiers are quoted with backslashes and quotes escaped; labels escape quotes. Report any label that escapes. |
-| Denial of service      | A dependency cycle or huge response stalls rendering.                       | Cycles are detected and reported; report anything unbounded.                                                         |
+| Denial of service      | A dependency cycle or huge response stalls rendering.                       | Cycles are detected and reported; `dot` is stopped after 300 seconds; report anything unbounded.                     |
 | Elevation of privilege | Inspecting metadata runs package code.                                      | Metadata files are parsed in Rust; the environment's interpreter runs only to report its paths.                      |
 
 ## Release chain
