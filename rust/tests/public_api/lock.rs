@@ -46,6 +46,40 @@ fn renders_pep_751_lock(#[case] command: &str) {
     );
 }
 
+// Cargo sets CARGO_PKG_NAME for the test process, so the reference has a value to expand to.
+#[test]
+fn keeps_environment_variable_references_in_dependency_urls_literal() {
+    let directory = tempdir().unwrap();
+    let lock = directory.path().join("pylock.toml");
+    fs::write(
+        &lock,
+        format!(
+            concat!(
+                "[[packages]]\n",
+                "name = \"root\"\n",
+                "version = \"1\"\n",
+                "dependencies = [\n",
+                "  {{name = \"child @ https://example.invalid/${{CARGO_PKG_NAME}}\"}},\n",
+                "  {{name = \"child @ https://example.invalid/{}\"}},\n",
+                "]\n",
+            ),
+            env!("CARGO_PKG_NAME")
+        ),
+    )
+    .unwrap();
+
+    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+
+    assert_eq!(
+        stdout(&output),
+        concat!(
+            "root==1\n",
+            "├── child [candidate: ?]\n",
+            "└── child [candidate: ?]\n",
+        )
+    );
+}
+
 #[rstest]
 #[case::malformed("not = toml", "malformed TOML")]
 #[case::missing_packages("name = \"demo\"", "missing 'packages' array")]

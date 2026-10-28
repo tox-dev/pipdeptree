@@ -114,24 +114,33 @@ fn keeps_duplicate_requirement_edges() {
     );
 }
 
+// Cargo sets CARGO_PKG_NAME for the test process, so the reference has a value to expand to.
 #[test]
 fn keeps_environment_variable_references_in_direct_urls_literal() {
     let site = PackageSite::new();
     site.write(
         "root-1.dist-info",
-        concat!(
-            "Name: root\n",
-            "Version: 1\n",
-            "Requires-Dist: child @ https://example.invalid/${PIPDEPTREE_TEST_SECRET}\n",
-            "Requires-Dist: child @ https://example.invalid/hunter2\n",
+        &format!(
+            concat!(
+                "Name: root\n",
+                "Version: 1\n",
+                "Requires-Dist: child @ https://example.invalid/${{CARGO_PKG_NAME}}\n",
+                "Requires-Dist: child @ https://example.invalid/{}\n",
+            ),
+            env!("CARGO_PKG_NAME")
         ),
     );
 
-    let output = temp_env::with_var("PIPDEPTREE_TEST_SECRET", Some("hunter2"), || {
-        execute_in(&site, &["--packages", "root"])
-    });
+    let output = execute_in(&site, &["--packages", "root"]);
 
-    assert_eq!(stdout(&output).matches("child").count(), 2);
+    assert_eq!(
+        stdout(&output),
+        concat!(
+            "root==1\n",
+            "├── child [required: Any, installed: ?]\n",
+            "└── child [required: Any, installed: ?]\n",
+        )
+    );
 }
 
 #[test]
