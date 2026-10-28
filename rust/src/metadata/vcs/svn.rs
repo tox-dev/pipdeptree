@@ -55,7 +55,14 @@ impl super::Vcs for Svn {
 }
 
 fn legacy_info(location: &Path) -> Option<(String, String)> {
-    let content = fs::read_to_string(location.join(".svn/entries")).ok()?;
+    // Two lines of this file reach the freeze output; through a link they could come from any
+    // readable file.
+    let administrative = location.join(".svn");
+    let entries = administrative.join("entries");
+    (fs::symlink_metadata(&administrative).ok()?.is_dir()
+        && fs::symlink_metadata(&entries).ok()?.is_file())
+    .then_some(())?;
+    let content = fs::read_to_string(entries).ok()?;
     parse_entries(&content)
 }
 
@@ -93,5 +100,6 @@ fn parse_entries(content: &str) -> Option<(String, String)> {
     let lines = content.lines().collect::<Vec<_>>();
     let revision = lines.get(3)?.trim();
     let url = lines.get(4)?.trim();
-    (!url.is_empty()).then(|| (url.to_string(), revision.to_string()))
+    (!url.is_empty() && revision.parse::<u64>().is_ok())
+        .then(|| (url.to_string(), revision.to_string()))
 }
