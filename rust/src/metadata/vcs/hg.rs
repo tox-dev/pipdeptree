@@ -42,13 +42,13 @@ impl super::Vcs for Hg {
     }
 }
 
-// hg runs with HGRCSKIPREPO (see `command`), so the remote is read here as data; a linked hgrc and
-// `%include` are not followed, and the last assignment wins as in hg.
+// hg runs with HGRCSKIPREPO (see `command`), so the remote is read here as data; a linked .hg or
+// hgrc and `%include` are not followed, and the last assignment wins as in hg.
 fn default_path(root: &Path) -> Option<String> {
-    let hgrc = root.join(".hg/hgrc");
-    if !fs::symlink_metadata(&hgrc).is_ok_and(|metadata| metadata.is_file()) {
-        return None;
-    }
+    let store = root.join(".hg");
+    let hgrc = store.join("hgrc");
+    (fs::symlink_metadata(&store).ok()?.is_dir() && fs::symlink_metadata(&hgrc).ok()?.is_file())
+        .then_some(())?;
     let content = fs::read_to_string(hgrc).ok()?;
     let mut in_paths = false;
     let mut remote = None;

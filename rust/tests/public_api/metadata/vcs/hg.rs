@@ -103,13 +103,16 @@ fn ignores_hgrc_includes() {
 }
 
 #[cfg(unix)]
-#[test]
-fn ignores_linked_hgrc() {
+#[rstest]
+#[case::hgrc("hgrc", ".hg/hgrc")]
+#[case::hg_directory("", ".hg")]
+fn ignores_linked_hgrc(#[case] target: &str, #[case] link: &str) {
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join("hgrc"), REMOTE).unwrap();
     let repository = tempfile::tempdir().unwrap();
-    let target = repository.path().join("target");
-    fs::write(&target, REMOTE).unwrap();
-    fs::create_dir(repository.path().join(".hg")).unwrap();
-    std::os::unix::fs::symlink(target, repository.path().join(".hg/hgrc")).unwrap();
+    let link = repository.path().join(link);
+    fs::create_dir_all(link.parent().unwrap()).unwrap();
+    std::os::unix::fs::symlink(outside.path().join(target), link).unwrap();
     let site = editable_site(repository.path());
     let mut processes = MockProcesses::new();
     expect_no_git(&mut processes, repository.path());
