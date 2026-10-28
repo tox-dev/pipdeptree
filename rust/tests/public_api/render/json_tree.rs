@@ -97,6 +97,32 @@ fn lists_missing_packages_in_reverse_json_tree() {
 }
 
 #[test]
+fn stops_forward_json_tree_cycles() {
+    let site = super::PackageSite::new();
+    site.write(
+        "first-1.dist-info",
+        "Name: first\nVersion: 1\nRequires-Dist: second\n",
+    );
+    site.write(
+        "second-1.dist-info",
+        "Name: second\nVersion: 1\nRequires-Dist: first\n",
+    );
+
+    let output = execute(&site, &["--json-tree"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(
+        (
+            output.code,
+            &value[0]["key"],
+            &value[0]["dependencies"][0]["key"],
+            &value[0]["dependencies"][0]["dependencies"],
+        ),
+        (0, &json!("first"), &json!("second"), &json!([]))
+    );
+}
+
+#[test]
 fn stops_reverse_json_tree_cycles() {
     let site = super::PackageSite::new();
     site.write(
