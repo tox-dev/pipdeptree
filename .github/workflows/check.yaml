@@ -122,7 +122,7 @@ jobs:
           DIFF_AGAINST: HEAD
   # The one context branch protection requires, so a matrix that grows or renames its cells needs no ruleset edit.
   check:
-    name: 🚦 ${{ github.event_name == 'pull_request' && 'check' || 'check (non-PR)' }}
+    name: 🚦 ${{ github.event_name == 'pull_request' && 'Required checks pass' || 'Non-PR checks pass' }}
     needs: [dist, rust, test]
     if: always()
     runs-on: ubuntu-26.04
