@@ -5,6 +5,10 @@ pipdeptree supports multiple output formats via ``-o FMT`` (or ``--output FMT``)
 ``rich``. Redirected output, ``TERM=dumb`` and ``NO_COLOR`` default to ``text``. The executable examples use
 ``--packages pytest`` to keep the output concise.
 
+The tree formats (``text``, ``rich``, ``freeze`` and ``json-tree``) stop with an error when a dependency chain nests
+deeper than 500 levels below its root. ``--depth`` keeps ``text``, ``rich`` and ``freeze`` within that limit, and the
+flat ``json`` format has no limit.
+
 text
 ----
 

@@ -10,6 +10,7 @@ mod graphviz;
 mod json;
 mod json_tree;
 mod mermaid;
+mod nesting;
 mod rich_text;
 mod sbom;
 mod summary;

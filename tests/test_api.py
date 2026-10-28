@@ -230,3 +230,15 @@ def test_render_rejects_invalid_options(call: Callable[[], str], expected: str) 
 
 def test_render_summary_json_is_valid() -> None:
     assert json.loads(pipdeptree.render(summary=True, output_format="json"))["total_packages"] > 0
+
+
+def test_render_raises_on_trees_past_the_nesting_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    for position in range(502):
+        dist_info = tmp_path / f"p{position:05}-1.dist-info"
+        dist_info.mkdir()
+        requires = f"Requires-Dist: p{position + 1:05}\n" if position < 501 else ""
+        (dist_info / "METADATA").write_text(f"Name: p{position:05}\nVersion: 1\n{requires}")
+    monkeypatch.setattr(sys, "path", [str(tmp_path)])
+
+    with pytest.raises(ValueError, match="nests deeper than 500 levels"):
+        pipdeptree.render(output_format="json-tree")

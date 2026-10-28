@@ -3,13 +3,14 @@ use std::collections::{BTreeSet, HashSet};
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 
+use crate::Error;
 use crate::graph::{Dependency, Graph, ReverseRoot};
 use crate::options::Options;
 
 use super::json::computed_json;
-use super::shared::{required_version, reverse_required_extras};
+use super::shared::{check_tree_depth, required_version, reverse_required_extras};
 
-pub(super) fn render(graph: &Graph, options: &Options) -> String {
+pub(super) fn render(graph: &Graph, options: &Options) -> Result<String, Error> {
     let entries = if options.reverse {
         graph
             .reverse_roots(false)
@@ -22,7 +23,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
                     missing_reverse_json(graph, name, &parents, options)
                 }
             })
-            .collect::<Vec<_>>()
+            .collect::<Result<Vec<_>, _>>()?
     } else {
         graph
             .roots(false, false)
@@ -37,7 +38,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
                     options,
                 )
             })
-            .collect::<Vec<_>>()
+            .collect::<Result<Vec<_>, _>>()?
     };
     let mut output = Vec::new();
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
@@ -45,7 +46,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
     entries
         .serialize(&mut serializer)
         .expect("serializing dependency tree cannot fail");
-    String::from_utf8(output).expect("JSON is UTF-8")
+    Ok(String::from_utf8(output).expect("JSON is UTF-8"))
 }
 
 fn forward_tree_json(
@@ -55,7 +56,8 @@ fn forward_tree_json(
     extras: &BTreeSet<String>,
     path: &mut HashSet<usize>,
     options: &Options,
-) -> Value {
+) -> Result<Value, Error> {
+    check_tree_depth(path.len())?;
     path.insert(index);
     let mut value = incoming.map_or_else(
         || package_json(graph, index, options),
@@ -83,12 +85,12 @@ fn forward_tree_json(
                 &dependency.requested_extras(),
                 path,
                 options,
-            ));
+            )?);
         }
     }
     value["dependencies"] = Value::Array(dependencies);
     path.remove(&index);
-    value
+    Ok(value)
 }
 
 fn reverse_tree_json(
@@ -98,7 +100,8 @@ fn reverse_tree_json(
     required_extras: Option<&BTreeSet<String>>,
     path: &mut HashSet<usize>,
     options: &Options,
-) -> Value {
+) -> Result<Value, Error> {
+    check_tree_depth(path.len())?;
     path.insert(index);
     let mut value = package_json(graph, index, options);
     if let Some(dependency) = incoming {
@@ -121,12 +124,12 @@ fn reverse_tree_json(
                 required_extras.as_ref(),
                 path,
                 options,
-            ));
+            )?);
         }
     }
     value["dependencies"] = Value::Array(dependencies);
     path.remove(&index);
-    value
+    Ok(value)
 }
 
 fn missing_dependency_json(dependency: &Dependency, options: &Options) -> Value {
@@ -154,7 +157,7 @@ fn missing_reverse_json(
     name: &str,
     parents: &[(usize, &Dependency)],
     options: &Options,
-) -> Value {
+) -> Result<Value, Error> {
     let mut object = Map::from_iter([
         ("key".to_string(), Value::String(name.to_string())),
         ("package_name".to_string(), Value::String(name.to_string())),
@@ -188,9 +191,9 @@ fn missing_reverse_json(
                 options,
             )
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
     object.insert("dependencies".to_string(), Value::Array(dependencies));
-    Value::Object(object)
+    Ok(Value::Object(object))
 }
 
 fn package_json(graph: &Graph, index: usize, options: &Options) -> Value {
