@@ -623,9 +623,9 @@ fn query_ignores_modules_in_working_directory(#[case] module: &str) {
     )
     .unwrap();
 
-    query_from(directory.path(), &["--freeze"]);
+    let output = query_from(directory.path(), &["--freeze"]);
 
-    assert!(!marker.exists());
+    assert_eq!((output.code, marker.exists()), (0, false));
 }
 
 #[test]
