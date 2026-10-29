@@ -953,6 +953,42 @@ fn rejects_invalid_requirement_files(#[case] source: InvalidSource, #[case] expe
 }
 
 #[test]
+fn rejects_requirements_includes_nested_past_the_limit() {
+    let directory = tempdir().unwrap();
+    for level in 0..=100 {
+        fs::write(
+            directory.path().join(format!("r{level}.txt")),
+            format!("-r r{}.txt\n", level + 1),
+        )
+        .unwrap();
+    }
+    fs::write(directory.path().join("r101.txt"), "demo\n").unwrap();
+
+    let output = resolved_output(&[
+        "from-index",
+        "--requirements",
+        directory.path().join("r0.txt").to_str().unwrap(),
+    ]);
+
+    assert_eq!(
+        (output.code, output.stdout.is_empty(), output.stderr),
+        (
+            1,
+            true,
+            format!(
+                "requirements include nested deeper than 100 levels: {}\n",
+                directory
+                    .path()
+                    .canonicalize()
+                    .unwrap()
+                    .join("r100.txt")
+                    .display()
+            )
+        )
+    );
+}
+
+#[test]
 fn rejects_invalid_trailing_logical_requirement() {
     let directory = tempdir().unwrap();
     let requirements = directory.path().join("requirements.txt");

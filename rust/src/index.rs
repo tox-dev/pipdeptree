@@ -233,10 +233,19 @@ fn parse_requirements_file(
     inputs: &mut Inputs,
     stack: &mut Vec<PathBuf>,
 ) -> Result<(), Error> {
+    // Each include recurses on the caller's thread, so a long chain of distinct files would
+    // overflow its stack; hand-written layouts nest a few levels.
+    const MAX_DEPTH: usize = 100;
     let path = path.canonicalize()?;
     if stack.contains(&path) {
         return Err(Error::message(format!(
             "recursive requirements include: {}",
+            path.display()
+        )));
+    }
+    if stack.len() == MAX_DEPTH {
+        return Err(Error::message(format!(
+            "requirements include nested deeper than {MAX_DEPTH} levels: {}",
             path.display()
         )));
     }
