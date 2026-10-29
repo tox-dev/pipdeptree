@@ -6,6 +6,97 @@
 
 .. towncrier release notes start
 
+.. _release-4-2-12:
+
+*********************
+ 4.2.12 (2026-10-29)
+*********************
+
+.. _release-4-2-12-fixed:
+
+Fixed
+-----
+
+- Drop the user name and password from a direct URL in freeze output when the scheme holds a digit, ``-`` or ``.``, such
+  as ``static-http`` or ``s3``. Before, pipdeptree printed such a URL as recorded, credentials included. Also drop them
+  when the user name or password holds an ``@``. pipdeptree used to cut the authority at the first ``@``, so the rest of
+  the password showed up as part of the host. The host now starts after the last ``@``, as pip and ``urllib`` read it,
+  and an ``@`` in the path, query or fragment no longer counts. The same rule applies to the remote of an editable VCS
+  checkout (:pr:`809`) by :user:`gaborbernat`.
+- Freeze a package as ``-e`` with the location from a ``NAME.egg-link`` file only when its metadata is an ``.egg-info``
+  directory in the directory that link names. That is the layout ``setup.py develop`` leaves. A link with the package's
+  name used to replace the ``name==version`` pin of any install, such as a ``.dist-info`` package from a wheel
+  (:pr:`813`) by :user:`gaborbernat`.
+- Import ``platform`` and ``json`` for the running interpreter's query from its standard library and extension module
+  directory alone, so a ``_wmi.py`` or ``_json.py`` in a directory pipdeptree inspects, or on a ``sys.path`` narrowed
+  before ``pipdeptree.render()``, no longer runs in the pipdeptree process (:pr:`823`) by :user:`gaborbernat`.
+- Keep a license that holds a line separator such as U+2028 in one row of the notebook HTML table from
+  ``render(summary=True)``; the table used to split it into extra rows labeled with text from the license (:pr:`828`) by
+  :user:`gaborbernat`.
+- Look up ``git``, ``hg``, ``svn`` and ``bzr`` on ``PATH`` from the directory pipdeptree runs in when freezing an
+  editable install. On Unix the child process changes into the editable project before it searches ``PATH``, so an empty
+  or relative entry, such as a trailing separator, ``.`` or ``./bin``, used to find a program inside that project. A
+  file named ``git`` or ``bzr`` there then ran in place of the real tool, with the permissions of the user who ran
+  pipdeptree. pipdeptree now resolves the program itself and skips entries without an executable file, as the system
+  lookup does. If no entry holds the tool, freeze reports it as missing. Windows already searched from pipdeptree's own
+  directory and keeps its behavior (:pr:`810`) by :user:`gaborbernat`.
+- Print a text Graphviz format such as ``-o graphviz-svg`` or ``-o graphviz-ps`` on a terminal even when ``dot``'s
+  output is not valid UTF-8, as with a non-ASCII ``--metadata`` value in PostScript, instead of writing it to a
+  temporary file and opening that in the default application (:pr:`822`) by :user:`gaborbernat`.
+- Read at most 1 MiB of output from each ``git``, ``hg``, ``svn`` and ``bzr`` command that freeze runs for an editable
+  install. Before, pipdeptree kept everything a command printed. A repository config that repeats remote keys through
+  includes made ``git`` print more than a gigabyte within its timeout, and pipdeptree's memory grew with it. A command
+  that prints more than the limit on stdout or stderr now counts as failed, and freeze prints the record as it does for
+  any other failed VCS command. Closing the pipe at the limit also ends a command that keeps writing, so it no longer
+  runs until its timeout (:pr:`819`) by :user:`gaborbernat`.
+- Report a ``METADATA`` or ``PKG-INFO`` file that is not a regular file under the missing or invalid metadata warning
+  and skip its package. Headers larger than 16 MiB get the same treatment. A FIFO there made the scan wait for a writer.
+  A link to ``/dev/zero`` made it allocate memory until it aborted (:pr:`815`) by :user:`gaborbernat`.
+- Spend at most 10 seconds per run on ``git``, ``hg``, ``svn`` and ``bzr`` commands that time out while freezing
+  editable installs. Each record pointing at a stalled repository used to wait out its own 5 second timeout, so four
+  such records took 20 seconds. Commands that finish in time do not count toward the limit. Once a run uses it up, later
+  commands fail without starting, and each record whose lookup timed out gets a ``# Editable ... install whose lookup
+  timed out`` comment instead of the one for an install with no version control or no remote. A timed-out ``git`` lookup
+  still lets ``hg``, ``svn`` or ``bzr`` find the checkout (:pr:`824`) by :user:`gaborbernat`.
+- Stop reading ``direct_url.json`` and ``RECORD`` at the top of a site directory as the files of a package whose
+  metadata is a single ``.egg-info`` file. Freeze output pinned such a package to the URL in that ``direct_url.json``.
+  ``--computed size`` counted the files that ``RECORD`` lists (:pr:`812`) by :user:`gaborbernat`.
+- Treat an empty ``VIRTUAL_ENV`` or ``CONDA_PREFIX`` as unset when detecting the environment to inspect, so pipdeptree
+  no longer runs a ``bin/python`` (``Scripts\python.exe`` on Windows) found relative to the working directory
+  (:pr:`827`) by :user:`gaborbernat`.
+- Write each character that stdout's encoding cannot represent as a backslash escape, such as ``\xe9`` for ``é`` under
+  ``PYTHONIOENCODING=ascii``, so package metadata no longer crashes pipdeptree with ``UnicodeEncodeError`` before it
+  prints the tree or its warnings. Output redirected on Windows hit this for any character outside the ANSI code page
+  (:pr:`821`) by :user:`gaborbernat`.
+- ``from-index --requirements`` now parses a requirements file at most once as requirements and once as constraints,
+  however many ``-r`` and ``-c`` lines include it. It used to parse such a file again for every include path, so a
+  layout that repeats an include at several nesting levels took time multiplied by the repeat count at each level, and
+  the resolver received each requirement once per path (:pr:`811`) by :user:`gaborbernat`.
+- ``from-index --requirements`` now reports a line it cannot parse as a requirement by file path and line number, for
+  example ``/work/netrc:2: invalid requirement``, instead of the parser message that repeats the line. An include that
+  pointed at a file holding credentials, such as ``-r ~/.netrc``, printed its first unparsable line, password included.
+  Requirements passed on the command line keep the full parser message (:pr:`817`) by :user:`gaborbernat`.
+- ``from-index --requirements`` now stops with ``requirements include nested deeper than 100 levels`` and the path of
+  the file at that depth when ``-r`` and ``-c`` includes nest more than 100 levels deep. A chain of about 14,000 files
+  used to overflow the stack and kill the process with a segmentation fault and no message (:pr:`816`) by
+  :user:`gaborbernat`.
+- ``from-index`` on Windows now hands a local source to the resolver as a plain ``C:\...`` path instead of the
+  ``\\?\C:\...`` form, so a project whose ``pyproject.toml`` sets ``backend-path = ["."]`` can build its metadata. The
+  build frontend joined ``.`` to the ``\\?\`` path, which Windows does not normalize, and rejected the entry as missing
+  (:pr:`826`) by :user:`gaborbernat`.
+- ``from-index`` on Windows now treats ``C:\path\to\project`` and ``.\project`` as local sources, on the command line
+  and as requirements file lines, as pip does. It used to pass them to the PEP 508 parser, which rejected them for
+  lacking a package name (:pr:`825`) by :user:`gaborbernat`.
+
+.. _release-4-2-12-packaging:
+
+Packaging
+---------
+
+- Publish the stable ABI wheel for arm64 macOS again, so CPython 3.11 to 3.14 on Apple Silicon installs a wheel instead
+  of building the sdist. 4.2.10 and 4.2.11 shipped only interpreter-specific wheels there (:pr:`829`) by
+  :user:`gaborbernat`.
+
 .. _release-4-2-11:
 
 *********************
