@@ -4,15 +4,19 @@ use std::path::Path;
 use crate::process::ProcessRunner;
 
 use super::shared::{
-    CommandError, ExitStatusPolicy, VcsError, VcsRequirement, VcsResult, build_requirement,
-    command, marker_root, normalize_local_remote,
+    ExitStatusPolicy, VcsError, VcsRequirement, VcsResult, build_requirement, command, marker_root,
+    normalize_local_remote,
 };
 
 pub(super) struct Hg;
 
 impl super::Vcs for Hg {
-    fn root(&self, _processes: &dyn ProcessRunner, location: &Path) -> Option<std::path::PathBuf> {
-        marker_root(location, ".hg", false)
+    fn root(
+        &self,
+        _processes: &dyn ProcessRunner,
+        location: &Path,
+    ) -> Result<Option<std::path::PathBuf>, VcsError> {
+        Ok(marker_root(location, ".hg", false))
     }
 
     fn requirement(
@@ -78,7 +82,7 @@ fn required_command(
         ExitStatusPolicy::RequireSuccess,
     ) {
         Ok(value) if !value.is_empty() => Ok(value),
-        Ok(_) | Err(CommandError::Failed) => Err(VcsError::NoRemote),
-        Err(CommandError::NotFound) => Err(VcsError::CommandNotFound),
+        Ok(_) => Err(VcsError::NoRemote),
+        Err(error) => Err(error.into()),
     }
 }
