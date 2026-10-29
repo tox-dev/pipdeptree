@@ -456,6 +456,7 @@ fn packages(py: Python<'_>, options: &Options, runtime: &Runtime) -> Result<Disc
             pyproject_files,
             index_url.as_deref(),
             extra_index_url,
+            options.warn,
         ),
     }
 }

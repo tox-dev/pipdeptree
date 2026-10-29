@@ -210,6 +210,49 @@ fn leaves_unrecorded_edges_without_a_required_version() {
 }
 
 #[rstest]
+#[case::suppress("suppress", concat!(
+    "Warning: the resolver reported:\n",
+    "Skipping logs==2: d[x\u{fffd}]0;t\u{fffd}]\n",
+    "    ~~^\n",
+    "------------------------------------------------------------------------\n",
+    "Warning: dependency problems found:\n",
+    "* parent==1\n",
+    "  - external [required: Any, installed: ?]\n",
+    "------------------------------------------------------------------------\n\n",
+))]
+#[case::silence("silence", "")]
+fn reports_resolver_logs_as_warnings(#[case] warn: &str, #[case] expected: &str) {
+    let output = resolved_output(&["--warn", warn, "-o", "freeze", "from-index", "logs"]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, "parent==1\n  child==2\n  external\n", expected)
+    );
+}
+
+#[rstest]
+#[case::suppress("suppress", concat!(
+    "Warning: the resolver reported:\n",
+    "Skipping logs==2: d[x\u{fffd}]0;t\u{fffd}]\n",
+    "    ~~^\n",
+    "------------------------------------------------------------------------\n",
+    "ValueError: no version of \u{fffd}[2Jraises\n",
+))]
+#[case::silence("silence", "ValueError: no version of \u{fffd}[2Jraises\n")]
+fn reports_resolver_logs_before_a_resolver_error(#[case] warn: &str, #[case] expected: &str) {
+    let output = resolved_output(&["--warn", warn, "from-index", "logs", "raises"]);
+
+    assert_eq!(
+        (
+            output.code,
+            output.stdout.is_empty(),
+            output.stderr.as_str()
+        ),
+        (1, true, expected)
+    );
+}
+
+#[rstest]
 #[case::root(&[])]
 #[case::filtered(&["--packages", "parent[feature]"])]
 fn renders_parent_and_child_extras(#[case] flags: &[&str]) {
