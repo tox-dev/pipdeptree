@@ -441,7 +441,9 @@ fn add_local_source(
 }
 
 fn add_local_source_path(path: &Path, editable: bool, inputs: &mut Inputs) -> Result<(), Error> {
-    let path = path.canonicalize()?;
+    // std's canonicalize gives a \\?\ path on Windows, where "." does not resolve, so the build
+    // frontend rejects backend-path = ["."]; dunce returns the plain form when one exists.
+    let path = dunce::canonicalize(path)?;
     let pyproject = path.join("pyproject.toml");
     if !pyproject.is_file() {
         return Err(Error::message(format!(
