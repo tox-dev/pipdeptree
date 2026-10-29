@@ -295,7 +295,8 @@ A bare wheel/sdist archive URL or a non-git VCS scheme (``hg+``/``bzr+``/``svn+`
     $ pipdeptree from-index --requirements requirements.txt
     URL requirements are not supported by the index resolver: foo @ https://h/foo-1.0-py3-none-any.whl
 
-An unpinned git ref fails the same way, and so does a constraint that carries extras or a URL.
+An unpinned git ref fails the same way, and so does a constraint that carries extras or names a source: a URL, a local
+path or an ``-e`` line.
 
 The installed-environment display options inspect on-disk files, so ``from-index`` does not accept them:
 
