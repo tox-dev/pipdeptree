@@ -6,6 +6,84 @@
 
 .. towncrier release notes start
 
+.. _release-4-2-11:
+
+*********************
+ 4.2.11 (2026-10-29)
+*********************
+
+.. _release-4-2-11-security:
+
+Security
+--------
+
+- Build a package's ``--metadata`` and ``--computed`` suffix once per ``text`` or ``rich`` tree instead of once per line
+  that shows the package, so a long metadata value no longer slows down a tree that repeats the package (:pr:`796`) by
+  :user:`gaborbernat`.
+- Compute the ``--summary`` max depth in linear time, counting a dependency cycle as all of its packages, so a dozen
+  packages that require each other no longer stall the command (:pr:`793`) by :user:`gaborbernat`.
+- Count a ``RECORD`` row toward ``--computed size`` and ``--summary`` only when it resolves to a regular file inside the
+  installation prefix of the site directory, so absolute paths, ``..`` segments and symbolic links in ``RECORD`` no
+  longer add the size of files elsewhere on the machine (:pr:`781`) by :user:`gaborbernat`.
+- Drop the user and password from the remote URL of an editable git, hg, svn or bzr checkout in freeze output, as
+  pipdeptree already does for a recorded direct URL (:pr:`783`) by :user:`gaborbernat`.
+- Escape backslashes in Graphviz labels, so a package name, version or ``--metadata`` value can no longer end its label
+  early and add statements to the DOT source (:pr:`777`) by :user:`gaborbernat`.
+- Escape package metadata in Mermaid output, so it can no longer add statements to the diagram. Quotes, ``#``, ``&``,
+  ``<``, ``>``, backticks and control characters in node labels become entity codes, and a package whose canonical name
+  is empty or holds characters other than lowercase letters, digits and ``-`` gets a ``package_<n>`` node id (:pr:`776`)
+  by :user:`gaborbernat`.
+- Keep memory use linear in the size of a ``Requires-Dist`` line that requests many extras and that many extras
+  activate; pipdeptree no longer stores one copy of the requested extras per activating extra (:pr:`780`) by
+  :user:`gaborbernat`.
+- List a package's dependencies once per top-level package in the ``text``, ``rich``, ``freeze`` and ``json-tree``
+  trees, forward and ``--reverse``, and end each later line for it, and the line that closes a dependency cycle, in
+  ``(*)`` (``"repeated": true`` in ``json-tree``). Tree output now grows with the number of dependency edges instead of
+  the number of paths through them (:pr:`798`) by :user:`gaborbernat`.
+- Query another interpreter from an empty temporary directory and drop the ``''`` entry that ``python -c`` puts on
+  ``sys.path``, so modules and ``.dist-info`` directories in the current directory no longer load during the query or
+  show up as installed packages (:pr:`787`) by :user:`gaborbernat`.
+- Reject a package ``Name`` or ``Version`` longer than 255 bytes; pipdeptree leaves out an installed distribution with
+  one as invalid metadata, and ``from-lock`` stops with an error. Warnings and reverse JSON copy the name once per
+  requirement or edge, so one long name could make pipdeptree write hundreds of megabytes (:pr:`794`) by
+  :user:`gaborbernat`.
+- Remove the user name and password from index URLs before ``from-index`` passes them to Nab, which does not send them,
+  so resolver errors no longer print them (:pr:`790`) by :user:`gaborbernat`.
+- Replace control characters other than tab with U+FFFD in package names, versions, metadata header values,
+  ``direct_url.json`` fields and lock file strings, so a package can no longer send escape sequences to the terminal,
+  cut a Graphviz label short or crash ``--summary -o rich`` (:pr:`778`) by :user:`gaborbernat`.
+- Replace each character that cannot appear in a project name or version with ``?`` in freeze output, so a name or
+  version from a lock file or package metadata can no longer add lines, options or a coding declaration to the
+  requirements file (:pr:`800`) by :user:`gaborbernat`.
+- Report a ``from-lock`` TOML parse error by line and column with the parser's message, without quoting the line of the
+  file where parsing stopped (:pr:`782`) by :user:`gaborbernat`.
+- Select a requirement's children and check its version conflict once per edge in ``text``, ``rich`` and ``json-tree``
+  output, instead of on every line that shows the edge, so a package required through many lines no longer slows
+  rendering (:pr:`797`) by :user:`gaborbernat`.
+- Stop ``--freeze`` from checking whether a local git, hg or bzr remote exists and from resolving its links; pipdeptree
+  writes the remote as a ``file://`` URL as configured, so the output no longer shows which paths exist on the host
+  (:pr:`785`) by :user:`gaborbernat`.
+- Stop ``--freeze`` from following a symbolic link when it reads an ``.egg-link`` or legacy ``.svn/entries`` file, and
+  require an integer revision in ``.svn/entries``, so the output can no longer include lines of another file (:pr:`786`)
+  by :user:`gaborbernat`.
+- Stop ``--freeze`` from running hooks, aliases or extensions from an editable install's ``.hg/hgrc``; pipdeptree runs
+  ``hg`` with ``HGRCSKIPREPO=1`` and reads ``paths.default`` from that file as plain text (:pr:`791`) by
+  :user:`gaborbernat`.
+- Stop ``from-index`` from looking for a Nab workspace above the project it generates in the temporary directory, so a
+  ``nab.toml`` or ``pyproject.toml`` there can no longer add local sources to the resolve; a lone ``--pyproject`` still
+  finds its workspace (:pr:`789`) by :user:`gaborbernat`.
+- Stop ``from-index`` from running the build backend of sdists downloaded from the index when the input lists a local or
+  git source. Only listed git sources may build beyond Nab's default, and a listed local source builds as before
+  (:pr:`788`) by :user:`gaborbernat`.
+- Stop replacing ``${NAME}`` with the value of an environment variable in direct references (``name @ url``) read from
+  installed metadata and lock files; pipdeptree compares and validates those URLs as written (:pr:`784`) by
+  :user:`gaborbernat`.
+- Stop the Graphviz ``dot`` process after 300 seconds and exit with an error, so a graph that is slow to lay out no
+  longer keeps ``-o graphviz-<format>`` waiting with no limit (:pr:`775`) by :user:`gaborbernat`.
+- Stop tree output (``text``, ``rich``, ``freeze`` and ``json-tree``) with an error when a dependency chain nests deeper
+  than 200 levels, where it used to overflow the stack and kill the process, including a Python process that called
+  ``pipdeptree.render()``. Cycle warnings no longer recurse (:pr:`799`) by :user:`gaborbernat`.
+
 .. _release-4-2-10:
 
 *********************
