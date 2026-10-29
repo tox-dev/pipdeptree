@@ -214,16 +214,26 @@ jobs:
           CIBW_ENVIRONMENT_LINUX: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PIPDEPTREE_ABI3=${{ matrix.build == 'cp315' && '1' || '0' }} UV_EXCLUDE_NEWER="1 week" PATH=$HOME/.cargo/bin:$PATH RUSTFLAGS="-C target-feature=-crt-static"
           # One target directory across the four builds leaves the dependency graph compiled after the first;
           # arm64 macOS starts at 11.0, so only the x86_64 wheels can reach back to 10.15
-          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PIPDEPTREE_ABI3=${{ matrix.build == 'gil' && '1' || '0' }} UV_EXCLUDE_NEWER="1 week" MACOSX_DEPLOYMENT_TARGET=${{ matrix.platform.arch == 'arm64' && '11.0' || '10.15' }} CARGO_TARGET_DIR=$HOME/cargo-target
+          CIBW_ENVIRONMENT_MACOS: PIPDEPTREE_VERSION=${{ steps.version.outputs.value }} PIPDEPTREE_ABI3=${{ (matrix.build == 'gil' || matrix.build == 'every') && '1' || '0' }} UV_EXCLUDE_NEWER="1 week" MACOSX_DEPLOYMENT_TARGET=${{ matrix.platform.arch == 'arm64' && '11.0' || '10.15' }} CARGO_TARGET_DIR=$HOME/cargo-target
           CIBW_TEST_COMMAND: pipdeptree --version
         with:
           output-dir: dist
       - name: 🏗️ Set the stable ABI minimum
         shell: bash
+        env:
+          ABI3: ${{ contains(fromJSON('["cp315", "gil", "every"]'), matrix.build) }}
+          BUILD: ${{ matrix.build }}
+          OS: ${{ matrix.platform.os }}
         run: |
           # meson-python tags abi3 wheels with the build interpreter rather than the PyO3 ABI floor.
           shopt -s nullglob
           wheels=(dist/*-abi3-*.whl)
+          # A job whose CPython build carries the abi3 wheel must produce it, or Python 3.11 to 3.14 on that
+          # platform has no wheel and falls back to the sdist.
+          if [[ "$ABI3" == true ]] && ((${#wheels[@]} == 0)); then
+            echo "::error::no abi3 wheel built for $BUILD on $OS"
+            exit 1
+          fi
           if ((${#wheels[@]})); then
             if [[ "$RUNNER_OS" == Windows ]]; then
               wheel="$RUNNER_TEMP/release-tools/Scripts/wheel.exe"
