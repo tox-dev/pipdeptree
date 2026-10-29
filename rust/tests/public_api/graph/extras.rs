@@ -210,7 +210,7 @@ fn rejects_active_extra_with_unknown_nested_extra() {
 }
 
 #[test]
-fn judges_active_extras_sharing_a_requirement_separately() {
+fn judges_each_active_extra_sharing_a_requirement() {
     let site = PackageSite::new();
     site.write(
         "root-1.dist-info",

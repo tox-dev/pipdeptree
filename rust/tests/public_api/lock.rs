@@ -46,29 +46,24 @@ fn renders_pep_751_lock(#[case] command: &str) {
     );
 }
 
-// Cargo sets CARGO_PKG_NAME for the test process, so the reference has a value to expand to.
 #[test]
 fn keeps_environment_variable_references_in_dependency_urls_literal() {
-    let directory = tempdir().unwrap();
-    let lock = directory.path().join("pylock.toml");
-    fs::write(
-        &lock,
-        format!(
+    let output = execute_lock(
+        &format!(
             concat!(
                 "[[packages]]\n",
                 "name = \"root\"\n",
                 "version = \"1\"\n",
                 "dependencies = [\n",
+                // Cargo sets CARGO_PKG_NAME, so expanding it would merge this edge with the next one.
                 "  {{name = \"child @ https://example.invalid/${{CARGO_PKG_NAME}}\"}},\n",
                 "  {{name = \"child @ https://example.invalid/{}\"}},\n",
                 "]\n",
             ),
             env!("CARGO_PKG_NAME")
         ),
-    )
-    .unwrap();
-
-    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+        &[],
+    );
 
     assert_eq!(
         stdout(&output),
@@ -78,6 +73,13 @@ fn keeps_environment_variable_references_in_dependency_urls_literal() {
             "└── child [candidate: ?]\n",
         )
     );
+}
+
+fn execute_lock(content: &str, options: &[&str]) -> _pipdeptree::Execution {
+    let directory = tempdir().unwrap();
+    let lock = directory.path().join("pylock.toml");
+    fs::write(&lock, content).unwrap();
+    execute(&[options, &["from-lock", lock.to_str().unwrap()]].concat())
 }
 
 #[rstest]
@@ -118,11 +120,7 @@ fn rejects_invalid_locks(#[case] content: &str, #[case] expected: &str) {
     "malformed TOML at line 2, column 15: unexpected key or value, expected newline, `#`\n"
 )]
 fn reports_parse_errors_without_the_source_line(#[case] content: &str, #[case] expected: &str) {
-    let directory = tempdir().unwrap();
-    let lock = directory.path().join("pylock.toml");
-    fs::write(&lock, content).unwrap();
-
-    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+    let output = execute_lock(content, &[]);
 
     assert_eq!((output.code, output.stderr.as_str()), (1, expected));
 }
@@ -138,19 +136,14 @@ fn limits_lock_name_and_version_length(
     #[case] code: i32,
     #[case] expected: &str,
 ) {
-    let directory = tempdir().unwrap();
-    let lock = directory.path().join("pylock.toml");
-    fs::write(
-        &lock,
-        format!(
+    let output = execute_lock(
+        &format!(
             "[[packages]]\nname = \"{}\"\nversion = \"{}\"\n",
             "p".repeat(name),
             "1".repeat(version)
         ),
-    )
-    .unwrap();
-
-    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+        &[],
+    );
 
     assert_eq!(
         (
@@ -189,15 +182,10 @@ fn freezes_lock_values_on_one_line(
     #[case] version: &str,
     #[case] expected: &str,
 ) {
-    let directory = tempdir().unwrap();
-    let lock = directory.path().join("pylock.toml");
-    fs::write(
-        &lock,
-        format!("[[packages]]\nname = \"{name}\"\nversion = \"{version}\"\n"),
-    )
-    .unwrap();
-
-    let output = execute(&["--freeze", "from-lock", lock.to_str().unwrap()]);
+    let output = execute_lock(
+        &format!("[[packages]]\nname = \"{name}\"\nversion = \"{version}\"\n"),
+        &["--freeze"],
+    );
 
     assert_eq!(
         (output.code, stdout(&output), output.stderr.as_str()),
@@ -257,20 +245,15 @@ fn rejects_unsupported_lock_versions() {
 
 #[test]
 fn replaces_control_characters_in_lock_strings() {
-    let directory = tempdir().unwrap();
-    let lock = directory.path().join("pylock.toml");
-    fs::write(
-        &lock,
+    let output = execute_lock(
         concat!(
             "[[packages]]\n",
             "name = \"root\\u001b[2K\"\n",
             "version = \"1\\u0007\"\n",
             "dependencies = [{name = \"child\\u009b\"}]\n",
         ),
-    )
-    .unwrap();
-
-    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+        &[],
+    );
 
     assert_eq!(
         (output.code, stdout(&output), output.stderr.as_str()),
@@ -288,11 +271,7 @@ fn replaces_control_characters_in_lock_strings() {
 
 #[test]
 fn replaces_control_characters_in_unsupported_lock_versions() {
-    let directory = tempdir().unwrap();
-    let lock = directory.path().join("pylock.toml");
-    fs::write(&lock, "lock-version = \"2\\u001b[2K\"\npackages = []\n").unwrap();
-
-    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+    let output = execute_lock("lock-version = \"2\\u001b[2K\"\npackages = []\n", &[]);
 
     assert_eq!(
         (

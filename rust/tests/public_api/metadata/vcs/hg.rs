@@ -27,15 +27,33 @@ const REMOTE: &str = "[paths]\ndefault = https://example.com/repo\n";
 fn freezes_hg_repositories(#[case] hgrc: &str) {
     let repository = tempfile::tempdir().unwrap();
     write_hgrc(repository.path(), hgrc);
-    let site = editable_site(repository.path());
-    let mut processes = MockProcesses::new();
-    expect_no_git(&mut processes, repository.path());
-    expect_commit(&mut processes, Ok(process_output("abc")));
 
     assert_eq!(
-        freeze(&site, &processes),
+        freeze_hg(repository.path(), Ok(process_output("abc"))),
         "-e hg+https://example.com/repo@abc#egg=demo\n"
     );
+}
+
+fn write_hgrc(repository: &Path, content: &str) {
+    fs::create_dir_all(repository.join(".hg")).unwrap();
+    fs::write(repository.join(".hg/hgrc"), content).unwrap();
+}
+
+fn freeze_hg(repository: &Path, commit: Result<ProcessOutput, ProcessError>) -> String {
+    let site = editable_site(repository);
+    let mut processes = MockProcesses::new();
+    expect_no_git(&mut processes, repository);
+    processes
+        .expect_run()
+        .withf(|request| {
+            request.program == "hg"
+                && request.args == ["parents", "--template={node}"]
+                && request.added_environment
+                    == [(OsString::from("HGRCSKIPREPO"), OsString::from("1"))]
+        })
+        .times(1)
+        .return_once(move |_| commit);
+    freeze(&site, &processes)
 }
 
 #[rstest]
@@ -69,12 +87,8 @@ fn reports_hg_failures(
     if let Some(hgrc) = hgrc {
         write_hgrc(repository.path(), hgrc);
     }
-    let site = editable_site(repository.path());
-    let mut processes = MockProcesses::new();
-    expect_no_git(&mut processes, repository.path());
-    expect_commit(&mut processes, commit);
 
-    let frozen = freeze(&site, &processes);
+    let frozen = freeze_hg(repository.path(), commit);
 
     assert_eq!(
         (
@@ -94,12 +108,11 @@ fn ignores_hgrc_includes() {
         repository.path(),
         &format!("%include {}\n", included.display()),
     );
-    let site = editable_site(repository.path());
-    let mut processes = MockProcesses::new();
-    expect_no_git(&mut processes, repository.path());
-    expect_commit(&mut processes, Ok(process_output("abc")));
 
-    assert!(freeze(&site, &processes).contains("Editable hg install with no remote"));
+    assert!(
+        freeze_hg(repository.path(), Ok(process_output("abc")))
+            .contains("Editable hg install with no remote")
+    );
 }
 
 #[cfg(unix)]
@@ -113,12 +126,11 @@ fn ignores_linked_hgrc(#[case] target: &str, #[case] link: &str) {
     let link = repository.path().join(link);
     fs::create_dir_all(link.parent().unwrap()).unwrap();
     std::os::unix::fs::symlink(outside.path().join(target), link).unwrap();
-    let site = editable_site(repository.path());
-    let mut processes = MockProcesses::new();
-    expect_no_git(&mut processes, repository.path());
-    expect_commit(&mut processes, Ok(process_output("abc")));
 
-    assert!(freeze(&site, &processes).contains("Editable hg install with no remote"));
+    assert!(
+        freeze_hg(repository.path(), Ok(process_output("abc")))
+            .contains("Editable hg install with no remote")
+    );
 }
 
 #[rstest]
@@ -138,12 +150,8 @@ fn normalizes_hg_remotes(#[case] source: HgRemote, #[case] expected: &str) {
         HgRemote::Value(value) => value.to_string(),
     };
     write_hgrc(repository.path(), &format!("[paths]\ndefault = {remote}\n"));
-    let site = editable_site(repository.path());
-    let mut processes = MockProcesses::new();
-    expect_no_git(&mut processes, repository.path());
-    expect_commit(&mut processes, Ok(process_output("abc")));
 
-    assert!(freeze(&site, &processes).starts_with(expected));
+    assert!(freeze_hg(repository.path(), Ok(process_output("abc"))).starts_with(expected));
 }
 
 #[derive(Clone, Copy)]
@@ -151,22 +159,4 @@ enum HgRemote {
     Absolute,
     MissingAbsolute,
     Value(&'static str),
-}
-
-fn write_hgrc(repository: &Path, content: &str) {
-    fs::create_dir_all(repository.join(".hg")).unwrap();
-    fs::write(repository.join(".hg/hgrc"), content).unwrap();
-}
-
-fn expect_commit(processes: &mut MockProcesses, result: Result<ProcessOutput, ProcessError>) {
-    processes
-        .expect_run()
-        .withf(|request| {
-            request.program == "hg"
-                && request.args == ["parents", "--template={node}"]
-                && request.added_environment
-                    == [(OsString::from("HGRCSKIPREPO"), OsString::from("1"))]
-        })
-        .times(1)
-        .return_once(move |_| result);
 }

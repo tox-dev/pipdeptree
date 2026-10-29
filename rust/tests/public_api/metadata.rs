@@ -118,6 +118,26 @@ fn counts_record_rows_inside_the_installation_prefix(
     );
 }
 
+fn sized_distribution(site: &Path, record: &str) -> Value {
+    let metadata = site.join("demo-1.dist-info");
+    fs::create_dir_all(&metadata).unwrap();
+    fs::write(metadata.join("METADATA"), "Name: demo\nVersion: 1\n").unwrap();
+    fs::write(metadata.join("RECORD"), record).unwrap();
+    size_raw(site)
+}
+
+fn size_raw(site: &Path) -> Value {
+    let output = execute(&[
+        "--path",
+        site.to_str().unwrap(),
+        "--computed",
+        "size-raw",
+        "--json",
+    ]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    value[0]["package"]["computed"]["size_raw"].clone()
+}
+
 #[rstest]
 fn ignores_absolute_record_rows_outside_the_site(outside_file: (TempDir, PathBuf)) {
     let (_outside, file) = outside_file;
@@ -128,6 +148,14 @@ fn ignores_absolute_record_rows_outside_the_site(outside_file: (TempDir, PathBuf
         sized_distribution(site.path(), &format!("demo.py,,\n{},,\n", file.display())),
         json!(4)
     );
+}
+
+#[fixture]
+fn outside_file() -> (TempDir, PathBuf) {
+    let directory = tempfile::tempdir().unwrap();
+    let file = directory.path().join("secret");
+    fs::write(&file, "x".repeat(100)).unwrap();
+    (directory, file)
 }
 
 #[test]
@@ -185,34 +213,6 @@ fn counts_files_of_a_distribution_linked_into_the_site() {
     .unwrap();
 
     assert_eq!(size_raw(&site), json!(8));
-}
-
-#[fixture]
-fn outside_file() -> (TempDir, PathBuf) {
-    let directory = tempfile::tempdir().unwrap();
-    let file = directory.path().join("secret");
-    fs::write(&file, "x".repeat(100)).unwrap();
-    (directory, file)
-}
-
-fn sized_distribution(site: &Path, record: &str) -> Value {
-    let metadata = site.join("demo-1.dist-info");
-    fs::create_dir_all(&metadata).unwrap();
-    fs::write(metadata.join("METADATA"), "Name: demo\nVersion: 1\n").unwrap();
-    fs::write(metadata.join("RECORD"), record).unwrap();
-    size_raw(site)
-}
-
-fn size_raw(site: &Path) -> Value {
-    let output = execute(&[
-        "--path",
-        site.to_str().unwrap(),
-        "--computed",
-        "size-raw",
-        "--json",
-    ]);
-    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
-    value[0]["package"]["computed"]["size_raw"].clone()
 }
 
 #[rstest]
