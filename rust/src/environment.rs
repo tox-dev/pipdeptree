@@ -299,7 +299,7 @@ fn detect_interpreter(processes: &dyn ProcessRunner, implementation: &str) -> Op
         .filter(|output| output.success)
         .and_then(|output| String::from_utf8(output.stdout).ok())
         .map(|path| PathBuf::from(path.trim()))
-        .filter(|path| path.exists())
+        .filter(|path| path.exists() && !inside_working_project(path))
 }
 
 const fn environment_locations() -> [(&'static str, &'static str); 2] {
@@ -307,4 +307,22 @@ const fn environment_locations() -> [(&'static str, &'static str); 2] {
         windows => [("VIRTUAL_ENV", "Scripts"), ("CONDA_PREFIX", "")],
         _ => [("VIRTUAL_ENV", "bin"), ("CONDA_PREFIX", "bin")],
     }
+}
+
+// Poetry picks a `.venv` committed next to the project's pyproject.toml, and the working directory
+// is untrusted. The lexical check catches a `.venv/bin` symlinked elsewhere, through which Python
+// still reads the repository's pyvenv.cfg and site-packages; the canonical check absorbs casing and
+// `\\?\` prefixes on Windows.
+fn inside_working_project(interpreter: &Path) -> bool {
+    env::current_dir().map_or(true, |cwd| {
+        let project = cwd
+            .ancestors()
+            .find(|directory| directory.join("pyproject.toml").is_file())
+            .unwrap_or(&cwd);
+        let interpreter = comparable_path(interpreter);
+        interpreter.starts_with(project)
+            || interpreter
+                .parent()
+                .is_some_and(|bin| canonical_dir(bin).starts_with(canonical_dir(project)))
+    })
 }
