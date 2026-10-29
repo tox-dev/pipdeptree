@@ -379,6 +379,32 @@ def test_cli_index_local_source_leaves_index_sdist_unbuilt(
 
 
 @pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        pytest.param("silence", (0, False), id="silence"),
+        pytest.param("suppress", (0, True), id="suppress"),
+        pytest.param("fail", (1, True), id="fail"),
+    ],
+)
+def test_cli_index_warns_about_requirements_index_option(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    mode: str,
+    expected: tuple[int, bool],
+) -> None:
+    requirements: Final = tmp_path / "requirements.txt"
+    requirements.write_text("-i https://private.example/simple\n")
+    monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
+
+    code: Final = entry_point(["--warn", mode, "from-index", "--requirements", str(requirements)])
+    warning: Final = ":1: from-index ignores -i in requirements files; pass --index-url on the command line\n"
+
+    assert (code, capsys.readouterr().err.endswith(warning)) == expected
+
+
+@pytest.mark.parametrize(
     "backend_path",
     [
         pytest.param("hooks", id="subdirectory"),
