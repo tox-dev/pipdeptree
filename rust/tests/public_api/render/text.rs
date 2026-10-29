@@ -289,14 +289,17 @@ fn checks_each_rich_edge_for_conflicts_once() {
 }
 
 // A package appears on a line for every edge that reaches it, so building its metadata suffix
-// on every line costs the edges times the stored value's length, blanks included.
+// on every line costs the edges times the stored value's length, blanks included; the sizes
+// keep that cost over the budget in an optimized build too.
 #[rstest]
 #[case::forward(&[])]
 #[case::reverse(&["--reverse"])]
 #[case::rich(&["--output", "rich"])]
 fn builds_padded_metadata_suffix_once_per_package(#[case] args: &[&str]) {
-    let license = format!("License-Expression: a{}b\n", " ".repeat(500_000));
-    let requires = (0..1000)
+    const BLANKS: usize = 3_000_000;
+    const EDGES: usize = 20_000;
+    let license = format!("License-Expression: a{}b\n", " ".repeat(BLANKS));
+    let requires = (0..EDGES)
         .map(|number| format!("Requires-Dist: leaf!={number}\n"))
         .collect::<Vec<_>>()
         .concat();
@@ -324,9 +327,9 @@ fn builds_padded_metadata_suffix_once_per_package(#[case] args: &[&str]) {
     assert_eq!(
         (
             text(&output).matches(" (a b License)").count(),
-            elapsed < Duration::from_secs(3),
+            elapsed < Duration::from_secs(4),
         ),
-        (1 + 1000, true),
+        (1 + EDGES, true),
         "took {elapsed:?}"
     );
 }
