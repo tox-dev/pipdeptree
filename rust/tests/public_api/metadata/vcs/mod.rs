@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use _pipdeptree::ProcessError;
+use _pipdeptree::{ProcessError, ProcessOutput};
 use rstest::rstest;
 
 use super::super::common::{
@@ -236,6 +236,72 @@ fn freezes_missing_editable_locations() {
         format!(
             "# Editable install with no version control (demo==1)\n-e {}/\n",
             location.display()
+        )
+    );
+}
+
+#[rstest]
+#[case::no_version_control(
+    Err(ProcessError::NotFound),
+    None,
+    None,
+    "# Editable install with no version control (demo==1)"
+)]
+#[case::no_remote(
+    Ok(()),
+    Some(Ok(process_output(""))),
+    None,
+    "# Editable git install with no remote (demo==1)"
+)]
+#[case::invalid_remote(
+    Ok(()),
+    Some(Ok(process_output("remote.origin.url invalid::remote"))),
+    Some(Ok(process_output("commit"))),
+    "# Editable git install (demo==1) with either a deleted local remote or invalid URI:"
+)]
+#[case::timed_out(
+    Err(ProcessError::TimedOut),
+    None,
+    None,
+    "# Editable VCS install whose lookup timed out (demo==1)"
+)]
+fn freezes_editable_locations_with_backslashes_as_file_urls(
+    #[case] root: Result<(), ProcessError>,
+    #[case] remote: Option<Result<ProcessOutput, ProcessError>>,
+    #[case] commit: Option<Result<ProcessOutput, ProcessError>>,
+    #[case] comment: &str,
+) {
+    let directory = tempfile::tempdir().unwrap();
+    let location = directory.path().join(r"C:\proj");
+    fs::create_dir(&location).unwrap();
+    let site = editable_site(&location);
+    let mut processes = MockProcesses::new();
+    match root {
+        Ok(()) => expect_git_root(&mut processes, &location),
+        Err(error) => expect_process(
+            &mut processes,
+            "git",
+            &["rev-parse", "--show-toplevel"],
+            Err(error),
+        ),
+    }
+    if let Some(remote) = remote {
+        expect_process(
+            &mut processes,
+            "git",
+            &["config", "--get-regexp", r"remote\..*\.url"],
+            remote,
+        );
+    }
+    if let Some(commit) = commit {
+        expect_process(&mut processes, "git", &["rev-parse", "HEAD"], commit);
+    }
+
+    assert_eq!(
+        freeze(&site, &processes),
+        format!(
+            "{comment}\n-e {}\n",
+            url::Url::from_file_path(&location).unwrap()
         )
     );
 }
