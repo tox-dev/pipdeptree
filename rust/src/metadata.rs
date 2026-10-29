@@ -528,7 +528,11 @@ fn discover_with_fields(
         }
     }
     for package in &mut packages {
-        package.legacy_editable = legacy_editables.find(&package.name).cloned();
+        package.legacy_editable = package
+            .metadata_dir
+            .as_deref()
+            .and_then(|metadata_dir| legacy_editables.find(&package.name, metadata_dir))
+            .cloned();
     }
     Ok(Discovered {
         packages,
