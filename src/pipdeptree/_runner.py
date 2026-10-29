@@ -43,7 +43,10 @@ def _write(stream: TextIO, value: bytes, *, graphviz_format: str | None) -> None
     except UnicodeDecodeError:
         pass
     else:
-        stream.write(text)
+        try:
+            stream.write(text)
+        except UnicodeEncodeError:
+            stream.write(text.encode(stream.encoding, "backslashreplace").decode(stream.encoding))
         return
     if not stream.isatty():
         stream.buffer.write(value)
