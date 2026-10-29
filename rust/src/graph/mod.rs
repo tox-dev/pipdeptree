@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 use std::str::FromStr;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -24,8 +24,8 @@ pub use filter::FilterSpec;
 pub struct Dependency {
     // Requires-Dist values and lock dependency names come from package authors. VerbatimUrl would
     // substitute ${NAME} with this process's environment, so plain Url keeps direct references as
-    // written.
-    pub requirement: Requirement<Url>,
+    // written. A requirement fills one slot per extra that activates it, and those slots share it.
+    pub requirement: Arc<Requirement<Url>>,
     pub target: Option<usize>,
     pub activated_by: Option<String>,
     pub declaration: Option<ResolvedDeclaration>,
@@ -209,8 +209,10 @@ impl Graph {
         if let Some(edges) = resolved_edges {
             mandatory.extend(edges.into_iter().map(|edge| {
                 Dependency {
-                    requirement: Requirement::<Url>::from_str(&edge.child)
-                        .expect("nab dependency names are valid PEP 508 names"),
+                    requirement: Arc::new(
+                        Requirement::<Url>::from_str(&edge.child)
+                            .expect("nab dependency names are valid PEP 508 names"),
+                    ),
                     target: index.get(&edge.child).copied(),
                     activated_by: None,
                     declaration: edge.declaration,
@@ -233,7 +235,7 @@ impl Graph {
             };
             let dependency = Dependency {
                 target: index.get(requirement.name.as_ref()).copied(),
-                requirement,
+                requirement: Arc::new(requirement),
                 activated_by: None,
                 declaration: None,
                 version_spec: OnceLock::new(),
@@ -535,10 +537,21 @@ impl Graph {
     }
 
     fn cycles(&self) -> &[Vec<usize>] {
-        self.cycles.get_or_init(|| self.compute_cycles())
+        self.cycles.get_or_init(|| {
+            self.components()
+                .into_iter()
+                .filter(|component| {
+                    component.len() > 1
+                        || self
+                            .active_targets(component[0])
+                            .any(|child| child == component[0])
+                })
+                .collect()
+        })
     }
 
-    fn compute_cycles(&self) -> Vec<Vec<usize>> {
+    // Strongly connected components, each listed ahead of the components it depends on.
+    pub(crate) fn components(&self) -> Vec<Vec<usize>> {
         let mut outgoing = vec![Vec::new(); self.nodes.len()];
         let mut incoming = vec![Vec::new(); self.nodes.len()];
         for parent in self.visible_indices() {
@@ -593,9 +606,7 @@ impl Graph {
                     }
                 }
             }
-            if component.len() > 1 || outgoing[start].contains(&start) {
-                result.push(component);
-            }
+            result.push(component);
         }
         result
     }

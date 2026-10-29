@@ -168,3 +168,18 @@ fn keeps_parentheses_in_graph_labels() {
         (true, true)
     );
 }
+
+#[rstest]
+#[case::quote_after_backslash("1\\\" color=red] //", "1\\\\\\\" color=red] //")]
+#[case::trailing_backslash("1\\", "1\\\\")]
+fn escapes_backslashes_in_graphviz_labels(#[case] version: &str, #[case] escaped: &str) {
+    let site = super::PackageSite::new();
+    site.write(
+        "demo-1.dist-info",
+        &format!("Name: demo\nVersion: {version}\n"),
+    );
+
+    let dot = execute(&site, &["--graph-output", "dot"]);
+
+    assert!(text(&dot).contains(&format!("demo [label=\"demo\\n{escaped}\"]\n")));
+}

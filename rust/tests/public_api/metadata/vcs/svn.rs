@@ -40,12 +40,55 @@ fn uses_legacy_subversion_metadata() {
     );
 }
 
+#[cfg(unix)]
+#[rstest]
+#[case::entries("entries", ".svn/entries")]
+#[case::administrative_directory("", ".svn")]
+fn ignores_linked_legacy_subversion_metadata(#[case] target: &str, #[case] link: &str) {
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(
+        outside.path().join("entries"),
+        "10\n\ndir\n12\nhttps://example.com/repo\n",
+    )
+    .unwrap();
+    let repository = tempfile::tempdir().unwrap();
+    let link = repository.path().join(link);
+    fs::create_dir_all(link.parent().unwrap()).unwrap();
+    std::os::unix::fs::symlink(outside.path().join(target), link).unwrap();
+    let site = editable_site(repository.path());
+    let mut processes = MockProcesses::new();
+    expect_no_git(&mut processes, repository.path());
+    expect_process(
+        &mut processes,
+        "svn",
+        &["info", "--xml"],
+        Ok(ProcessOutput {
+            success: false,
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        }),
+    );
+
+    assert_eq!(
+        freeze(&site, &processes),
+        format!(
+            "# Editable svn install with no remote (demo==1)\n-e {}/\n",
+            repository.path().display()
+        )
+    );
+}
+
 #[rstest]
 #[case::missing(Err(ProcessError::NotFound), None, false)]
 #[case::malformed(Ok(process_output("<info>")), None, true)]
 #[case::legacy_xml(
     Ok(ProcessOutput { success: false, stdout: Vec::new(), stderr: Vec::new() }),
     Some("<?xml version='1.0'?><wc-entries/>"),
+    true
+)]
+#[case::legacy_revision(
+    Ok(ProcessOutput { success: false, stdout: Vec::new(), stderr: Vec::new() }),
+    Some("10\n\ndir\nHEAD\nhttps://example.com/repo\n"),
     true
 )]
 #[case::invalid_utf8(
