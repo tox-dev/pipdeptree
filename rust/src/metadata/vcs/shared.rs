@@ -62,7 +62,8 @@ pub(super) fn command(
 ) -> Result<String, CommandError> {
     let mut request = ProcessRequest::new(program, args.iter().copied())
         .in_directory(cwd)
-        .with_timeout(Duration::from_secs(5));
+        .with_timeout(Duration::from_secs(5))
+        .with_output_limit(1 << 20);
     if program == "git" {
         request = request.without_environment(["GIT_DIR", "GIT_WORK_TREE"]);
     }

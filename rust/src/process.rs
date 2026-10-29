@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use std::io::{self, Read as _, Write as _};
+use std::io::{self, Read, Write as _};
 use std::path::PathBuf;
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
@@ -12,6 +12,7 @@ pub struct ProcessRequest {
     pub current_dir: Option<PathBuf>,
     pub stdin: Vec<u8>,
     pub timeout: Option<Duration>,
+    pub output_limit: u64,
     pub removed_environment: Vec<OsString>,
     pub added_environment: Vec<(OsString, OsString)>,
 }
@@ -27,6 +28,7 @@ impl ProcessRequest {
             current_dir: None,
             stdin: Vec::new(),
             timeout: None,
+            output_limit: u64::MAX,
             removed_environment: Vec::new(),
             added_environment: Vec::new(),
         }
@@ -47,6 +49,12 @@ impl ProcessRequest {
     #[must_use]
     pub const fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_output_limit(mut self, bytes: u64) -> Self {
+        self.output_limit = bytes;
         self
     }
 
@@ -127,18 +135,10 @@ impl ProcessRunner for SystemProcessRunner {
                 let mut stdin = child.stdin.take().expect("piped process stdin exists");
                 scope.spawn(move || stdin.write_all(&request.stdin))
             });
-            let mut stdout = child.stdout.take().expect("piped process stdout exists");
-            let stdout = scope.spawn(move || {
-                let mut output = Vec::new();
-                stdout.read_to_end(&mut output)?;
-                Ok::<_, io::Error>(output)
-            });
-            let mut stderr = child.stderr.take().expect("piped process stderr exists");
-            let stderr = scope.spawn(move || {
-                let mut output = Vec::new();
-                stderr.read_to_end(&mut output)?;
-                Ok::<_, io::Error>(output)
-            });
+            let stdout = child.stdout.take().expect("piped process stdout exists");
+            let stdout = scope.spawn(move || read_output(stdout, request.output_limit));
+            let stderr = child.stderr.take().expect("piped process stderr exists");
+            let stderr = scope.spawn(move || read_output(stderr, request.output_limit));
             let status = wait(&mut child, request.timeout)?;
             let stdout = stdout
                 .join()
@@ -163,6 +163,18 @@ impl ProcessRunner for SystemProcessRunner {
             })
         })
     }
+}
+
+// Returning at the limit closes the pipe, so a child that keeps writing gets a broken pipe and exits
+// instead of filling memory or running until its timeout.
+fn read_output(pipe: impl Read, limit: u64) -> io::Result<Vec<u8>> {
+    let mut output = Vec::new();
+    pipe.take(limit.saturating_add(1))
+        .read_to_end(&mut output)?;
+    if output.len() as u64 > limit {
+        return Err(io::Error::other(format!("output exceeds {limit} bytes")));
+    }
+    Ok(output)
 }
 
 fn wait(child: &mut Child, timeout: Option<Duration>) -> Result<ExitStatus, ProcessError> {
