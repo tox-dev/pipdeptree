@@ -14,7 +14,7 @@ use cyclonedx_bom::prelude::{
     Bom, Component, Components, DateTime, Metadata, NormalizedString, Purl, SpecVersion, Uri,
     Validate,
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 use crate::Error;
 use crate::graph::{Dependency, Graph};
@@ -55,10 +55,19 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<Vec<u8>, Error>
             }
         }
         for (field, value) in super::json::computed_json(graph, index, &options.computed) {
-            properties.push(Property::new(
-                format!("pipdeptree:computed:{field}"),
-                &value.to_string(),
-            ));
+            // A property value is plain text, so a list becomes one property per item, as repeated
+            // metadata does.
+            let values = match value {
+                Value::Array(items) => items,
+                value => vec![value],
+            };
+            for value in values {
+                let text = match value {
+                    Value::String(text) => text,
+                    value => value.to_string(),
+                };
+                properties.push(Property::new(format!("pipdeptree:computed:{field}"), &text));
+            }
         }
         if !properties.is_empty() {
             component.properties = Some(Properties(properties));

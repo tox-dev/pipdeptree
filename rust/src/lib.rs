@@ -8,7 +8,7 @@ use pyo3::{Bound, Py, PyResult, Python, pyfunction, pymodule, wrap_pyfunction};
 
 use crate::environment::Runtime;
 use crate::graph::{FilterError, FilterSpec, Graph};
-use crate::metadata::Discovered;
+use crate::metadata::{Discovered, DiscoveryWarning};
 use crate::options::{Command, Format, Options, WarningMode};
 
 mod environment;
@@ -159,9 +159,10 @@ fn render_with_mermaid_py(
     ))
 }
 
-// Binary Graphviz targets that the string-returning render() API cannot hand back; kept here so the
-// output-format vocabulary lives on the Rust side of the boundary rather than in the Python shim.
-const BINARY_GRAPHVIZ: &[&str] = &["png", "svg", "pdf", "jpeg", "jpg", "gif", "bmp", "ps"];
+// Graphviz formats rendered by the dot executable, which the string-returning render() API does not
+// run; kept here so the output-format vocabulary lives on the Rust side of the boundary rather than
+// in the Python shim.
+const RENDERED_GRAPHVIZ: &[&str] = &["png", "svg", "pdf", "jpeg", "jpg", "gif", "bmp", "ps"];
 const RENDER_FORMATS: &[&str] = &[
     "text",
     "json",
@@ -194,11 +195,11 @@ fn format_flags_py(output_format: &str, summary: bool) -> PyResult<Vec<String>> 
         "cyclonedx-json" => &["--output", "cyclonedx-json"],
         "mermaid" => &["--mermaid"],
         "dot" => &["--graph-output", "dot"],
-        _ if BINARY_GRAPHVIZ.contains(&output_format) => {
-            return Err(PyValueError::new_err(
-                "binary Graphviz formats cannot be returned as a string; use output_format='dot' \
-                 for the Graphviz source, or run the pipdeptree CLI for binary output",
-            ));
+        _ if RENDERED_GRAPHVIZ.contains(&output_format) => {
+            return Err(PyValueError::new_err(format!(
+                "Graphviz {output_format} output needs the dot executable, which render() does not \
+                 run; use output_format='dot' for the Graphviz source, or run the pipdeptree CLI"
+            )));
         }
         _ => {
             return Err(PyValueError::new_err(format!(
@@ -303,16 +304,18 @@ fn prepare_graph(
         .map_err(|error| failure(1, format!("{error}\n")))?;
     let mut stderr = runtime.resolved_message.clone().unwrap_or_default();
     let mut warned = false;
-    let discovered = match packages(py, options, &runtime) {
-        Ok(discovered) => discovered,
-        Err(error) => return Err(failure(1, format!("{stderr}{error}\n"))),
-    };
+    let mut warnings = Vec::new();
+    let mut discovered = packages(py, options, &runtime, &mut warnings);
+    if let Ok(discovered) = &mut discovered {
+        warnings.append(&mut discovered.warnings);
+    }
     if ctx.warning_mode != WarningMode::Silence {
-        for warning in &discovered.warnings {
+        for warning in &warnings {
             stderr.push_str(&style_warning(&warning.message, ctx.color));
             warned |= warning.failure;
         }
     }
+    let discovered = discovered.map_err(|error| failure(1, format!("{stderr}{error}\n")))?;
     let mut graph = Graph::new(
         discovered.packages,
         discovered.resolved_edges,
@@ -423,7 +426,12 @@ const fn failure(code: i32, stderr: String) -> Execution {
     }
 }
 
-fn packages(py: Python<'_>, options: &Options, runtime: &Runtime) -> Result<Discovered, Error> {
+fn packages(
+    py: Python<'_>,
+    options: &Options,
+    runtime: &Runtime,
+    warnings: &mut Vec<DiscoveryWarning>,
+) -> Result<Discovered, Error> {
     match &options.command {
         None => {
             let mut fields = options.metadata.clone();
@@ -456,6 +464,7 @@ fn packages(py: Python<'_>, options: &Options, runtime: &Runtime) -> Result<Disc
             pyproject_files,
             index_url.as_deref(),
             extra_index_url,
+            warnings,
         ),
     }
 }

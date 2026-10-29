@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::io::{self, Read, Write as _};
 use std::path::PathBuf;
 use std::process::{Child, Command, ExitStatus, Stdio};
-use std::thread;
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -134,37 +134,24 @@ impl ProcessRunner for SystemProcessRunner {
             command.current_dir(path);
         }
         let mut child = command.spawn()?;
-        thread::scope(|scope| {
-            let writer = (!request.stdin.is_empty()).then(|| {
-                let mut stdin = child.stdin.take().expect("piped process stdin exists");
-                scope.spawn(move || stdin.write_all(&request.stdin))
-            });
-            let stdout = child.stdout.take().expect("piped process stdout exists");
-            let stdout = scope.spawn(move || read_output(stdout, request.output_limit));
-            let stderr = child.stderr.take().expect("piped process stderr exists");
-            let stderr = scope.spawn(move || read_output(stderr, request.output_limit));
-            let status = wait(&mut child, request.timeout)?;
-            let stdout = stdout
-                .join()
-                .expect("process stdout reader does not panic")?;
-            let stderr = stderr
-                .join()
-                .expect("process stderr reader does not panic")?;
-            if status.success()
-                && let Some(writer) = writer
-            {
-                // The exit status is authoritative: dot stops reading stdin once the graph
-                // parses, so a write error to a finished, successful child is not a failure.
-                writer
-                    .join()
-                    .expect("process stdin writer does not panic")
-                    .ok();
-            }
-            Ok(ProcessOutput {
-                success: status.success(),
-                stdout,
-                stderr,
-            })
+        let deadline = request.timeout.map(|timeout| Instant::now() + timeout);
+        if !request.stdin.is_empty() {
+            let mut stdin = child.stdin.take().expect("piped process stdin exists");
+            let input = request.stdin.clone();
+            // The exit status is authoritative: dot stops reading stdin once the graph parses, so
+            // a write error to a finished child is not a failure.
+            thread::spawn(move || stdin.write_all(&input));
+        }
+        let stdout = child.stdout.take().expect("piped process stdout exists");
+        let limit = request.output_limit;
+        let stdout = thread::spawn(move || read_output(stdout, limit));
+        let stderr = child.stderr.take().expect("piped process stderr exists");
+        let stderr = thread::spawn(move || read_output(stderr, limit));
+        let status = wait(&mut child, deadline)?;
+        Ok(ProcessOutput {
+            success: status.success(),
+            stdout: collect(stdout, deadline)?,
+            stderr: collect(stderr, deadline)?,
         })
     }
 }
@@ -205,11 +192,10 @@ fn resolve_program(request: &ProcessRequest) -> Result<PathBuf, ProcessError> {
         .ok_or(ProcessError::NotFound)
 }
 
-fn wait(child: &mut Child, timeout: Option<Duration>) -> Result<ExitStatus, ProcessError> {
-    let Some(timeout) = timeout else {
+fn wait(child: &mut Child, deadline: Option<Instant>) -> Result<ExitStatus, ProcessError> {
+    let Some(deadline) = deadline else {
         return Ok(child.wait()?);
     };
-    let deadline = Instant::now() + timeout;
     loop {
         match child.try_wait()? {
             Some(status) => return Ok(status),
@@ -221,6 +207,25 @@ fn wait(child: &mut Child, timeout: Option<Duration>) -> Result<ExitStatus, Proc
             None => thread::sleep(Duration::from_millis(10)),
         }
     }
+}
+
+// A process the child started inherits its pipes and can hold them open after the child exits, so
+// stop waiting for the readers at the deadline and let them finish in the background.
+fn collect(
+    reader: JoinHandle<io::Result<Vec<u8>>>,
+    deadline: Option<Instant>,
+) -> Result<Vec<u8>, ProcessError> {
+    if let Some(deadline) = deadline {
+        while !reader.is_finished() {
+            if Instant::now() >= deadline {
+                return Err(ProcessError::TimedOut);
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+    Ok(reader
+        .join()
+        .expect("process output reader does not panic")?)
 }
 
 impl From<io::Error> for ProcessError {

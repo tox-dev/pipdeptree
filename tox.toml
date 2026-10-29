@@ -32,6 +32,8 @@ commands = [
       "--cov",
       "tools.version",
       "--cov",
+      "tools.limited_api",
+      "--cov",
       "tools.release",
       "--cov",
       "{tox_root}{/}tests",
