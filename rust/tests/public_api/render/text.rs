@@ -1,6 +1,8 @@
 use std::fmt::Write as _;
 use std::time::{Duration, Instant};
 
+use _pipdeptree::{Execution, SystemProcessRunner};
+
 use super::{
     crossed_cycle_site, execute, layered_site, lock_file, path, render_site, text, write_requiring,
 };
@@ -245,15 +247,10 @@ fn selects_the_children_of_an_edge_once(#[case] args: &[&str], #[case] requireme
     for number in 0..20 {
         write_requiring(&site, &format!("leaf{number}"), &[] as &[&str]);
     }
-    let start = Instant::now();
-
-    let output = execute(&site, args);
+    let (output, elapsed) = execute_timed(&site, args);
 
     assert_eq!(
-        (
-            text(&output).matches(requirement).count(),
-            start.elapsed() < BUDGET
-        ),
+        (text(&output).matches(requirement).count(), elapsed < BUDGET),
         (20000 + 2000 * 5, true)
     );
 }
@@ -280,17 +277,69 @@ fn checks_each_rich_edge_for_conflicts_once() {
         "ghost-1.dist-info",
         &format!("Name: ghost\nVersion: 1+{}\n", vec!["1"; 2000].join(".")),
     );
-    let start = Instant::now();
-
-    let output = execute(&site, &["--output", "rich"]);
+    let (output, elapsed) = execute_timed(&site, &["--output", "rich"]);
 
     assert_eq!(
-        (text(&output).lines().count(), start.elapsed() < BUDGET),
+        (text(&output).lines().count(), elapsed < BUDGET),
         (3 * 1000, true)
     );
 }
 
+// A package appears on a line for every edge that reaches it, so building its metadata suffix
+// on every line costs the edges times the stored value's length, blanks included.
+#[rstest]
+#[case::forward(&[])]
+#[case::reverse(&["--reverse"])]
+#[case::rich(&["--output", "rich"])]
+fn builds_padded_metadata_suffix_once_per_package(#[case] args: &[&str]) {
+    let license = format!("License-Expression: a{}b\n", " ".repeat(500_000));
+    let requires = (0..1000)
+        .map(|number| format!("Requires-Dist: leaf!={number}\n"))
+        .collect::<Vec<_>>()
+        .concat();
+    let site = super::PackageSite::new();
+    site.write(
+        "app-1.dist-info",
+        &format!("Name: app\nVersion: 1\n{license}{requires}"),
+    );
+    site.write(
+        "leaf-1.dist-info",
+        &format!("Name: leaf\nVersion: 1\n{license}"),
+    );
+
+    let args = [
+        &["--path", super::path(site.path()), "--metadata", "license"],
+        args,
+    ]
+    .concat();
+    let (output, elapsed) = super::with_python(|python| {
+        let start = Instant::now();
+        let output = super::execute_with_runner(&SystemProcessRunner, python, &args, false);
+        (output, start.elapsed())
+    });
+
+    assert_eq!(
+        (
+            text(&output).matches(" (a b License)").count(),
+            elapsed < Duration::from_secs(3),
+        ),
+        (1 + 1000, true),
+        "took {elapsed:?}"
+    );
+}
+
 const BUDGET: Duration = Duration::from_secs(10);
+
+// The clock starts once this test holds the interpreter, so time spent waiting for other tests
+// does not count against the budget.
+fn execute_timed(site: &super::PackageSite, args: &[&str]) -> (Execution, Duration) {
+    let args = [&["--path", path(site.path()), "--warn", "silence"], args].concat();
+    super::with_python(|python| {
+        let start = Instant::now();
+        let output = super::execute_with_runner(&SystemProcessRunner, python, &args, false);
+        (output, start.elapsed())
+    })
+}
 
 fn requirements(name: &str, count: usize, marker: &str) -> String {
     (1..=count).fold(String::new(), |mut lines, number| {

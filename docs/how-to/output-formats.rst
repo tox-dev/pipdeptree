@@ -74,6 +74,10 @@ Freeze emits pip-compatible requirements with indentation for the hierarchy:
       pluggy==1.6.0
       Pygments==2.20.0
 
+Names and versions are written with each character that cannot appear in a project name or version replaced by ``?``:
+anything but ASCII letters, digits, ``.``, ``_``, ``-``, ``!`` and ``+``, and a first character that is not a letter or
+digit. A name or version therefore cannot add lines, options or comments to the requirements file.
+
 json
 ----
 
@@ -226,7 +230,10 @@ Where the text tree ends a line in ``(*)``, the object carries ``"repeated": tru
 mermaid
 -------
 
-`Mermaid <https://mermaid.js.org>`_ flowchart diagram:
+`Mermaid <https://mermaid.js.org>`_ flowchart diagram. Quotes, ``#``, ``&``, ``<``, ``>``, backticks and control
+characters in node labels appear as `entity codes
+<https://mermaid.js.org/syntax/flowchart.html#entity-codes-to-escape-characters>`_ such as ``#34;``. A package whose name
+is empty or holds characters other than ASCII letters, digits, ``-``, ``_`` and ``.`` gets a ``package_<n>`` node id:
 
 .. code-block:: console
 

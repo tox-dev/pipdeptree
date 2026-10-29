@@ -1,3 +1,4 @@
+use std::cell::OnceCell;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 
@@ -32,6 +33,7 @@ pub(super) fn render(
         unicode: is_unicode(&options.encoding),
         path: HashSet::new(),
         expanded: HashMap::new(),
+        suffixes: vec![OnceCell::new(); graph.nodes.len()],
         lines: Vec::new(),
     };
     if options.reverse && style != TextStyle::Frozen {
@@ -40,9 +42,15 @@ pub(super) fn render(
             renderer.expanded.clear();
             match root {
                 ReverseRoot::Installed(index) => {
-                    renderer
-                        .lines
-                        .push(root_label(processes, graph, index, style, options, color));
+                    let label = root_label(
+                        processes,
+                        graph,
+                        index,
+                        style,
+                        renderer.suffix(index),
+                        color,
+                    );
+                    renderer.lines.push(label);
                     renderer.path.insert(index);
                     renderer.walk_reverse(index, None, "", 0);
                 }
@@ -60,9 +68,8 @@ pub(super) fn render(
         return renderer.lines.join("\n");
     }
     for root in graph.roots(options.reverse, options.all) {
-        renderer
-            .lines
-            .push(root_label(processes, graph, root, style, options, color));
+        let label = root_label(processes, graph, root, style, renderer.suffix(root), color);
+        renderer.lines.push(label);
         renderer.path.clear();
         renderer.expanded.clear();
         renderer.path.insert(root);
@@ -86,10 +93,20 @@ struct TreeRenderer<'a> {
     // Subtrees already printed under the current root, keyed by package and the extras that
     // select its edges, with the number of levels --depth left for them.
     expanded: HashMap<(usize, Option<BTreeSet<String>>), usize>,
+    // A package appears on a line for every edge that reaches it, and building its suffix costs
+    // the stored length of its metadata values, so each package builds it once per render.
+    suffixes: Vec<OnceCell<String>>,
     lines: Vec<String>,
 }
 
 impl<'a> TreeRenderer<'a> {
+    fn suffix(&self, index: usize) -> &str {
+        if self.style == TextStyle::Frozen {
+            return "";
+        }
+        self.suffixes[index].get_or_init(|| node_suffix(self.graph, index, self.options, ", "))
+    }
+
     fn walk_forward(
         &mut self,
         parent: usize,
@@ -208,7 +225,7 @@ impl<'a> TreeRenderer<'a> {
                 parent,
                 dependency,
                 self.style,
-                self.options,
+                self.suffix(parent),
                 self.color,
             );
             self.lines.push(format!(
@@ -232,16 +249,15 @@ fn root_label(
     graph: &Graph,
     index: usize,
     style: TextStyle,
-    options: &Options,
+    suffix: &str,
     color: bool,
 ) -> String {
     let package = &graph.nodes[index].package;
     if style == TextStyle::Frozen {
         return package.frozen(processes);
     }
-    let suffix = node_suffix(graph, index, options, ", ");
     if style == TextStyle::Rich && color {
-        rich_text::root(&package.name, &package.version, &suffix)
+        rich_text::root(&package.name, &package.version, suffix)
     } else {
         format!("{}=={}{}", package.name, package.version, suffix)
     }
@@ -253,7 +269,7 @@ fn reverse_label(
     parent: usize,
     dependency: &Dependency,
     style: TextStyle,
-    options: &Options,
+    suffix: &str,
     color: bool,
 ) -> String {
     let package = &graph.nodes[parent].package;
@@ -275,9 +291,8 @@ fn reverse_label(
     if let Some(extra) = dependency.activating_extras() {
         let _ = write!(required, ", extra: {extra}");
     }
-    let suffix = node_suffix(graph, parent, options, ", ");
     if style == TextStyle::Rich && color {
-        rich_text::reverse(&package.name, &package.version, &required, &suffix)
+        rich_text::reverse(&package.name, &package.version, &required, suffix)
     } else {
         format!(
             "{}=={} [requires: {required}]{}",
@@ -332,9 +347,7 @@ impl TreeRenderer<'_> {
                 format!("required: {required}, installed: {installed}{extra}")
             }
         };
-        let suffix = dependency.target.map_or_else(String::new, |target| {
-            node_suffix(self.graph, target, self.options, ", ")
-        });
+        let suffix = dependency.target.map_or("", |target| self.suffix(target));
         if self.style == TextStyle::Rich {
             let status = match (
                 dependency.installed_version(self.graph).is_none(),
@@ -365,7 +378,7 @@ impl TreeRenderer<'_> {
                         }
                     },
                     extra: activating_extras.as_deref(),
-                    suffix: &suffix,
+                    suffix,
                 });
             }
             let marker = status_marker(status, self.unicode);

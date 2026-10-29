@@ -210,6 +210,48 @@ fn rejects_active_extra_with_unknown_nested_extra() {
 }
 
 #[test]
+fn judges_active_extras_sharing_a_requirement_separately() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        concat!(
+            "Name: root\n",
+            "Version: 1\n",
+            "Requires-Dist: target[known]; extra == 'one' or extra == 'two'\n",
+            "Requires-Dist: target[unknown]; extra == 'two' or extra == 'three'\n",
+        ),
+    );
+    site.write(
+        "target-1.dist-info",
+        "Name: target\nVersion: 1\nRequires-Dist: leaf; extra == 'known'\n",
+    );
+    site.write("leaf-1.dist-info", "Name: leaf\nVersion: 1\n");
+
+    let output = execute_in(
+        &site,
+        &["--packages", "root", "--extras", "active", "--json"],
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let root = value
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["package"]["package_name"] == "root")
+        .unwrap();
+    let extras = root["dependencies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry["extra"].as_str().unwrap())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        (output.code, extras, output.stderr.as_str()),
+        (0, vec!["one"], "")
+    );
+}
+
+#[test]
 fn resolves_active_extras_beyond_python_recursion_depth() {
     let site = PackageSite::new();
     for index in 0..1_500 {
