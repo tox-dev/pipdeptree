@@ -142,18 +142,11 @@ pub(super) fn path_url(path: &Path) -> Option<String> {
     url::Url::from_file_path(path).ok().map(Into::into)
 }
 
-pub(super) fn canonical_or_original(path: &str) -> PathBuf {
-    let Ok(canonical) = Path::new(path).canonicalize() else {
-        return path.into();
-    };
-    canonical
-}
-
-// hg and bzr both report on-disk remotes as bare paths; turn those into canonical file URLs while
-// leaving already-remote URLs untouched.
+// hg and bzr both report on-disk remotes as bare paths; turn those into file URLs while leaving
+// already-remote URLs untouched. The inspected repository chooses the path, so never resolve it.
 pub(super) fn normalize_local_remote(remote: String) -> String {
     if local_path(&remote) {
-        path_url(&canonical_or_original(&remote)).unwrap_or(remote)
+        path_url(Path::new(&remote)).unwrap_or(remote)
     } else {
         remote
     }

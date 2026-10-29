@@ -79,3 +79,28 @@ fn normalizes_bzr_remotes(#[case] local: bool, #[case] expected: &str) {
 
     assert!(freeze(&site, &processes).starts_with(expected));
 }
+
+#[cfg(unix)]
+#[test]
+fn keeps_bzr_remote_links_unresolved() {
+    let repository = tempfile::tempdir().unwrap();
+    fs::create_dir(repository.path().join(".bzr")).unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let link = repository.path().join("link");
+    std::os::unix::fs::symlink(outside.path(), &link).unwrap();
+    let site = editable_site(repository.path());
+    let mut processes = MockProcesses::new();
+    expect_no_git(&mut processes, repository.path());
+    expect_process(
+        &mut processes,
+        "bzr",
+        &["info"],
+        Ok(process_output(format!("parent branch: {}", link.display()))),
+    );
+    expect_process(&mut processes, "bzr", &["revno"], Ok(process_output("42")));
+
+    assert_eq!(
+        freeze(&site, &processes),
+        format!("-e bzr+file://{}@42#egg=demo\n", link.display())
+    );
+}

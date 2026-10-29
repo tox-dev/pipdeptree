@@ -109,19 +109,22 @@ fn remote(processes: &dyn ProcessRunner, root: &Path) -> Result<Option<String>, 
         .filter(|value| !value.is_empty()))
 }
 
+// The inspected repository's config chooses the remote, so classify it by syntax alone: probing the
+// path would let the output reveal which files exist outside the repository and where links lead.
 fn normalize_remote(value: &str, root: &Path) -> Option<String> {
     if value.contains("://") {
         return Some(value.to_string());
     }
-    let path = if local_path(value) {
-        PathBuf::from(value)
-    } else {
-        root.join(value)
-    };
-    if path.exists() {
-        return path.canonicalize().ok().as_deref().and_then(path_url);
+    if local_path(value)
+        && let Some(url) = path_url(Path::new(value))
+    {
+        return Some(url);
     }
-    scp_remote(value)
+    // Like git, read a colon ahead of the first slash as host:path rather than a relative path.
+    match value.split_once(':') {
+        Some((host, _)) if !host.contains('/') => scp_remote(value),
+        _ => path_url(&root.join(value)),
+    }
 }
 
 fn scp_remote(value: &str) -> Option<String> {
