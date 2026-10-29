@@ -369,7 +369,7 @@ impl Package {
         } else if parent == "lib" {
             2
         } else {
-            1
+            usize::from(parent.starts_with("python"))
         };
         site.ancestors()
             .nth(levels)

@@ -98,6 +98,7 @@ fn renders_selected_metadata_and_size() {
 )]
 #[case::above_prefix("lib/python3.14/site-packages", "../../../../outside", "../outside", 0)]
 #[case::above_target_directory("target", "../outside", "outside", 0)]
+#[case::beside_a_bare_site_packages("home/site-packages", "../private", "home/private", 0)]
 fn counts_record_rows_inside_the_installation_prefix(
     #[case] site: &str,
     #[case] row: &str,
