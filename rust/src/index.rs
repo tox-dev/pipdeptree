@@ -131,7 +131,7 @@ pub fn resolve(
     let result =
         if requirements.is_empty() && requirement_files.is_empty() && pyproject_files.len() == 1 {
             let path = require_file(&pyproject_files[0])?;
-            resolve_pyproject(py, path, indexes.as_deref())?
+            resolve_pyproject(py, path, indexes.as_deref(), true)?
         } else {
             let mut inputs = Inputs {
                 indexes,
@@ -153,7 +153,9 @@ pub fn resolve(
             let directory = tempdir()?;
             let path = directory.path().join("pyproject.toml");
             fs::write(&path, render_pyproject(&inputs))?;
-            resolve_pyproject(py, &path, None)?
+            // The generated project belongs to no workspace. Its ancestors are the temporary directory,
+            // where any local user may declare one whose members would replace the index's packages.
+            resolve_pyproject(py, &path, None, false)?
         };
     adapt_result(&result)
 }
@@ -497,9 +499,10 @@ fn resolve_pyproject<'py>(
     py: Python<'py>,
     path: &Path,
     indexes: Option<&[Index]>,
+    discover_workspace: bool,
 ) -> Result<pyo3::Bound<'py, pyo3::PyAny>, Error> {
     ResolverModules::import(py)?
-        .resolve(py, path, indexes)
+        .resolve(py, path, indexes, discover_workspace)
         .map_err(Error::from)
 }
 
@@ -527,15 +530,18 @@ impl<'py> ResolverModules<'py> {
         py: Python<'py>,
         path: &Path,
         indexes: Option<&[Index]>,
+        discover_workspace: bool,
     ) -> PyResult<pyo3::Bound<'py, pyo3::PyAny>> {
         let pathlib = PyModule::import(py, "pathlib")?;
         let py_path = pathlib
             .getattr("Path")?
             .call1((path.to_string_lossy().as_ref(),))?;
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("discover_workspace", discover_workspace)?;
         let mut config = self
             .config
             .getattr("read_pyproject_config")?
-            .call1((&py_path,))?;
+            .call((&py_path,), Some(&kwargs))?;
         if let Some(indexes) = indexes {
             let index_config = self.multi_index.getattr("IndexConfig")?;
             let configs = PyList::empty(py);
