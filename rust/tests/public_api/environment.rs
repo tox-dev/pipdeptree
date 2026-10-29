@@ -9,7 +9,8 @@ use pyo3::types::PyAnyMethods as _;
 use rstest::rstest;
 
 use super::common::{
-    MockProcesses, PackageSite, execute_with_runner, process_output, stdout, with_python,
+    MockProcesses, PackageSite, execute_with_python, execute_with_runner, process_output, stdout,
+    with_python,
 };
 
 #[test]
@@ -608,4 +609,65 @@ fn interpreter_info(
         },
     }))
     .unwrap()
+}
+
+#[rstest]
+#[case::json("json")]
+#[case::platform("platform")]
+fn query_ignores_modules_in_working_directory(#[case] module: &str) {
+    let directory = tempfile::tempdir().unwrap();
+    let marker = directory.path().join("imported");
+    fs::write(
+        directory.path().join(format!("{module}.py")),
+        format!("open({:?}, 'w').close()\n", marker.to_str().unwrap()),
+    )
+    .unwrap();
+
+    let output = query_from(directory.path(), &["--freeze"]);
+
+    assert_eq!((output.code, marker.exists()), (0, false));
+}
+
+#[test]
+fn query_ignores_distributions_in_working_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    write_package(directory.path(), "planted");
+
+    let output = query_from(directory.path(), &["--freeze"]);
+
+    assert_eq!(
+        (output.code, stdout(&output).contains("planted")),
+        (0, false)
+    );
+}
+
+fn query_from(working_directory: &Path, args: &[&str]) -> _pipdeptree::Execution {
+    let environment = tempfile::tempdir().unwrap();
+    with_python(|python| {
+        let executable: String = python
+            .import("sys")
+            .unwrap()
+            .getattr("executable")
+            .unwrap()
+            .extract()
+            .unwrap();
+        let created = std::process::Command::new(executable)
+            .args(["-m", "venv", "--without-pip"])
+            .arg(environment.path())
+            .status()
+            .unwrap();
+        assert!(created.success());
+        let interpreter = environment
+            .path()
+            .join(if cfg!(windows) { "Scripts" } else { "bin" })
+            .join(format!("python{}", std::env::consts::EXE_SUFFIX));
+        let current = std::env::current_dir().unwrap();
+        std::env::set_current_dir(working_directory).unwrap();
+        let output = execute_with_python(
+            python,
+            &[&["--python", interpreter.to_str().unwrap()], args].concat(),
+        );
+        std::env::set_current_dir(current).unwrap();
+        output
+    })
 }

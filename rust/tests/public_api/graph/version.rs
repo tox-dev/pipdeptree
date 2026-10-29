@@ -27,7 +27,7 @@ fn reports_unknown_versions_without_distribution_metadata(
     );
     let marker = site.path().join("imported");
     let source = format!(
-        "from pathlib import Path\nPath({:?}).write_text('imported')\n__version__ = '2.0'\n",
+        "from pathlib import Path\nPath({:?}).write_text('imported')\n__version__ = '9.8.7.6'\n",
         marker.to_str().unwrap(),
     );
     let module = if package {
@@ -53,7 +53,7 @@ fn reports_unknown_versions_without_distribution_metadata(
         !marker.exists(),
         "module version lookup should use distribution metadata"
     );
-    assert!(!stdout(&output).contains("2.0"));
+    assert!(!stdout(&output).contains("9.8.7.6"));
     if format == "text" || format == "rich" {
         assert!(stdout(&output).contains("installed: ?"));
         let warned = execute(&["--path", site.path().to_str().unwrap(), "--warn", "fail"]);
@@ -70,7 +70,7 @@ fn lock_dependencies_ignore_module_versions() {
     site.write_file(
         "lockfallbackdemo.py",
         &format!(
-            "from pathlib import Path\nPath({:?}).write_text('imported')\n__version__ = '2.0'\n",
+            "from pathlib import Path\nPath({:?}).write_text('imported')\n__version__ = '9.8.7.6'\n",
             marker.to_str().unwrap(),
         ),
     );
@@ -103,7 +103,7 @@ fn lock_dependencies_ignore_module_versions() {
     assert_eq!(output.code, 0, "{}", output.stderr);
     assert!(!marker.exists());
     assert!(stdout(&output).contains("lockfallbackdemo"));
-    assert!(!stdout(&output).contains("2.0"));
+    assert!(!stdout(&output).contains("9.8.7.6"));
 }
 
 #[test]
