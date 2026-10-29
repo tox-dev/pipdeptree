@@ -1,18 +1,19 @@
 # Threat model
 
-This model says what pipdeptree trusts, where untrusted input enters, and which guarantees hold at each boundary, so a
-report can be classified as a vulnerability or a bug. [SECURITY.md](SECURITY.md) covers reporting; if the two disagree,
+This model says what pipdeptree trusts, where untrusted input enters, and which guarantees hold at each boundary, so we
+can classify a report as a vulnerability or a bug. [SECURITY.md](SECURITY.md) covers reporting; if the two disagree,
 SECURITY.md wins and we fix this file.
 
 ## How pipdeptree works
 
 pipdeptree's parsing, graph building and rendering run in a Rust extension; a thin Python layer connects it to the
 streams and the desktop opener. It reads the distribution metadata of an environment, either the running interpreter's
-or one it queries with `--python`, and builds a graph of requirements, versions and conflicts. `from-index` resolves
-requirements, requirement files or `pyproject.toml` files against package indexes with Nab, and `from-lock` renders a
-PEP 751 lock without network access. Output is text or a machine format (JSON, CycloneDX SBOM, Mermaid, DOT);
-`graphviz-FMT` pipes DOT text to the `dot` binary, and binary output on a terminal goes to a temporary file opened with
-the default application.
+or one it queries with `--python`, and builds a graph of requirements and versions that marks conflicts.
+
+`from-index` resolves requirements, requirement files or `pyproject.toml` files against package indexes with Nab, and
+`from-lock` renders a PEP 751 lock without network access. Output is text or a machine format (JSON, CycloneDX SBOM,
+Mermaid, DOT); `graphviz-FMT` pipes DOT text to the `dot` binary, and binary output on a terminal goes to a temporary
+file opened with the default application.
 
 ```mermaid
 flowchart LR
@@ -36,15 +37,15 @@ which first needs a trusted element compromised is out of scope; the first triag
 [DOMPurify](https://github.com/cure53/DOMPurify/blob/main/SECURITY.md#what-we-consider-a-vulnerability) puts it, is what
 the attacker controls.
 
-| Project                                                             | Language   | Where it draws the line                                                                                                                                                  |
-| ------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [npm CLI (`npm ls`)](https://github.com/npm/cli/security/policy)    | JavaScript | Follows GitHub's open source reporting policy, which defines no scope of its own.                                                                                        |
-| [pnpm](https://github.com/pnpm/pnpm/security/policy)                | JavaScript | Draws its boundary at filesystem permissions: the store, project, lockfile and configuration are trusted, and running it in a repository means trusting that repository. |
-| [Cargo (`cargo tree`)](https://www.rust-lang.org/policies/security) | Rust       | The Rust toolchain, Cargo included, assumes the user's code and dependencies are trusted; compiling or analyzing a malicious project is out of scope.                    |
+| Project                                                             | Language   | Where it draws the line                                                                                                                                                                 |
+| ------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [npm CLI (`npm ls`)](https://github.com/npm/cli/security/policy)    | JavaScript | Follows GitHub's open source reporting policy, which defines no scope of its own.                                                                                                       |
+| [pnpm](https://github.com/pnpm/pnpm/security/policy)                | JavaScript | Draws its boundary at filesystem permissions: it trusts the store, the project with its lockfile, and the configuration, and running it in a repository means trusting that repository. |
+| [Cargo (`cargo tree`)](https://www.rust-lang.org/policies/security) | Rust       | The Rust toolchain, Cargo included, treats the user's code and dependencies as trusted; compiling or analyzing a malicious project is out of scope.                                     |
 
 pnpm and Cargo act on the project in the working directory, so they trust it. pipdeptree inspects an environment, not
-the project it runs in, so the working directory is not trusted: running pipdeptree inside a cloned repository must not
-run or report anything from that repository unless an option points at it.
+the project it runs in, so it does not trust the working directory: running pipdeptree inside a cloned repository must
+not run or report anything from that repository unless an option points at it.
 
 ## Trusted
 
@@ -56,21 +57,21 @@ An attacker who controls any of these already has what pipdeptree could give the
 
 ## Untrusted inputs
 
-| Input                                              | Comes from                                                                            | What pipdeptree guarantees                                                                         |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Package metadata from `from-index` and `from-lock` | Any package published to the configured indexes, or a lock file from a pull request   | Requirements are parsed as PEP 508; names and versions are emitted as data in every output format. |
-| Metadata of installed distributions                | Whoever published a package the user installed                                        | Read from files, never imported; rendered as data in every output format.                          |
-| The working directory                              | Whoever wrote the repository, checkout or archive pipdeptree runs in                  | Nothing in it is imported, run or reported as installed unless an option names it.                 |
-| Files other local users can write                  | Another account on the same machine, for example through a shared temporary directory | Never read as configuration or built; temporary files are created where only the user can write.   |
+| Input                                              | Comes from                                                                            | What pipdeptree guarantees                                                                                               |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Package metadata from `from-index` and `from-lock` | Any package published to the configured indexes, or a lock file from a pull request   | pipdeptree parses requirements as PEP 508 and emits names and versions as data in every output format.                   |
+| Metadata of installed distributions                | Whoever published a package the user installed                                        | pipdeptree reads them from files without importing them and renders them as data in every output format.                 |
+| The working directory                              | Whoever wrote the repository, checkout or archive pipdeptree runs in                  | pipdeptree does not import, run or report as installed anything in it unless an option names it.                         |
+| Files other local users can write                  | Another account on the same machine, for example through a shared temporary directory | pipdeptree does not read them as configuration or build them, and creates temporary files where only the user can write. |
 
 ## Threats and controls
 
-| STRIDE                 | Threat                                                                      | Control                                                                                                              |
-| ---------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Tampering              | A crafted version string closes a DOT or Mermaid label and adds fake edges. | DOT identifiers are quoted with backslashes and quotes escaped; labels escape quotes. Report any label that escapes. |
-| Tampering              | A control character in metadata sends escape sequences to the terminal.     | Control characters in names, versions, header values, `direct_url.json` fields and lock strings become U+FFFD.       |
-| Denial of service      | A dependency cycle or huge response stalls rendering.                       | Cycles are detected and reported; `dot` is stopped after 300 seconds; report anything unbounded.                     |
-| Elevation of privilege | Inspecting metadata runs package code.                                      | Metadata files are parsed in Rust; the environment's interpreter runs only to report its paths.                      |
+| STRIDE                 | Threat                                                                      | Control                                                                                                                                               |
+| ---------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tampering              | A crafted version string closes a DOT or Mermaid label and adds fake edges. | pipdeptree escapes backslashes and quotes in DOT identifiers and labels and writes Mermaid label text as entity codes. Report any label that escapes. |
+| Tampering              | A control character in metadata sends escape sequences to the terminal.     | pipdeptree replaces control characters in names, versions, header values, `direct_url.json` fields and lock strings with U+FFFD.                      |
+| Denial of service      | A dependency cycle or huge response stalls rendering.                       | pipdeptree detects and reports cycles and stops `dot` after 300 seconds. Report anything unbounded.                                                   |
+| Elevation of privilege | Inspecting metadata runs package code.                                      | pipdeptree parses metadata files in Rust and runs the environment's interpreter only to report its paths.                                             |
 
 ## Release chain
 
@@ -90,10 +91,11 @@ Every workflow pins third-party actions to a commit SHA.
 
 ## Severity
 
-- **High:** inspecting metadata executes code, or a fixed `dot` invocation runs something else.
-- **Medium:** metadata escapes its field and forges packages or edges in JSON, CycloneDX, DOT or Mermaid output, or
-  index credentials reach the output.
-- **Low:** a crash, panic or hang on malformed input, or a rendering defect that forges nothing.
+| Severity | When                                                                                                                                      |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| High     | Inspecting metadata executes code, or a fixed `dot` invocation runs something else.                                                       |
+| Medium   | Metadata escapes its field and forges packages or edges in JSON, CycloneDX, DOT or Mermaid output, or index credentials reach the output. |
+| Low      | A crash, panic or hang on malformed input, or a rendering defect that forges nothing.                                                     |
 
 ## Accepted risks
 
@@ -103,4 +105,4 @@ Every workflow pins third-party actions to a commit SHA.
 ## Keeping this current
 
 Revisit this model when pipdeptree gains a new input source, network access, a new way to run code, or a new place it
-writes to, and whenever an advisory is published.
+writes to, and whenever we publish an advisory.

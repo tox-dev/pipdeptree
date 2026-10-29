@@ -89,8 +89,8 @@ The top-level line contains the package name and version, such as ``pytest-cov==
 its dependencies. ``[required: >=7, installed: 9.1.1]`` gives the parent's constraint and the installed version.
 
 A dependency appears multiple times when several packages require it, as with ``pluggy`` above. pipdeptree warns when
-their version requirements conflict. Its own dependencies print once per top-level package: ``(*)`` ends each later line
-for it and stands for the dependencies already shown.
+their version requirements conflict. Its own dependencies print once per top-level package, and ``(*)`` ends each later
+line for it in place of the dependencies already shown.
 
 The dependency graph for the above output looks like this:
 

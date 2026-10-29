@@ -164,7 +164,7 @@ By default the resolve runs against PyPI. Point it at an internal index with ``-
 PyPI as the primary and appends each extra after it. When a flag is absent, the value falls back to the environment:
 ``--index-url`` reads ``PIP_INDEX_URL`` then ``UV_INDEX_URL``, and ``--extra-index-url`` reads
 ``PIP_EXTRA_INDEX_URL`` then ``UV_EXTRA_INDEX_URL`` (both whitespace separated, like pip and uv). With nothing set
-the resolve uses PyPI. pipdeptree drops a user name and password from these URLs before the resolve: Nab sends no
+the resolve uses PyPI. pipdeptree drops a user name and password from these URLs before the resolve. Nab sends no
 credentials, so an index that requires authentication does not work with ``from-index``.
 
 The resolver searches indexes in order and uses the first index that contains a package. pip merges index results and
@@ -567,8 +567,8 @@ pipdeptree reports the parse error for an invalid package entry:
     $ pipdeptree from-lock pylock.toml
     package is missing 'name'
 
-A package ``name`` or ``version`` longer than 255 bytes is rejected the same way, for example with ``package 'name' is
-longer than 255 bytes``.
+pipdeptree rejects a package ``name`` or ``version`` longer than 255 bytes the same way, for example with ``package
+'name' is longer than 255 bytes``.
 
 Filtering packages
 ------------------
@@ -922,9 +922,10 @@ The size sums the regular files a distribution's ``RECORD`` lists. A row counts 
 following symbolic links, inside the installation prefix that holds the site directory: ``<prefix>`` for
 ``<prefix>/lib/pythonX.Y/site-packages`` and ``<prefix>/Lib/site-packages``, ``PythonXY`` for a Windows user site
 ``PythonXY/site-packages``, and the scanned directory itself for any other layout, such as ``pip install --target``.
+
 Console scripts under ``bin`` or ``Scripts`` and data files under ``share`` therefore count, while absolute paths and
-links that leave the prefix add nothing. A dist-info directory linked in from elsewhere, as in a Nix profile, also counts
-files under the prefix of its real location.
+links that leave the prefix add nothing. A dist-info directory linked in from elsewhere, as in a Nix profile, also
+counts files under the prefix of its real location.
 
 Unique dependencies are transitive: if removing a package would orphan a dependency, and that orphaned dependency
 would in turn orphan its own dependencies, the renderer counts all of them. Rich output marks unique dependencies
