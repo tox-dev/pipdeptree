@@ -132,6 +132,39 @@ fn reports_timed_out_git_roots() {
 }
 
 #[test]
+fn finds_marker_repositories_after_a_timed_out_git_root() {
+    let repository = tempfile::tempdir().unwrap();
+    fs::create_dir(repository.path().join(".bzr")).unwrap();
+    let site = editable_site(repository.path());
+    let mut processes = MockProcesses::new();
+    expect_process(
+        &mut processes,
+        "git",
+        &["rev-parse", "--show-toplevel"],
+        Err(ProcessError::TimedOut),
+    );
+    expect_process(
+        &mut processes,
+        "bzr",
+        &["info"],
+        Ok(process_output(
+            "  checkout of branch: https://example.com/repo\n",
+        )),
+    );
+    expect_process(
+        &mut processes,
+        "bzr",
+        &["revno"],
+        Ok(process_output("42\n")),
+    );
+
+    assert_eq!(
+        freeze(&site, &processes),
+        "-e bzr+https://example.com/repo@42#egg=demo\n"
+    );
+}
+
+#[test]
 fn stops_vcs_lookups_after_two_timeouts() {
     let repositories = [(); 3].map(|()| tempfile::tempdir().unwrap());
     let site = PackageSite::new();

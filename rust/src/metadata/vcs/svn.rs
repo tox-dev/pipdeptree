@@ -26,22 +26,22 @@ impl super::Vcs for Svn {
         package: &str,
         root: &Path,
     ) -> VcsResult {
-        let mut info = match command(
+        let (info, failure) = match command(
             processes,
             "svn",
             &["info", "--xml"],
             location,
             ExitStatusPolicy::RequireSuccess,
         ) {
-            Ok(output) => parse_info(&output),
-            Err(CommandError::Failed) => None,
-            Err(error) => return VcsResult::error(Some("svn"), error.into()),
+            Ok(output) => (parse_info(&output), VcsError::NoRemote),
+            Err(CommandError::Failed) => (None, VcsError::NoRemote),
+            Err(CommandError::TimedOut) => (None, VcsError::TimedOut),
+            Err(CommandError::NotFound) => {
+                return VcsResult::error(Some("svn"), VcsError::CommandNotFound);
+            }
         };
-        if info.is_none() {
-            info = legacy_info(location);
-        }
-        let Some((remote, revision)) = info else {
-            return VcsResult::error(Some("svn"), VcsError::NoRemote);
+        let Some((remote, revision)) = info.or_else(|| legacy_info(location)) else {
+            return VcsResult::error(Some("svn"), failure);
         };
         build_requirement(VcsRequirement {
             vcs: "svn",

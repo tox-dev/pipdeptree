@@ -44,20 +44,22 @@ pub(super) fn editable_requirement(
     package: &str,
     version: &str,
 ) -> String {
+    // A timed-out root lookup leaves the other backends free to find the checkout.
+    let mut root_error = None;
     let roots = BACKENDS
         .iter()
-        .filter_map(|backend| {
-            let root = backend.root(processes, location).transpose()?;
-            Some(root.map(|root| (root, *backend)))
+        .filter_map(|backend| match backend.root(processes, location) {
+            Ok(root) => Some((root?, *backend)),
+            Err(error) => {
+                root_error = Some(error);
+                None
+            }
         })
-        .collect::<Result<Vec<_>, _>>();
-    let roots = match roots {
-        Ok(roots) => roots,
-        Err(error) => {
+        .collect::<Vec<_>>();
+    let Some((root, backend)) = innermost(roots) else {
+        if let Some(error) = root_error {
             return format_result(location, package, version, VcsResult::error(None, error));
         }
-    };
-    let Some((root, backend)) = innermost(roots) else {
         return format!(
             "# Editable install with no version control ({package}=={version})\n-e {}",
             location.display()
