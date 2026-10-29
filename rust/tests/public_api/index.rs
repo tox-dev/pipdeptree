@@ -617,6 +617,11 @@ fn accepts_egg_fragment_vcs_requirements() {
     &["--index-url", "https://pypi.org/simple"],
     "[('pypi', 'https://pypi.org/simple')]"
 )]
+#[case::credentials(
+    "",
+    &["--index-url", "https://user:secret@override.example/simple"],
+    "[('primary', 'https://override.example/simple')]"
+)]
 fn resolves_pyproject_indexes(
     #[case] tool_config: &str,
     #[case] index_args: &[&str],
@@ -723,6 +728,32 @@ fn resolves_pyproject_indexes(
     &[],
     &[("UV_EXTRA_INDEX_URL", Some("https://uv.example/simple"))],
     "[('pypi', 'https://pypi.org/simple'), ('extra-1', 'https://uv.example/simple')]"
+)]
+#[case::pip_credentials(
+    &[],
+    &[("PIP_INDEX_URL", Some("https://user:secret@pip.example/simple"))],
+    "[('primary', 'https://pip.example/simple')]"
+)]
+#[case::flag_token(
+    &["--index-url", "https://token@flag.example/simple"],
+    &[],
+    "[('primary', 'https://flag.example/simple')]"
+)]
+#[case::pypi_credentials(
+    &["--index-url", "https://user:secret@pypi.org/simple"],
+    &[],
+    "[('pypi', 'https://pypi.org/simple')]"
+)]
+#[case::extra_credentials(
+    &[],
+    &[(
+        "PIP_EXTRA_INDEX_URL",
+        Some("https://user:p%40ss@one.example/simple https://two.example/simple"),
+    )],
+    concat!(
+        "[('pypi', 'https://pypi.org/simple'), ",
+        "('extra-1', 'https://one.example/simple'), ('extra-2', 'https://two.example/simple')]"
+    )
 )]
 #[case::flag_extras_precede_environment(
     &["--extra-index-url", "https://flag.example/simple"],
