@@ -12,6 +12,7 @@ fn builds_process_requests() {
         .in_directory("work")
         .with_stdin(b"input".to_vec())
         .with_timeout(Duration::from_secs(2))
+        .with_output_limit(64)
         .without_environment(["FIRST", "SECOND"])
         .with_environment([("THIRD", "value")]);
 
@@ -23,6 +24,7 @@ fn builds_process_requests() {
             current_dir: Some("work".into()),
             stdin: b"input".to_vec(),
             timeout: Some(Duration::from_secs(2)),
+            output_limit: 64,
             removed_environment: vec![OsString::from("FIRST"), OsString::from("SECOND")],
             added_environment: vec![(OsString::from("THIRD"), OsString::from("value"))],
         }
@@ -197,6 +199,54 @@ fn times_out_system_processes() {
         .unwrap_err();
 
     assert_eq!(error, ProcessError::TimedOut);
+}
+
+#[rstest]
+#[case::stdout("import sys; sys.stdout.write('x' * 1001)")]
+#[case::stderr("import sys; sys.stderr.write('x' * 1001)")]
+fn rejects_output_over_the_limit(#[case] script: &str) {
+    let error = SystemProcessRunner
+        .run(&ProcessRequest::new(python(), ["-c", script]).with_output_limit(1000))
+        .unwrap_err();
+
+    assert_eq!(
+        error,
+        ProcessError::Failed("output exceeds 1000 bytes".to_string())
+    );
+}
+
+#[test]
+fn keeps_output_at_the_limit() {
+    let output = SystemProcessRunner
+        .run(
+            &ProcessRequest::new(python(), ["-c", "import sys; sys.stdout.write('x' * 1000)"])
+                .with_output_limit(1000),
+        )
+        .unwrap();
+
+    assert_eq!(output.stdout, vec![b'x'; 1000]);
+}
+
+#[test]
+fn stops_children_that_write_past_the_limit() {
+    let error = SystemProcessRunner
+        .run(
+            &ProcessRequest::new(
+                python(),
+                [
+                    "-c",
+                    "import sys\nwhile True: sys.stdout.write('x' * 65536)",
+                ],
+            )
+            .with_output_limit(1000)
+            .with_timeout(Duration::from_secs(60)),
+        )
+        .unwrap_err();
+
+    assert_eq!(
+        error,
+        ProcessError::Failed("output exceeds 1000 bytes".to_string())
+    );
 }
 
 #[test]
