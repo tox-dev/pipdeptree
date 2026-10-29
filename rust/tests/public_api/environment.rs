@@ -201,22 +201,22 @@ fn reports_missing_automatic_environment() {
         .withf(|request| request.program == OsStr::new("poetry"))
         .return_once(|_| Err(ProcessError::NotFound));
 
-    temp_env::with_vars(
-        [
-            ("VIRTUAL_ENV", None::<&str>),
-            ("CONDA_PREFIX", None::<&str>),
-        ],
-        || {
-            with_python(|python| {
+    with_python(|python| {
+        temp_env::with_vars(
+            [
+                ("VIRTUAL_ENV", None::<&str>),
+                ("CONDA_PREFIX", None::<&str>),
+            ],
+            || {
                 let output = execute_with_runner(&processes, python, &["--python", "auto"], false);
 
                 assert_eq!(
                     (output.code, output.stderr.as_str()),
                     (1, "Unable to detect virtual environment.\n")
                 );
-            });
-        },
-    );
+            },
+        );
+    });
 }
 
 #[test]
@@ -228,22 +228,22 @@ fn ignores_environment_without_an_interpreter() {
         .withf(|request| request.program == OsStr::new("poetry"))
         .return_once(|_| Err(ProcessError::NotFound));
 
-    temp_env::with_vars(
-        [
-            ("VIRTUAL_ENV", Some(directory.path())),
-            ("CONDA_PREFIX", None::<&Path>),
-        ],
-        || {
-            with_python(|python| {
+    with_python(|python| {
+        temp_env::with_vars(
+            [
+                ("VIRTUAL_ENV", Some(directory.path())),
+                ("CONDA_PREFIX", None::<&Path>),
+            ],
+            || {
                 let output = execute_with_runner(&processes, python, &["--python", "auto"], false);
 
                 assert_eq!(
                     (output.code, output.stderr.as_str()),
                     (1, "Unable to detect virtual environment.\n")
                 );
-            });
-        },
-    );
+            },
+        );
+    });
 }
 
 #[test]
@@ -269,13 +269,13 @@ fn detects_pypy_virtual_environments() {
         .withf(move |request| request.program == executable.as_os_str())
         .return_once(move |_| Ok(process_output(info)));
 
-    temp_env::with_vars(
-        [
-            ("VIRTUAL_ENV", Some(site.path())),
-            ("CONDA_PREFIX", None::<&Path>),
-        ],
-        || {
-            with_python(|python| {
+    with_python(|python| {
+        temp_env::with_vars(
+            [
+                ("VIRTUAL_ENV", Some(site.path())),
+                ("CONDA_PREFIX", None::<&Path>),
+            ],
+            || {
                 let sys = python.import("sys").unwrap();
                 let implementation = sys.getattr("implementation").unwrap();
                 let original_name = implementation.getattr("name").unwrap();
@@ -292,9 +292,9 @@ fn detects_pypy_virtual_environments() {
                     ),
                     (0, true, "")
                 );
-            });
-        },
-    );
+            },
+        );
+    });
 }
 
 #[test]
@@ -304,13 +304,13 @@ fn detects_poetry_environment() {
     let site_path = site.path().to_str().unwrap();
     let mut processes = MockProcesses::new();
 
-    temp_env::with_vars(
-        [
-            ("VIRTUAL_ENV", None::<&str>),
-            ("CONDA_PREFIX", None::<&str>),
-        ],
-        || {
-            with_python(|python| {
+    with_python(|python| {
+        temp_env::with_vars(
+            [
+                ("VIRTUAL_ENV", None::<&str>),
+                ("CONDA_PREFIX", None::<&str>),
+            ],
+            || {
                 let path = python.import("sys").unwrap().getattr("path").unwrap();
                 path.call_method1("insert", (0, site_path)).unwrap();
                 let executable: String = python
@@ -335,9 +335,9 @@ fn detects_poetry_environment() {
                     ),
                     (0, true)
                 );
-            });
-        },
-    );
+            },
+        );
+    });
 }
 
 #[rstest]
@@ -371,14 +371,14 @@ fn detects_environment_variables(#[case] variable: &str) {
         .withf(move |request| request.program == executable.as_os_str())
         .return_once(move |_| Ok(process_output(info)));
 
-    temp_env::with_vars(
-        [
-            ("VIRTUAL_ENV", None::<&Path>),
-            ("CONDA_PREFIX", None::<&Path>),
-            (variable, Some(site.path())),
-        ],
-        || {
-            with_python(|python| {
+    with_python(|python| {
+        temp_env::with_vars(
+            [
+                ("VIRTUAL_ENV", None::<&Path>),
+                ("CONDA_PREFIX", None::<&Path>),
+                (variable, Some(site.path())),
+            ],
+            || {
                 let output = Application::new(&processes).run(
                     python,
                     &["--python", "auto", "--json"].map(ToString::to_string),
@@ -394,9 +394,9 @@ fn detects_environment_variables(#[case] variable: &str) {
                     ),
                     (0, true, true)
                 );
-            });
-        },
-    );
+            },
+        );
+    });
 }
 
 #[test]
