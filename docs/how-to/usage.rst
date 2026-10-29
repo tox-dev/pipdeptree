@@ -4,9 +4,9 @@ Usage patterns
 Running in virtualenvs
 ----------------------
 
-By default pipdeptree auto-detects your active virtual environment (venv, virtualenv, conda, or poetry) and inspects
-it. When no virtual environment is active, it falls back to the interpreter running pipdeptree. A system installation
-therefore inspects the system packages:
+By default pipdeptree inspects your active virtual environment (venv, virtualenv or conda). With none active, it asks
+Poetry for the environment of the project in the working directory, and falls back to the interpreter running
+pipdeptree when that fails too. A system installation therefore inspects the system packages:
 
 .. code-block:: console
 
@@ -25,6 +25,14 @@ Use ``--python auto`` to require an active virtual environment. The command fail
     $ pipdeptree --python auto
 
 Installing pipdeptree inside the virtual environment and running it there gives the same result.
+
+pipdeptree ignores a Poetry environment inside the project it runs in, such as an in-project ``.venv``, because a
+repository can commit one and pipdeptree runs nothing from the working directory unless you name it. To inspect that
+environment, activate it or pass its interpreter.
+
+.. code-block:: console
+
+    $ pipdeptree --python .venv/bin/python
 
 from-index (resolve by querying the index)
 -------------------------------------------
@@ -125,7 +133,9 @@ pipdeptree parses the file as a standard requirements file, so a real-world one 
 Each directive maps as follows: the ``-r base.txt`` include is read inline, the ``-c constraints.txt`` pins bound
 the resolve, the marker and the ``[http2]`` extra reach the resolver intact, the comment drops out, and the
 ``--hash`` line resolves ``requests`` while pipdeptree ignores the hash (the resolver verifies nothing from the
-index). The same applies to ``--index-url`` and other pip-specific options.
+index). The same applies to ``--index-url`` and other pip-specific options. The resolve takes its indexes from the
+command line and the environment only (see below), so an ``-i``, ``--index-url`` or ``--extra-index-url`` line prints a
+warning with the file and line number; ``--warn fail`` turns it into exit code 1.
 
 Resolve from a pyproject.toml
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -167,9 +177,10 @@ By default the resolve runs against PyPI. Point it at an internal index with ``-
 ``--index-url`` replaces PyPI as the primary index, matching pip's ``--index-url``. ``--extra-index-url`` keeps
 PyPI as the primary and appends each extra after it. When a flag is absent, the value falls back to the environment:
 ``--index-url`` reads ``PIP_INDEX_URL`` then ``UV_INDEX_URL``, and ``--extra-index-url`` reads
-``PIP_EXTRA_INDEX_URL`` then ``UV_EXTRA_INDEX_URL`` (both whitespace separated, like pip and uv). With nothing set
-the resolve uses PyPI. pipdeptree drops a user name and password from these URLs before the resolve. Nab sends no
-credentials, so an index that requires authentication does not work with ``from-index``.
+``PIP_EXTRA_INDEX_URL`` then ``UV_EXTRA_INDEX_URL`` (both whitespace separated, like pip and uv). An empty variable
+counts as unset. With nothing set the resolve uses PyPI. pipdeptree drops a user name and password from these URLs
+before the resolve. Nab sends no credentials, so an index that requires authentication does not work with
+``from-index``.
 
 The resolver searches indexes in order and uses the first index that contains a package. pip merges index results and
 picks the highest version. Put the trusted index for each package first.
@@ -851,16 +862,15 @@ dependency tree as a string without ``argv`` or stdout:
     data = pipdeptree.render(output_format="json")   # JSON string, e.g. for json.loads
     sub = pipdeptree.render(packages="rich", reverse=True)
 
-``output_format`` accepts ``text`` (default), ``json``, ``json-tree``, ``mermaid`` and ``dot`` (Graphviz source).
-The programmatic renderer raises ``ValueError`` for binary Graphviz formats such as ``png`` or ``svg``. Use ``dot`` to
-get the source, or use the command-line interface for binary rendering.
+``output_format`` accepts ``text`` (default), ``json``, ``json-tree``, ``cyclonedx-json``, ``mermaid`` and ``dot``
+(Graphviz source). The programmatic renderer raises ``ValueError`` for the Graphviz formats that the ``dot`` executable
+renders, such as ``png`` or ``svg``. Use ``dot`` to get the source, or use the command-line interface to render it.
 
 The return value is a ``str``, so ``print``, slicing and comparisons behave as usual. The default ``text`` format
-implements notebook display hooks: the result renders as a Mermaid dependency diagram without a
-Graphviz binary, falling back to an HTML ``<pre>`` and then plain text on front-ends that do not render Mermaid.
-``str(render())`` and
-``print(render())`` give the plain text tree. The other formats (``json``, ``json-tree``, ``mermaid``, ``dot``)
-return a plain string with no rich display, so their JSON or source shows verbatim.
+implements notebook display hooks: the result renders as a Mermaid dependency diagram without a Graphviz binary,
+falling back to an HTML ``<pre>`` and then plain text on front-ends that do not render Mermaid. ``str(render())`` and
+``print(render())`` give the plain text tree. The other formats (``json``, ``json-tree``, ``cyclonedx-json``,
+``mermaid``, ``dot``) return a plain string with no rich display, so their JSON or source shows verbatim.
 
 Unlike the CLI, :func:`pipdeptree.render` defaults to ``warn="silence"`` so a notebook cell stays free of stderr noise;
 pass ``warn="suppress"`` to show warnings or ``warn="fail"`` to fail on them.
@@ -868,7 +878,8 @@ pass ``warn="suppress"`` to show warnings or ``warn="fail"`` to fail on them.
 Depth limiting
 --------------
 
-Limit how deep the tree renders with ``-d``:
+Limit how deep the tree renders with ``-d``. The limit applies to ``text``, ``rich``, ``freeze`` and the Graphviz
+formats; ``json``, ``json-tree``, ``mermaid`` and ``cyclonedx-json`` always contain the whole graph.
 
 .. code-block:: console
 

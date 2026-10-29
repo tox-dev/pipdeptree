@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use _pipdeptree::{
     ProcessError, ProcessOutput, ProcessRequest, ProcessRunner, SystemProcessRunner,
@@ -199,6 +199,28 @@ fn times_out_system_processes() {
         .unwrap_err();
 
     assert_eq!(error, ProcessError::TimedOut);
+}
+
+#[rstest]
+#[case::child_killed("time.sleep(60)")]
+#[case::child_exited("")]
+fn times_out_while_a_grandchild_holds_the_output(#[case] child_rest: &str) {
+    let script = format!(
+        "import subprocess, sys, time\n\
+         subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'], \
+         stdout=sys.stdout, stderr=sys.stderr)\n\
+         {child_rest}"
+    );
+    let started = Instant::now();
+
+    let error = SystemProcessRunner
+        .run(&ProcessRequest::new(python(), ["-c", &script]).with_timeout(Duration::from_secs(3)))
+        .unwrap_err();
+
+    assert_eq!(
+        (error, started.elapsed() < Duration::from_secs(30)),
+        (ProcessError::TimedOut, true)
+    );
 }
 
 #[rstest]

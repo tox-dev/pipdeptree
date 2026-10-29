@@ -379,6 +379,32 @@ def test_cli_index_local_source_leaves_index_sdist_unbuilt(
 
 
 @pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        pytest.param("silence", (0, False), id="silence"),
+        pytest.param("suppress", (0, True), id="suppress"),
+        pytest.param("fail", (1, True), id="fail"),
+    ],
+)
+def test_cli_index_warns_about_requirements_index_option(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    mode: str,
+    expected: tuple[int, bool],
+) -> None:
+    requirements: Final = tmp_path / "requirements.txt"
+    requirements.write_text("-i https://private.example/simple\n")
+    monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
+
+    code: Final = entry_point(["--warn", mode, "from-index", "--requirements", str(requirements)])
+    warning: Final = ":1: from-index ignores -i in requirements files; pass --index-url on the command line\n"
+
+    assert (code, capsys.readouterr().err.endswith(warning)) == expected
+
+
+@pytest.mark.parametrize(
     "backend_path",
     [
         pytest.param("hooks", id="subdirectory"),
@@ -429,6 +455,30 @@ def test_cli_index_local_source_native_path(
     code: Final = entry_point(["from-index", *source(tmp_path), "--index-url", index.as_uri()])
 
     assert (code, capsys.readouterr().out) == (0, "local==1\n")
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param("demo ==\n", "{path}:1: invalid requirement\n", id="invalid-line"),
+        pytest.param("-r requirements.txt\n", "recursive requirements include: {path}\n", id="recursive"),
+    ],
+)
+def test_cli_index_requirements_error_names_plain_path(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    content: str,
+    expected: str,
+) -> None:
+    requirements: Final = tmp_path / "requirements.txt"
+    requirements.write_text(content)
+    monkeypatch.chdir(tmp_path)
+
+    code: Final = entry_point(["from-index", "--requirements", "requirements.txt"])
+
+    assert (code, capsys.readouterr().err) == (1, expected.format(path=requirements.resolve()))
 
 
 def _write_dynamic_project(directory: Path, name: str, marker: Path, backend_path: str) -> None:

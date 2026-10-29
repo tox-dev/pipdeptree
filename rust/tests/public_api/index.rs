@@ -508,6 +508,118 @@ fn parses_pip_requirement_file_syntax() {
     );
 }
 
+#[rstest]
+#[case::short("-i https://private.example/simple", "-i", "--index-url")]
+#[case::short_attached("-ihttps://private.example/simple", "-i", "--index-url")]
+#[case::long(
+    "--index-url https://private.example/simple",
+    "--index-url",
+    "--index-url"
+)]
+#[case::long_equals(
+    "--index-url=https://private.example/simple",
+    "--index-url",
+    "--index-url"
+)]
+#[case::extra(
+    "--extra-index-url https://private.example/simple",
+    "--extra-index-url",
+    "--extra-index-url"
+)]
+fn warns_about_an_index_option_in_a_requirements_file(
+    #[case] line: &str,
+    #[case] option: &str,
+    #[case] flag: &str,
+) {
+    let directory = tempdir().unwrap();
+    let requirements = directory.path().join("requirements.txt");
+    fs::write(&requirements, format!("parent\n{line}\n")).unwrap();
+
+    let output = resolved_output(&[
+        "from-index",
+        "--requirements",
+        requirements.to_str().unwrap(),
+    ]);
+
+    assert_eq!(
+        (output.code, output.stderr.lines().next().unwrap()),
+        (
+            0,
+            format!(
+                "Warning: {}:2: from-index ignores {option} in requirements files; pass {flag} on the command line",
+                requirements.canonicalize().unwrap().display()
+            )
+            .as_str()
+        )
+    );
+}
+
+#[test]
+fn warns_about_an_index_option_before_a_failed_resolve() {
+    let directory = tempdir().unwrap();
+    let requirements = directory.path().join("requirements.txt");
+    fs::write(&requirements, "-i https://private.example/simple\nparent\n").unwrap();
+
+    let output = with_python(|python| {
+        temp_env::with_var("NAB_CACHE_DIR", Some(""), || {
+            execute_with_python(
+                python,
+                &[
+                    "from-index",
+                    "--requirements",
+                    requirements.to_str().unwrap(),
+                ],
+            )
+        })
+    });
+
+    assert_eq!(
+        (output.code, output.stderr),
+        (
+            1,
+            format!(
+                "Warning: {}:1: from-index ignores -i in requirements files; pass --index-url on the command line\n\
+                 ValueError: NAB_CACHE_DIR must be a non-empty path\n",
+                requirements.canonicalize().unwrap().display()
+            )
+        )
+    );
+}
+
+#[test]
+fn reports_index_option_warnings_before_resolver_logs() {
+    let directory = tempdir().unwrap();
+    let requirements = directory.path().join("requirements.txt");
+    fs::write(&requirements, "-i https://private.example/simple\nlogs\n").unwrap();
+
+    let output = resolved_output(&[
+        "-o",
+        "freeze",
+        "from-index",
+        "--requirements",
+        requirements.to_str().unwrap(),
+    ]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (
+            0,
+            "parent==1\n  child==2\n  external\n",
+            format!(
+                "Warning: {}:1: from-index ignores -i in requirements files; pass --index-url on the command line\n\
+                 Warning: the resolver reported:\n\
+                 Skipping logs==2: d[x\u{fffd}]0;t\u{fffd}]\n    ~~^\n\
+                 ------------------------------------------------------------------------\n\
+                 Warning: dependency problems found:\n\
+                 * parent==1\n  - external [required: Any, installed: ?]\n\
+                 ------------------------------------------------------------------------\n\n",
+                requirements.canonicalize().unwrap().display()
+            )
+            .as_str()
+        )
+    );
+}
+
 #[test]
 fn inherits_constraint_flag_for_nested_requirement_files() {
     let directory = tempdir().unwrap();
@@ -831,6 +943,14 @@ fn resolves_pyproject_indexes(
 #[case::uv_extras(
     &[],
     &[("UV_EXTRA_INDEX_URL", Some("https://uv.example/simple"))],
+    "[('pypi', 'https://pypi.org/simple'), ('extra-1', 'https://uv.example/simple')]"
+)]
+#[case::empty_pip_extras_fall_back(
+    &[],
+    &[
+        ("PIP_EXTRA_INDEX_URL", Some("")),
+        ("UV_EXTRA_INDEX_URL", Some("https://uv.example/simple")),
+    ],
     "[('pypi', 'https://pypi.org/simple'), ('extra-1', 'https://uv.example/simple')]"
 )]
 #[case::pip_credentials(

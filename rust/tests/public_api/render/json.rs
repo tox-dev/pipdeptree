@@ -53,6 +53,24 @@ fn renders_flat_json_fields() {
     );
 }
 
+#[test]
+fn keeps_metadata_fields_in_command_line_order() {
+    let output = execute(
+        &render_site(),
+        &["--json", "--metadata", "unknown,license,classifier,license"],
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(
+        value[0]["package"]["metadata"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .collect::<Vec<_>>(),
+        ["unknown", "license", "classifier"]
+    );
+}
+
 #[rstest]
 #[case::bytes(0, "0 B")]
 #[case::kilobytes(1_536, "1.5 KB")]

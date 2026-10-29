@@ -354,11 +354,10 @@ fn format_flags_translate_render_output_formats() {
             call("text", true).unwrap(),
             ["--summary", "--output", "text"]
         );
-        assert!(
-            call("png", false)
-                .unwrap_err()
-                .to_string()
-                .contains("binary Graphviz formats")
+        assert_eq!(
+            call("svg", false).unwrap_err().to_string(),
+            "ValueError: Graphviz svg output needs the dot executable, which render() does not run; \
+             use output_format='dot' for the Graphviz source, or run the pipdeptree CLI"
         );
         assert!(
             call("xml", false)

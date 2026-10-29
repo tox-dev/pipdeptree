@@ -104,6 +104,29 @@ fn renders_environment_identity_and_metadata() {
 }
 
 #[test]
+fn renders_computed_values_as_plain_strings() {
+    let value = read(&execute(
+        &render_site(),
+        &[
+            "-o",
+            "cyclonedx-json",
+            "--computed",
+            "size,unique-deps-count,unique-deps-names",
+        ],
+    ));
+
+    assert_eq!(
+        component(&value, "root")["properties"],
+        json!([
+            {"name": "pipdeptree:computed:size", "value": "0 B"},
+            {"name": "pipdeptree:computed:unique_deps_count", "value": "2"},
+            {"name": "pipdeptree:computed:unique_deps_names", "value": "leaf"},
+            {"name": "pipdeptree:computed:unique_deps_names", "value": "unique"},
+        ])
+    );
+}
+
+#[test]
 fn marks_missing_dependencies_with_an_unknown_graph() {
     let value = read(&render_environment(&render_site()));
     let missing = component(&value, "missing");

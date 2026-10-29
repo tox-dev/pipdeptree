@@ -33,6 +33,15 @@ mod svn;
     "42\n",
     "-e bzr+https://example.com/repo@42#egg=demo"
 )]
+#[case::bzr_line_break_and_escape(
+    ".bzr",
+    "bzr",
+    &["info"],
+    "  checkout of branch: https://example.com/re po\u{1b}[31m\u{2028}--index-url=https://evil\n",
+    &["revno"],
+    "42\n",
+    "-e bzr+https://example.com/re%20po%1B[31m%E2%80%A8--index-url=https://evil@42#egg=demo"
+)]
 #[case::svn(
     ".svn",
     "svn",

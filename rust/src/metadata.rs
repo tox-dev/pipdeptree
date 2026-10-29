@@ -224,32 +224,36 @@ impl Package {
     }
 
     fn direct_specifier(&self, direct: &DirectUrl) -> String {
-        let mut result = format!("{} @ ", requirement_text(&self.name));
+        let mut url = String::new();
         match &direct.info {
             DirectInfo::Vcs(info) => {
-                result.push_str(&info.vcs);
-                result.push('+');
-                result.push_str(&direct.redacted_url());
+                url.push_str(&info.vcs);
+                url.push('+');
+                url.push_str(&direct.redacted_url());
                 if let Some(commit) = info.reference() {
-                    result.push('@');
-                    result.push_str(commit);
+                    url.push('@');
+                    url.push_str(commit);
                 }
             }
             DirectInfo::Archive(info) => {
-                result.push_str(&direct.redacted_url());
+                url.push_str(&direct.redacted_url());
                 if let Some(hash) = info.hash_fragment() {
-                    result.push('#');
-                    result.push_str(&hash);
+                    url.push('#');
+                    url.push_str(&hash);
                 }
             }
-            DirectInfo::Directory { .. } => result.push_str(&direct.redacted_url()),
+            DirectInfo::Directory { .. } => url.push_str(&direct.redacted_url()),
         }
         if let Some(subdirectory) = &direct.subdirectory {
-            result.push(if result.contains('#') { '&' } else { '#' });
-            result.push_str("subdirectory=");
-            result.push_str(subdirectory);
+            url.push(if url.contains('#') { '&' } else { '#' });
+            url.push_str("subdirectory=");
+            url.push_str(subdirectory);
         }
-        result
+        format!(
+            "{} @ {}",
+            requirement_text(&self.name),
+            requirement_url(&url)
+        )
     }
 
     fn regular_specifier(&self) -> String {
@@ -741,6 +745,24 @@ fn requirement_text(value: &str) -> String {
             }
         })
         .collect()
+}
+
+// pip splits a requirements file with str.splitlines, which also breaks lines at U+001C to U+001E,
+// U+0085, U+2028 and U+2029, and splits a line at spaces into the requirement and its options. A
+// valid URL holds no raw whitespace or control characters, so percent-encoding them keeps the URL
+// in one argument of one line and keeps escape sequences away from the terminal.
+fn requirement_url(value: &str) -> String {
+    let mut result = String::with_capacity(value.len());
+    for character in value.chars() {
+        if character.is_control() || character.is_whitespace() {
+            for byte in character.encode_utf8(&mut [0; 4]).bytes() {
+                write!(result, "%{byte:02X}").expect("writing to a string cannot fail");
+            }
+        } else {
+            result.push(character);
+        }
+    }
+    result
 }
 
 // PEP 503: collapse each separator run to '-' and lowercase, keeping boundary separators.
