@@ -1,6 +1,7 @@
+use std::fmt::Write as _;
 use std::time::{Duration, Instant};
 
-use _pipdeptree::SystemProcessRunner;
+use _pipdeptree::{Execution, SystemProcessRunner};
 
 use super::{
     crossed_cycle_site, execute, layered_site, lock_file, path, render_site, text, write_requiring,
@@ -214,6 +215,76 @@ fn expands_a_repeated_subtree_again_where_depth_leaves_more_levels() {
     );
 }
 
+// Every line that shows r -> hub asks which requirements hub would list for those extras, and
+// hub files 10,000 under them, across 20 packages so the list needs a real sort; selecting and
+// sorting it on each of the 20,000 lines overruns the budget.
+#[rstest]
+#[case::text(&[], "required: <")]
+#[case::rich(&["--output", "rich"], "required: <")]
+#[case::json_tree(&["--output", "json-tree"], "\"required_version\": \"<")]
+fn selects_the_children_of_an_edge_once(#[case] args: &[&str], #[case] requirement: &str) {
+    let extras = (0..5)
+        .map(|number| format!("x{number}"))
+        .collect::<Vec<_>>();
+    let marker = extras
+        .iter()
+        .map(|extra| format!("extra == '{extra}'"))
+        .collect::<Vec<_>>()
+        .join(" or ");
+    let site = super::PackageSite::new();
+    for (name, requires) in [
+        (
+            "r",
+            requirements(&format!("hub[{}]", extras.join(",")), 20000, ""),
+        ),
+        ("hub", leaves(2000, &format!("; {marker}"))),
+    ] {
+        site.write(
+            &format!("{name}-1.dist-info"),
+            &format!("Name: {name}\nVersion: 1\n{requires}"),
+        );
+    }
+    for number in 0..20 {
+        write_requiring(&site, &format!("leaf{number}"), &[] as &[&str]);
+    }
+    let (output, elapsed) = execute_timed(&site, args);
+
+    assert_eq!(
+        (text(&output).matches(requirement).count(), elapsed < BUDGET),
+        (20000 + 2000 * 5, true)
+    );
+}
+
+// The conflict check walks every specifier against every segment of the installed version, and
+// each of the 1,000 top-level packages shows the lib -> ghost edge in its own tree.
+#[test]
+fn checks_each_rich_edge_for_conflicts_once() {
+    let site = super::PackageSite::new();
+    for number in 0..1000 {
+        write_requiring(&site, &format!("app{number}"), &["lib"]);
+    }
+    site.write(
+        "lib-1.dist-info",
+        &format!(
+            "Name: lib\nVersion: 1\nRequires-Dist: ghost{}\n",
+            (0..2000)
+                .map(|number| format!("!=0.{number}"))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+    );
+    site.write(
+        "ghost-1.dist-info",
+        &format!("Name: ghost\nVersion: 1+{}\n", vec!["1"; 2000].join(".")),
+    );
+    let (output, elapsed) = execute_timed(&site, &["--output", "rich"]);
+
+    assert_eq!(
+        (text(&output).lines().count(), elapsed < BUDGET),
+        (3 * 1000, true)
+    );
+}
+
 // A package appears on a line for every edge that reaches it, so building its metadata suffix
 // on every line costs the edges times the stored value's length, blanks included.
 #[rstest]
@@ -255,4 +326,31 @@ fn builds_padded_metadata_suffix_once_per_package(#[case] args: &[&str]) {
         (1 + 1000, true),
         "took {elapsed:?}"
     );
+}
+
+const BUDGET: Duration = Duration::from_secs(10);
+
+// The clock starts once this test holds the interpreter, so time spent waiting for other tests
+// does not count against the budget.
+fn execute_timed(site: &super::PackageSite, args: &[&str]) -> (Execution, Duration) {
+    let args = [&["--path", path(site.path()), "--warn", "silence"], args].concat();
+    super::with_python(|python| {
+        let start = Instant::now();
+        let output = super::execute_with_runner(&SystemProcessRunner, python, &args, false);
+        (output, start.elapsed())
+    })
+}
+
+fn requirements(name: &str, count: usize, marker: &str) -> String {
+    (1..=count).fold(String::new(), |mut lines, number| {
+        let _ = writeln!(lines, "Requires-Dist: {name}<{number}{marker}");
+        lines
+    })
+}
+
+fn leaves(count: usize, marker: &str) -> String {
+    (1..=count).fold(String::new(), |mut lines, number| {
+        let _ = writeln!(lines, "Requires-Dist: leaf{}<{number}{marker}", number % 20);
+        lines
+    })
 }

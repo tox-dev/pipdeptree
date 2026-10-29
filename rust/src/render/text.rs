@@ -100,7 +100,7 @@ struct TreeRenderer<'a> {
     lines: Vec<String>,
 }
 
-impl TreeRenderer<'_> {
+impl<'a> TreeRenderer<'a> {
     fn suffix(&self, index: usize) -> &str {
         if self.style == TextStyle::Frozen {
             return "";
@@ -111,16 +111,16 @@ impl TreeRenderer<'_> {
     fn walk_forward(
         &mut self,
         parent: usize,
-        extras: Option<&BTreeSet<String>>,
+        incoming: Option<&'a Dependency>,
         prefix: &str,
         depth: usize,
     ) -> Result<(), Error> {
         if self.options.depth.is_some_and(|limit| depth >= limit) {
             return Ok(());
         }
-        let children = extras.map_or_else(
+        let children = incoming.map_or_else(
             || self.graph.expanded_children(parent),
-            |extras| self.graph.children(parent, extras),
+            |incoming| self.graph.children(incoming),
         );
         let unique = (self.style == TextStyle::Rich
             && self.options.computed.iter().any(|field| field.is_unique()))
@@ -135,7 +135,7 @@ impl TreeRenderer<'_> {
             let extras = dependency.requested_extras();
             let repeated = dependency.target.is_some_and(|child| {
                 self.repeats(child, Some(&extras), depth + 1)
-                    && self.graph.children(child, &extras).next().is_some()
+                    && self.graph.children(dependency).next().is_some()
             });
             let label = self.dependency_label(
                 dependency,
@@ -153,7 +153,7 @@ impl TreeRenderer<'_> {
             };
             self.path.insert(child);
             let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
-            self.walk_forward(child, Some(&extras), &next_prefix, depth + 1)?;
+            self.walk_forward(child, Some(dependency), &next_prefix, depth + 1)?;
             self.path.remove(&child);
         }
         Ok(())

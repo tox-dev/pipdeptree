@@ -1,6 +1,6 @@
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::{BTreeSet, VecDeque};
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError};
 
 use super::{Dependency, Graph};
 
@@ -28,6 +28,17 @@ impl Graph {
         }
         self.propagate_requested_extras(pending);
         self.expanded.take();
+        self.selected
+            .get_mut()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clear();
+        for dependency in self
+            .nodes
+            .iter_mut()
+            .flat_map(|node| &mut node.dependencies)
+        {
+            dependency.children.take();
+        }
         self.reverse_edges.take();
         self.cycles.take();
         self.unique_dependencies.take();

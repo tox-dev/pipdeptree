@@ -28,17 +28,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<String, Error> 
         graph
             .roots(false, false)
             .into_iter()
-            .map(|root| {
-                forward_tree_json(
-                    graph,
-                    root,
-                    None,
-                    &BTreeSet::new(),
-                    0,
-                    &mut Walk::default(),
-                    options,
-                )
-            })
+            .map(|root| forward_tree_json(graph, root, None, 0, &mut Walk::default(), options))
             .collect::<Result<Vec<_>, _>>()?
     };
     let mut output = Vec::new();
@@ -77,7 +67,6 @@ fn forward_tree_json(
     graph: &Graph,
     index: usize,
     incoming: Option<&Dependency>,
-    extras: &BTreeSet<String>,
     level: usize,
     walk: &mut Walk,
     options: &Options,
@@ -90,11 +79,10 @@ fn forward_tree_json(
     if !options.resolved() && incoming.is_none() {
         value["required_version"] = Value::String(graph.nodes[index].package.version.clone());
     }
-    let children = if incoming.is_none() {
-        graph.expanded_children(index)
-    } else {
-        graph.children(index, extras)
-    };
+    let children = incoming.map_or_else(
+        || graph.expanded_children(index),
+        |incoming| graph.children(incoming),
+    );
     let mut dependencies = Vec::new();
     for dependency in children {
         check_tree_depth(level + 1)?;
@@ -102,22 +90,13 @@ fn forward_tree_json(
             dependencies.push(missing_dependency_json(dependency, options));
             continue;
         };
-        let extras = dependency.requested_extras();
         dependencies.push(
-            if walk.repeats(target, Some(&extras))
-                && graph.children(target, &extras).next().is_some()
+            if walk.repeats(target, Some(&dependency.requested_extras()))
+                && graph.children(dependency).next().is_some()
             {
                 repeated_json(dependency_json(graph, dependency, options))
             } else {
-                forward_tree_json(
-                    graph,
-                    target,
-                    Some(dependency),
-                    &extras,
-                    level + 1,
-                    walk,
-                    options,
-                )?
+                forward_tree_json(graph, target, Some(dependency), level + 1, walk, options)?
             },
         );
     }
