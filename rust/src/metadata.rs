@@ -95,8 +95,7 @@ struct Headers(Vec<Header>);
 
 impl Package {
     // A package resolved from a lock file or index has no on-disk dist-info: metadata() and
-    // license() therefore report N/A, and size is seeded to 0 (rather than left lazy) because
-    // compute_size has no metadata_dir to read and callers never ask a resolved package for it.
+    // license() therefore report N/A.
     pub fn synthetic(name: &str, version: &str, requires: &[String]) -> Self {
         let name = printable(name);
         Self {
@@ -110,7 +109,7 @@ impl Package {
             metadata: Headers::default(),
             metadata_dir: None,
             legacy_editable: None,
-            size: OnceLock::from(0),
+            size: OnceLock::new(),
             frozen: OnceLock::new(),
             license: OnceLock::new(),
         }
@@ -259,7 +258,7 @@ impl Package {
     }
 
     fn from_metadata(
-        metadata_dir: PathBuf,
+        metadata_dir: Option<PathBuf>,
         metadata_file: &Path,
         retained_fields: Option<&HashSet<String>>,
     ) -> Result<Option<Self>, Error> {
@@ -283,7 +282,7 @@ impl Package {
             version,
             requires,
             metadata,
-            metadata_dir: Some(metadata_dir),
+            metadata_dir,
             legacy_editable: None,
             size: OnceLock::new(),
             frozen: OnceLock::new(),
@@ -292,10 +291,9 @@ impl Package {
     }
 
     fn compute_size(&self) -> u64 {
-        let metadata_dir = self
-            .metadata_dir
-            .as_ref()
-            .expect("resolved package sizes are initialized at construction");
+        let Some(metadata_dir) = &self.metadata_dir else {
+            return 0;
+        };
         let site = metadata_dir.parent().unwrap_or(metadata_dir);
         let Ok(file) = fs::File::open(metadata_dir.join("RECORD")) else {
             return 0;
@@ -572,11 +570,13 @@ fn classify(
         return (!entry.is_symlink()).then(|| Found::EggLink(search, entry.to_path_buf()));
     }
     let (metadata_file, package_metadata_dir) = if kind.is_dir() && name.ends_with(".dist-info") {
-        (entry.join("METADATA"), entry.to_path_buf())
+        (entry.join("METADATA"), Some(entry.to_path_buf()))
     } else if kind.is_dir() && name.ends_with(".egg-info") {
-        (entry.join("PKG-INFO"), entry.to_path_buf())
+        (entry.join("PKG-INFO"), Some(entry.to_path_buf()))
     } else if kind.is_file() && name.ends_with(".egg-info") {
-        (entry.to_path_buf(), path.to_path_buf())
+        // A single-file record has no directory of its own; the one holding it is shared by every
+        // package there.
+        (entry.to_path_buf(), None)
     } else {
         return None;
     };

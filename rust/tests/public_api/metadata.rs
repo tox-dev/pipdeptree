@@ -170,6 +170,18 @@ fn ignores_record_rows_that_are_not_regular_files() {
     );
 }
 
+#[test]
+fn ignores_the_site_record_for_a_single_file_egg_info() {
+    let root = tempfile::tempdir().unwrap();
+    let site = root.path().join("site");
+    fs::create_dir(&site).unwrap();
+    fs::write(site.join("demo-1.egg-info"), "Name: demo\nVersion: 1\n").unwrap();
+    fs::write(site.join("RECORD"), "outside,,\n").unwrap();
+    fs::write(root.path().join("outside"), "data").unwrap();
+
+    assert_eq!(size_raw(&site), json!(0));
+}
+
 #[cfg(unix)]
 #[rstest]
 fn ignores_record_rows_linked_outside_the_site(outside_file: (TempDir, PathBuf)) {
@@ -759,6 +771,23 @@ fn falls_back_for_non_utf8_direct_urls() {
     let site = PackageSite::new();
     let metadata = site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
     fs::write(metadata.join("direct_url.json"), [0xff]).unwrap();
+
+    let output = execute_in(&site, &["--freeze"]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, "demo==1\n", "")
+    );
+}
+
+#[test]
+fn ignores_the_site_direct_url_for_a_single_file_egg_info() {
+    let site = PackageSite::new();
+    site.write_file("demo-1.egg-info", "Name: demo\nVersion: 1\n");
+    site.write_file(
+        "direct_url.json",
+        r#"{"url":"https://example.com/demo.whl","archive_info":{}}"#,
+    );
 
     let output = execute_in(&site, &["--freeze"]);
 

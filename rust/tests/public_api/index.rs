@@ -487,6 +487,51 @@ fn inherits_constraint_flag_for_nested_requirement_files() {
     );
 }
 
+#[rstest]
+#[case::same_role(
+    "-r nested.txt\n-r nested.txt\n",
+    "dependencies = [\"nested-package\"]"
+)]
+#[case::requirement_and_constraint(
+    "-r nested.txt\n-c nested.txt\n",
+    "dependencies = [\"nested-package\"]\n\n[tool.nab]\nconstraints = [\"nested-package\"]"
+)]
+fn parses_a_repeated_include_once_per_role(#[case] requirements: &str, #[case] expected: &str) {
+    let directory = tempdir().unwrap();
+    fs::write(directory.path().join("nested.txt"), "nested-package\n").unwrap();
+    fs::write(directory.path().join("requirements.txt"), requirements).unwrap();
+    let capture = directory.path().join("capture.txt");
+
+    let output = with_python(|python| {
+        install_resolver(python, &capture).unwrap();
+        execute_with_python(
+            python,
+            &[
+                "--warn",
+                "silence",
+                "from-index",
+                "--requirements",
+                directory.path().join("requirements.txt").to_str().unwrap(),
+            ],
+        )
+    });
+    let pyproject = fs::read_to_string(capture).unwrap();
+
+    assert_eq!(
+        (
+            output.code,
+            output.stderr.as_str(),
+            pyproject.split_once("\n\n--- indexes ---").unwrap().0,
+        ),
+        (
+            0,
+            "",
+            format!("[project]\nname = \"pipdeptree-from-index\"\nversion = \"0\"\n{expected}")
+                .as_str()
+        )
+    );
+}
+
 #[test]
 fn maps_editable_vcs_requirements_to_sources() {
     let directory = tempdir().unwrap();

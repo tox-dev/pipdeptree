@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -31,6 +31,7 @@ struct Inputs {
     local_sources: Vec<LocalSource>,
     vcs_sources: Vec<VcsSource>,
     indexes: Option<Vec<Index>>,
+    parsed_files: HashSet<(PathBuf, bool)>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -242,6 +243,11 @@ fn parse_requirements_file(
             "recursive requirements include: {}",
             path.display()
         )));
+    }
+    // A repeated include adds the same entries, and a file reached along many include paths
+    // would otherwise be parsed once per path.
+    if !inputs.parsed_files.insert((path.clone(), constraint)) {
+        return Ok(());
     }
     if stack.len() == MAX_DEPTH {
         return Err(Error::message(format!(
