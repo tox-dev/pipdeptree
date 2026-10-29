@@ -311,6 +311,40 @@ fn limits_metadata_name_and_version_length(
 }
 
 #[rstest]
+#[cfg_attr(
+    unix,
+    case::fifo(|metadata: &Path| {
+        assert!(std::process::Command::new("mkfifo").arg(metadata).status().unwrap().success());
+    })
+)]
+#[cfg_attr(
+    unix,
+    case::device(|metadata: &Path| std::os::unix::fs::symlink("/dev/zero", metadata).unwrap())
+)]
+#[case::oversized_headers(|metadata: &Path| {
+    fs::write(metadata, "Name: demo\nVersion: 1\nDescription: ").unwrap();
+    fs::OpenOptions::new().append(true).open(metadata).unwrap().set_len((16 << 20) + 1).unwrap();
+})]
+fn reports_unreadable_metadata_as_invalid(#[case] create: fn(&Path)) {
+    let site = PackageSite::new();
+    site.write("helper-1.dist-info", "Name: helper\nVersion: 1\n");
+    let metadata = site.path().join("demo-1.dist-info");
+    fs::create_dir(&metadata).unwrap();
+    create(&metadata.join("METADATA"));
+
+    let output = execute(&["--path", site.path().to_str().unwrap(), "--freeze"]);
+
+    assert_eq!(
+        (
+            output.code,
+            stdout(&output),
+            output.stderr.contains("missing or invalid metadata")
+        ),
+        (0, "helper==1\n", true)
+    );
+}
+
+#[rstest]
 #[case::suppress("suppress", 0)]
 #[case::fail("fail", 1)]
 fn reports_metadata_warnings(
