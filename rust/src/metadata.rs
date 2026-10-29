@@ -95,8 +95,7 @@ struct Headers(Vec<Header>);
 
 impl Package {
     // A package resolved from a lock file or index has no on-disk dist-info: metadata() and
-    // license() therefore report N/A, and size is seeded to 0 (rather than left lazy) because
-    // compute_size has no metadata_dir to read and callers never ask a resolved package for it.
+    // license() therefore report N/A.
     pub fn synthetic(name: &str, version: &str, requires: &[String]) -> Self {
         let name = printable(name);
         Self {
@@ -110,7 +109,7 @@ impl Package {
             metadata: Headers::default(),
             metadata_dir: None,
             legacy_editable: None,
-            size: OnceLock::from(0),
+            size: OnceLock::new(),
             frozen: OnceLock::new(),
             license: OnceLock::new(),
         }
@@ -259,7 +258,7 @@ impl Package {
     }
 
     fn from_metadata(
-        metadata_dir: PathBuf,
+        metadata_dir: Option<PathBuf>,
         metadata_file: &Path,
         retained_fields: Option<&HashSet<String>>,
     ) -> Result<Option<Self>, Error> {
@@ -283,7 +282,7 @@ impl Package {
             version,
             requires,
             metadata,
-            metadata_dir: Some(metadata_dir),
+            metadata_dir,
             legacy_editable: None,
             size: OnceLock::new(),
             frozen: OnceLock::new(),
@@ -292,10 +291,9 @@ impl Package {
     }
 
     fn compute_size(&self) -> u64 {
-        let metadata_dir = self
-            .metadata_dir
-            .as_ref()
-            .expect("resolved package sizes are initialized at construction");
+        let Some(metadata_dir) = &self.metadata_dir else {
+            return 0;
+        };
         let site = metadata_dir.parent().unwrap_or(metadata_dir);
         let Ok(file) = fs::File::open(metadata_dir.join("RECORD")) else {
             return 0;
@@ -530,7 +528,11 @@ fn discover_with_fields(
         }
     }
     for package in &mut packages {
-        package.legacy_editable = legacy_editables.find(&package.name).cloned();
+        package.legacy_editable = package
+            .metadata_dir
+            .as_deref()
+            .and_then(|metadata_dir| legacy_editables.find(&package.name, metadata_dir))
+            .cloned();
     }
     Ok(Discovered {
         packages,
@@ -572,11 +574,13 @@ fn classify(
         return (!entry.is_symlink()).then(|| Found::EggLink(search, entry.to_path_buf()));
     }
     let (metadata_file, package_metadata_dir) = if kind.is_dir() && name.ends_with(".dist-info") {
-        (entry.join("METADATA"), entry.to_path_buf())
+        (entry.join("METADATA"), Some(entry.to_path_buf()))
     } else if kind.is_dir() && name.ends_with(".egg-info") {
-        (entry.join("PKG-INFO"), entry.to_path_buf())
+        (entry.join("PKG-INFO"), Some(entry.to_path_buf()))
     } else if kind.is_file() && name.ends_with(".egg-info") {
-        (entry.to_path_buf(), path.to_path_buf())
+        // A single-file record has no directory of its own; the one holding it is shared by every
+        // package there.
+        (entry.to_path_buf(), None)
     } else {
         return None;
     };
@@ -647,15 +651,26 @@ fn path_warnings(
 }
 
 fn read_headers(path: &Path) -> Result<String, Error> {
+    // Older PKG-INFO files fold the whole description into a header, so the cap leaves room for a
+    // long one. Without it, a file with no line break, such as a large sparse one, is read whole.
+    const MAX_HEADER_BYTES: u64 = 16 * 1024 * 1024;
+    // Opening a FIFO blocks until another process opens it for writing, so check before opening.
+    if !fs::metadata(path)?.is_file() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "not a regular file").into());
+    }
     // METADATA bodies embed whole package descriptions; the headers end at the first blank
     // line, so stop reading there instead of loading the full file.
-    let mut reader = io::BufReader::new(fs::File::open(path)?);
+    let mut reader =
+        io::BufReader::new(io::Read::take(fs::File::open(path)?, MAX_HEADER_BYTES + 1));
     let mut headers = String::new();
     loop {
         let start = headers.len();
         if io::BufRead::read_line(&mut reader, &mut headers)? == 0
             || matches!(&headers[start..], "\n" | "\r\n")
         {
+            if reader.get_ref().limit() == 0 {
+                return Err(io::Error::new(io::ErrorKind::FileTooLarge, "headers too long").into());
+            }
             headers.truncate(start);
             return Ok(headers);
         }

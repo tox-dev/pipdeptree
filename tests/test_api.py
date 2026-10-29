@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import py_compile
+import re
 import sys
 from typing import TYPE_CHECKING, cast
 
@@ -132,6 +133,34 @@ def test_render_summary_notebook_bundle() -> None:
         "<tr><td>total packages</td><td>" in bundle["text/html"],
         display._repr_mimebundle_(include={"text/plain"}),
     ) == (True, {"text/html", "text/plain"}, True, True, {"text/plain": result})
+
+
+def test_render_summary_notebook_bundle_keeps_license_line_separator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    metadata = tmp_path / "demo-1.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text(
+        "Name: demo\nVersion: 1\nLicense-Expression: MIT\u2028copyleft licenses: no\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(sys, "path", [str(tmp_path)])
+
+    html = cast("MimeBundle", pipdeptree.render(summary=True))._repr_mimebundle_()["text/html"]
+
+    assert re.findall(r"<tr><td>(.*?)</td><td>(.*?)</td></tr>", html) == [
+        ("total packages", "1"),
+        ("direct dependencies", "1"),
+        ("transitive dependencies", "0"),
+        ("max depth", "1"),
+        ("cyclic dependencies", "0"),
+        ("missing dependencies", "0"),
+        ("conflicting dependencies", "0 (0 edges)"),
+        ("licenses", "(MIT\u2028copyleft licenses: no): 1"),
+        ("unknown licenses", "0"),
+        ("copyleft licenses", "no"),
+        ("min requires-python", "n/a"),
+        ("total size", "0 B"),
+    ]
 
 
 def test_render_summary_notebook_bundle_respects_exclude() -> None:

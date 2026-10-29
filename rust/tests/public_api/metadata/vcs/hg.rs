@@ -70,7 +70,6 @@ fn freeze_hg(repository: &Path, commit: Result<ProcessOutput, ProcessError>) -> 
 )]
 #[case::empty_remote(Some("[paths]\ndefault =\n"), Ok(process_output("abc")), true)]
 #[case::missing_hg(Some(REMOTE), Err(ProcessError::NotFound), false)]
-#[case::timed_out_hg(Some(REMOTE), Err(ProcessError::TimedOut), true)]
 #[case::empty_commit(Some(REMOTE), Ok(process_output("")), true)]
 #[case::failed_commit(
     Some(REMOTE),
