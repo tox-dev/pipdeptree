@@ -388,7 +388,7 @@ fn detects_poetry_environment() {
 #[rstest]
 #[case::automatic_from_project_root(&["--python", "auto"], "", 1, "Unable to detect virtual environment.\n")]
 #[case::automatic_from_subdirectory(&["--python", "auto"], "src", 1, "Unable to detect virtual environment.\n")]
-#[case::default_from_project_root(&["--freeze"], "", 0, "")]
+#[case::default_from_project_root(&["--freeze", "--warn", "silence"], "", 0, "")]
 fn refuses_poetry_interpreter_inside_working_project(
     #[case] args: &[&str],
     #[case] subdirectory: &str,
