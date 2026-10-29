@@ -224,33 +224,52 @@ def test_cli_graphviz_binary_terminal(
 
 
 @pytest.fixture
-def terminal_browser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+def browser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     opener = create_autospec(webbrowser.open, return_value=True)
     monkeypatch.setattr(webbrowser, "open", opener)
-    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     return opener
 
 
+@pytest.mark.parametrize(
+    ("format_args", "expected"),
+    [
+        pytest.param(["--graph-output", "svg"], b"<?xml", id="svg"),
+        pytest.param(
+            ["--metadata", "Summary", "--graph-output", "ps"], "(café)".encode("latin-1"), id="ps-latin-1-label"
+        ),
+    ],
+)
 def test_cli_graphviz_text_terminal(
     entry_point: Callable[[Sequence[str] | None], int | None],
-    package_path: Path,
-    terminal_browser: MagicMock,
-    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    browser: MagicMock,
+    capsysbinary: pytest.CaptureFixture[bytes],
+    format_args: list[str],
+    expected: bytes,
 ) -> None:
-    code = entry_point(["--path", str(package_path), "--graph-output", "svg"])
+    (tmp_path / "demo-1.dist-info").mkdir()
+    (tmp_path / "demo-1.dist-info" / "METADATA").write_text("Name: demo\nVersion: 1\nSummary: café\n", encoding="utf-8")
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
 
-    assert (code, capsys.readouterr().out.startswith("<?xml"), terminal_browser.called) == (0, True, False)
+    code = entry_point(["--path", str(tmp_path), *format_args])
+
+    assert (code, expected in capsysbinary.readouterr().out, browser.called) == (0, True, False)
 
 
 def test_cli_help_with_graphviz_format(
     entry_point: Callable[[Sequence[str] | None], int | None],
-    terminal_browser: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    browser: MagicMock,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # pytest installs the capture stream only when the test body starts, so a fixture cannot patch it.
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+
     with pytest.raises(SystemExit, match="0"):
         entry_point(["--graph-output", "png", "--help"])
 
-    assert ("Usage:" in capsys.readouterr().out, terminal_browser.called) == (True, False)
+    assert ("Usage:" in capsys.readouterr().out, browser.called) == (True, False)
 
 
 def test_cli_lock(
