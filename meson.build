@@ -5,12 +5,11 @@ project(
   'pipdeptree',
   version: run_command(['tools/version.py'], check: true).stdout().strip(),
   meson_version: '>=1.11.2',
-  default_options: ['python.allow_limited_api=' + run_command(
-    'python',
-    '-c',
-    'import os, sys, sysconfig; print(str(os.getenv("PIPDEPTREE_ABI3") == "1" and sys.implementation.name == "cpython" and not sysconfig.get_config_var("Py_GIL_DISABLED")).lower())',
-    check: true,
-  ).stdout().strip()],
+  # Meson runs a non-executable script through its shebang with its own interpreter, the one find_installation()
+  # returns, and no python command has to exist on PATH.
+  default_options: [
+    'python.allow_limited_api=' + run_command(['tools/limited_api.py'], check: true).stdout().strip(),
+  ],
 )
 
 py = import('python').find_installation(pure: false)
