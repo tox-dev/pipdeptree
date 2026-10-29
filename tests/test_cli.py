@@ -372,6 +372,34 @@ def test_cli_index_builds_dynamic_local_source(
     assert (code, capsys.readouterr().out) == (0, "local==1\n")
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        pytest.param(lambda root: [str(root / "local")], id="absolute"),
+        pytest.param(lambda _: [f".{os.sep}local"], id="relative"),
+        pytest.param(lambda _: ["--requirements", "requirements.txt"], id="requirements-file"),
+    ],
+)
+def test_cli_index_local_source_native_path(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    source: Callable[[Path], list[str]],
+) -> None:
+    (tmp_path / "local").mkdir()
+    (tmp_path / "local" / "pyproject.toml").write_text('[project]\nname = "local"\nversion = "1"\n')
+    (tmp_path / "requirements.txt").write_text(f"{tmp_path / 'local'}\n")
+    index: Final = tmp_path / "index"
+    index.mkdir()
+    monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.chdir(tmp_path)
+
+    code: Final = entry_point(["from-index", *source(tmp_path), "--index-url", index.as_uri()])
+
+    assert (code, capsys.readouterr().out) == (0, "local==1\n")
+
+
 def _write_dynamic_project(directory: Path, name: str, marker: Path) -> None:
     (directory / "hooks").mkdir(parents=True)
     (directory / "pyproject.toml").write_text(
