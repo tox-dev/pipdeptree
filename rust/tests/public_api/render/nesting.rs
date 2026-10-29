@@ -5,7 +5,7 @@ use rstest::rstest;
 use super::super::common::execute;
 use super::{lock_file, path};
 
-const LIMIT_MESSAGE: &str = "dependency tree nests deeper than 500 levels";
+const LIMIT_MESSAGE: &str = "dependency tree nests deeper than 200 levels";
 
 // Each package requires the next one; the last requires `tail` when given.
 fn chain_lock(packages: usize, tail: Option<&str>) -> String {
@@ -37,7 +37,7 @@ fn chain_lock(packages: usize, tail: Option<&str>) -> String {
 #[case::reverse_json_tree(&["--json-tree", "--reverse"])]
 fn bounds_tree_nesting(
     #[case] args: &[&str],
-    #[values((501, 0), (502, 1))] (packages, code): (usize, i32),
+    #[values((201, 0), (202, 1))] (packages, code): (usize, i32),
 ) {
     let (_directory, lock) = lock_file(&chain_lock(packages, None));
 
@@ -60,7 +60,7 @@ fn bounds_tree_nesting(
 #[case::json_tree(&["--json-tree", "--reverse"])]
 fn bounds_tree_nesting_below_missing_roots(
     #[case] args: &[&str],
-    #[values((500, 0), (501, 1))] (packages, code): (usize, i32),
+    #[values((200, 0), (201, 1))] (packages, code): (usize, i32),
 ) {
     let (_directory, lock) = lock_file(&chain_lock(packages, Some("ghost")));
 

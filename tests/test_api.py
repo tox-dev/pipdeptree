@@ -233,12 +233,12 @@ def test_render_summary_json_is_valid() -> None:
 
 
 def test_render_raises_on_trees_past_the_nesting_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    for position in range(502):
+    for position in range(202):
         dist_info = tmp_path / f"p{position:05}-1.dist-info"
         dist_info.mkdir()
-        requires = f"Requires-Dist: p{position + 1:05}\n" if position < 501 else ""
+        requires = f"Requires-Dist: p{position + 1:05}\n" if position < 201 else ""
         (dist_info / "METADATA").write_text(f"Name: p{position:05}\nVersion: 1\n{requires}")
     monkeypatch.setattr(sys, "path", [str(tmp_path)])
 
-    with pytest.raises(ValueError, match="nests deeper than 500 levels"):
+    with pytest.raises(ValueError, match="nests deeper than 200 levels"):
         pipdeptree.render(output_format="json-tree")
