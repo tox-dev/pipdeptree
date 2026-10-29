@@ -143,7 +143,7 @@ pub(super) fn path_url(path: &Path) -> Option<String> {
 }
 
 // hg and bzr both report on-disk remotes as bare paths; turn those into file URLs while leaving
-// already-remote URLs untouched. The inspected repository chooses the path, so never resolve it.
+// already-remote URLs untouched. The inspected repository chooses the path, so it stays unresolved.
 pub(super) fn normalize_local_remote(remote: String) -> String {
     if local_path(&remote) {
         path_url(Path::new(&remote)).unwrap_or(remote)

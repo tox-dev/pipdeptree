@@ -42,8 +42,8 @@ impl super::Vcs for Hg {
     }
 }
 
-// hg runs with HGRCSKIPREPO (see `command`), so the remote is read here as data; a linked .hg or
-// hgrc and `%include` are not followed, and the last assignment wins as in hg.
+// hg runs with HGRCSKIPREPO (see `command`), so this reads the remote as data. It follows neither a
+// linked .hg or hgrc nor `%include`, and the last assignment wins as in hg.
 fn default_path(root: &Path) -> Option<String> {
     let store = root.join(".hg");
     let hgrc = store.join("hgrc");

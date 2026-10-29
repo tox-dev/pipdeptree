@@ -7,7 +7,9 @@ use std::str::FromStr;
 use pep508_rs::{Requirement, VerbatimUrl, VersionOrUrl};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::{PyAnyMethods, PyModule};
-use pyo3::types::{PyDict, PyDictMethods, PyList, PyListMethods, PyStringMethods, PyTuple};
+use pyo3::types::{
+    IntoPyDict, PyDict, PyDictMethods, PyList, PyListMethods, PyStringMethods, PyTuple,
+};
 use pyo3::{PyResult, Python};
 use serde::{Deserialize, Serialize};
 use tempfile::tempdir;
@@ -153,8 +155,9 @@ pub fn resolve(
             let directory = tempdir()?;
             let path = directory.path().join("pyproject.toml");
             fs::write(&path, render_pyproject(&inputs))?;
-            // The generated project belongs to no workspace. Its ancestors are the temporary directory,
-            // where any local user may declare one whose members would replace the index's packages.
+            // The generated project belongs to no workspace. Its ancestors are the temporary
+            // directory, where any local user may declare one whose members would replace the
+            // index's packages.
             resolve_pyproject(py, &path, None, false)?
         };
     adapt_result(&result)
@@ -188,9 +191,7 @@ fn resolve_indexes(index_url: Option<&str>, extra_index_urls: &[String]) -> Opti
     if primary.is_none() && extras.is_empty() {
         return None;
     }
-    let primary = primary.map(without_credentials);
-    let extras = extras.into_iter().map(without_credentials);
-    let mut indexes = vec![primary.map_or_else(
+    let mut indexes = vec![primary.map(without_credentials).map_or_else(
         || Index {
             name: PYPI_NAME.to_string(),
             url: PYPI_URL.to_string(),
@@ -204,9 +205,9 @@ fn resolve_indexes(index_url: Option<&str>, extra_index_urls: &[String]) -> Opti
             url,
         },
     )];
-    indexes.extend(extras.enumerate().map(|(position, url)| Index {
+    indexes.extend(extras.into_iter().enumerate().map(|(position, url)| Index {
         name: format!("extra-{}", position + 1),
-        url,
+        url: without_credentials(url),
     }));
     Some(indexes)
 }
@@ -477,9 +478,9 @@ fn render_pyproject(inputs: &Inputs) -> String {
                 }),
                 local_sources: inputs.local_sources.clone(),
                 vcs_sources: inputs.vcs_sources.clone(),
-                // The resolver's default policy already builds a listed local source. A listed clone
-                // needs build-remote, which set for the whole resolve would also run the backend of
-                // every sdist downloaded from the index, so grant it to the named clones alone.
+                // The resolver's default policy already builds a listed local source. A listed
+                // clone needs build-remote, which, set for the whole resolve, would also run the
+                // backend of every sdist fetched from the index, so only the named clones get it.
                 package_rules: inputs
                     .vcs_sources
                     .iter()
@@ -536,8 +537,7 @@ impl<'py> ResolverModules<'py> {
         let py_path = pathlib
             .getattr("Path")?
             .call1((path.to_string_lossy().as_ref(),))?;
-        let kwargs = PyDict::new(py);
-        kwargs.set_item("discover_workspace", discover_workspace)?;
+        let kwargs = [("discover_workspace", discover_workspace)].into_py_dict(py)?;
         let mut config = self
             .config
             .getattr("read_pyproject_config")?
