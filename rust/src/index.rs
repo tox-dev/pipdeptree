@@ -4,7 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use pep508_rs::{Pep508Error, Requirement, VerbatimUrl, VersionOrUrl};
+use pep508_rs::{Pep508Error, Requirement, VerbatimUrl, VersionOrUrl, expand_env_vars};
+use percent_encoding::percent_decode_str;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::{PyAnyMethods, PyModule};
 use pyo3::types::{
@@ -436,10 +437,7 @@ fn translate_url(name: String, url: &VerbatimUrl, inputs: &mut Inputs) -> Result
         return Ok(());
     }
     if url.scheme() == "file" {
-        let path = url
-            .to_file_path()
-            .map_err(|()| Error::message(format!("invalid local file URL: {value}")))?;
-        return add_local_source_path(&path, false, inputs);
+        return add_local_source_path(&file_url_path(&expand_env_vars(&value))?, false, inputs);
     }
     Err(Error::message(format!(
         "URL requirements are not supported by the index resolver: {name} @ {value}"
@@ -453,10 +451,7 @@ fn add_local_source(
     inputs: &mut Inputs,
 ) -> Result<(), Error> {
     let path = if raw.starts_with("file:") {
-        Url::parse(raw)
-            .ok()
-            .and_then(|url| url.to_file_path().ok())
-            .ok_or_else(|| Error::message(format!("invalid local file URL: {raw}")))?
+        file_url_path(raw)?
     } else {
         let path = PathBuf::from(raw);
         if path.is_absolute() {
@@ -466,6 +461,43 @@ fn add_local_source(
         }
     };
     add_local_source_path(&path, editable, inputs)
+}
+
+// pip's url_to_path keeps the path of a file: URL that has no authority as written, so
+// file:pkg and file:./pkg stay relative and resolve against the working directory.
+fn file_url_path(url: &str) -> Result<PathBuf, Error> {
+    let invalid = || Error::message(format!("invalid local file URL: {url}"));
+    match url.get("file:".len()..) {
+        Some(path) if !path.starts_with("//") => {
+            let path = path.find(['?', '#']).map_or(path, |end| &path[..end]);
+            let path = percent_decode_str(path)
+                .decode_utf8()
+                .map_err(|_| invalid())?;
+            Ok(PathBuf::from(strip_drive_slash(&path)))
+        }
+        _ => Url::parse(url)
+            .ok()
+            .and_then(|url| url.to_file_path().ok())
+            .ok_or_else(invalid),
+    }
+}
+
+// pip drops the slash urlsplit leaves before a drive letter, so file:/C:/pkg reads C:/pkg.
+#[cfg(windows)]
+fn strip_drive_slash(path: &str) -> &str {
+    match path.as_bytes() {
+        [b'/', drive, b':', rest @ ..]
+            if drive.is_ascii_alphabetic() && matches!(rest, [] | [b'/', ..]) =>
+        {
+            &path[1..]
+        }
+        _ => path,
+    }
+}
+
+#[cfg(not(windows))]
+const fn strip_drive_slash(path: &str) -> &str {
+    path
 }
 
 fn add_local_source_path(path: &Path, editable: bool, inputs: &mut Inputs) -> Result<(), Error> {
