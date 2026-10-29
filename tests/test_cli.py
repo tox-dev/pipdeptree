@@ -320,7 +320,7 @@ def test_cli_index_local_source_leaves_index_sdist_unbuilt(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     built: Final = tmp_path / "built"
-    _write_dynamic_project(tmp_path / "remote-1", "remote", built)
+    _write_dynamic_project(tmp_path / "remote-1", "remote", built, "hooks")
     index: Final = tmp_path / "index"
     index.mkdir()
     with tarfile.open(index / "remote-1.tar.gz", "w:gz") as archive:
@@ -336,13 +336,21 @@ def test_cli_index_local_source_leaves_index_sdist_unbuilt(
     assert (built.exists(), "remote: every version in range was rejected" in capsys.readouterr().err) == (False, True)
 
 
+@pytest.mark.parametrize(
+    "backend_path",
+    [
+        pytest.param("hooks", id="subdirectory"),
+        pytest.param(".", id="project-root"),
+    ],
+)
 def test_cli_index_builds_dynamic_local_source(
     entry_point: Callable[[Sequence[str] | None], int | None],
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    backend_path: str,
 ) -> None:
-    _write_dynamic_project(tmp_path / "local", "local", tmp_path / "built")
+    _write_dynamic_project(tmp_path / "local", "local", tmp_path / "built", backend_path)
     index: Final = tmp_path / "index"
     index.mkdir()
     monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
@@ -353,14 +361,14 @@ def test_cli_index_builds_dynamic_local_source(
     assert (code, capsys.readouterr().out) == (0, "local==1\n")
 
 
-def _write_dynamic_project(directory: Path, name: str, marker: Path) -> None:
-    (directory / "hooks").mkdir(parents=True)
+def _write_dynamic_project(directory: Path, name: str, marker: Path, backend_path: str) -> None:
+    (directory / backend_path).mkdir(parents=True)
     (directory / "pyproject.toml").write_text(
-        '[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["hooks"]\n'
+        f'[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["{backend_path}"]\n'
         f'[project]\nname = "{name}"\nversion = "1"\ndynamic = ["dependencies"]\n'
     )
     (directory / "PKG-INFO").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: 1\n")
-    (directory / "hooks" / "backend.py").write_text(
+    (directory / backend_path / "backend.py").write_text(
         f"import os\nopen({str(marker)!r}, 'w').close()\n"
         "def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):\n"
         f"    os.mkdir(os.path.join(metadata_directory, '{name}-1.dist-info'))\n"
