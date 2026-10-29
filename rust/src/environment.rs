@@ -205,11 +205,16 @@ impl InterpreterInfo {
     }
 
     fn query(processes: &dyn ProcessRunner, interpreter: &Path) -> Result<Self, Error> {
+        // The child starts in an empty directory so nothing in the user's working directory can
+        // shadow a module or pose as an installed distribution; a relative interpreter path is
+        // therefore resolved against the user's directory first.
+        let working_directory = tempfile::tempdir()?;
+        let interpreter = std::path::absolute(interpreter).unwrap_or_else(|_| interpreter.into());
         let output = processes
-            .run(&ProcessRequest::new(
-                interpreter,
-                ["-c".to_string(), interpreter_query()],
-            ))
+            .run(
+                &ProcessRequest::new(interpreter, ["-c".to_string(), interpreter_query()])
+                    .in_directory(working_directory.path()),
+            )
             .map_err(|error| {
                 Error::message(format!("Failed to query custom interpreter: {error}"))
             })?;
@@ -222,9 +227,12 @@ impl InterpreterInfo {
 
 fn interpreter_query() -> String {
     // The queried interpreter runs in a fresh process whose sys.path is not narrowed, so it reports
-    // it directly; INTERPRETER_INFO reads paths from `_paths` to match the in-process query.
+    // it directly; INTERPRETER_INFO reads paths from `_paths` to match the in-process query. `-c`
+    // puts the working directory first on sys.path as '', which is not part of the environment and
+    // must go before the first import that could resolve through it.
     format!(
-        "import json, os, platform, site, sys\n_paths = sys.path\nprint(json.dumps({INTERPRETER_INFO}))"
+        "import sys\nsys.path[:] = [path for path in sys.path if path]\n\
+         import json, os, platform, site\n_paths = sys.path\nprint(json.dumps({INTERPRETER_INFO}))"
     )
 }
 
