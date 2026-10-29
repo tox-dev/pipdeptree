@@ -386,6 +386,51 @@ fn detects_poetry_environment() {
 }
 
 #[rstest]
+#[case::automatic_from_project_root(&["--python", "auto"], "", 1, "Unable to detect virtual environment.\n")]
+#[case::automatic_from_subdirectory(&["--python", "auto"], "src", 1, "Unable to detect virtual environment.\n")]
+#[case::default_from_project_root(&["--freeze"], "", 0, "")]
+fn refuses_poetry_interpreter_inside_working_project(
+    #[case] args: &[&str],
+    #[case] subdirectory: &str,
+    #[case] code: i32,
+    #[case] stderr: &str,
+) {
+    let project = tempfile::tempdir().unwrap();
+    fs::write(project.path().join("pyproject.toml"), "").unwrap();
+    let working_directory = project.path().join(subdirectory);
+    fs::create_dir_all(&working_directory).unwrap();
+    let planted = project
+        .path()
+        .join(".venv")
+        .join(if cfg!(windows) { "Scripts" } else { "bin" })
+        .join(format!("python{}", std::env::consts::EXE_SUFFIX));
+    fs::create_dir_all(planted.parent().unwrap()).unwrap();
+    fs::write(&planted, "").unwrap();
+    let mut processes = MockProcesses::new();
+    processes
+        .expect_run()
+        .withf(|request| request.program == OsStr::new("poetry"))
+        .return_once(move |_| Ok(process_output(format!("{}\n", planted.display()))));
+
+    with_python(|python| {
+        temp_env::with_vars(
+            [
+                ("VIRTUAL_ENV", None::<&str>),
+                ("CONDA_PREFIX", None::<&str>),
+            ],
+            || {
+                let current = std::env::current_dir().unwrap();
+                std::env::set_current_dir(&working_directory).unwrap();
+                let output = execute_with_runner(&processes, python, args, false);
+                std::env::set_current_dir(current).unwrap();
+
+                assert_eq!((output.code, output.stderr.as_str()), (code, stderr));
+            },
+        );
+    });
+}
+
+#[rstest]
 #[case::virtual_environment("VIRTUAL_ENV")]
 #[case::conda("CONDA_PREFIX")]
 fn detects_environment_variables(#[case] variable: &str) {

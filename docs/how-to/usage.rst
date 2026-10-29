@@ -4,9 +4,9 @@ Usage patterns
 Running in virtualenvs
 ----------------------
 
-By default pipdeptree auto-detects your active virtual environment (venv, virtualenv, conda, or poetry) and inspects
-it. When no virtual environment is active, it falls back to the interpreter running pipdeptree. A system installation
-therefore inspects the system packages:
+By default pipdeptree inspects your active virtual environment (venv, virtualenv or conda). With none active, it asks
+Poetry for the environment of the project in the working directory, and falls back to the interpreter running
+pipdeptree when that fails too. A system installation therefore inspects the system packages:
 
 .. code-block:: console
 
@@ -25,6 +25,14 @@ Use ``--python auto`` to require an active virtual environment. The command fail
     $ pipdeptree --python auto
 
 Installing pipdeptree inside the virtual environment and running it there gives the same result.
+
+pipdeptree ignores a Poetry environment inside the project it runs in, such as an in-project ``.venv``, because a
+repository can commit one and pipdeptree runs nothing from the working directory unless you name it. To inspect that
+environment, activate it or pass its interpreter.
+
+.. code-block:: console
+
+    $ pipdeptree --python .venv/bin/python
 
 from-index (resolve by querying the index)
 -------------------------------------------
