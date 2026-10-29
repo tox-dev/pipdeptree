@@ -7,7 +7,7 @@ use pep508_rs::{MarkerEnvironment, MarkerTree};
 use serde::Deserialize;
 
 use crate::Error;
-use crate::metadata::{Discovered, Package, canonicalize_name};
+use crate::metadata::{Discovered, Package, canonicalize_name, printable};
 
 #[derive(Debug, Deserialize)]
 struct Lock {
@@ -45,7 +45,8 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
         && version.split('.').next() != Some("1")
     {
         return Err(Error::message(format!(
-            "unsupported lock-version: {version}"
+            "unsupported lock-version: {}",
+            printable(version)
         )));
     }
     let packages = lock
@@ -93,8 +94,8 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
                             },
                         )
                 })
-                .collect();
-            Ok(Package::synthetic(name, package.version, requires))
+                .collect::<Vec<_>>();
+            Ok(Package::synthetic(&name, &package.version, &requires))
         })
         .collect::<Result<Vec<_>, _>>()
         .map(Discovered::new)
