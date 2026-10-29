@@ -43,15 +43,7 @@ pub(super) fn render(
             renderer.expanded.clear();
             match root {
                 ReverseRoot::Installed(index) => {
-                    let label = root_label(
-                        processes,
-                        graph,
-                        index,
-                        style,
-                        renderer.suffix(index),
-                        color,
-                    );
-                    renderer.lines.push(label);
+                    renderer.lines.push(renderer.root_label(index));
                     renderer.path.insert(index);
                     renderer.walk_reverse(index, None, "", 0)?;
                 }
@@ -69,8 +61,7 @@ pub(super) fn render(
         return Ok(renderer.lines.join("\n"));
     }
     for root in graph.roots(options.reverse, options.all) {
-        let label = root_label(processes, graph, root, style, renderer.suffix(root), color);
-        renderer.lines.push(label);
+        renderer.lines.push(renderer.root_label(root));
         renderer.path.clear();
         renderer.expanded.clear();
         renderer.path.insert(root);
@@ -101,10 +92,20 @@ struct TreeRenderer<'a> {
 }
 
 impl<'a> TreeRenderer<'a> {
-    fn suffix(&self, index: usize) -> &str {
+    fn root_label(&self, index: usize) -> String {
+        let package = &self.graph.nodes[index].package;
         if self.style == TextStyle::Frozen {
-            return "";
+            return package.frozen(self.processes);
         }
+        let suffix = self.suffix(index);
+        if self.style == TextStyle::Rich && self.color {
+            rich_text::root(&package.name, &package.version, suffix)
+        } else {
+            format!("{}=={}{suffix}", package.name, package.version)
+        }
+    }
+
+    fn suffix(&self, index: usize) -> &str {
         self.suffixes[index].get_or_init(|| node_suffix(self.graph, index, self.options, ", "))
     }
 
@@ -118,23 +119,23 @@ impl<'a> TreeRenderer<'a> {
         if self.options.depth.is_some_and(|limit| depth >= limit) {
             return Ok(());
         }
-        let children = incoming.map_or_else(
-            || self.graph.expanded_children(parent),
-            |incoming| self.graph.children(incoming),
-        );
+        let children = incoming
+            .map_or_else(
+                || self.graph.expanded_children(parent),
+                |incoming| self.graph.children(incoming),
+            )
+            .collect::<Vec<_>>();
         let unique = (self.style == TextStyle::Rich
             && self.options.computed.iter().any(|field| field.is_unique()))
         .then(|| self.graph.unique_dependencies(parent));
-        let children = children.collect::<Vec<_>>();
         if !children.is_empty() {
             check_tree_depth(depth + 1)?;
         }
         let count = children.len();
         for (position, dependency) in children.into_iter().enumerate() {
             let last = position + 1 == count;
-            let extras = dependency.requested_extras();
             let repeated = dependency.target.is_some_and(|child| {
-                self.repeats(child, Some(&extras), depth + 1)
+                self.repeats(child, Some(&dependency.requested_extras()), depth + 1)
                     && self.graph.children(dependency).next().is_some()
             });
             let label = self.dependency_label(
@@ -160,9 +161,9 @@ impl<'a> TreeRenderer<'a> {
     }
 
     // A package already on the path closes a cycle, and one printed earlier under the same root
-    // with at least as many levels left has its subtree shown already; either way the line is
-    // kept, so every edge still prints, but the walk does not descend again. Recording the
-    // expansion here bounds each root's tree by its edges rather than its paths.
+    // with at least as many levels left has its subtree shown already; either way the walk keeps
+    // the line, so every edge still prints, but does not descend again. Recording the expansion
+    // here bounds each root's tree by its edges rather than its paths.
     fn repeats(&mut self, node: usize, extras: Option<&BTreeSet<String>>, depth: usize) -> bool {
         let Some(levels) = self.options.depth.map_or(Some(usize::MAX), |limit| {
             limit.checked_sub(depth).filter(|levels| *levels > 0)
@@ -172,15 +173,11 @@ impl<'a> TreeRenderer<'a> {
         if self.path.contains(&node) {
             return true;
         }
-        let key = (node, extras.cloned());
-        if self
-            .expanded
-            .get(&key)
-            .is_some_and(|shown| *shown >= levels)
-        {
+        let shown = self.expanded.entry((node, extras.cloned())).or_default();
+        if *shown >= levels {
             return true;
         }
-        self.expanded.insert(key, levels);
+        *shown = levels;
         false
     }
 
@@ -227,18 +224,10 @@ impl<'a> TreeRenderer<'a> {
                     .graph
                     .parents_for(parent, required_extras.as_ref())
                     .is_empty();
-            let label = reverse_label(
-                self.processes,
-                self.graph,
-                parent,
-                dependency,
-                self.style,
-                self.suffix(parent),
-                self.color,
-            );
             self.lines.push(format!(
-                "{}{label}{}",
+                "{}{}{}",
                 tree_prefix(prefix, self.style, last, self.color, self.unicode),
+                self.reverse_label(parent, dependency),
                 self.repeat_marker(repeated)
             ));
             if repeated {
@@ -251,62 +240,36 @@ impl<'a> TreeRenderer<'a> {
         }
         Ok(())
     }
-}
 
-fn root_label(
-    processes: &dyn ProcessRunner,
-    graph: &Graph,
-    index: usize,
-    style: TextStyle,
-    suffix: &str,
-    color: bool,
-) -> String {
-    let package = &graph.nodes[index].package;
-    if style == TextStyle::Frozen {
-        return package.frozen(processes);
-    }
-    if style == TextStyle::Rich && color {
-        rich_text::root(&package.name, &package.version, suffix)
-    } else {
-        format!("{}=={}{}", package.name, package.version, suffix)
-    }
-}
-
-fn reverse_label(
-    processes: &dyn ProcessRunner,
-    graph: &Graph,
-    parent: usize,
-    dependency: &Dependency,
-    style: TextStyle,
-    suffix: &str,
-    color: bool,
-) -> String {
-    let package = &graph.nodes[parent].package;
-    if style == TextStyle::Frozen {
-        return package.frozen(processes);
-    }
-    let mut required = dependency.target.map_or_else(
-        || dependency.key().to_string(),
-        |target| graph.nodes[target].package.name.clone(),
-    );
-    if let Some(declaration) = &dependency.declaration
-        && !declaration.dependency_extras.is_empty()
-    {
-        let _ = write!(required, "[{}]", declaration.dependency_extras.join(","));
-    }
-    if let Some(specifier) = dependency.version_spec() {
-        required.push_str(&specifier);
-    }
-    if let Some(extra) = dependency.activating_extras() {
-        let _ = write!(required, ", extra: {extra}");
-    }
-    if style == TextStyle::Rich && color {
-        rich_text::reverse(&package.name, &package.version, &required, suffix)
-    } else {
-        format!(
-            "{}=={} [requires: {required}]{}",
-            package.name, package.version, suffix
-        )
+    fn reverse_label(&self, parent: usize, dependency: &Dependency) -> String {
+        let package = &self.graph.nodes[parent].package;
+        if self.style == TextStyle::Frozen {
+            return package.frozen(self.processes);
+        }
+        let mut required = dependency.target.map_or_else(
+            || dependency.key().to_string(),
+            |target| self.graph.nodes[target].package.name.clone(),
+        );
+        if let Some(declaration) = &dependency.declaration
+            && !declaration.dependency_extras.is_empty()
+        {
+            let _ = write!(required, "[{}]", declaration.dependency_extras.join(","));
+        }
+        if let Some(specifier) = dependency.version_spec() {
+            required.push_str(&specifier);
+        }
+        if let Some(extra) = dependency.activating_extras() {
+            let _ = write!(required, ", extra: {extra}");
+        }
+        let suffix = self.suffix(parent);
+        if self.style == TextStyle::Rich && self.color {
+            rich_text::reverse(&package.name, &package.version, &required, suffix)
+        } else {
+            format!(
+                "{}=={} [requires: {required}]{suffix}",
+                package.name, package.version
+            )
+        }
     }
 }
 

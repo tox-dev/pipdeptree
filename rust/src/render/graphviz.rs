@@ -137,8 +137,8 @@ pub(super) fn pipe(
     dot: &str,
     format: &str,
 ) -> Result<Vec<u8>, Error> {
-    // Layout time follows the shape of the graph more than its size: a lock file of about 10 KB can keep dot busy for
-    // tens of minutes, so an inspected graph must not hold pipdeptree indefinitely.
+    // Layout time depends on the shape of the graph more than its size; dot can spend tens of
+    // minutes on a lock file of about 10 KB, so a graph under inspection must not hang pipdeptree.
     const DOT_TIMEOUT: Duration = Duration::from_secs(300);
     let output = processes
         .run(
@@ -148,7 +148,8 @@ pub(super) fn pipe(
         )
         .map_err(|error| match error {
             ProcessError::TimedOut => Error::message(format!(
-                "graphviz did not finish within {} seconds; use graphviz-dot and run dot on its output",
+                "graphviz did not finish within {} seconds; \
+                 use graphviz-dot and run dot on its output",
                 DOT_TIMEOUT.as_secs()
             )),
             error => Error::message(format!("graphviz is not available: {error}")),

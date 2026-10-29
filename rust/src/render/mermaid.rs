@@ -99,8 +99,8 @@ fn mermaid_id(key: &str, ids: &mut HashMap<String, String>) -> String {
     if let Some(value) = ids.get(key) {
         return value.clone();
     }
-    // Canonical names hold only these characters and never `_`, so a placeholder cannot collide
-    // with a real key, while any other character could end the id or the statement.
+    // Canonical names hold only these characters, none of them `_`, so a placeholder cannot
+    // collide with a canonical name, while any other character could end the id or the statement.
     let mut value = if !key.is_empty()
         && key
             .bytes()
