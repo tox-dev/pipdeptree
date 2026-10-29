@@ -261,11 +261,8 @@ impl Serialize for JsonMetadata<'_> {
     where
         S: Serializer,
     {
-        let mut fields = self.fields.iter().collect::<Vec<_>>();
-        fields.sort_unstable();
-        fields.dedup();
-        let mut object = serializer.serialize_map(Some(fields.len()))?;
-        for field in fields {
+        let mut object = serializer.serialize_map(Some(self.fields.len()))?;
+        for field in self.fields {
             let values = self.package.metadata(field);
             if let [value] = values.as_slice() {
                 object.serialize_entry(field, value)?;
