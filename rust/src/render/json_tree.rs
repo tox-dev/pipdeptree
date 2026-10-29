@@ -3,32 +3,33 @@ use std::collections::{BTreeSet, HashSet};
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 
+use crate::Error;
 use crate::graph::{Dependency, Graph, ReverseRoot};
 use crate::options::Options;
 
 use super::json::computed_json;
-use super::shared::{required_version, reverse_required_extras};
+use super::shared::{check_tree_depth, required_version, reverse_required_extras};
 
-pub(super) fn render(graph: &Graph, options: &Options) -> String {
+pub(super) fn render(graph: &Graph, options: &Options) -> Result<String, Error> {
     let entries = if options.reverse {
         graph
             .reverse_roots(false)
             .into_iter()
             .map(|root| match root {
                 ReverseRoot::Installed(index) => {
-                    reverse_tree_json(graph, index, None, None, &mut Walk::default(), options)
+                    reverse_tree_json(graph, index, None, None, 0, &mut Walk::default(), options)
                 }
                 ReverseRoot::Missing { name, parents } => {
                     missing_reverse_json(graph, name, &parents, options)
                 }
             })
-            .collect::<Vec<_>>()
+            .collect::<Result<Vec<_>, _>>()?
     } else {
         graph
             .roots(false, false)
             .into_iter()
-            .map(|root| forward_tree_json(graph, root, None, &mut Walk::default(), options))
-            .collect::<Vec<_>>()
+            .map(|root| forward_tree_json(graph, root, None, 0, &mut Walk::default(), options))
+            .collect::<Result<Vec<_>, _>>()?
     };
     let mut output = Vec::new();
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
@@ -36,7 +37,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
     entries
         .serialize(&mut serializer)
         .expect("serializing dependency tree cannot fail");
-    String::from_utf8(output).expect("JSON is UTF-8")
+    Ok(String::from_utf8(output).expect("JSON is UTF-8"))
 }
 
 // The path stops cycles; `expanded` holds the subtrees already written under the current root,
@@ -66,9 +67,10 @@ fn forward_tree_json(
     graph: &Graph,
     index: usize,
     incoming: Option<&Dependency>,
+    level: usize,
     walk: &mut Walk,
     options: &Options,
-) -> Value {
+) -> Result<Value, Error> {
     walk.path.insert(index);
     let mut value = incoming.map_or_else(
         || package_json(graph, index, options),
@@ -83,6 +85,7 @@ fn forward_tree_json(
     );
     let mut dependencies = Vec::new();
     for dependency in children {
+        check_tree_depth(level + 1)?;
         let Some(target) = dependency.target else {
             dependencies.push(missing_dependency_json(dependency, options));
             continue;
@@ -93,13 +96,13 @@ fn forward_tree_json(
             {
                 repeated_json(dependency_json(graph, dependency, options))
             } else {
-                forward_tree_json(graph, target, Some(dependency), walk, options)
+                forward_tree_json(graph, target, Some(dependency), level + 1, walk, options)?
             },
         );
     }
     value["dependencies"] = Value::Array(dependencies);
     walk.path.remove(&index);
-    value
+    Ok(value)
 }
 
 fn reverse_tree_json(
@@ -107,9 +110,10 @@ fn reverse_tree_json(
     index: usize,
     incoming: Option<&Dependency>,
     required_extras: Option<&BTreeSet<String>>,
+    level: usize,
     walk: &mut Walk,
     options: &Options,
-) -> Value {
+) -> Result<Value, Error> {
     walk.path.insert(index);
     let mut value = package_json(graph, index, options);
     if let Some(dependency) = incoming {
@@ -124,20 +128,24 @@ fn reverse_tree_json(
     let dependencies = graph
         .parents_for(index, required_extras)
         .into_iter()
-        .map(|(parent, dependency)| reverse_parent_json(graph, parent, dependency, walk, options))
-        .collect();
+        .map(|(parent, dependency)| {
+            reverse_parent_json(graph, parent, dependency, level + 1, walk, options)
+        })
+        .collect::<Result<_, _>>()?;
     value["dependencies"] = Value::Array(dependencies);
     walk.path.remove(&index);
-    value
+    Ok(value)
 }
 
 fn reverse_parent_json(
     graph: &Graph,
     parent: usize,
     dependency: &Dependency,
+    level: usize,
     walk: &mut Walk,
     options: &Options,
-) -> Value {
+) -> Result<Value, Error> {
+    check_tree_depth(level)?;
     let required_extras = reverse_required_extras(graph, parent, dependency);
     if walk.repeats(parent, required_extras.as_ref())
         && !graph
@@ -150,13 +158,14 @@ fn reverse_parent_json(
             dependency,
             options,
         );
-        return repeated_json(value);
+        return Ok(repeated_json(value));
     }
     reverse_tree_json(
         graph,
         parent,
         Some(dependency),
         required_extras.as_ref(),
+        level,
         walk,
         options,
     )
@@ -187,7 +196,7 @@ fn missing_reverse_json(
     name: &str,
     parents: &[(usize, &Dependency)],
     options: &Options,
-) -> Value {
+) -> Result<Value, Error> {
     let mut object = Map::from_iter([
         ("key".to_string(), Value::String(name.to_string())),
         ("package_name".to_string(), Value::String(name.to_string())),
@@ -213,11 +222,11 @@ fn missing_reverse_json(
     let dependencies = parents
         .iter()
         .map(|(parent, dependency)| {
-            reverse_parent_json(graph, *parent, dependency, &mut walk, options)
+            reverse_parent_json(graph, *parent, dependency, 1, &mut walk, options)
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
     object.insert("dependencies".to_string(), Value::Array(dependencies));
-    Value::Object(object)
+    Ok(Value::Object(object))
 }
 
 fn package_json(graph: &Graph, index: usize, options: &Options) -> Value {

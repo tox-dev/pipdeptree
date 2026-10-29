@@ -94,12 +94,16 @@ impl Package {
     // A package resolved from a lock file or index has no on-disk dist-info: metadata() and
     // license() therefore report N/A, and size is seeded to 0 (rather than left lazy) because
     // compute_size has no metadata_dir to read and callers never ask a resolved package for it.
-    pub fn synthetic(name: String, version: String, requires: Vec<String>) -> Self {
+    pub fn synthetic(name: &str, version: &str, requires: &[String]) -> Self {
+        let name = printable(name);
         Self {
             key: canonicalize_name(&name),
             name,
-            version,
-            requires,
+            version: printable(version),
+            requires: requires
+                .iter()
+                .map(|requirement| printable(requirement))
+                .collect(),
             metadata: Headers::default(),
             metadata_dir: None,
             legacy_editable: None,
@@ -377,7 +381,7 @@ impl Headers {
                 if let Some((header, index)) = current {
                     let value = &mut headers[header].values[index];
                     value.push(' ');
-                    value.push_str(line.trim());
+                    value.push_str(&printable(line.trim()));
                 }
                 continue;
             }
@@ -405,7 +409,7 @@ impl Headers {
                     });
                     headers.len() - 1
                 });
-            headers[position].values.push(value.trim().to_string());
+            headers[position].values.push(printable(value.trim()));
             current = Some((position, headers[position].values.len() - 1));
         }
         Self(headers)
@@ -654,6 +658,21 @@ fn read_headers(path: &Path) -> Result<String, Error> {
             headers.push('\n');
         }
     }
+}
+
+// Package strings reach terminals, which run ESC, BEL, CR and C1 sequences, and dot, which stops
+// reading a line at NUL. U+FFFD keeps the tampering visible where dropping the character would hide it.
+pub fn printable(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| {
+            if character.is_control() && character != '\t' {
+                char::REPLACEMENT_CHARACTER
+            } else {
+                character
+            }
+        })
+        .collect()
 }
 
 // Freeze output is a pip requirements file, read line by line: a line break starts a new line, a

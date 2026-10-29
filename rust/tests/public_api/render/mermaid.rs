@@ -37,7 +37,7 @@ fn renders_mermaid(#[case] args: &[&str], #[case] expected: &str) {
     "Name: demo\nVersion: <b>1</b> & #`\n",
     "    demo[\"demo<br/>#60;b#62;1#60;/b#62; #38; #35;#96;\"]\n"
 )]
-#[case::control_in_version("Name: demo\nVersion: 1\u{1b}\n", "    demo[\"demo<br/>1#27;\"]\n")]
+#[case::control_in_version("Name: demo\nVersion: 1\u{1b}\n", "    demo[\"demo<br/>1\u{fffd}\"]\n")]
 #[case::statement_in_name(
     "Name: demo; other[forged]; demo\nVersion: 1\n",
     "    package_0[\"demo; other[forged]; demo<br/>1\"]\n"
