@@ -647,8 +647,8 @@ fn path_warnings(
 }
 
 fn read_headers(path: &Path) -> Result<String, Error> {
-    // Older PKG-INFO files fold the whole description into a header and stay far below this; a
-    // file with no line break, such as a large sparse one, would otherwise end up in memory whole.
+    // Older PKG-INFO files fold the whole description into a header, so the cap leaves room for a
+    // long one. Without it, a file with no line break, such as a large sparse one, is read whole.
     const MAX_HEADER_BYTES: u64 = 16 * 1024 * 1024;
     // Opening a FIFO blocks until another process opens it for writing, so check before opening.
     if !fs::metadata(path)?.is_file() {
