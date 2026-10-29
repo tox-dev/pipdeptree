@@ -371,7 +371,7 @@ fn freezes_arbitrary_versions() {
 
     assert_eq!(
         (output.code, stdout(&output), output.stderr.as_str()),
-        (0, "demo===invalid version!\n", "")
+        (0, "demo===invalid?version!\n", "")
     );
 }
 
@@ -599,6 +599,34 @@ fn freezes_editable_directories(#[case] file_url: bool) {
     } else {
         "demo==1\n".to_string()
     };
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, expected.as_str(), "")
+    );
+}
+
+#[test]
+fn freezes_editable_comment_without_coding_declaration() {
+    let site = PackageSite::new();
+    let metadata = site.write(
+        "demo-0.dist-info",
+        "Name: demo\nVersion: 0 coding:utf-7 +AAo---index-url=http://127.0.0.1:9/x+AAo-#\n",
+    );
+    fs::write(
+        metadata.join("direct_url.json"),
+        format!(
+            r#"{{"url":"{}","dir_info":{{"editable":true}}}}"#,
+            url::Url::from_file_path(site.path()).unwrap()
+        ),
+    )
+    .unwrap();
+
+    let output = execute_in(&site, &["--freeze"]);
+    let expected = format!(
+        "# Editable install with no version control (demo==0?coding?utf-7?+AAo---index-url?http???127.0.0.1?9?x+AAo-?)\n-e {}\n",
+        site.path().display()
+    );
 
     assert_eq!(
         (output.code, stdout(&output), output.stderr.as_str()),

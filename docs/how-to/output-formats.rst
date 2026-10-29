@@ -74,6 +74,10 @@ Freeze emits pip-compatible requirements with indentation for the hierarchy:
       pluggy==1.6.0
       Pygments==2.20.0
 
+Names and versions are written with each character that cannot appear in a project name or version replaced by ``?``:
+anything but ASCII letters, digits, ``.``, ``_``, ``-``, ``!`` and ``+``, and a first character that is not a letter or
+digit. A name or version therefore cannot add lines, options or comments to the requirements file.
+
 json
 ----
 
