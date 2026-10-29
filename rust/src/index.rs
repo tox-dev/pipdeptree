@@ -440,11 +440,18 @@ fn add_local_source(
     editable: bool,
     inputs: &mut Inputs,
 ) -> Result<(), Error> {
-    let path = PathBuf::from(raw);
-    let path = if path.is_absolute() {
-        path
+    let path = if raw.starts_with("file:") {
+        Url::parse(raw)
+            .ok()
+            .and_then(|url| url.to_file_path().ok())
+            .ok_or_else(|| Error::message(format!("invalid local file URL: {raw}")))?
     } else {
-        base.join(path)
+        let path = PathBuf::from(raw);
+        if path.is_absolute() {
+            path
+        } else {
+            base.join(path)
+        }
     };
     add_local_source_path(&path, editable, inputs)
 }
@@ -452,7 +459,9 @@ fn add_local_source(
 fn add_local_source_path(path: &Path, editable: bool, inputs: &mut Inputs) -> Result<(), Error> {
     // std's canonicalize gives a \\?\ path on Windows, where "." does not resolve, so the build
     // frontend rejects backend-path = ["."]; dunce returns the plain form when one exists.
-    let path = dunce::canonicalize(path)?;
+    let path = dunce::canonicalize(path).map_err(|error| {
+        Error::message(format!("editable/local source {}: {error}", path.display()))
+    })?;
     let pyproject = path.join("pyproject.toml");
     if !pyproject.is_file() {
         return Err(Error::message(format!(

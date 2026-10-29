@@ -909,6 +909,10 @@ fn reports_missing_resolver_module() {
     &["from-index", "demo @ file://example.com/demo"],
     "invalid local file URL"
 )]
+#[case::invalid_bare_file_url(
+    &["from-index", "file://example.com/demo"],
+    "invalid local file URL: file://example.com/demo"
+)]
 #[case::malformed_named_source(
     &["from-index", "demo @ file://[invalid"],
     "invalid IPv6"
@@ -937,7 +941,7 @@ fn rejects_invalid_index_arguments(#[case] args: &[&str], #[case] expected: &str
     "source requirements cannot be constraints"
 )]
 #[case::constraint_extras(InvalidSource::ConstraintExtras, "cannot constrain extras")]
-#[case::missing_local(InvalidSource::MissingLocal, "No such file or directory")]
+#[case::missing_local(InvalidSource::MissingLocal, "/./missing: No such file or directory")]
 #[case::local_without_pyproject(
     InvalidSource::LocalWithoutPyproject,
     "must be a directory with a pyproject.toml"
@@ -994,6 +998,54 @@ fn rejects_invalid_requirement_files(#[case] source: InvalidSource, #[case] expe
             output.stderr.contains(expected),
         ),
         (1, true, true)
+    );
+}
+
+#[rstest]
+#[case::plain("", false)]
+#[case::editable("-e ", true)]
+fn resolves_a_bare_file_url_requirement(#[case] option: &str, #[case] editable: bool) {
+    let directory = tempdir().unwrap();
+    let local = directory.path().join("local");
+    fs::create_dir(&local).unwrap();
+    fs::write(
+        local.join("pyproject.toml"),
+        "[project]\nname = \"local\"\n",
+    )
+    .unwrap();
+    let requirements = directory.path().join("requirements.txt");
+    fs::write(
+        &requirements,
+        format!("{option}{}\n", url::Url::from_file_path(&local).unwrap()),
+    )
+    .unwrap();
+    let capture = directory.path().join("capture.txt");
+
+    let output = with_python(|python| {
+        install_resolver(python, &capture).unwrap();
+        execute_with_python(
+            python,
+            &[
+                "--warn",
+                "silence",
+                "from-index",
+                "--requirements",
+                requirements.to_str().unwrap(),
+            ],
+        )
+    });
+
+    assert_eq!(
+        (
+            output.code,
+            fs::read_to_string(capture)
+                .unwrap()
+                .contains(&format!(
+                    "[[tool.nab.local-sources]]\nname = \"local\"\npath = \"{}\"\neditable = {editable}\n",
+                    local.canonicalize().unwrap().display()
+                )),
+        ),
+        (0, true)
     );
 }
 
