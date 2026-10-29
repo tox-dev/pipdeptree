@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import re
@@ -138,6 +139,28 @@ def test_cli_bare_version(
         entry_point([flag])
 
     assert capsys.readouterr().out == f"{__version__}\n"
+
+
+@pytest.mark.parametrize(
+    "errors", [pytest.param("strict", id="strict"), pytest.param("surrogateescape", id="surrogateescape")]
+)
+def test_cli_escapes_characters_stdout_cannot_encode(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    errors: str,
+) -> None:
+    for directory, name, version in (("app-2.0", "app", "2.0"), ("demo-0.1", "demoé", "0.1")):
+        (tmp_path / f"{directory}.dist-info").mkdir()
+        (tmp_path / f"{directory}.dist-info" / "METADATA").write_text(
+            f"Name: {name}\nVersion: {version}\n", encoding="utf-8"
+        )
+    output: Final = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(output, encoding="ascii", errors=errors, write_through=True))
+
+    code = entry_point(["--path", str(tmp_path)])
+
+    assert (code, output.getvalue()) == (0, f"app==2.0{os.linesep}demo\\xe9==0.1{os.linesep}".encode())
 
 
 def test_cli_error(
