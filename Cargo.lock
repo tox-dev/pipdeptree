@@ -708,6 +708,7 @@ dependencies = [
  "glob",
  "mockall",
  "pep508_rs",
+ "percent-encoding",
  "pyo3",
  "rayon",
  "rstest",

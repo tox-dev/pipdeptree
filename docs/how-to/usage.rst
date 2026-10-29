@@ -277,8 +277,10 @@ Editable installs are a ``--requirements`` file directive, so pass them through 
     $ pipdeptree from-index --requirements requirements.txt
 
 Local paths (``./mypkg``, ``/abs/path``, ``file:///abs/path``, and on Windows ``.\mypkg`` or ``C:\abs\path``) work the
-same, as positional arguments or file lines. For a pinned git requirement, the resolver clones the repo to its cache and
-reads the metadata:
+same, as positional arguments or file lines. A relative ``file:`` URL such as ``file:mypkg`` or ``file:./mypkg``
+resolves against the working directory, as pip does, even in a requirements file. A plain ``./mypkg`` line in a
+requirements file resolves against that file's directory, where pip uses the working directory. For a pinned git
+requirement, the resolver clones the repo to its cache and reads the metadata:
 
 .. code-block:: console
 

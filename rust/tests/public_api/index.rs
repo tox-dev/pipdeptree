@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 use _pipdeptree::Execution;
 use pyo3::ffi::c_str;
 use pyo3::types::{PyAnyMethods as _, PyDict, PyDictMethods as _};
-use rstest::rstest;
+use rstest::{fixture, rstest};
 use serde_json::{Value, json};
-use tempfile::tempdir;
+use tempfile::{TempDir, tempdir};
 
 use super::common::{
     execute, execute_with_python, execute_with_runner, install_resolver, stdout, with_python,
@@ -1088,6 +1088,11 @@ fn reports_missing_resolver_module() {
     &["from-index", "demo @ file://example.com/demo"],
     "invalid local file URL"
 )]
+#[case::invalid_bare_file_url(
+    &["from-index", "file://example.com/demo"],
+    "invalid local file URL: file://example.com/demo"
+)]
+#[case::undecodable_bare_file_url(&["from-index", "file:%FF"], "invalid local file URL: file:%FF")]
 #[case::malformed_named_source(
     &["from-index", "demo @ file://[invalid"],
     "invalid IPv6"
@@ -1124,7 +1129,7 @@ fn rejects_invalid_index_arguments(#[case] args: &[&str], #[case] expected: &str
     "source requirements cannot be constraints"
 )]
 #[case::constraint_extras(InvalidSource::ConstraintExtras, "cannot constrain extras")]
-#[case::missing_local(InvalidSource::MissingLocal, "No such file or directory")]
+#[case::missing_local(InvalidSource::MissingLocal, "/./missing: No such file or directory")]
 #[case::local_without_pyproject(
     InvalidSource::LocalWithoutPyproject,
     "must be a directory with a pyproject.toml"
@@ -1200,6 +1205,161 @@ fn rejects_invalid_requirement_files(#[case] source: InvalidSource, #[case] expe
         ),
         (1, true, true)
     );
+}
+
+#[rstest]
+#[case::relative("file:pkg")]
+#[case::dot_relative("file:./pkg")]
+#[case::percent_encoded("file:p%6Bg")]
+#[case::fragment("file:pkg#egg=local")]
+#[case::named_relative("local @ file:pkg")]
+#[case::named_dot_relative("local @ file:./pkg")]
+#[case::single_slash("file:{abs}")]
+#[case::absolute("file://{abs}")]
+#[case::localhost("file://localhost{abs}")]
+#[case::named_single_slash("local @ file:{abs}")]
+#[case::named_absolute("local @ file://{abs}")]
+#[case::named_localhost("local @ file://localhost{abs}")]
+fn resolves_a_file_url_argument_like_pip(
+    file_url_projects: FileUrlProjects,
+    #[case] template: &str,
+) {
+    let source = file_url_projects.source(template);
+
+    let output = file_url_projects.resolve(&source);
+
+    assert_eq!(
+        file_url_projects.resolved(&output, false),
+        (0, "", true, false)
+    );
+}
+
+#[rstest]
+#[case::relative("file:pkg", false)]
+#[case::dot_relative("file:./pkg", false)]
+#[case::editable_relative("-e file:pkg", true)]
+#[case::editable_dot_relative("-e file:./pkg", true)]
+#[case::named_relative("local @ file:pkg", false)]
+#[case::named_dot_relative("local @ file:./pkg", false)]
+#[case::single_slash("file:{abs}", false)]
+#[case::absolute("file://{abs}", false)]
+#[case::localhost("file://localhost{abs}", false)]
+#[case::editable_single_slash("-e file:{abs}", true)]
+#[case::editable_absolute("-e file://{abs}", true)]
+#[case::editable_localhost("-e file://localhost{abs}", true)]
+#[case::named_single_slash("local @ file:{abs}", false)]
+#[case::named_absolute("local @ file://{abs}", false)]
+#[case::named_localhost("local @ file://localhost{abs}", false)]
+fn resolves_a_file_url_requirement_like_pip(
+    file_url_projects: FileUrlProjects,
+    #[case] template: &str,
+    #[case] editable: bool,
+) {
+    let requirements = file_url_projects.write_requirements(template);
+    let output = file_url_projects.resolve(&requirements);
+
+    assert_eq!(
+        file_url_projects.resolved(&output, editable),
+        (0, "", true, false)
+    );
+}
+
+#[rstest]
+#[case::bare("file://example.com{abs}")]
+#[case::editable("-e file://example.com{abs}")]
+#[case::named("local @ file://example.com{abs}")]
+fn rejects_a_non_local_file_url_requirement(
+    file_url_projects: FileUrlProjects,
+    #[case] template: &str,
+) {
+    let requirements = file_url_projects.write_requirements(template);
+    let output = file_url_projects.resolve(&requirements);
+
+    assert_eq!(
+        (
+            output.code,
+            output.stderr.contains(&format!(
+                "invalid local file URL: {}",
+                file_url_projects.source("file://example.com{abs}")
+            )),
+        ),
+        (1, true)
+    );
+}
+
+// pip resolves a relative file: URL against the working directory, never the requirements file's
+// directory, so the decoy project next to the requirements file must not be picked up.
+#[fixture]
+fn file_url_projects() -> FileUrlProjects {
+    let projects = FileUrlProjects {
+        working: tempdir().unwrap(),
+        elsewhere: tempdir().unwrap(),
+    };
+    write_named_project(projects.working.path(), "local");
+    write_named_project(projects.elsewhere.path(), "decoy");
+    projects
+}
+
+fn write_named_project(directory: &Path, name: &str) {
+    let project = directory.join("pkg");
+    fs::create_dir(&project).unwrap();
+    fs::write(
+        project.join("pyproject.toml"),
+        format!("[project]\nname = \"{name}\"\n"),
+    )
+    .unwrap();
+}
+
+struct FileUrlProjects {
+    working: TempDir,
+    elsewhere: TempDir,
+}
+
+impl FileUrlProjects {
+    fn source(&self, template: &str) -> String {
+        let local = self.working.path().join("pkg");
+        template.replace("{abs}", url::Url::from_file_path(local).unwrap().path())
+    }
+
+    fn resolve(&self, argument: &str) -> Execution {
+        with_python(|python| {
+            install_resolver(python, &self.capture()).unwrap();
+            let current = std::env::current_dir().unwrap();
+            std::env::set_current_dir(self.working.path()).unwrap();
+            let output =
+                execute_with_python(python, &["--warn", "silence", "from-index", argument]);
+            std::env::set_current_dir(current).unwrap();
+            output
+        })
+    }
+
+    fn capture(&self) -> PathBuf {
+        self.elsewhere.path().join("capture.txt")
+    }
+
+    fn resolved<'output>(
+        &self,
+        output: &'output Execution,
+        editable: bool,
+    ) -> (i32, &'output str, bool, bool) {
+        let project = fs::read_to_string(self.capture()).unwrap();
+        let local = self.working.path().join("pkg").canonicalize().unwrap();
+        (
+            output.code,
+            output.stderr.as_str(),
+            project.contains(&format!(
+                "[[tool.nab.local-sources]]\nname = \"local\"\npath = \"{}\"\neditable = {editable}\n",
+                local.display()
+            )),
+            project.contains("decoy"),
+        )
+    }
+
+    fn write_requirements(&self, template: &str) -> String {
+        let requirements = self.elsewhere.path().join("requirements.txt");
+        fs::write(&requirements, format!("{}\n", self.source(template))).unwrap();
+        format!("--requirements={}", requirements.display())
+    }
 }
 
 #[test]
