@@ -6,8 +6,10 @@ use rstest::rstest;
 use super::super::super::common::{MockProcesses, expect_process, process_output};
 use super::{editable_site, expect_no_git, freeze};
 
-#[test]
-fn uses_legacy_subversion_metadata() {
+#[rstest]
+#[case::failed_svn(Ok(ProcessOutput { success: false, stdout: Vec::new(), stderr: Vec::new() }))]
+#[case::timed_out_svn(Err(ProcessError::TimedOut))]
+fn uses_legacy_subversion_metadata(#[case] info: Result<ProcessOutput, ProcessError>) {
     let repository = tempfile::tempdir().unwrap();
     fs::create_dir(repository.path().join(".svn")).unwrap();
     fs::write(
@@ -23,16 +25,7 @@ fn uses_legacy_subversion_metadata() {
         &["rev-parse", "--show-toplevel"],
         Err(ProcessError::NotFound),
     );
-    expect_process(
-        &mut processes,
-        "svn",
-        &["info", "--xml"],
-        Ok(ProcessOutput {
-            success: false,
-            stdout: Vec::new(),
-            stderr: Vec::new(),
-        }),
-    );
+    expect_process(&mut processes, "svn", &["info", "--xml"], info);
 
     assert_eq!(
         freeze(&site, &processes),

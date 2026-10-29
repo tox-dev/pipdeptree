@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import re
@@ -140,6 +141,28 @@ def test_cli_bare_version(
     assert capsys.readouterr().out == f"{__version__}\n"
 
 
+@pytest.mark.parametrize(
+    "errors", [pytest.param("strict", id="strict"), pytest.param("surrogateescape", id="surrogateescape")]
+)
+def test_cli_escapes_characters_stdout_cannot_encode(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    errors: str,
+) -> None:
+    for directory, name, version in (("app-2.0", "app", "2.0"), ("demo-0.1", "demoé", "0.1")):
+        (tmp_path / f"{directory}.dist-info").mkdir()
+        (tmp_path / f"{directory}.dist-info" / "METADATA").write_text(
+            f"Name: {name}\nVersion: {version}\n", encoding="utf-8"
+        )
+    output: Final = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(output, encoding="ascii", errors=errors, write_through=True))
+
+    code = entry_point(["--path", str(tmp_path)])
+
+    assert (code, output.getvalue()) == (0, f"app==2.0{os.linesep}demo\\xe9==0.1{os.linesep}".encode())
+
+
 def test_cli_error(
     entry_point: Callable[[Sequence[str] | None], int | None], capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -224,33 +247,52 @@ def test_cli_graphviz_binary_terminal(
 
 
 @pytest.fixture
-def terminal_browser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+def browser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     opener = create_autospec(webbrowser.open, return_value=True)
     monkeypatch.setattr(webbrowser, "open", opener)
-    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     return opener
 
 
+@pytest.mark.parametrize(
+    ("format_args", "expected"),
+    [
+        pytest.param(["--graph-output", "svg"], b"<?xml", id="svg"),
+        pytest.param(
+            ["--metadata", "Summary", "--graph-output", "ps"], "(café)".encode("latin-1"), id="ps-latin-1-label"
+        ),
+    ],
+)
 def test_cli_graphviz_text_terminal(
     entry_point: Callable[[Sequence[str] | None], int | None],
-    package_path: Path,
-    terminal_browser: MagicMock,
-    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    browser: MagicMock,
+    capsysbinary: pytest.CaptureFixture[bytes],
+    format_args: list[str],
+    expected: bytes,
 ) -> None:
-    code = entry_point(["--path", str(package_path), "--graph-output", "svg"])
+    (tmp_path / "demo-1.dist-info").mkdir()
+    (tmp_path / "demo-1.dist-info" / "METADATA").write_text("Name: demo\nVersion: 1\nSummary: café\n", encoding="utf-8")
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
 
-    assert (code, capsys.readouterr().out.startswith("<?xml"), terminal_browser.called) == (0, True, False)
+    code = entry_point(["--path", str(tmp_path), *format_args])
+
+    assert (code, expected in capsysbinary.readouterr().out, browser.called) == (0, True, False)
 
 
 def test_cli_help_with_graphviz_format(
     entry_point: Callable[[Sequence[str] | None], int | None],
-    terminal_browser: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    browser: MagicMock,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # pytest installs the capture stream only when the test body starts, so a fixture cannot patch it.
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+
     with pytest.raises(SystemExit, match="0"):
         entry_point(["--graph-output", "png", "--help"])
 
-    assert ("Usage:" in capsys.readouterr().out, terminal_browser.called) == (True, False)
+    assert ("Usage:" in capsys.readouterr().out, browser.called) == (True, False)
 
 
 def test_cli_lock(
@@ -357,6 +399,34 @@ def test_cli_index_builds_dynamic_local_source(
     monkeypatch.chdir(tmp_path)
 
     code: Final = entry_point(["from-index", "./local", "--index-url", index.as_uri()])
+
+    assert (code, capsys.readouterr().out) == (0, "local==1\n")
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        pytest.param(lambda root: [str(root / "local")], id="absolute"),
+        pytest.param(lambda _: [f".{os.sep}local"], id="relative"),
+        pytest.param(lambda _: ["--requirements", "requirements.txt"], id="requirements-file"),
+    ],
+)
+def test_cli_index_local_source_native_path(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    source: Callable[[Path], list[str]],
+) -> None:
+    (tmp_path / "local").mkdir()
+    (tmp_path / "local" / "pyproject.toml").write_text('[project]\nname = "local"\nversion = "1"\n')
+    (tmp_path / "requirements.txt").write_text(f"{tmp_path / 'local'}\n")
+    index: Final = tmp_path / "index"
+    index.mkdir()
+    monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.chdir(tmp_path)
+
+    code: Final = entry_point(["from-index", *source(tmp_path), "--index-url", index.as_uri()])
 
     assert (code, capsys.readouterr().out) == (0, "local==1\n")
 

@@ -21,17 +21,22 @@ thread_local! {
 }
 
 impl super::Vcs for Git {
-    fn root(&self, processes: &dyn ProcessRunner, location: &Path) -> Option<PathBuf> {
-        command(
+    fn root(
+        &self,
+        processes: &dyn ProcessRunner,
+        location: &Path,
+    ) -> Result<Option<PathBuf>, VcsError> {
+        match command(
             processes,
             "git",
             &["rev-parse", "--show-toplevel"],
             location,
             ExitStatusPolicy::RequireSuccess,
-        )
-        .ok()
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
+        ) {
+            Ok(root) => Ok(Some(PathBuf::from(root)).filter(|root| !root.as_os_str().is_empty())),
+            Err(CommandError::TimedOut) => Err(VcsError::TimedOut),
+            Err(CommandError::NotFound | CommandError::Failed) => Ok(None),
+        }
     }
 
     fn requirement(
@@ -71,8 +76,8 @@ impl super::Vcs for Git {
 fn root_info(processes: &dyn ProcessRunner, root: &Path) -> RootInfo {
     let remote = match remote(processes, root) {
         Ok(Some(remote)) => remote,
-        Ok(None) | Err(CommandError::Failed) => return Err(VcsError::NoRemote),
-        Err(CommandError::NotFound) => return Err(VcsError::CommandNotFound),
+        Ok(None) => return Err(VcsError::NoRemote),
+        Err(error) => return Err(error.into()),
     };
     let commit = match command(
         processes,
@@ -82,8 +87,8 @@ fn root_info(processes: &dyn ProcessRunner, root: &Path) -> RootInfo {
         ExitStatusPolicy::RequireSuccess,
     ) {
         Ok(commit) if !commit.is_empty() => commit,
-        Ok(_) | Err(CommandError::Failed) => return Err(VcsError::NoRemote),
-        Err(CommandError::NotFound) => return Err(VcsError::CommandNotFound),
+        Ok(_) => return Err(VcsError::NoRemote),
+        Err(error) => return Err(error.into()),
     };
     normalize_remote(&remote, root)
         .map(|remote| (remote, commit))

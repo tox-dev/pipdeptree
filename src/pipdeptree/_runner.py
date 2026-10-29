@@ -5,13 +5,48 @@ import shutil
 import sys
 import tempfile
 import webbrowser
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from pipdeptree._rust import execute
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from typing import TextIO
+
+# The text formats of https://graphviz.org/docs/outputs/; dot writes PostScript labels as Latin-1, so whether the output
+# decodes as UTF-8 cannot tell a text format from an image.
+_GRAPHVIZ_TEXT_FORMATS: Final = frozenset({
+    "canon",
+    "cmap",
+    "cmapx",
+    "cmapx_np",
+    "dot",
+    "dot_json",
+    "eps",
+    "fig",
+    "gv",
+    "imap",
+    "imap_np",
+    "ismap",
+    "json",
+    "json0",
+    "mp",
+    "pic",
+    "plain",
+    "plain-ext",
+    "pov",
+    "ps",
+    "ps2",
+    "svg",
+    "tk",
+    "vdx",
+    "vml",
+    "vrml",
+    "xdot",
+    "xdot1.2",
+    "xdot1.4",
+    "xdot_json",
+})
 
 
 def main(args: Sequence[str] | None = None) -> int | None:
@@ -43,9 +78,12 @@ def _write(stream: TextIO, value: bytes, *, graphviz_format: str | None) -> None
     except UnicodeDecodeError:
         pass
     else:
-        stream.write(text)
+        try:
+            stream.write(text)
+        except UnicodeEncodeError:
+            stream.write(text.encode(stream.encoding, "backslashreplace").decode(stream.encoding))
         return
-    if not stream.isatty():
+    if not stream.isatty() or (graphviz_format or "").partition(":")[0] in _GRAPHVIZ_TEXT_FORMATS:
         stream.buffer.write(value)
         return
     with tempfile.NamedTemporaryFile(suffix=f".{graphviz_format}", delete=False) as temporary:

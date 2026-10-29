@@ -487,6 +487,51 @@ fn inherits_constraint_flag_for_nested_requirement_files() {
     );
 }
 
+#[rstest]
+#[case::same_role(
+    "-r nested.txt\n-r nested.txt\n",
+    "dependencies = [\"nested-package\"]"
+)]
+#[case::requirement_and_constraint(
+    "-r nested.txt\n-c nested.txt\n",
+    "dependencies = [\"nested-package\"]\n\n[tool.nab]\nconstraints = [\"nested-package\"]"
+)]
+fn parses_a_repeated_include_once_per_role(#[case] requirements: &str, #[case] expected: &str) {
+    let directory = tempdir().unwrap();
+    fs::write(directory.path().join("nested.txt"), "nested-package\n").unwrap();
+    fs::write(directory.path().join("requirements.txt"), requirements).unwrap();
+    let capture = directory.path().join("capture.txt");
+
+    let output = with_python(|python| {
+        install_resolver(python, &capture).unwrap();
+        execute_with_python(
+            python,
+            &[
+                "--warn",
+                "silence",
+                "from-index",
+                "--requirements",
+                directory.path().join("requirements.txt").to_str().unwrap(),
+            ],
+        )
+    });
+    let pyproject = fs::read_to_string(capture).unwrap();
+
+    assert_eq!(
+        (
+            output.code,
+            output.stderr.as_str(),
+            pyproject.split_once("\n\n--- indexes ---").unwrap().0,
+        ),
+        (
+            0,
+            "",
+            format!("[project]\nname = \"pipdeptree-from-index\"\nversion = \"0\"\n{expected}")
+                .as_str()
+        )
+    );
+}
+
 #[test]
 fn maps_editable_vcs_requirements_to_sources() {
     let directory = tempdir().unwrap();
@@ -952,25 +997,44 @@ fn rejects_invalid_requirement_files(#[case] source: InvalidSource, #[case] expe
     );
 }
 
-#[test]
-fn rejects_invalid_trailing_logical_requirement() {
+#[rstest]
+#[case::included("-r netrc\n", "netrc", 2)]
+#[case::continued("parent>=1\nnot a valid \\\n  requirement\n", "requirements.txt", 2)]
+#[case::trailing("not a valid requirement !!! \\", "requirements.txt", 1)]
+fn locates_an_invalid_requirement_without_quoting_it(
+    #[case] requirements: &str,
+    #[case] invalid_file: &str,
+    #[case] line: usize,
+) {
     let directory = tempdir().unwrap();
-    let requirements = directory.path().join("requirements.txt");
-    fs::write(&requirements, "not a valid requirement !!! \\").unwrap();
+    fs::write(
+        directory.path().join("netrc"),
+        "# credentials\nmachine pypi.corp.example login ci password s3cr3t\n",
+    )
+    .unwrap();
+    fs::write(directory.path().join("requirements.txt"), requirements).unwrap();
 
-    let output = execute(&[
+    let output = resolved_output(&[
         "from-index",
         "--requirements",
-        requirements.to_str().unwrap(),
+        directory.path().join("requirements.txt").to_str().unwrap(),
     ]);
 
     assert_eq!(
+        (output.code, output.stdout.is_empty(), output.stderr),
         (
-            output.code,
-            output.stdout.is_empty(),
-            output.stderr.contains("Expected"),
-        ),
-        (1, true, true)
+            1,
+            true,
+            format!(
+                "{}:{line}: invalid requirement\n",
+                directory
+                    .path()
+                    .canonicalize()
+                    .unwrap()
+                    .join(invalid_file)
+                    .display()
+            )
+        )
     );
 }
 
