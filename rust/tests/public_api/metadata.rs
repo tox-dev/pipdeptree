@@ -646,6 +646,26 @@ fn discovers_empty_runtime_path_from_current_directory() {
     r#"{"url":"https://example.com/releases@v1/demo.whl","archive_info":{}}"#,
     "demo @ https://example.com/releases@v1/demo.whl\n"
 )]
+#[case::at_sign_in_password(
+    r#"{"url":"https://corp.example:Sp@rk-s3cr3t@pkgs.example.com/demo.whl","archive_info":{}}"#,
+    "demo @ https://pkgs.example.com/demo.whl\n"
+)]
+#[case::at_sign_in_query(
+    r#"{"url":"https://user:token@example.com?release=v1@main","archive_info":{}}"#,
+    "demo @ https://example.com?release=v1@main\n"
+)]
+#[case::at_sign_in_fragment(
+    r#"{"url":"https://user:token@example.com#egg=demo@v1","archive_info":{}}"#,
+    "demo @ https://example.com#egg=demo@v1\n"
+)]
+#[case::scheme_with_punctuation(
+    r#"{"url":"static-http://deploy:s3cr3t@hg.example.com/repo","vcs_info":{"vcs":"hg","commit_id":"abc"}}"#,
+    "demo @ hg+static-http://hg.example.com/repo@abc\n"
+)]
+#[case::scheme_with_digit(
+    r#"{"url":"s3://access:s3cr3t@bucket.example.com/demo.whl","archive_info":{}}"#,
+    "demo @ s3://bucket.example.com/demo.whl\n"
+)]
 #[case::credentials_without_path(
     r#"{"url":"https://user:token@example.com","archive_info":{}}"#,
     "demo @ https://example.com\n"
