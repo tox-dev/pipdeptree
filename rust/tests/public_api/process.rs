@@ -12,7 +12,8 @@ fn builds_process_requests() {
         .in_directory("work")
         .with_stdin(b"input".to_vec())
         .with_timeout(Duration::from_secs(2))
-        .without_environment(["FIRST", "SECOND"]);
+        .without_environment(["FIRST", "SECOND"])
+        .with_environment([("THIRD", "value")]);
 
     assert_eq!(
         request,
@@ -23,6 +24,7 @@ fn builds_process_requests() {
             stdin: b"input".to_vec(),
             timeout: Some(Duration::from_secs(2)),
             removed_environment: vec![OsString::from("FIRST"), OsString::from("SECOND")],
+            added_environment: vec![(OsString::from("THIRD"), OsString::from("value"))],
         }
     );
 }
@@ -165,6 +167,24 @@ fn removes_process_environment() {
 
         assert_eq!(output.stdout, b"missing\n");
     });
+}
+
+#[test]
+fn adds_process_environment() {
+    let output = SystemProcessRunner
+        .run(
+            &ProcessRequest::new(
+                python(),
+                [
+                    "-c",
+                    "import os; print(os.environ['PIPDEPTREE_PROCESS_TEST'])",
+                ],
+            )
+            .with_environment([("PIPDEPTREE_PROCESS_TEST", "present")]),
+        )
+        .unwrap();
+
+    assert_eq!(output.stdout, b"present\n");
 }
 
 #[test]

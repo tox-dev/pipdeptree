@@ -70,6 +70,29 @@ fn rejects_invalid_locks(#[case] content: &str, #[case] expected: &str) {
     );
 }
 
+#[rstest]
+#[case::first_line(
+    "TOKEN=secret\0HOME=/root",
+    "malformed TOML at line 1, column 18: unexpected key or value, expected newline, `#`\n"
+)]
+#[case::invalid_type(
+    "lock-version = 1\n[[packages]]\nname = \"demo\"",
+    "malformed TOML at line 1, column 16: invalid type: integer `1`, expected a string\n"
+)]
+#[case::later_line(
+    "[[packages]]\nname = \"démo\" TOKEN=secret",
+    "malformed TOML at line 2, column 15: unexpected key or value, expected newline, `#`\n"
+)]
+fn reports_parse_errors_without_the_source_line(#[case] content: &str, #[case] expected: &str) {
+    let directory = tempdir().unwrap();
+    let lock = directory.path().join("pylock.toml");
+    fs::write(&lock, content).unwrap();
+
+    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+
+    assert_eq!((output.code, output.stderr.as_str()), (1, expected));
+}
+
 #[test]
 fn freezes_resolved_packages() {
     let directory = tempdir().unwrap();

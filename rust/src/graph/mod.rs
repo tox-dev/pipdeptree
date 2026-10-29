@@ -295,8 +295,9 @@ impl Graph {
         self.collect_validation_warnings();
     }
 
-    // A tree reaches a package once per path, so each edge selects the target's requirements for
-    // the extras it requests once, and edges that request the same extras share that list.
+    // The tree walks ask for an edge's children on every line that prints the edge, so each edge
+    // selects the target's requirements for the extras it requests once, and edges that request
+    // the same extras share that list.
     pub(super) fn children<'a>(&'a self, incoming: &'a Dependency) -> Children<'a> {
         let node = incoming
             .target
@@ -746,34 +747,21 @@ impl Graph {
     }
 }
 
-impl<'a> Children<'a> {
-    // Requirements sort by key and a key names one target, so a rejected target's requirements
-    // form one run that a binary search skips; a package can list the same name any number of
-    // times.
-    pub(super) fn next_where(&mut self, keep: impl Fn(usize) -> bool) -> Option<&'a Dependency> {
-        let dependencies = &self.graph.nodes[self.node].dependencies;
-        while let Some(index) = self.indices.get(self.position) {
-            let dependency = &dependencies[*index];
-            match dependency.target {
-                Some(target) if !(self.graph.visible[target] && keep(target)) => {
-                    self.position += self.indices[self.position..]
-                        .partition_point(|other| dependencies[*other].key() == dependency.key());
-                }
-                _ => {
-                    self.position += 1;
-                    return Some(dependency);
-                }
-            }
-        }
-        None
-    }
-}
-
 impl<'a> Iterator for Children<'a> {
     type Item = &'a Dependency;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.next_where(|_| true)
+        while let Some(index) = self.indices.get(self.position) {
+            self.position += 1;
+            let dependency = &self.graph.nodes[self.node].dependencies[*index];
+            if dependency
+                .target
+                .is_none_or(|target| self.graph.visible[target])
+            {
+                return Some(dependency);
+            }
+        }
+        None
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

@@ -1,7 +1,9 @@
 use std::fmt::Write as _;
 use std::time::{Duration, Instant};
 
-use super::{execute, lock_file, path, render_site, text};
+use super::{
+    crossed_cycle_site, execute, layered_site, lock_file, path, render_site, text, write_requiring,
+};
 use rstest::rstest;
 
 #[rstest]
@@ -106,7 +108,7 @@ fn colors_reverse_requirements() {
 }
 
 #[test]
-fn marks_unique_conflicts_and_stops_reverse_cycles() {
+fn marks_unique_conflicts_and_reverse_cycles() {
     let site = super::PackageSite::new();
     site.write(
         "first-1.dist-info",
@@ -124,26 +126,102 @@ fn marks_unique_conflicts_and_stops_reverse_cycles() {
     let reverse = execute(&site, &["--reverse"]);
 
     assert_eq!(
+        (text(&rich).contains("⚠ ⭐ second"), text(&reverse),),
         (
-            text(&rich).contains("⚠ ⭐ second"),
-            text(&reverse).matches("first==1").count(),
-        ),
-        (true, 2)
+            true,
+            concat!(
+                "first==1\n",
+                "└── second==1 [requires: first]\n",
+                "    └── first==1 [requires: second>=2] (*)\n",
+                "second==1\n",
+                "└── first==1 [requires: second>=2]\n",
+                "    └── second==1 [requires: first] (*)\n",
+            )
+        )
     );
 }
 
-// Every requirement hub files under the extras it is asked for points back up the path, so
-// none of them prints; rebuilding and scanning that list on each of the 27,000 visits to hub
-// overruns the budget.
+#[rstest]
+#[case::text(&[] as &[&str])]
+#[case::rich(&["--output", "rich"])]
+#[case::freeze(&["--freeze"])]
+#[case::reverse(&["--reverse"])]
+#[case::reverse_freeze(&["--reverse", "--freeze"])]
+fn prints_each_edge_of_a_root_once(#[case] args: &[&str]) {
+    let site = layered_site(20);
+    let output = execute(&site, args);
+
+    assert_eq!(text(&output).lines().count(), 1 + 20 * 19 / 2);
+}
+
+#[rstest]
+#[case::text(
+    &[] as &[&str],
+    concat!(
+        "a==1\n",
+        "├── x [required: Any, installed: 1]\n",
+        "│   └── y [required: Any, installed: 1]\n",
+        "│       ├── w [required: Any, installed: 1]\n",
+        "│       └── x [required: Any, installed: 1] (*)\n",
+        "└── y [required: Any, installed: 1] (*)\n",
+    )
+)]
+#[case::freeze(
+    &["--freeze"],
+    "a==1\n  x==1\n    y==1\n      w==1\n      x==1\n  y==1\n"
+)]
+#[case::reverse(
+    &["--reverse", "--packages", "w"],
+    concat!(
+        "w==1\n",
+        "└── y==1 [requires: w]\n",
+        "    ├── a==1 [requires: y]\n",
+        "    └── x==1 [requires: y]\n",
+        "        ├── a==1 [requires: x]\n",
+        "        └── y==1 [requires: x] (*)\n",
+    )
+)]
+fn keeps_every_edge_of_a_cycle(#[case] args: &[&str], #[case] expected: &str) {
+    let site = crossed_cycle_site();
+    let output = execute(&site, args);
+
+    assert_eq!(text(&output), expected);
+}
+
+#[test]
+fn expands_a_repeated_subtree_again_where_depth_leaves_more_levels() {
+    let site = super::PackageSite::new();
+    write_requiring(&site, "a", &["b", "c"]);
+    write_requiring(&site, "b", &["c"]);
+    write_requiring(&site, "c", &["d"]);
+    write_requiring(&site, "d", &["e"]);
+    write_requiring(&site, "e", &[] as &[&str]);
+
+    let output = execute(&site, &["--depth", "3", "--encoding", "ascii"]);
+
+    assert_eq!(
+        text(&output),
+        concat!(
+            "a==1\n",
+            "  - b [required: Any, installed: 1]\n",
+            "    - c [required: Any, installed: 1]\n",
+            "      - d [required: Any, installed: 1]\n",
+            "  - c [required: Any, installed: 1]\n",
+            "    - d [required: Any, installed: 1]\n",
+            "      - e [required: Any, installed: 1]\n",
+        )
+    );
+}
+
+// Every line that shows r -> hub asks which requirements hub would list for those extras, and
+// hub files 10,000 under them, across 20 packages so the list needs a real sort; selecting and
+// sorting it on each of the 20,000 lines overruns the budget.
 #[rstest]
 #[case::text(&[], "required: <")]
 #[case::rich(&["--output", "rich"], "required: <")]
 #[case::json_tree(&["--output", "json-tree"], "\"required_version\": \"<")]
-fn skips_unprinted_requirements_of_a_revisited_package(
-    #[case] args: &[&str],
-    #[case] dependency: &str,
-) {
-    let extras = (0..50)
+fn selects_the_children_of_an_edge_once(#[case] args: &[&str], #[case] requirement: &str) {
+    let extras = (0..5)
         .map(|number| format!("x{number}"))
         .collect::<Vec<_>>();
     let marker = extras
@@ -153,18 +231,19 @@ fn skips_unprinted_requirements_of_a_revisited_package(
         .join(" or ");
     let site = super::PackageSite::new();
     for (name, requires) in [
-        ("r", requirements("a", 30, "")),
-        ("a", requirements("b", 30, "")),
         (
-            "b",
-            requirements(&format!("hub[{}]", extras.join(",")), 30, ""),
+            "r",
+            requirements(&format!("hub[{}]", extras.join(",")), 20000, ""),
         ),
-        ("hub", requirements("a", 100, &format!("; {marker}"))),
+        ("hub", leaves(2000, &format!("; {marker}"))),
     ] {
         site.write(
             &format!("{name}-1.dist-info"),
             &format!("Name: {name}\nVersion: 1\n{requires}"),
         );
+    }
+    for number in 0..20 {
+        write_requiring(&site, &format!("leaf{number}"), &[] as &[&str]);
     }
     let start = Instant::now();
 
@@ -172,23 +251,21 @@ fn skips_unprinted_requirements_of_a_revisited_package(
 
     assert_eq!(
         (
-            text(&output).matches(dependency).count(),
+            text(&output).matches(requirement).count(),
             start.elapsed() < BUDGET
         ),
-        (30 + 900 + 27000, true)
+        (20000 + 2000 * 5, true)
     );
 }
 
 // The conflict check walks every specifier against every segment of the installed version, and
-// the rich tree prints the lib -> ghost edge once per path to lib.
+// each of the 1,000 top-level packages shows the lib -> ghost edge in its own tree.
 #[test]
 fn checks_each_rich_edge_for_conflicts_once() {
     let site = super::PackageSite::new();
-    let local = vec!["1"; 2000].join(".");
-    site.write(
-        "app-1.dist-info",
-        &format!("Name: app\nVersion: 1\n{}", requirements("lib", 1000, "")),
-    );
+    for number in 0..1000 {
+        write_requiring(&site, &format!("app{number}"), &["lib"]);
+    }
     site.write(
         "lib-1.dist-info",
         &format!(
@@ -201,7 +278,7 @@ fn checks_each_rich_edge_for_conflicts_once() {
     );
     site.write(
         "ghost-1.dist-info",
-        &format!("Name: ghost\nVersion: 1+{local}\n"),
+        &format!("Name: ghost\nVersion: 1+{}\n", vec!["1"; 2000].join(".")),
     );
     let start = Instant::now();
 
@@ -209,7 +286,7 @@ fn checks_each_rich_edge_for_conflicts_once() {
 
     assert_eq!(
         (text(&output).lines().count(), start.elapsed() < BUDGET),
-        (1 + 1000 + 1000, true)
+        (3 * 1000, true)
     );
 }
 
@@ -218,6 +295,13 @@ const BUDGET: Duration = Duration::from_secs(10);
 fn requirements(name: &str, count: usize, marker: &str) -> String {
     (1..=count).fold(String::new(), |mut lines, number| {
         let _ = writeln!(lines, "Requires-Dist: {name}<{number}{marker}");
+        lines
+    })
+}
+
+fn leaves(count: usize, marker: &str) -> String {
+    (1..=count).fold(String::new(), |mut lines, number| {
+        let _ = writeln!(lines, "Requires-Dist: leaf{}<{number}{marker}", number % 20);
         lines
     })
 }

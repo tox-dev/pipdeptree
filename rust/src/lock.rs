@@ -39,8 +39,7 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
         )));
     }
     let content = fs::read_to_string(path)?;
-    let lock: Lock = toml::from_str(&content)
-        .map_err(|error| Error::message(format!("malformed TOML: {error}")))?;
+    let lock: Lock = toml::from_str(&content).map_err(|error| parse_error(&content, &error))?;
     // PEP 751 tools must refuse a lock whose major version they do not implement.
     if let Some(version) = &lock.lock_version
         && version.split('.').next() != Some("1")
@@ -99,6 +98,19 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
         })
         .collect::<Result<Vec<_>, _>>()
         .map(Discovered::new)
+}
+
+// The Display form of a toml error quotes the source line, and the lock path can be a symlink to any
+// readable file, so only the position and the parser's message are reported.
+fn parse_error(content: &str, error: &toml::de::Error) -> Error {
+    let before = &content[..error.span().map_or(0, |span| span.start)];
+    let line_start = before.rfind('\n').map_or(0, |index| index + 1);
+    Error::message(format!(
+        "malformed TOML at line {}, column {}: {}",
+        before.matches('\n').count() + 1,
+        before[line_start..].chars().count() + 1,
+        error.message()
+    ))
 }
 
 fn applies(marker: Option<&str>, environment: &MarkerEnvironment) -> bool {

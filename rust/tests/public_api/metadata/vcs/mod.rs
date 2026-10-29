@@ -15,15 +15,6 @@ mod hg;
 mod svn;
 
 #[rstest]
-#[case::hg(
-    ".hg",
-    "hg",
-    &["showconfig", "paths.default"],
-    "https://example.com/repo",
-    &["parents", "--template={node}"],
-    "abc",
-    "-e hg+https://example.com/repo@abc#egg=demo"
-)]
 #[case::bzr(
     ".bzr",
     "bzr",
@@ -31,6 +22,15 @@ mod svn;
     "  checkout of branch: https://example.com/repo\n",
     &["revno"],
     "first\n42\n",
+    "-e bzr+https://example.com/repo@42#egg=demo"
+)]
+#[case::bzr_credentials(
+    ".bzr",
+    "bzr",
+    &["info"],
+    "  checkout of branch: https://ci:token@example.com/repo\n",
+    &["revno"],
+    "42\n",
     "-e bzr+https://example.com/repo@42#egg=demo"
 )]
 #[case::svn(
