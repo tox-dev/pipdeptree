@@ -323,6 +323,40 @@ fn limits_metadata_name_and_version_length(
 }
 
 #[rstest]
+#[cfg_attr(
+    unix,
+    case::fifo(|metadata: &Path| {
+        assert!(std::process::Command::new("mkfifo").arg(metadata).status().unwrap().success());
+    })
+)]
+#[cfg_attr(
+    unix,
+    case::device(|metadata: &Path| std::os::unix::fs::symlink("/dev/zero", metadata).unwrap())
+)]
+#[case::oversized_headers(|metadata: &Path| {
+    fs::write(metadata, "Name: demo\nVersion: 1\nDescription: ").unwrap();
+    fs::OpenOptions::new().append(true).open(metadata).unwrap().set_len((16 << 20) + 1).unwrap();
+})]
+fn reports_unreadable_metadata_as_invalid(#[case] create: fn(&Path)) {
+    let site = PackageSite::new();
+    site.write("helper-1.dist-info", "Name: helper\nVersion: 1\n");
+    let metadata = site.path().join("demo-1.dist-info");
+    fs::create_dir(&metadata).unwrap();
+    create(&metadata.join("METADATA"));
+
+    let output = execute(&["--path", site.path().to_str().unwrap(), "--freeze"]);
+
+    assert_eq!(
+        (
+            output.code,
+            stdout(&output),
+            output.stderr.contains("missing or invalid metadata")
+        ),
+        (0, "helper==1\n", true)
+    );
+}
+
+#[rstest]
 #[case::suppress("suppress", 0)]
 #[case::fail("fail", 1)]
 fn reports_metadata_warnings(
@@ -646,6 +680,26 @@ fn discovers_empty_runtime_path_from_current_directory() {
     r#"{"url":"https://example.com/releases@v1/demo.whl","archive_info":{}}"#,
     "demo @ https://example.com/releases@v1/demo.whl\n"
 )]
+#[case::at_sign_in_password(
+    r#"{"url":"https://corp.example:Sp@rk-s3cr3t@pkgs.example.com/demo.whl","archive_info":{}}"#,
+    "demo @ https://pkgs.example.com/demo.whl\n"
+)]
+#[case::at_sign_in_query(
+    r#"{"url":"https://user:token@example.com?release=v1@main","archive_info":{}}"#,
+    "demo @ https://example.com?release=v1@main\n"
+)]
+#[case::at_sign_in_fragment(
+    r#"{"url":"https://user:token@example.com#egg=demo@v1","archive_info":{}}"#,
+    "demo @ https://example.com#egg=demo@v1\n"
+)]
+#[case::scheme_with_punctuation(
+    r#"{"url":"static-http://deploy:s3cr3t@hg.example.com/repo","vcs_info":{"vcs":"hg","commit_id":"abc"}}"#,
+    "demo @ hg+static-http://hg.example.com/repo@abc\n"
+)]
+#[case::scheme_with_digit(
+    r#"{"url":"s3://access:s3cr3t@bucket.example.com/demo.whl","archive_info":{}}"#,
+    "demo @ s3://bucket.example.com/demo.whl\n"
+)]
 #[case::credentials_without_path(
     r#"{"url":"https://user:token@example.com","archive_info":{}}"#,
     "demo @ https://example.com\n"
@@ -897,13 +951,41 @@ fn ignores_empty_legacy_editable_links() {
     );
 }
 
+#[rstest]
+#[case::dist_info("demo-1.dist-info/METADATA", ".")]
+#[case::another_directory("demo-1.egg-info/PKG-INFO", "other")]
+fn ignores_legacy_editable_links_of_other_installs(#[case] metadata: &str, #[case] link: &str) {
+    let site = PackageSite::new();
+    let metadata = site.path().join(metadata);
+    fs::create_dir(metadata.parent().unwrap()).unwrap();
+    fs::write(&metadata, "Name: demo\nVersion: 1\n").unwrap();
+    fs::create_dir(site.path().join("other")).unwrap();
+    site.write_file(
+        "demo.egg-link",
+        &site.path().join(link).display().to_string(),
+    );
+
+    let output = execute_in(&site, &["--freeze"]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, "demo==1\n", "")
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn ignores_symlinked_legacy_editable_links() {
     let site = PackageSite::new();
-    site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+    let metadata = site.path().join("demo-1.egg-info");
+    fs::create_dir(&metadata).unwrap();
+    fs::write(metadata.join("PKG-INFO"), "Name: demo\nVersion: 1\n").unwrap();
     let outside = tempfile::tempdir().unwrap();
-    fs::write(outside.path().join("file"), "first line\n").unwrap();
+    fs::write(
+        outside.path().join("file"),
+        site.path().display().to_string(),
+    )
+    .unwrap();
     std::os::unix::fs::symlink(
         outside.path().join("file"),
         site.path().join("demo.egg-link"),

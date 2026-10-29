@@ -255,19 +255,21 @@ fn selects_the_children_of_an_edge_once(#[case] args: &[&str], #[case] requireme
     );
 }
 
-// The conflict check walks every specifier against every segment of the installed version, and
-// each of the 1,000 top-level packages shows the lib -> ghost edge in its own tree.
+// Each specifier check clones the installed version, one allocation per string segment of its
+// local label, and each of the 2,000 top-level packages shows the lib -> ghost edge in its own
+// tree. The version stays within the 255-byte cap, or ghost would count as not installed and skip
+// the check.
 #[test]
 fn checks_each_rich_edge_for_conflicts_once() {
     let site = super::PackageSite::new();
-    for number in 0..1000 {
+    for number in 0..2000 {
         write_requiring(&site, &format!("app{number}"), &["lib"]);
     }
     site.write(
         "lib-1.dist-info",
         &format!(
             "Name: lib\nVersion: 1\nRequires-Dist: ghost{}\n",
-            (0..2000)
+            (0..30000)
                 .map(|number| format!("!=0.{number}"))
                 .collect::<Vec<_>>()
                 .join(",")
@@ -275,13 +277,14 @@ fn checks_each_rich_edge_for_conflicts_once() {
     );
     site.write(
         "ghost-1.dist-info",
-        &format!("Name: ghost\nVersion: 1+{}\n", vec!["1"; 2000].join(".")),
+        &format!("Name: ghost\nVersion: 1+{}\n", vec!["a"; 126].join(".")),
     );
     let (output, elapsed) = execute_timed(&site, &["--output", "rich"]);
 
     assert_eq!(
-        (text(&output).lines().count(), elapsed < BUDGET),
-        (3 * 1000, true)
+        (text(&output).matches("1+a.").count(), elapsed < BUDGET),
+        (2000, true),
+        "took {elapsed:?}"
     );
 }
 

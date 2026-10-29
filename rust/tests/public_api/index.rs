@@ -1033,25 +1033,44 @@ fn rejects_requirements_includes_nested_past_the_limit() {
     );
 }
 
-#[test]
-fn rejects_invalid_trailing_logical_requirement() {
+#[rstest]
+#[case::included("-r netrc\n", "netrc", 2)]
+#[case::continued("parent>=1\nnot a valid \\\n  requirement\n", "requirements.txt", 2)]
+#[case::trailing("not a valid requirement !!! \\", "requirements.txt", 1)]
+fn locates_an_invalid_requirement_without_quoting_it(
+    #[case] requirements: &str,
+    #[case] invalid_file: &str,
+    #[case] line: usize,
+) {
     let directory = tempdir().unwrap();
-    let requirements = directory.path().join("requirements.txt");
-    fs::write(&requirements, "not a valid requirement !!! \\").unwrap();
+    fs::write(
+        directory.path().join("netrc"),
+        "# credentials\nmachine pypi.corp.example login ci password s3cr3t\n",
+    )
+    .unwrap();
+    fs::write(directory.path().join("requirements.txt"), requirements).unwrap();
 
-    let output = execute(&[
+    let output = resolved_output(&[
         "from-index",
         "--requirements",
-        requirements.to_str().unwrap(),
+        directory.path().join("requirements.txt").to_str().unwrap(),
     ]);
 
     assert_eq!(
+        (output.code, output.stdout.is_empty(), output.stderr),
         (
-            output.code,
-            output.stdout.is_empty(),
-            output.stderr.contains("Expected"),
-        ),
-        (1, true, true)
+            1,
+            true,
+            format!(
+                "{}:{line}: invalid requirement\n",
+                directory
+                    .path()
+                    .canonicalize()
+                    .unwrap()
+                    .join(invalid_file)
+                    .display()
+            )
+        )
     );
 }
 

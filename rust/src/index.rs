@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use pep508_rs::{Requirement, VerbatimUrl, VersionOrUrl};
+use pep508_rs::{Pep508Error, Requirement, VerbatimUrl, VersionOrUrl};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::{PyAnyMethods, PyModule};
 use pyo3::types::{
@@ -51,6 +51,20 @@ struct LocalSource {
 struct VcsSource {
     name: String,
     url: String,
+}
+
+#[derive(Clone, Copy)]
+struct Location<'a> {
+    file: &'a Path,
+    line: usize,
+}
+
+impl<'a> Location<'a> {
+    fn directory(self) -> &'a Path {
+        self.file
+            .parent()
+            .expect("canonical source file has a parent")
+    }
 }
 
 struct ResolverModules<'py> {
@@ -151,7 +165,7 @@ pub fn resolve(
                 parse_requirements_file(require_file(path)?, false, &mut inputs, &mut Vec::new())?;
             }
             for requirement in requirements {
-                parse_requirement(requirement, Path::new("."), false, &mut inputs)?;
+                parse_requirement(requirement, None, false, &mut inputs)?;
             }
             let directory = tempdir()?;
             let path = directory.path().join("pyproject.toml");
@@ -258,7 +272,14 @@ fn parse_requirements_file(
     stack.push(path.clone());
     let content = fs::read_to_string(&path)?;
     let mut logical = String::new();
-    for raw_line in content.lines() {
+    let mut location = Location {
+        file: &path,
+        line: 0,
+    };
+    for (index, raw_line) in content.lines().enumerate() {
+        if logical.is_empty() {
+            location.line = index + 1;
+        }
         let line = raw_line.trim();
         if line.ends_with('\\') {
             logical.push_str(line.trim_end_matches('\\').trim_end());
@@ -268,14 +289,14 @@ fn parse_requirements_file(
         logical.push_str(line);
         let line = strip_comment(&logical).trim();
         (!line.is_empty())
-            .then(|| parse_requirements_line(line, &path, constraint, inputs, stack))
+            .then(|| parse_requirements_line(line, location, constraint, inputs, stack))
             .transpose()?;
         logical.clear();
     }
     if !logical.trim().is_empty() {
         parse_requirements_line(
             strip_comment(&logical).trim(),
-            &path,
+            location,
             constraint,
             inputs,
             stack,
@@ -287,12 +308,12 @@ fn parse_requirements_file(
 
 fn parse_requirements_line(
     line: &str,
-    source: &Path,
+    location: Location<'_>,
     constraint: bool,
     inputs: &mut Inputs,
     stack: &mut Vec<PathBuf>,
 ) -> Result<(), Error> {
-    let base = source.parent().expect("canonical source file has a parent");
+    let base = location.directory();
     // pip treats -r inside a constraints file as another constraints file.
     if let Some(value) = option_value(line, "-r", "--requirement") {
         return parse_requirements_file(&base.join(value), constraint, inputs, stack);
@@ -312,27 +333,40 @@ fn parse_requirements_line(
         return Ok(());
     }
     let requirement = line.split(" --hash=").next().unwrap_or(line).trim();
-    parse_requirement(requirement, base, constraint, inputs)
+    parse_requirement(requirement, Some(location), constraint, inputs)
 }
 
 fn parse_requirement(
     raw: &str,
-    base: &Path,
+    location: Option<Location<'_>>,
     constraint: bool,
     inputs: &mut Inputs,
 ) -> Result<(), Error> {
+    // The parser's error repeats the whole input. An include can name a file that holds a
+    // credential rather than requirements, so a line read from a file is reported by location.
+    let invalid = |error: Pep508Error<VerbatimUrl>| {
+        Error::message(location.map_or_else(
+            || error.to_string(),
+            |location| {
+                format!(
+                    "{}:{}: invalid requirement",
+                    location.file.display(),
+                    location.line
+                )
+            },
+        ))
+    };
     let requirement = match Requirement::<VerbatimUrl>::from_str(raw) {
         Ok(requirement) => requirement,
-        Err(error) if looks_like_source(raw) && raw.contains(" @ ") => {
-            return Err(Error::message(error.to_string()));
-        }
+        Err(error) if looks_like_source(raw) && raw.contains(" @ ") => return Err(invalid(error)),
         Err(_) if looks_like_source(raw) => {
             if constraint {
                 return Err(Error::message("source requirements cannot be constraints"));
             }
+            let base = location.map_or_else(|| Path::new("."), Location::directory);
             return translate_source(raw, base, inputs);
         }
-        Err(error) => return Err(Error::message(error.to_string())),
+        Err(error) => return Err(invalid(error)),
     };
     if constraint {
         if matches!(requirement.version_or_url, Some(VersionOrUrl::Url(_))) {
@@ -710,11 +744,12 @@ fn strip_comment(line: &str) -> &str {
 }
 
 fn looks_like_source(requirement: &str) -> bool {
-    // A local source is spelled ./, ../, an absolute path, a file: URL or a VCS URL, matching
-    // what pip accepts; no filesystem probe is needed to recognize one.
+    // A local source is spelled ./, ../, .\, ..\, an absolute path, a file: URL or a VCS URL,
+    // matching what pip accepts; no filesystem probe is needed to recognize one.
     let requirement = requirement.trim();
     requirement.contains("://")
-        || ["./", "../", "/", "file:", "git+"]
+        || Path::new(requirement).is_absolute()
+        || ["./", "../", ".\\", "..\\", "/", "file:", "git+"]
             .iter()
             .any(|prefix| requirement.starts_with(prefix))
 }

@@ -277,7 +277,8 @@ This renders as:
 graphviz
 --------
 
-The Graphviz renderer supports DOT source and binary formats such as PDF and SVG. DOT source needs no external program:
+The Graphviz renderer supports DOT source and rendered formats such as PDF, PNG and SVG. DOT source needs no external
+program:
 
 .. code-block:: console
 
@@ -295,7 +296,7 @@ The Graphviz renderer supports DOT source and binary formats such as PDF and SVG
     }
 
 
-Binary formats require the Graphviz ``dot`` executable from the operating system. pipdeptree sends its DOT source to
+Rendered formats require the Graphviz ``dot`` executable from the operating system. pipdeptree sends its DOT source to
 that executable:
 
 .. code-block:: console
@@ -306,6 +307,10 @@ that executable:
 
 Use ``graphviz-<format>``, where ``<format>`` is any
 `Graphviz output format <https://graphviz.org/docs/outputs/>`_ (dot, pdf, png, svg, jpeg, etc.).
+
+On a terminal, pipdeptree prints a text format such as ``svg``, ``ps``, ``json`` or ``plain``, in whatever encoding
+``dot`` wrote it. An image format such as ``png`` or ``pdf`` goes to a temporary file instead, which pipdeptree opens
+with the default application.
 
 pipdeptree stops ``dot`` and exits with an error when the layout takes longer than 300 seconds. For a graph that needs
 more time, write ``-o graphviz-dot`` to a file and run ``dot`` on it yourself.

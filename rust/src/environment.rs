@@ -6,7 +6,7 @@ use std::time::Duration;
 use pep508_rs::{MarkerEnvironment, MarkerEnvironmentBuilder};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::{PyAnyMethods, PyModule};
-use pyo3::types::{PyDict, PyDictMethods};
+use pyo3::types::{PyDict, PyDictMethods, PyList};
 use pyo3::{PyResult, Python};
 use serde::Deserialize;
 
@@ -173,18 +173,27 @@ impl MarkerValues {
 
 impl InterpreterInfo {
     fn current(py: Python<'_>) -> PyResult<Self> {
+        // CPython keeps extension modules such as _json in lib-dynload inside the stdlib directory,
+        // and on Windows in DLLs beside it.
+        const EXTENSION_MODULES: &str = if cfg!(windows) {
+            "../DLLs"
+        } else {
+            "lib-dynload"
+        };
         let sys = PyModule::import(py, "sys")?;
         let os = PyModule::import(py, "os")?;
-        let sys_path = sys.getattr("path")?;
-        // A caller may narrow sys.path to just the discovery target (e.g. the current directory)
-        // before the engine runs, which hides stdlib modules not imported at startup, such as
-        // platform. Expose the interpreter's own stdlib for the duration of the query while
-        // reporting the caller's unaltered path, so the query resolves without changing discovery.
-        let reported_paths = sys_path.call_method0("copy")?;
+        let reported_paths = sys.getattr("path")?;
+        // platform and json import optional modules (_wmi, _json) on first use, and the caller's
+        // sys.path holds the directories pipdeptree inspects, or only the discovery target when a
+        // caller narrowed it. Resolve the query's imports from the interpreter's own library alone
+        // while reporting the caller's path, so no module from an inspected directory runs.
         let stdlib = os
             .getattr("path")?
             .call_method1("dirname", (os.getattr("__file__")?,))?;
-        sys_path.call_method1("insert", (0, &stdlib))?;
+        let extensions = os
+            .getattr("path")?
+            .call_method1("join", (&stdlib, EXTENSION_MODULES))?;
+        sys.setattr("path", PyList::new(py, [&stdlib, &extensions])?)?;
         let info = (|| {
             let globals = PyDict::new(py);
             globals.set_item("os", &os)?;
@@ -200,7 +209,7 @@ impl InterpreterInfo {
                 .extract()?;
             serde_json::from_str(&encoded).map_err(|error| PyValueError::new_err(error.to_string()))
         })();
-        sys_path.call_method1("remove", (&stdlib,))?;
+        sys.setattr("path", &reported_paths)?;
         info
     }
 

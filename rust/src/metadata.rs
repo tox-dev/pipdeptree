@@ -528,7 +528,11 @@ fn discover_with_fields(
         }
     }
     for package in &mut packages {
-        package.legacy_editable = legacy_editables.find(&package.name).cloned();
+        package.legacy_editable = package
+            .metadata_dir
+            .as_deref()
+            .and_then(|metadata_dir| legacy_editables.find(&package.name, metadata_dir))
+            .cloned();
     }
     Ok(Discovered {
         packages,
@@ -647,15 +651,26 @@ fn path_warnings(
 }
 
 fn read_headers(path: &Path) -> Result<String, Error> {
+    // Older PKG-INFO files fold the whole description into a header, so the cap leaves room for a
+    // long one. Without it, a file with no line break, such as a large sparse one, is read whole.
+    const MAX_HEADER_BYTES: u64 = 16 * 1024 * 1024;
+    // Opening a FIFO blocks until another process opens it for writing, so check before opening.
+    if !fs::metadata(path)?.is_file() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "not a regular file").into());
+    }
     // METADATA bodies embed whole package descriptions; the headers end at the first blank
     // line, so stop reading there instead of loading the full file.
-    let mut reader = io::BufReader::new(fs::File::open(path)?);
+    let mut reader =
+        io::BufReader::new(io::Read::take(fs::File::open(path)?, MAX_HEADER_BYTES + 1));
     let mut headers = String::new();
     loop {
         let start = headers.len();
         if io::BufRead::read_line(&mut reader, &mut headers)? == 0
             || matches!(&headers[start..], "\n" | "\r\n")
         {
+            if reader.get_ref().limit() == 0 {
+                return Err(io::Error::new(io::ErrorKind::FileTooLarge, "headers too long").into());
+            }
             headers.truncate(start);
             return Ok(headers);
         }
