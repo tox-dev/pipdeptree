@@ -281,7 +281,9 @@ fn detect_interpreter(processes: &dyn ProcessRunner, implementation: &str) -> Op
         env::consts::EXE_SUFFIX
     );
     for (variable, directory) in environment_locations() {
-        if let Some(root) = env::var_os(variable) {
+        // An empty value names no environment; joining onto it would resolve against the
+        // working directory.
+        if let Some(root) = env::var_os(variable).filter(|root| !root.is_empty()) {
             let path = PathBuf::from(root).join(directory).join(&executable);
             if path.exists() {
                 return Some(path);

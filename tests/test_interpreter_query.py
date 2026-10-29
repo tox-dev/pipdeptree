@@ -42,6 +42,32 @@ def test_query_ignores_distribution_in_working_directory(
     assert (code, "planted" in capsys.readouterr().out) == (0, False)
 
 
+@pytest.mark.parametrize(
+    ("variable", "scripts"),
+    [
+        pytest.param("VIRTUAL_ENV", "Scripts" if sys.platform == "win32" else "bin", id="venv"),
+        pytest.param("CONDA_PREFIX", "." if sys.platform == "win32" else "bin", id="conda"),
+    ],
+)
+def test_detection_ignores_empty_environment_variable(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    working_directory: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    variable: str,
+    scripts: str,
+) -> None:
+    (working_directory / scripts).mkdir(exist_ok=True)
+    (working_directory / scripts / ("python.exe" if sys.platform == "win32" else "python")).write_text("")
+    for name in ("VIRTUAL_ENV", "CONDA_PREFIX"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(variable, "")
+
+    code: Final = entry_point(["--packages", "pipdeptree", "--depth", "0"])
+
+    assert (code, capsys.readouterr().out.startswith("pipdeptree==")) == (0, True)
+
+
 @pytest.mark.parametrize("module", [pytest.param("_json", id="json"), pytest.param("_wmi", id="platform")])
 def test_query_ignores_optional_stdlib_module_on_path(tmp_path: Path, module: str) -> None:
     (tmp_path / "demo-1.dist-info").mkdir()
