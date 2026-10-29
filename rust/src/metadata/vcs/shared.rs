@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -10,6 +11,7 @@ pub(super) enum VcsError {
     NoRemote,
     InvalidRemote,
     CommandNotFound,
+    TimedOut,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -35,6 +37,7 @@ pub(super) struct VcsRequirement<'a> {
 pub(super) enum CommandError {
     NotFound,
     Failed,
+    TimedOut,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,6 +56,28 @@ impl VcsResult {
     }
 }
 
+impl From<CommandError> for VcsError {
+    fn from(error: CommandError) -> Self {
+        match error {
+            CommandError::NotFound => Self::CommandNotFound,
+            CommandError::Failed => Self::NoRemote,
+            CommandError::TimedOut => Self::TimedOut,
+        }
+    }
+}
+
+// Every editable record can point at the same stalled repository, so a run spends at most this long
+// on commands that time out; once it is gone, later commands time out without starting.
+const STALL_BUDGET: Duration = Duration::from_secs(10);
+
+thread_local! {
+    static STALL_REMAINING: Cell<Duration> = const { Cell::new(STALL_BUDGET) };
+}
+
+pub(super) fn reset_stall_budget() {
+    STALL_REMAINING.set(STALL_BUDGET);
+}
+
 pub(super) fn command(
     processes: &dyn ProcessRunner,
     program: &str,
@@ -60,9 +85,13 @@ pub(super) fn command(
     cwd: &Path,
     status: ExitStatusPolicy,
 ) -> Result<String, CommandError> {
+    let timeout = STALL_REMAINING.get().min(Duration::from_secs(5));
+    if timeout.is_zero() {
+        return Err(CommandError::TimedOut);
+    }
     let mut request = ProcessRequest::new(program, args.iter().copied())
         .in_directory(cwd)
-        .with_timeout(Duration::from_secs(5));
+        .with_timeout(timeout);
     if program == "git" {
         request = request.without_environment(["GIT_DIR", "GIT_WORK_TREE"]);
     }
@@ -73,7 +102,11 @@ pub(super) fn command(
     }
     let output = processes.run(&request).map_err(|error| match error {
         ProcessError::NotFound => CommandError::NotFound,
-        ProcessError::Failed(_) | ProcessError::TimedOut => CommandError::Failed,
+        ProcessError::Failed(_) => CommandError::Failed,
+        ProcessError::TimedOut => {
+            STALL_REMAINING.set(STALL_REMAINING.get().saturating_sub(timeout));
+            CommandError::TimedOut
+        }
     })?;
     if status == ExitStatusPolicy::RequireSuccess && !output.success {
         return Err(CommandError::Failed);

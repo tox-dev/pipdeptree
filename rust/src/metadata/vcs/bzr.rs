@@ -10,8 +10,12 @@ use super::shared::{
 pub(super) struct Bzr;
 
 impl super::Vcs for Bzr {
-    fn root(&self, _processes: &dyn ProcessRunner, location: &Path) -> Option<std::path::PathBuf> {
-        marker_root(location, ".bzr", true)
+    fn root(
+        &self,
+        _processes: &dyn ProcessRunner,
+        location: &Path,
+    ) -> Result<Option<std::path::PathBuf>, VcsError> {
+        Ok(marker_root(location, ".bzr", true))
     }
 
     fn requirement(
@@ -30,9 +34,7 @@ impl super::Vcs for Bzr {
         ) {
             Ok(output) => parse_remote(&output),
             Err(CommandError::Failed) => None,
-            Err(CommandError::NotFound) => {
-                return VcsResult::error(Some("bzr"), VcsError::CommandNotFound);
-            }
+            Err(error) => return VcsResult::error(Some("bzr"), error.into()),
         };
         let Some(remote) = remote else {
             return VcsResult::error(Some("bzr"), VcsError::NoRemote);
@@ -50,9 +52,7 @@ impl super::Vcs for Bzr {
                 _ => None,
             },
             Err(CommandError::Failed) => None,
-            Err(CommandError::NotFound) => {
-                return VcsResult::error(Some("bzr"), VcsError::CommandNotFound);
-            }
+            Err(error) => return VcsResult::error(Some("bzr"), error.into()),
         };
         let Some(revision) = revision else {
             return VcsResult::error(Some("bzr"), VcsError::NoRemote);

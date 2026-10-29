@@ -11,8 +11,12 @@ use super::shared::{
 pub(super) struct Svn;
 
 impl super::Vcs for Svn {
-    fn root(&self, _processes: &dyn ProcessRunner, location: &Path) -> Option<std::path::PathBuf> {
-        marker_root(location, ".svn", true)
+    fn root(
+        &self,
+        _processes: &dyn ProcessRunner,
+        location: &Path,
+    ) -> Result<Option<std::path::PathBuf>, VcsError> {
+        Ok(marker_root(location, ".svn", true))
     }
 
     fn requirement(
@@ -31,9 +35,7 @@ impl super::Vcs for Svn {
         ) {
             Ok(output) => parse_info(&output),
             Err(CommandError::Failed) => None,
-            Err(CommandError::NotFound) => {
-                return VcsResult::error(Some("svn"), VcsError::CommandNotFound);
-            }
+            Err(error) => return VcsResult::error(Some("svn"), error.into()),
         };
         if info.is_none() {
             info = legacy_info(location);

@@ -8,12 +8,16 @@ mod hg;
 mod shared;
 mod svn;
 
-use shared::{VcsError, VcsResult};
+use shared::{VcsError, VcsResult, reset_stall_budget};
 
 // One backend per supported VCS. Adding a system means adding its module and one entry here; the
 // dispatch, cache reset, and innermost-root selection all iterate this slice.
 trait Vcs {
-    fn root(&self, processes: &dyn ProcessRunner, location: &Path) -> Option<PathBuf>;
+    fn root(
+        &self,
+        processes: &dyn ProcessRunner,
+        location: &Path,
+    ) -> Result<Option<PathBuf>, VcsError>;
     fn requirement(
         &self,
         processes: &dyn ProcessRunner,
@@ -28,6 +32,7 @@ trait Vcs {
 const BACKENDS: &[&dyn Vcs] = &[&git::Git, &hg::Hg, &svn::Svn, &bzr::Bzr];
 
 pub fn reset_caches() {
+    reset_stall_budget();
     for backend in BACKENDS {
         backend.reset_cache();
     }
@@ -41,8 +46,17 @@ pub(super) fn editable_requirement(
 ) -> String {
     let roots = BACKENDS
         .iter()
-        .filter_map(|backend| Some((backend.root(processes, location)?, *backend)))
-        .collect::<Vec<_>>();
+        .filter_map(|backend| {
+            let root = backend.root(processes, location).transpose()?;
+            Some(root.map(|root| (root, *backend)))
+        })
+        .collect::<Result<Vec<_>, _>>();
+    let roots = match roots {
+        Ok(roots) => roots,
+        Err(error) => {
+            return format_result(location, package, version, VcsResult::error(None, error));
+        }
+    };
     let Some((root, backend)) = innermost(roots) else {
         return format!(
             "# Editable install with no version control ({package}=={version})\n-e {}",
@@ -68,6 +82,10 @@ fn format_result(location: &Path, package: &str, version: &str, result: VcsResul
         )),
         VcsError::InvalidRemote => Some(format!(
             "# Editable {} install ({package}=={version}) with either a deleted local remote or invalid URI:",
+            result.name.unwrap_or("VCS")
+        )),
+        VcsError::TimedOut => Some(format!(
+            "# Editable {} install whose lookup timed out ({package}=={version})",
             result.name.unwrap_or("VCS")
         )),
         VcsError::None | VcsError::CommandNotFound => None,
