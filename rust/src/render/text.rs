@@ -2,12 +2,13 @@ use std::cell::OnceCell;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 
+use crate::Error;
 use crate::graph::{Dependency, Graph, ReverseRoot};
 use crate::options::{ComputedField, Options};
 use crate::process::ProcessRunner;
 
 use super::rich_text::{self, DependencyLabel, Status, VersionLabel};
-use super::shared::{format_size, required_version, reverse_required_extras};
+use super::shared::{check_tree_depth, format_size, required_version, reverse_required_extras};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(super) enum TextStyle {
@@ -23,7 +24,7 @@ pub(super) fn render(
     options: &Options,
     style: TextStyle,
     color: bool,
-) -> String {
+) -> Result<String, Error> {
     let mut renderer = TreeRenderer {
         graph,
         options,
@@ -52,7 +53,7 @@ pub(super) fn render(
                     );
                     renderer.lines.push(label);
                     renderer.path.insert(index);
-                    renderer.walk_reverse(index, None, "", 0);
+                    renderer.walk_reverse(index, None, "", 0)?;
                 }
                 ReverseRoot::Missing { name, parents } => {
                     let version = "?";
@@ -61,11 +62,11 @@ pub(super) fn render(
                     } else {
                         format!("{name}=={version}")
                     });
-                    renderer.walk_reverse_parents(parents, "", 0);
+                    renderer.walk_reverse_parents(parents, "", 0)?;
                 }
             }
         }
-        return renderer.lines.join("\n");
+        return Ok(renderer.lines.join("\n"));
     }
     for root in graph.roots(options.reverse, options.all) {
         let label = root_label(processes, graph, root, style, renderer.suffix(root), color);
@@ -74,12 +75,12 @@ pub(super) fn render(
         renderer.expanded.clear();
         renderer.path.insert(root);
         if options.reverse {
-            renderer.walk_reverse(root, None, "", 0);
+            renderer.walk_reverse(root, None, "", 0)?;
         } else {
-            renderer.walk_forward(root, None, "", 0);
+            renderer.walk_forward(root, None, "", 0)?;
         }
     }
-    renderer.lines.join("\n")
+    Ok(renderer.lines.join("\n"))
 }
 
 struct TreeRenderer<'a> {
@@ -113,9 +114,9 @@ impl TreeRenderer<'_> {
         extras: Option<&BTreeSet<String>>,
         prefix: &str,
         depth: usize,
-    ) {
+    ) -> Result<(), Error> {
         if self.options.depth.is_some_and(|limit| depth >= limit) {
-            return;
+            return Ok(());
         }
         let children = extras.map_or_else(
             || self.graph.expanded_children(parent),
@@ -125,6 +126,9 @@ impl TreeRenderer<'_> {
             && self.options.computed.iter().any(|field| field.is_unique()))
         .then(|| self.graph.unique_dependencies(parent));
         let children = children.collect::<Vec<_>>();
+        if !children.is_empty() {
+            check_tree_depth(depth + 1)?;
+        }
         let count = children.len();
         for (position, dependency) in children.into_iter().enumerate() {
             let last = position + 1 == count;
@@ -149,9 +153,10 @@ impl TreeRenderer<'_> {
             };
             self.path.insert(child);
             let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
-            self.walk_forward(child, Some(&extras), &next_prefix, depth + 1);
+            self.walk_forward(child, Some(&extras), &next_prefix, depth + 1)?;
             self.path.remove(&child);
         }
+        Ok(())
     }
 
     // A package already on the path closes a cycle, and one printed earlier under the same root
@@ -193,12 +198,12 @@ impl TreeRenderer<'_> {
         required_extras: Option<&BTreeSet<String>>,
         prefix: &str,
         depth: usize,
-    ) {
+    ) -> Result<(), Error> {
         self.walk_reverse_parents(
             self.graph.parents_for(child, required_extras),
             prefix,
             depth,
-        );
+        )
     }
 
     fn walk_reverse_parents(
@@ -206,9 +211,12 @@ impl TreeRenderer<'_> {
         parents: Vec<(usize, &Dependency)>,
         prefix: &str,
         depth: usize,
-    ) {
+    ) -> Result<(), Error> {
         if self.options.depth.is_some_and(|limit| depth >= limit) {
-            return;
+            return Ok(());
+        }
+        if !parents.is_empty() {
+            check_tree_depth(depth + 1)?;
         }
         let count = parents.len();
         for (position, (parent, dependency)) in parents.into_iter().enumerate() {
@@ -238,9 +246,10 @@ impl TreeRenderer<'_> {
             }
             self.path.insert(parent);
             let next_prefix = format!("{}{}", prefix, continuation(self.style, last, self.unicode));
-            self.walk_reverse(parent, required_extras.as_ref(), &next_prefix, depth + 1);
+            self.walk_reverse(parent, required_extras.as_ref(), &next_prefix, depth + 1)?;
             self.path.remove(&parent);
         }
+        Ok(())
     }
 }
 

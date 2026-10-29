@@ -26,11 +26,11 @@ pub fn render(
     } else {
         match &options.output_format {
             Format::Json => json::render(graph, options),
-            Format::JsonTree => json_tree::render(graph, options),
+            Format::JsonTree => json_tree::render(graph, options)?,
             Format::CycloneDxJson => return sbom::render(graph, options),
             Format::Mermaid => format!("{}\n", mermaid::render(graph, options)),
-            Format::Freeze => freeze::render(processes, graph, options),
-            Format::Rich => rich_text::render(processes, graph, options, color),
+            Format::Freeze => freeze::render(processes, graph, options)?,
+            Format::Rich => rich_text::render(processes, graph, options, color)?,
             Format::Graphviz(target) => {
                 let dot = graphviz::render(graph, options);
                 if target == "dot" {
@@ -49,7 +49,7 @@ pub fn render(
                     text::TextStyle::Plain
                 },
                 false,
-            ),
+            )?,
         }
     };
     let mut output = text.into_bytes();

@@ -1,5 +1,6 @@
 use anstyle::{AnsiColor, Style};
 
+use crate::Error;
 use crate::graph::Graph;
 use crate::options::Options;
 use crate::process::ProcessRunner;
@@ -11,7 +12,7 @@ pub(super) fn render(
     graph: &Graph,
     options: &Options,
     color: bool,
-) -> String {
+) -> Result<String, Error> {
     render_text(processes, graph, options, TextStyle::Rich, color)
 }
 
