@@ -163,9 +163,10 @@ By default the resolve runs against PyPI. Point it at an internal index with ``-
 ``--index-url`` replaces PyPI as the primary index, matching pip's ``--index-url``. ``--extra-index-url`` keeps
 PyPI as the primary and appends each extra after it. When a flag is absent, the value falls back to the environment:
 ``--index-url`` reads ``PIP_INDEX_URL`` then ``UV_INDEX_URL``, and ``--extra-index-url`` reads
-``PIP_EXTRA_INDEX_URL`` then ``UV_EXTRA_INDEX_URL`` (both whitespace separated, like pip and uv). With nothing set
-the resolve uses PyPI. pipdeptree drops a user name and password from these URLs before the resolve. Nab sends no
-credentials, so an index that requires authentication does not work with ``from-index``.
+``PIP_EXTRA_INDEX_URL`` then ``UV_EXTRA_INDEX_URL`` (both whitespace separated, like pip and uv). An empty variable
+counts as unset. With nothing set the resolve uses PyPI. pipdeptree drops a user name and password from these URLs
+before the resolve. Nab sends no credentials, so an index that requires authentication does not work with
+``from-index``.
 
 The resolver searches indexes in order and uses the first index that contains a package. pip merges index results and
 picks the highest version. Put the trusted index for each package first.

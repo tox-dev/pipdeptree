@@ -774,6 +774,14 @@ fn resolves_pyproject_indexes(
     &[("UV_EXTRA_INDEX_URL", Some("https://uv.example/simple"))],
     "[('pypi', 'https://pypi.org/simple'), ('extra-1', 'https://uv.example/simple')]"
 )]
+#[case::empty_pip_extras_fall_back(
+    &[],
+    &[
+        ("PIP_EXTRA_INDEX_URL", Some("")),
+        ("UV_EXTRA_INDEX_URL", Some("https://uv.example/simple")),
+    ],
+    "[('pypi', 'https://pypi.org/simple'), ('extra-1', 'https://uv.example/simple')]"
+)]
 #[case::pip_credentials(
     &[],
     &[("PIP_INDEX_URL", Some("https://user:secret@pip.example/simple"))],
