@@ -868,13 +868,41 @@ fn ignores_empty_legacy_editable_links() {
     );
 }
 
+#[rstest]
+#[case::dist_info("demo-1.dist-info/METADATA", ".")]
+#[case::another_directory("demo-1.egg-info/PKG-INFO", "other")]
+fn ignores_legacy_editable_links_of_other_installs(#[case] metadata: &str, #[case] link: &str) {
+    let site = PackageSite::new();
+    let metadata = site.path().join(metadata);
+    fs::create_dir(metadata.parent().unwrap()).unwrap();
+    fs::write(&metadata, "Name: demo\nVersion: 1\n").unwrap();
+    fs::create_dir(site.path().join("other")).unwrap();
+    site.write_file(
+        "demo.egg-link",
+        &site.path().join(link).display().to_string(),
+    );
+
+    let output = execute_in(&site, &["--freeze"]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, "demo==1\n", "")
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn ignores_symlinked_legacy_editable_links() {
     let site = PackageSite::new();
-    site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+    let metadata = site.path().join("demo-1.egg-info");
+    fs::create_dir(&metadata).unwrap();
+    fs::write(metadata.join("PKG-INFO"), "Name: demo\nVersion: 1\n").unwrap();
     let outside = tempfile::tempdir().unwrap();
-    fs::write(outside.path().join("file"), "first line\n").unwrap();
+    fs::write(
+        outside.path().join("file"),
+        site.path().display().to_string(),
+    )
+    .unwrap();
     std::os::unix::fs::symlink(
         outside.path().join("file"),
         site.path().join("demo.egg-link"),
