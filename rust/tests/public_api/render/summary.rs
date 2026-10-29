@@ -239,6 +239,51 @@ fn measures_depth_through_reachable_cycles() {
 }
 
 #[test]
+fn measures_depth_of_mutually_dependent_packages() {
+    let site = PackageSite::new();
+    let count: u64 = 24;
+    for package in 0..count {
+        let requires = (0..count)
+            .filter(|other| *other != package)
+            .map(|other| format!("Requires-Dist: pkg{other:02}\n"))
+            .collect::<Vec<_>>()
+            .concat();
+        site.write(
+            &format!("pkg{package:02}-1.dist-info"),
+            &format!("Name: pkg{package:02}\nVersion: 1\n{requires}"),
+        );
+    }
+
+    let output = execute(&site, &["--summary", "--output", "json"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(value["max_depth"].as_u64(), Some(count));
+}
+
+#[test]
+fn counts_every_cycle_member_towards_depth() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        "Name: root\nVersion: 1\nRequires-Dist: loop-a\n",
+    );
+    site.write(
+        "loop-a-1.dist-info",
+        "Name: loop-a\nVersion: 1\nRequires-Dist: leaf\nRequires-Dist: loop-b\n",
+    );
+    site.write(
+        "loop-b-1.dist-info",
+        "Name: loop-b\nVersion: 1\nRequires-Dist: loop-a\n",
+    );
+    site.write("leaf-1.dist-info", "Name: leaf\nVersion: 1\n");
+
+    let output = execute(&site, &["--summary", "--output", "json"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(value["max_depth"].as_u64(), Some(4));
+}
+
+#[test]
 fn renders_summary_rich_ascii_for_non_unicode_encodings() {
     let site = render_site();
     let output = execute(

@@ -11,6 +11,7 @@ use pyo3::types::{PyDict, PyDictMethods, PyList, PyListMethods, PyStringMethods,
 use pyo3::{PyResult, Python};
 use serde::{Deserialize, Serialize};
 use tempfile::tempdir;
+use url::Url;
 
 use crate::Error;
 use crate::metadata::{Discovered, Package, ResolvedDeclaration, ResolvedEdge};
@@ -93,15 +94,22 @@ struct Nab {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     constraints: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    build_policy: Option<&'static str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     vcs: Option<VcsPolicy>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     local_sources: Vec<LocalSource>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     vcs_sources: Vec<VcsSource>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    package_rules: Vec<PackageRule>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     indexes: Vec<Index>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
+struct PackageRule {
+    r#match: [String; 1],
+    build_policy: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -178,6 +186,8 @@ fn resolve_indexes(index_url: Option<&str>, extra_index_urls: &[String]) -> Opti
     if primary.is_none() && extras.is_empty() {
         return None;
     }
+    let primary = primary.map(without_credentials);
+    let extras = extras.into_iter().map(without_credentials);
     let mut indexes = vec![primary.map_or_else(
         || Index {
             name: PYPI_NAME.to_string(),
@@ -192,11 +202,26 @@ fn resolve_indexes(index_url: Option<&str>, extra_index_urls: &[String]) -> Opti
             url,
         },
     )];
-    indexes.extend(extras.into_iter().enumerate().map(|(position, url)| Index {
+    indexes.extend(extras.enumerate().map(|(position, url)| Index {
         name: format!("extra-{}", position + 1),
         url,
     }));
     Some(indexes)
+}
+
+// Nab sends no credentials from an index URL, but quotes the URL in its error messages, so the
+// user name and password would reach stderr without ever authenticating a request.
+fn without_credentials(url: String) -> String {
+    match Url::parse(&url) {
+        Ok(mut parsed) if !parsed.username().is_empty() || parsed.password().is_some() => {
+            parsed
+                .set_username("")
+                .and_then(|()| parsed.set_password(None))
+                .expect("a URL with credentials has a host");
+            parsed.into()
+        }
+        _ => url,
+    }
 }
 
 fn parse_requirements_file(
@@ -444,13 +469,23 @@ fn render_pyproject(inputs: &Inputs) -> String {
         tool: has_nab.then(|| Tool {
             nab: Nab {
                 constraints: inputs.constraints.clone(),
-                build_policy: has_sources.then_some("build-remote"),
                 vcs: (!inputs.vcs_sources.is_empty()).then_some(VcsPolicy {
                     policy: "allow",
                     allowed_schemes: GIT_SCHEMES,
                 }),
                 local_sources: inputs.local_sources.clone(),
                 vcs_sources: inputs.vcs_sources.clone(),
+                // The resolver's default policy already builds a listed local source. A listed clone
+                // needs build-remote, which set for the whole resolve would also run the backend of
+                // every sdist downloaded from the index, so grant it to the named clones alone.
+                package_rules: inputs
+                    .vcs_sources
+                    .iter()
+                    .map(|source| PackageRule {
+                        r#match: [source.name.clone()],
+                        build_policy: "build-remote",
+                    })
+                    .collect(),
                 indexes,
             },
         }),

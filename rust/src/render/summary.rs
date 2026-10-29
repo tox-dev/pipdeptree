@@ -236,13 +236,28 @@ fn rich_table(
     lines.join("\n")
 }
 
+// The longest simple path through a cycle takes time exponential in the cycle's size to find,
+// so a cycle counts as all of its members. The condensed graph is acyclic and one pass from the
+// dependencies up measures it: components arrive dependents first, and an edge inside a
+// component reads a depth of zero.
 fn max_depth(graph: &Graph) -> usize {
-    let mut memo = vec![None; graph.nodes.len()];
-    let mut on_path = vec![false; graph.nodes.len()];
+    let mut depth = vec![0; graph.nodes.len()];
+    for component in graph.components().iter().rev() {
+        let below = component
+            .iter()
+            .flat_map(|node| graph.expanded_children(*node))
+            .filter_map(|dependency| dependency.target)
+            .map(|child| depth[child])
+            .max()
+            .unwrap_or(0);
+        for node in component {
+            depth[*node] = below + component.len();
+        }
+    }
     graph
         .roots(false, false)
         .into_iter()
-        .map(|root| longest(graph, root, &mut on_path, &mut memo))
+        .map(|root| depth[root])
         .max()
         .unwrap_or(0)
 }
@@ -255,65 +270,6 @@ fn direct_dependencies(graph: &Graph) -> usize {
         .collect::<HashSet<_>>()
         .len();
     graph.visible_indices().count() - transitive
-}
-
-// Iterative post-order so a pathological chain cannot overflow the stack. A depth computed
-// while a cycle member sat on the path depends on that path, so only cycle-free subtrees
-// memoize; diamonds stay linear either way.
-fn longest(graph: &Graph, start: usize, on_path: &mut [bool], memo: &mut [Option<usize>]) -> usize {
-    let mut stack = vec![Frame::new(graph, start)];
-    on_path[start] = true;
-    loop {
-        let frame = stack
-            .last_mut()
-            .expect("the loop breaks once the root frame pops");
-        if let Some(child) = frame.children.next() {
-            if on_path[child] {
-                frame.cacheable = false;
-            } else if let Some(depth) = memo[child] {
-                frame.depth = frame.depth.max(depth);
-            } else {
-                on_path[child] = true;
-                stack.push(Frame::new(graph, child));
-            }
-            continue;
-        }
-        let frame = stack.pop().expect("last_mut confirmed a frame");
-        on_path[frame.node] = false;
-        let depth = frame.depth + 1;
-        if frame.cacheable {
-            memo[frame.node] = Some(depth);
-        }
-        match stack.last_mut() {
-            Some(parent) => {
-                parent.depth = parent.depth.max(depth);
-                parent.cacheable &= frame.cacheable;
-            }
-            None => return depth,
-        }
-    }
-}
-
-struct Frame {
-    node: usize,
-    children: std::vec::IntoIter<usize>,
-    depth: usize,
-    cacheable: bool,
-}
-
-impl Frame {
-    fn new(graph: &Graph, node: usize) -> Self {
-        Self {
-            node,
-            children: graph
-                .expanded_children(node)
-                .filter_map(|dependency| dependency.target)
-                .collect::<Vec<_>>()
-                .into_iter(),
-            depth: 0,
-            cacheable: true,
-        }
-    }
 }
 
 fn license_breakdown(graph: &Graph) -> BTreeMap<String, usize> {

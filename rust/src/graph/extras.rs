@@ -1,7 +1,8 @@
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::{BTreeSet, VecDeque};
+use std::sync::Arc;
 
-use super::Graph;
+use super::{Dependency, Graph};
 
 impl Graph {
     pub fn apply_global_extras(&mut self, extras: &HashMap<String, BTreeSet<String>>) {
@@ -16,18 +17,13 @@ impl Graph {
                     .or_default()
                     .extend(values.iter().cloned());
                 let node = &self.nodes[index];
-                for dependency in values
-                    .iter()
-                    .filter_map(|extra| node.optional.get(extra))
-                    .flat_map(|range| &node.dependencies[range.clone()])
-                {
-                    if let Some(target) = dependency.target {
-                        let nested = dependency.requested_extras();
-                        if !nested.is_empty() {
-                            pending.push_back((target, nested));
-                        }
-                    }
-                }
+                pending.extend(
+                    values
+                        .iter()
+                        .filter_map(|extra| node.optional.get(extra))
+                        .flat_map(Clone::clone)
+                        .map(|slot| (index, slot)),
+                );
             }
         }
         self.propagate_requested_extras(pending);
@@ -39,44 +35,34 @@ impl Graph {
 
     pub(super) fn collect_requested_extras(&mut self) {
         let mut pending = VecDeque::new();
-        for index in 0..self.nodes.len() {
-            let node = &self.nodes[index];
-            for dependency in &node.dependencies[node.mandatory.clone()] {
-                if let Some(target) = dependency.target {
-                    let extras = dependency.requested_extras();
-                    if !extras.is_empty() {
-                        pending.push_back((target, extras));
-                    }
-                }
-            }
+        for (index, node) in self.nodes.iter().enumerate() {
+            pending.extend(node.mandatory.clone().map(|slot| (index, slot)));
         }
         self.propagate_requested_extras(pending);
     }
 
-    fn propagate_requested_extras(&mut self, mut pending: VecDeque<(usize, BTreeSet<String>)>) {
-        while let Some((index, extras)) = pending.pop_front() {
-            let entry = self.requested_extras.entry(index).or_default();
-            let new = extras.difference(entry).cloned().collect::<BTreeSet<_>>();
-            if new.is_empty() {
+    // The queue holds (node, slot) and reads the requested extras on pop: a requirement fills one
+    // slot per extra activating it, so queueing the extras would hold that many copies of them.
+    fn propagate_requested_extras(&mut self, mut pending: VecDeque<(usize, usize)>) {
+        while let Some((parent, slot)) = pending.pop_front() {
+            let dependency = &self.nodes[parent].dependencies[slot];
+            let Some(index) = dependency.target else {
+                continue;
+            };
+            let extras = dependency.requested_extras();
+            if extras.is_empty() {
                 continue;
             }
+            let entry = self.requested_extras.entry(index).or_default();
+            let new = extras.difference(entry).cloned().collect::<BTreeSet<_>>();
             entry.extend(new.iter().cloned());
-            for extra in new {
-                let node = &self.nodes[index];
-                for dependency in node
-                    .optional
-                    .get(&extra)
-                    .into_iter()
-                    .flat_map(|range| &node.dependencies[range.clone()])
-                {
-                    if let Some(target) = dependency.target {
-                        let nested = dependency.requested_extras();
-                        if !nested.is_empty() {
-                            pending.push_back((target, nested));
-                        }
-                    }
-                }
-            }
+            let node = &self.nodes[index];
+            pending.extend(
+                new.iter()
+                    .filter_map(|extra| node.optional.get(extra))
+                    .flat_map(Clone::clone)
+                    .map(|slot| (index, slot)),
+            );
         }
     }
 
@@ -92,28 +78,44 @@ impl Graph {
                     .map(move |extra| (index, extra))
             })
             .collect::<HashSet<_>>();
-        let mut dependents = HashMap::<(usize, String), Vec<(usize, String)>>::default();
-        let mut unsatisfied = VecDeque::new();
+        // Grouping the activating extras under their shared requirement checks the extras it
+        // requests once, where a check per activating extra would record each of them m times.
+        let mut activated = HashMap::<_, (&Dependency, Vec<_>)>::default();
         for pair in &satisfied {
             let node = &self.nodes[pair.0];
             for dependency in &node.dependencies[node.optional[&pair.1].clone()] {
-                let Some(target) = dependency.target else {
-                    unsatisfied.push_back(pair.clone());
-                    continue;
-                };
-                for extra in dependency.requested_extras() {
-                    let required = (target, extra);
-                    if satisfied.contains(&required) {
-                        dependents.entry(required).or_default().push(pair.clone());
-                    } else {
-                        unsatisfied.push_back(pair.clone());
-                    }
+                activated
+                    .entry(Arc::as_ptr(&dependency.requirement))
+                    .or_insert((dependency, Vec::new()))
+                    .1
+                    .push(pair.clone());
+            }
+        }
+        let mut dependents = HashMap::<(usize, String), Vec<_>>::default();
+        let mut unsatisfied = VecDeque::new();
+        for (requirement, (dependency, _)) in &activated {
+            let Some(target) = dependency.target else {
+                unsatisfied.push_back(*requirement);
+                continue;
+            };
+            for extra in dependency.requested_extras() {
+                let required = (target, extra);
+                if satisfied.contains(&required) {
+                    dependents.entry(required).or_default().push(*requirement);
+                } else {
+                    unsatisfied.push_back(*requirement);
                 }
             }
         }
-        while let Some(pair) = unsatisfied.pop_front() {
-            if satisfied.remove(&pair) {
-                unsatisfied.extend(dependents.remove(&pair).into_iter().flatten());
+        while let Some(requirement) = unsatisfied.pop_front() {
+            for pair in activated
+                .remove(&requirement)
+                .into_iter()
+                .flat_map(|(_, pairs)| pairs)
+            {
+                if satisfied.remove(&pair) {
+                    unsatisfied.extend(dependents.remove(&pair).into_iter().flatten());
+                }
             }
         }
         for (index, extra) in satisfied {

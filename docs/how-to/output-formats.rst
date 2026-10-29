@@ -19,6 +19,13 @@ Unicode box-drawing tree:
     ├── pluggy [required: >=1.5,<2, installed: 1.6.0]
     └── Pygments [required: >=2.7.2, installed: 2.20.0]
 
+Each tree lists a package's dependencies once per top-level package. A later line for the same package, reached with the
+same extras, ends in ``(*)``: its dependencies appear above, under its first line. A line that closes a dependency cycle
+ends in ``(*)`` too, since the package it names is one of its own ancestors. A package without dependencies never gets
+the marker. When ``--depth`` cut the first listing short, a later line with more levels left below it lists the
+dependencies again. ``rich`` uses the same marker, and ``freeze`` keeps the line without it, so the output stays a valid
+requirements file.
+
 rich
 ----
 
@@ -66,6 +73,10 @@ Freeze emits pip-compatible requirements with indentation for the hierarchy:
       packaging==26.2
       pluggy==1.6.0
       Pygments==2.20.0
+
+Names and versions are written with each character that cannot appear in a project name or version replaced by ``?``:
+anything but ASCII letters, digits, ``.``, ``_``, ``-``, ``!`` and ``+``, and a first character that is not a letter or
+digit. A name or version therefore cannot add lines, options or comments to the requirements file.
 
 json
 ----
@@ -214,10 +225,15 @@ json-tree
         }
     ]
 
+Where the text tree ends a line in ``(*)``, the object carries ``"repeated": true`` and an empty ``dependencies`` list.
+
 mermaid
 -------
 
-`Mermaid <https://mermaid.js.org>`_ flowchart diagram:
+`Mermaid <https://mermaid.js.org>`_ flowchart diagram. Quotes, ``#``, ``&``, ``<``, ``>``, backticks and control
+characters in node labels appear as `entity codes
+<https://mermaid.js.org/syntax/flowchart.html#entity-codes-to-escape-characters>`_ such as ``#34;``. A package whose name
+is empty or holds characters other than ASCII letters, digits, ``-``, ``_`` and ``.`` gets a ``package_<n>`` node id:
 
 .. code-block:: console
 

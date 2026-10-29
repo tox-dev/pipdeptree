@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use crate::metadata::direct_url::redact_url;
 use crate::process::{ProcessError, ProcessRequest, ProcessRunner};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -65,6 +66,11 @@ pub(super) fn command(
     if program == "git" {
         request = request.without_environment(["GIT_DIR", "GIT_WORK_TREE"]);
     }
+    if program == "hg" {
+        // The repository root comes from package metadata, and its hgrc can define hooks, shell
+        // aliases and extensions that hg would run for any command; hg.rs reads the file as data.
+        request = request.with_environment([("HGRCSKIPREPO", "1")]);
+    }
     let output = processes.run(&request).map_err(|error| match error {
         ProcessError::NotFound => CommandError::NotFound,
         ProcessError::Failed(_) | ProcessError::TimedOut => CommandError::Failed,
@@ -78,15 +84,15 @@ pub(super) fn command(
 }
 
 pub(super) fn build_requirement(input: VcsRequirement<'_>) -> VcsResult {
+    let remote = redact_url(input.remote, input.vcs == "git");
     let remote = if input.always_prefix
-        || !input
-            .remote
+        || !remote
             .to_ascii_lowercase()
             .starts_with(&format!("{}:", input.vcs))
     {
-        format!("{}+{}", input.vcs, input.remote)
+        format!("{}+{remote}", input.vcs)
     } else {
-        input.remote.to_string()
+        remote
     };
     let mut requirement = format!(
         "{remote}@{}#egg={}",

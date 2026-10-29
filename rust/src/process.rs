@@ -13,6 +13,7 @@ pub struct ProcessRequest {
     pub stdin: Vec<u8>,
     pub timeout: Option<Duration>,
     pub removed_environment: Vec<OsString>,
+    pub added_environment: Vec<(OsString, OsString)>,
 }
 
 impl ProcessRequest {
@@ -27,6 +28,7 @@ impl ProcessRequest {
             stdin: Vec::new(),
             timeout: None,
             removed_environment: Vec::new(),
+            added_environment: Vec::new(),
         }
     }
 
@@ -54,6 +56,18 @@ impl ProcessRequest {
         names: impl IntoIterator<Item = impl Into<OsString>>,
     ) -> Self {
         self.removed_environment = names.into_iter().map(Into::into).collect();
+        self
+    }
+
+    #[must_use]
+    pub fn with_environment(
+        mut self,
+        variables: impl IntoIterator<Item = (impl Into<OsString>, impl Into<OsString>)>,
+    ) -> Self {
+        self.added_environment = variables
+            .into_iter()
+            .map(|(name, value)| (name.into(), value.into()))
+            .collect();
         self
     }
 }
@@ -100,6 +114,9 @@ impl ProcessRunner for SystemProcessRunner {
             .stderr(Stdio::piped());
         for name in &request.removed_environment {
             command.env_remove(name);
+        }
+        for (name, value) in &request.added_environment {
+            command.env(name, value);
         }
         if let Some(path) = &request.current_dir {
             command.current_dir(path);

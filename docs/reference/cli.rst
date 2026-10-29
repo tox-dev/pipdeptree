@@ -28,7 +28,8 @@ works for each command. *default* needs an installed environment; text reports `
       - Packages required by another package (``total - direct``).
       - all
     * - ``max_depth``
-      - Longest dependency chain, counted in packages.
+      - Longest dependency chain, counted in packages. A dependency cycle counts as a chain through all of its
+        packages, even when no single path visits them all.
       - all
     * - ``cyclic_dependencies``
       - Number of dependency cycles detected.
