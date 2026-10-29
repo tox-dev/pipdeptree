@@ -97,8 +97,8 @@ pipdeptree, which matters when you preview a tree for a version other than your 
 The resolver handles a checkout (an editable install, a local path, or a cloned git repo) by reading its metadata
 rather than querying the index. PEP 621 ``[project]`` data and PEP 643 static sdist metadata need no build. A target
 that declares dynamic dependencies and has no static fallback runs its build backend. Most local and git dependencies
-therefore incur no build. Packages from the index never build: a release whose only sdist declares dynamic dependencies
-without static metadata is rejected, and the resolver tries other versions.
+therefore incur no build. The resolver does not build packages from the index. It skips a release whose only sdist
+declares dynamic dependencies without static metadata and tries other versions.
 
 .. mermaid::
 

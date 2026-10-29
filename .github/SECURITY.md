@@ -18,8 +18,8 @@ you tested. Write the report yourself; unreviewed tool or model output takes lon
 ## What to expect
 
 Volunteers maintain pipdeptree, with no on-call rotation. We aim to acknowledge a report within **5 working days** and
-assess it within **15 working days**. Fixes are developed in a private fork attached to the draft advisory, ship in a
-new release, and the advisory, with a CVE requested through GitHub, goes out with that release. The default embargo is
+assess it within **15 working days**. We develop fixes in a private fork attached to the draft advisory and ship them in
+a new release; the advisory, with a CVE requested through GitHub, goes out with that release. The default embargo is
 **90 days** from the report; we agree any change with the reporter. We credit reporters in the advisory under the name
 they choose, or not at all. There is no bug bounty.
 
@@ -31,8 +31,8 @@ Only the latest release receives fixes. Confirm the problem reproduces on it bef
 
 A report is a vulnerability when an attacker who controls only an input that the [threat model](THREAT_MODEL.md) lists
 as untrusted breaks a guarantee pipdeptree makes. A report that first needs control of something the threat model
-trusts, such as the environment being inspected or the interpreter passed with `--python`, is a bug: we fix it in the
-open and publish no advisory. Classify by who supplies the dangerous input, not by how bad the outcome sounds.
+trusts, such as the inspected environment or the interpreter passed with `--python`, is a bug: we fix it in the open and
+publish no advisory. Classify a report by who supplies the dangerous input.
 
 **In scope**
 
@@ -55,8 +55,9 @@ open and publish no advisory. Classify by who supplies the dangerous input, not 
 - Packages installed in the inspected environment; pipdeptree reads their metadata but installing them already ran their
   code.
 - Build backends that run when `from-index` resolves a local path or VCS requirement, which Nab may build.
-- Index URLs and credentials from options or `PIP_INDEX_URL`, `UV_INDEX_URL` and friends.
-- Dependency data that is wrong but faithfully reported: pipdeptree shows the metadata it receives.
+- Index URLs and credentials from options or `PIP_INDEX_URL`, `PIP_EXTRA_INDEX_URL`, `UV_INDEX_URL` and
+  `UV_EXTRA_INDEX_URL`.
+- Wrong dependency data that pipdeptree reports as it received it.
 - What a program that consumes the JSON, SBOM or graph output does with names that are valid but misleading.
 
-If you cannot tell which side a finding falls on, report it privately and we will decide.
+If you cannot tell which side a finding falls on, report it through private vulnerability reporting and we will decide.

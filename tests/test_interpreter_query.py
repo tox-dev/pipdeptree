@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
 
-@pytest.mark.parametrize("module", ["json", "platform"])
+@pytest.mark.parametrize("module", [pytest.param("json", id="json"), pytest.param("platform", id="platform")])
 def test_query_ignores_module_in_working_directory(
     entry_point: Callable[[Sequence[str] | None], int | None],
     interpreter: Path,
@@ -32,8 +32,9 @@ def test_query_ignores_distribution_in_working_directory(
     working_directory: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    (working_directory / "planted-1.dist-info").mkdir()
-    (working_directory / "planted-1.dist-info" / "METADATA").write_text("Name: planted\nVersion: 1\n")
+    dist_info: Final = working_directory / "planted-1.dist-info"
+    dist_info.mkdir()
+    (dist_info / "METADATA").write_text("Name: planted\nVersion: 1\n")
 
     code: Final = entry_point(["--python", str(interpreter), "--freeze"])
 

@@ -1,4 +1,3 @@
-Escape package metadata in Mermaid output. Quotes, ``#``, ``&``, ``<``, ``>``, backticks and control characters in node
-labels become Mermaid entity codes, and a package whose canonical name is empty or has characters other than lowercase
-letters, digits and ``-`` gets a generated ``package_<n>`` node id, so metadata can no longer add statements to the
-diagram.
+Escape package metadata in Mermaid output, so it can no longer add statements to the diagram. Quotes, ``#``, ``&``,
+``<``, ``>``, backticks and control characters in node labels become entity codes, and a package whose canonical name is
+empty or holds characters other than lowercase letters, digits and ``-`` gets a ``package_<n>`` node id.
