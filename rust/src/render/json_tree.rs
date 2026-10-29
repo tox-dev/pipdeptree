@@ -17,7 +17,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<String, Error> 
             .into_iter()
             .map(|root| match root {
                 ReverseRoot::Installed(index) => {
-                    reverse_tree_json(graph, index, None, None, 0, &mut HashSet::new(), options)
+                    reverse_tree_json(graph, index, None, None, 0, &mut Walk::default(), options)
                 }
                 ReverseRoot::Missing { name, parents } => {
                     missing_reverse_json(graph, name, &parents, options)
@@ -35,7 +35,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<String, Error> 
                     None,
                     &BTreeSet::new(),
                     0,
-                    &mut HashSet::new(),
+                    &mut Walk::default(),
                     options,
                 )
             })
@@ -50,17 +50,39 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<String, Error> 
     Ok(String::from_utf8(output).expect("JSON is UTF-8"))
 }
 
+// The path stops cycles; `expanded` holds the subtrees already written under the current root,
+// keyed by package and the extras that select its edges, so each root's tree grows with its
+// edges rather than its paths.
+#[derive(Default)]
+struct Walk {
+    path: HashSet<usize>,
+    expanded: HashSet<(usize, Option<BTreeSet<String>>)>,
+}
+
+impl Walk {
+    fn repeats(&mut self, node: usize, extras: Option<&BTreeSet<String>>) -> bool {
+        self.path.contains(&node) || !self.expanded.insert((node, extras.cloned()))
+    }
+}
+
+// A repeated package keeps its entry, so every edge is written once, with an empty
+// `dependencies` list and `"repeated": true` in place of the subtree shown earlier.
+fn repeated_json(mut value: Value) -> Value {
+    value["dependencies"] = Value::Array(Vec::new());
+    value["repeated"] = Value::Bool(true);
+    value
+}
+
 fn forward_tree_json(
     graph: &Graph,
     index: usize,
     incoming: Option<&Dependency>,
     extras: &BTreeSet<String>,
     level: usize,
-    path: &mut HashSet<usize>,
+    walk: &mut Walk,
     options: &Options,
 ) -> Result<Value, Error> {
-    check_tree_depth(level)?;
-    path.insert(index);
+    walk.path.insert(index);
     let mut value = incoming.map_or_else(
         || package_json(graph, index, options),
         |dependency| dependency_json(graph, dependency, options),
@@ -75,24 +97,32 @@ fn forward_tree_json(
     };
     let mut dependencies = Vec::new();
     for dependency in children {
+        check_tree_depth(level + 1)?;
         let Some(target) = dependency.target else {
             dependencies.push(missing_dependency_json(dependency, options));
             continue;
         };
-        if !path.contains(&target) {
-            dependencies.push(forward_tree_json(
-                graph,
-                target,
-                Some(dependency),
-                &dependency.requested_extras(),
-                level + 1,
-                path,
-                options,
-            )?);
-        }
+        let extras = dependency.requested_extras();
+        dependencies.push(
+            if walk.repeats(target, Some(&extras))
+                && graph.children(target, &extras).next().is_some()
+            {
+                repeated_json(dependency_json(graph, dependency, options))
+            } else {
+                forward_tree_json(
+                    graph,
+                    target,
+                    Some(dependency),
+                    &extras,
+                    level + 1,
+                    walk,
+                    options,
+                )?
+            },
+        );
     }
     value["dependencies"] = Value::Array(dependencies);
-    path.remove(&index);
+    walk.path.remove(&index);
     Ok(value)
 }
 
@@ -102,11 +132,10 @@ fn reverse_tree_json(
     incoming: Option<&Dependency>,
     required_extras: Option<&BTreeSet<String>>,
     level: usize,
-    path: &mut HashSet<usize>,
+    walk: &mut Walk,
     options: &Options,
 ) -> Result<Value, Error> {
-    check_tree_depth(level)?;
-    path.insert(index);
+    walk.path.insert(index);
     let mut value = package_json(graph, index, options);
     if let Some(dependency) = incoming {
         add_requirement_json(
@@ -117,24 +146,50 @@ fn reverse_tree_json(
     } else if !options.resolved() {
         value["required_version"] = Value::String(graph.nodes[index].package.version.clone());
     }
-    let mut dependencies = Vec::new();
-    for (parent, dependency) in graph.parents_for(index, required_extras) {
-        if !path.contains(&parent) {
-            let required_extras = reverse_required_extras(graph, parent, dependency);
-            dependencies.push(reverse_tree_json(
-                graph,
-                parent,
-                Some(dependency),
-                required_extras.as_ref(),
-                level + 1,
-                path,
-                options,
-            )?);
-        }
-    }
+    let dependencies = graph
+        .parents_for(index, required_extras)
+        .into_iter()
+        .map(|(parent, dependency)| {
+            reverse_parent_json(graph, parent, dependency, level + 1, walk, options)
+        })
+        .collect::<Result<_, _>>()?;
     value["dependencies"] = Value::Array(dependencies);
-    path.remove(&index);
+    walk.path.remove(&index);
     Ok(value)
+}
+
+fn reverse_parent_json(
+    graph: &Graph,
+    parent: usize,
+    dependency: &Dependency,
+    level: usize,
+    walk: &mut Walk,
+    options: &Options,
+) -> Result<Value, Error> {
+    check_tree_depth(level)?;
+    let required_extras = reverse_required_extras(graph, parent, dependency);
+    if walk.repeats(parent, required_extras.as_ref())
+        && !graph
+            .parents_for(parent, required_extras.as_ref())
+            .is_empty()
+    {
+        let mut value = package_json(graph, parent, options);
+        add_requirement_json(
+            value.as_object_mut().expect("package JSON is an object"),
+            dependency,
+            options,
+        );
+        return Ok(repeated_json(value));
+    }
+    reverse_tree_json(
+        graph,
+        parent,
+        Some(dependency),
+        required_extras.as_ref(),
+        level,
+        walk,
+        options,
+    )
 }
 
 fn missing_dependency_json(dependency: &Dependency, options: &Options) -> Value {
@@ -184,18 +239,11 @@ fn missing_reverse_json(
     }
     // Optional dependencies without an installed target never render, so missing reverse
     // roots always arrive through mandatory edges and carry no activating extra.
+    let mut walk = Walk::default();
     let dependencies = parents
         .iter()
         .map(|(parent, dependency)| {
-            reverse_tree_json(
-                graph,
-                *parent,
-                Some(dependency),
-                None,
-                1,
-                &mut HashSet::new(),
-                options,
-            )
+            reverse_parent_json(graph, *parent, dependency, 1, &mut walk, options)
         })
         .collect::<Result<Vec<_>, _>>()?;
     object.insert("dependencies".to_string(), Value::Array(dependencies));
