@@ -6,12 +6,14 @@ use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use pep508_rs::marker::{MarkerExpression, MarkerValueExtra};
+use pep508_rs::marker::{MarkerTreeKind, MarkerValueExtra};
 use pep508_rs::pep440_rs::Version;
 use pep508_rs::{ExtraName, MarkerEnvironment, MarkerTree, Requirement, VersionOrUrl};
 use url::Url;
 
-use crate::metadata::{Package, ResolvedDeclaration, ResolvedEdge, canonicalize_name};
+use crate::metadata::{
+    Package, ResolvedDeclaration, ResolvedEdge, canonicalize_name, oversized_marker,
+};
 use crate::options::ExtrasMode;
 
 mod extras;
@@ -236,7 +238,13 @@ impl Graph {
             std::mem::take(&mut package.requires)
         };
         for raw in requires {
-            let Ok(requirement) = Requirement::<Url>::from_str(&raw) else {
+            let Some(requirement) = Some(&raw)
+                .filter(|raw| {
+                    raw.split_once(';')
+                        .is_none_or(|(_, marker)| !oversized_marker(marker))
+                })
+                .and_then(|raw| Requirement::<Url>::from_str(raw).ok())
+            else {
                 warnings.push(format!(
                     "Invalid requirement found in {}: {raw}",
                     package.name
@@ -785,17 +793,31 @@ impl<'a> Iterator for Children<'a> {
     }
 }
 
+// Converting the marker to DNF is exponential in its clauses, so this visits each node of its
+// decision diagram once instead.
 fn marker_extras(marker: &MarkerTree) -> BTreeSet<ExtraName> {
-    marker
-        .to_dnf()
-        .into_iter()
-        .flatten()
-        .filter_map(|expression| match expression {
-            MarkerExpression::Extra {
-                name: MarkerValueExtra::Extra(name),
-                ..
-            } => Some(name),
-            _ => None,
-        })
-        .collect()
+    let mut extras = BTreeSet::new();
+    let mut seen = HashSet::default();
+    let mut pending = vec![marker.clone()];
+    while let Some(node) = pending.pop() {
+        if !seen.insert(node.clone()) {
+            continue;
+        }
+        match node.kind() {
+            MarkerTreeKind::True | MarkerTreeKind::False => {}
+            MarkerTreeKind::Version(tree) => pending.extend(tree.edges().map(|(_, child)| child)),
+            MarkerTreeKind::String(tree) => pending.extend(tree.children().map(|(_, child)| child)),
+            MarkerTreeKind::In(tree) => pending.extend(tree.children().map(|(_, child)| child)),
+            MarkerTreeKind::Contains(tree) => {
+                pending.extend(tree.children().map(|(_, child)| child));
+            }
+            MarkerTreeKind::Extra(tree) => {
+                if let MarkerValueExtra::Extra(name) = tree.name() {
+                    extras.insert(name.clone());
+                }
+                pending.extend(tree.children().map(|(_, child)| child));
+            }
+        }
+    }
+    extras
 }

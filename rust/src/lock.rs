@@ -3,12 +3,13 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
-use pep508_rs::{MarkerEnvironment, MarkerTree};
+use pep508_rs::{MarkerEnvironment, MarkerTree, PackageName};
 use serde::Deserialize;
 
 use crate::Error;
 use crate::metadata::{
-    Discovered, MAX_IDENTITY_LENGTH, Package, canonicalize_name, oversized_identity, printable,
+    Discovered, MAX_IDENTITY_LENGTH, MAX_MARKER_EXTRAS, MAX_MARKER_LENGTH, Package,
+    canonicalize_name, oversized_identity, oversized_marker, printable,
 };
 
 #[derive(Debug, Deserialize)]
@@ -59,6 +60,16 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
         Ok(packages) => packages,
         Err(error) => return Err(Error::message(format!("malformed TOML: {error}"))),
     };
+    if let Some(package) = packages
+        .iter()
+        .find(|package| package.marker.as_deref().is_some_and(oversized_marker))
+    {
+        return Err(Error::message(format!(
+            "package '{}' has a marker longer than {MAX_MARKER_LENGTH} bytes or with more than \
+             {MAX_MARKER_EXTRAS} extra comparisons",
+            printable(identity(package)?)
+        )));
+    }
     // A lock may hold several entries per package, disambiguated by their environment marker.
     let packages = packages
         .into_iter()
@@ -76,12 +87,16 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
     packages
         .into_iter()
         .map(|package| {
-            let name = package
-                .name
-                .ok_or_else(|| Error::message("package is missing 'name'"))?;
-            if let Some(field) = oversized_identity(&name, &package.version) {
+            let name = identity(&package)?.to_string();
+            // The graph parses each name as a requirement, so a marker or URL in it would get there.
+            if package
+                .dependencies
+                .iter()
+                .any(|dependency| PackageName::from_str(&dependency.name).is_err())
+            {
                 return Err(Error::message(format!(
-                    "package '{field}' is longer than {MAX_IDENTITY_LENGTH} bytes"
+                    "package '{}' has a dependency whose name is not a project name",
+                    printable(&name)
                 )));
             }
             let requires = package
@@ -106,6 +121,19 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
         })
         .collect::<Result<Vec<_>, _>>()
         .map(Discovered::new)
+}
+
+fn identity(package: &LockPackage) -> Result<&str, Error> {
+    let name = package
+        .name
+        .as_deref()
+        .ok_or_else(|| Error::message("package is missing 'name'"))?;
+    if let Some(field) = oversized_identity(name, &package.version) {
+        return Err(Error::message(format!(
+            "package '{field}' is longer than {MAX_IDENTITY_LENGTH} bytes"
+        )));
+    }
+    Ok(name)
 }
 
 // The Display form of a toml error quotes the source line, and the lock path can be a symlink to

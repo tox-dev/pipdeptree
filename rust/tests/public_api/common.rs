@@ -63,6 +63,13 @@ pub fn execute_in(site: &PackageSite, args: &[&str]) -> Execution {
     )
 }
 
+pub fn extra_clauses(count: usize) -> String {
+    (0..count)
+        .map(|index| format!("(extra == 'x{index}' or extra == 'y{index}')"))
+        .collect::<Vec<_>>()
+        .join(" and ")
+}
+
 pub fn stdout(output: &Execution) -> &str {
     std::str::from_utf8(&output.stdout).unwrap()
 }

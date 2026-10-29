@@ -569,7 +569,9 @@ pipdeptree reports the parse error for an invalid package entry:
     package is missing 'name'
 
 pipdeptree rejects a package ``name`` or ``version`` longer than 255 bytes the same way, for example with ``package
-'name' is longer than 255 bytes``.
+'name' is longer than 255 bytes``. It also stops on a package ``marker`` longer than 1024 bytes or with more than 16
+``extra`` comparisons, and on a ``dependencies`` entry whose ``name`` is not a project name, such as one that carries a
+marker, a version specifier or a direct URL.
 
 Filtering packages
 ------------------
@@ -808,6 +810,10 @@ pipdeptree warns about conflicting and circular dependencies on stderr. Control 
 - ``-w suppress`` (default): show warnings and exit 0.
 - ``-w silence``: hide warnings and exit 0.
 - ``-w fail``: show warnings and exit 1 if pipdeptree finds a problem (useful in CI).
+
+A ``Requires-Dist`` entry that does not parse produces an ``Invalid requirement found`` warning, and pipdeptree leaves
+it out of the tree. pipdeptree treats a marker longer than 1024 bytes or with more than 16 ``extra`` comparisons the
+same way without parsing it, because the time and memory to parse a marker can grow exponentially with its comparisons.
 
 .. code-block:: console
 

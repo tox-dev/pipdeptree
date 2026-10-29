@@ -1,4 +1,8 @@
-use super::super::common::{PackageSite, execute, execute_in, stdout};
+use std::time::{Duration, Instant};
+
+use super::super::common::{
+    PackageSite, execute, execute_in, execute_with_python, extra_clauses, stdout, with_python,
+};
 use super::{
     ActiveExtraGraph, active_extra_site, branch_contains, collect_tree_names, complex_site,
     extra_chain_site, scoped_extra_site, visible_names,
@@ -438,5 +442,82 @@ fn reverses_only_requesting_extra_edges() {
                 .to_vec(),
             "",
         )
+    );
+}
+
+#[rstest]
+#[case::fifteen_extras(7, 0, ACTIVATED)]
+#[case::length_at_limit(7, 1024, ACTIVATED)]
+#[case::length_over_limit(7, 1025, REJECTED)]
+#[case::seventeen_extras(8, 0, REJECTED)]
+#[case::seventeen_clauses(17, 0, REJECTED)]
+fn caps_requirement_markers_before_parsing(
+    #[case] clauses: usize,
+    #[case] width: usize,
+    #[case] expected: (&str, bool),
+) {
+    // METADATA parsing strips trailing whitespace, so the padding goes inside the marker.
+    let clauses = format!(" {}", extra_clauses(clauses));
+    let tail = " or extra == 'z'";
+    let marker = format!("{clauses:<0$}{tail}", width.saturating_sub(tail.len()));
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        &format!("Name: root\nVersion: 1\nRequires-Dist: child;{marker}\n"),
+    );
+    site.write("child-1.dist-info", "Name: child\nVersion: 1\n");
+
+    let (output, elapsed) = with_python(|python| {
+        let start = Instant::now();
+        let output = execute_with_python(
+            python,
+            &[
+                "--path",
+                site.path().to_str().unwrap(),
+                "--packages",
+                "root[z]",
+            ],
+        );
+        (output, start.elapsed())
+    });
+
+    assert_eq!(
+        (
+            (
+                stdout(&output),
+                output
+                    .stderr
+                    .contains("Invalid requirement found in root: child;")
+            ),
+            elapsed < Duration::from_secs(1),
+        ),
+        (expected, true),
+        "took {elapsed:?}"
+    );
+}
+
+const ACTIVATED: (&str, bool) = (
+    "root==1\n└── child [required: Any, installed: 1, extra: z]\n",
+    false,
+);
+const REJECTED: (&str, bool) = ("root==1\n", true);
+
+#[test]
+fn collects_extras_behind_containment_markers() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        concat!(
+            "Name: root\nVersion: 1\nRequires-Dist: child; 'absent' in sys_platform",
+            " or sys_platform in 'absent' or extra == 'z'\n",
+        ),
+    );
+    site.write("child-1.dist-info", "Name: child\nVersion: 1\n");
+
+    let output = execute_in(&site, &["--packages", "root[z]"]);
+
+    assert_eq!(
+        stdout(&output),
+        "root==1\n└── child [required: Any, installed: 1, extra: z]\n"
     );
 }
