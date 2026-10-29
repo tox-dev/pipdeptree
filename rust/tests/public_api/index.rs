@@ -210,6 +210,49 @@ fn leaves_unrecorded_edges_without_a_required_version() {
 }
 
 #[rstest]
+#[case::suppress("suppress", concat!(
+    "Warning: the resolver reported:\n",
+    "Skipping logs==2: d[x\u{fffd}]0;t\u{fffd}]\n",
+    "    ~~^\n",
+    "------------------------------------------------------------------------\n",
+    "Warning: dependency problems found:\n",
+    "* parent==1\n",
+    "  - external [required: Any, installed: ?]\n",
+    "------------------------------------------------------------------------\n\n",
+))]
+#[case::silence("silence", "")]
+fn reports_resolver_logs_as_warnings(#[case] warn: &str, #[case] expected: &str) {
+    let output = resolved_output(&["--warn", warn, "-o", "freeze", "from-index", "logs"]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, "parent==1\n  child==2\n  external\n", expected)
+    );
+}
+
+#[rstest]
+#[case::suppress("suppress", concat!(
+    "Warning: the resolver reported:\n",
+    "Skipping logs==2: d[x\u{fffd}]0;t\u{fffd}]\n",
+    "    ~~^\n",
+    "------------------------------------------------------------------------\n",
+    "ValueError: no version of \u{fffd}[2Jraises\n",
+))]
+#[case::silence("silence", "ValueError: no version of \u{fffd}[2Jraises\n")]
+fn reports_resolver_logs_before_a_resolver_error(#[case] warn: &str, #[case] expected: &str) {
+    let output = resolved_output(&["--warn", warn, "from-index", "logs", "raises"]);
+
+    assert_eq!(
+        (
+            output.code,
+            output.stdout.is_empty(),
+            output.stderr.as_str()
+        ),
+        (1, true, expected)
+    );
+}
+
+#[rstest]
 #[case::name("long-name", "package 'name' is longer than 255 bytes\n")]
 #[case::version("long-version", "package 'version' is longer than 255 bytes\n")]
 fn rejects_pins_longer_than_the_identity_limit(#[case] requirement: &str, #[case] expected: &str) {
@@ -539,6 +582,40 @@ fn warns_about_an_index_option_before_a_failed_resolve() {
                  ValueError: NAB_CACHE_DIR must be a non-empty path\n",
                 requirements.canonicalize().unwrap().display()
             )
+        )
+    );
+}
+
+#[test]
+fn reports_index_option_warnings_before_resolver_logs() {
+    let directory = tempdir().unwrap();
+    let requirements = directory.path().join("requirements.txt");
+    fs::write(&requirements, "-i https://private.example/simple\nlogs\n").unwrap();
+
+    let output = resolved_output(&[
+        "-o",
+        "freeze",
+        "from-index",
+        "--requirements",
+        requirements.to_str().unwrap(),
+    ]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (
+            0,
+            "parent==1\n  child==2\n  external\n",
+            format!(
+                "Warning: {}:1: from-index ignores -i in requirements files; pass --index-url on the command line\n\
+                 Warning: the resolver reported:\n\
+                 Skipping logs==2: d[x\u{fffd}]0;t\u{fffd}]\n    ~~^\n\
+                 ------------------------------------------------------------------------\n\
+                 Warning: dependency problems found:\n\
+                 * parent==1\n  - external [required: Any, installed: ?]\n\
+                 ------------------------------------------------------------------------\n\n",
+                requirements.canonicalize().unwrap().display()
+            )
+            .as_str()
         )
     );
 }

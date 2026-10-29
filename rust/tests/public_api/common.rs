@@ -138,6 +138,7 @@ const RESOLVER_STUB: &CStr = c_str!(
     r#"
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -164,6 +165,10 @@ def resolved(
     assert isinstance(cache_dir, Path)
     resolve_module.last_cache_dir = cache_dir
     source = path.read_text()
+    if '"logs"' in source:
+        logging.getLogger("nab_provider.provider").warning("Skipping logs==2: %s\n    ~~^", "d[x\x1b]0;t\x07]")
+    if '"raises"' in source:
+        raise ValueError("no version of \x1b[2Jraises")
     chain = '"chain"' in source
     child_requirements = (
         DependencyDeclaration(

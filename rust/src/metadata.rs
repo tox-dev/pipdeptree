@@ -718,6 +718,15 @@ pub fn printable(value: &str) -> String {
         .collect()
 }
 
+// Multi-line text, such as a resolver message, keeps its line breaks.
+pub fn printable_lines(value: &str) -> String {
+    value
+        .split('\n')
+        .map(printable)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 // Freeze output is a pip requirements file, read line by line: a line break starts a new line, a
 // leading '-' an option and '#' a comment, and a "coding:" in a comment on the first two lines
 // makes pip decode the whole file with that codec (PEP 263). Valid project names and versions use

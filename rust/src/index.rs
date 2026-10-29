@@ -16,7 +16,9 @@ use tempfile::tempdir;
 use url::Url;
 
 use crate::Error;
-use crate::metadata::{Discovered, DiscoveryWarning, Package, ResolvedDeclaration, ResolvedEdge};
+use crate::metadata::{
+    Discovered, DiscoveryWarning, Package, ResolvedDeclaration, ResolvedEdge, printable_lines,
+};
 
 const RESOLVER_IMPORT_ERROR: &str =
     "The from-index subcommand requires nab, nab-index and nab-project";
@@ -138,6 +140,73 @@ struct VcsPolicy {
 }
 
 pub fn resolve(
+    py: Python<'_>,
+    requirements: &[String],
+    requirement_files: &[PathBuf],
+    pyproject_files: &[PathBuf],
+    index_url: Option<&str>,
+    extra_index_urls: &[String],
+    warnings: &mut Vec<DiscoveryWarning>,
+) -> Result<Discovered, Error> {
+    // Nab logs what it skips while reading the index, such as a release whose metadata does not
+    // parse, quoting that metadata. Without a handler, Python's last-resort handler writes the
+    // record to stderr unescaped and regardless of --warn.
+    let queue = PyModule::import(py, "queue")?
+        .getattr("SimpleQueue")?
+        .call0()?;
+    let handler = PyModule::import(py, "logging.handlers")?
+        .getattr("QueueHandler")?
+        .call1((&queue,))?;
+    handler.call_method1("setLevel", ("WARNING",))?;
+    let logging = PyModule::import(py, "logging")?;
+    // The top-level loggers Nab's modules log under, as listed in nab.output._NAB_LOGGERS.
+    let loggers = [
+        "nab",
+        "nab_markersets",
+        "nab_provider",
+        "nab_project",
+        "nab_index",
+        "nab_resolver",
+    ]
+    .into_iter()
+    .map(|name| logging.call_method1("getLogger", (name,)))
+    .collect::<PyResult<Vec<_>>>()?;
+    for logger in &loggers {
+        logger.call_method1("addHandler", (&handler,))?;
+    }
+    let resolved = resolve_requirements(
+        py,
+        requirements,
+        requirement_files,
+        pyproject_files,
+        index_url,
+        extra_index_urls,
+        warnings,
+    );
+    for logger in &loggers {
+        logger.call_method1("removeHandler", (&handler,))?;
+    }
+    let mut messages = Vec::new();
+    while !queue.call_method0("empty")?.extract::<bool>()? {
+        let record = queue.call_method0("get_nowait")?;
+        messages.push(printable_lines(
+            &record.call_method0("getMessage")?.extract::<String>()?,
+        ));
+    }
+    if !messages.is_empty() {
+        warnings.push(DiscoveryWarning {
+            message: format!(
+                "Warning: the resolver reported:\n{}\n{}\n",
+                messages.join("\n"),
+                "-".repeat(72)
+            ),
+            failure: false,
+        });
+    }
+    resolved
+}
+
+fn resolve_requirements(
     py: Python<'_>,
     requirements: &[String],
     requirement_files: &[PathBuf],

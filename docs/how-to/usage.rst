@@ -58,6 +58,10 @@ Nab caches index responses and package metadata for repeat runs. ``from-index`` 
 ``$XDG_CACHE_HOME/nab`` or ``~/.cache/nab``. A relative ``XDG_CACHE_HOME`` is ignored. Set ``NAB_CACHE_DIR`` to keep the
 cache elsewhere.
 
+Nab logs a warning when it skips a release, for example one whose metadata does not parse. pipdeptree prints these in
+its own warning block, hides them with ``--warn silence``, and replaces their control characters with U+FFFD as it does
+for package strings. They do not make ``--warn fail`` exit 1.
+
 Resolve inline requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

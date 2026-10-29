@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::metadata::printable_lines;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("{0}")]
@@ -12,7 +14,8 @@ pub enum Error {
     Json(#[from] serde_json::Error),
     #[error("{0}")]
     Toml(#[from] toml::de::Error),
-    #[error("{0}")]
+    // Python exceptions from the resolver can quote index metadata.
+    #[error("{}", printable_lines(&.0.to_string()))]
     Python(#[from] pyo3::PyErr),
 }
 
