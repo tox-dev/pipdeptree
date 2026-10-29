@@ -9,7 +9,8 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use pep508_rs::marker::{MarkerExpression, MarkerValueExtra};
 use pep508_rs::pep440_rs::Version;
-use pep508_rs::{ExtraName, MarkerEnvironment, MarkerTree, Requirement, VerbatimUrl, VersionOrUrl};
+use pep508_rs::{ExtraName, MarkerEnvironment, MarkerTree, Requirement, VersionOrUrl};
+use url::Url;
 
 use crate::metadata::{Package, ResolvedDeclaration, ResolvedEdge, canonicalize_name};
 use crate::options::ExtrasMode;
@@ -21,8 +22,10 @@ pub use filter::FilterSpec;
 
 #[derive(Debug)]
 pub struct Dependency {
-    // A requirement fills one slot per extra that activates it, and those slots share it.
-    pub requirement: Arc<Requirement<VerbatimUrl>>,
+    // Requires-Dist values and lock dependency names come from package authors. VerbatimUrl would
+    // substitute ${NAME} with this process's environment, so plain Url keeps direct references as
+    // written. A requirement fills one slot per extra that activates it, and those slots share it.
+    pub requirement: Arc<Requirement<Url>>,
     pub target: Option<usize>,
     pub activated_by: Option<String>,
     pub declaration: Option<ResolvedDeclaration>,
@@ -207,7 +210,7 @@ impl Graph {
             mandatory.extend(edges.into_iter().map(|edge| {
                 Dependency {
                     requirement: Arc::new(
-                        Requirement::<VerbatimUrl>::from_str(&edge.child)
+                        Requirement::<Url>::from_str(&edge.child)
                             .expect("nab dependency names are valid PEP 508 names"),
                     ),
                     target: index.get(&edge.child).copied(),
@@ -223,7 +226,7 @@ impl Graph {
             std::mem::take(&mut package.requires)
         };
         for raw in requires {
-            let Ok(requirement) = Requirement::<VerbatimUrl>::from_str(&raw) else {
+            let Ok(requirement) = Requirement::<Url>::from_str(&raw) else {
                 warnings.push(format!(
                     "Invalid requirement found in {}: {raw}",
                     package.name
