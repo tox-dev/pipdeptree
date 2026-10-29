@@ -8,7 +8,8 @@ mod hg;
 mod shared;
 mod svn;
 
-use shared::{VcsError, VcsResult, reset_stall_budget};
+use super::requirement_url;
+use shared::{VcsError, VcsResult, path_url, reset_stall_budget};
 
 // One backend per supported VCS. Adding a system means adding its module and one entry here; the
 // dispatch, cache reset, and innermost-root selection all iterate this slice.
@@ -62,7 +63,7 @@ pub(super) fn editable_requirement(
         }
         return format!(
             "# Editable install with no version control ({package}=={version})\n-e {}",
-            location.display()
+            requirement_location(location)
         );
     };
     format_result(
@@ -75,7 +76,7 @@ pub(super) fn editable_requirement(
 
 fn format_result(location: &Path, package: &str, version: &str, result: VcsResult) -> String {
     if let Some(requirement) = result.requirement {
-        return format!("-e {requirement}");
+        return format!("-e {}", requirement_url(&requirement));
     }
     let comment = match result.error {
         VcsError::NoRemote => Some(format!(
@@ -92,10 +93,25 @@ fn format_result(location: &Path, package: &str, version: &str, result: VcsResul
         )),
         VcsError::None | VcsError::CommandNotFound => None,
     };
+    let location = requirement_location(location);
     comment.map_or_else(
-        || format!("-e {}", location.display()),
-        |comment| format!("{comment}\n-e {}", location.display()),
+        || format!("-e {location}"),
+        |comment| format!("{comment}\n-e {location}"),
     )
+}
+
+// pip decodes a file URL back to the path, so a location that needs encoding becomes one. A legacy
+// link may name a relative target, which the link lookup resolved against the working directory.
+fn requirement_location(location: &Path) -> String {
+    let display = location.display().to_string();
+    let encoded = requirement_url(&display);
+    if encoded == display {
+        return display;
+    }
+    std::path::absolute(location)
+        .ok()
+        .and_then(|path| path_url(&path))
+        .unwrap_or(encoded)
 }
 
 fn innermost(roots: Vec<(PathBuf, &dyn Vcs)>) -> Option<(PathBuf, &dyn Vcs)> {
