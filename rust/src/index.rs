@@ -25,6 +25,7 @@ const RESOLVER_IMPORT_ERROR: &str =
 const PYPI_NAME: &str = "pypi";
 const PYPI_URL: &str = "https://pypi.org/simple";
 const GIT_SCHEMES: [&str; 5] = ["git+https", "git+ssh", "git+http", "git+file", "git+git"];
+const SOURCE_CONSTRAINT_ERROR: &str = "source requirements cannot be constraints";
 
 #[derive(Debug, Default)]
 struct Inputs {
@@ -387,6 +388,9 @@ fn parse_requirements_line(
         return parse_requirements_file(&base.join(value), true, inputs, stack);
     }
     if let Some(value) = option_value(line, "-e", "--editable") {
+        if constraint {
+            return Err(Error::message(SOURCE_CONSTRAINT_ERROR));
+        }
         // pip accepts editable VCS URLs; the resolver has no editable mode for them, so they
         // map to plain VCS sources like the Python engine did.
         if value.trim_start().starts_with("git+") {
@@ -442,7 +446,7 @@ fn parse_requirement(
         Err(error) if looks_like_source(raw) && raw.contains(" @ ") => return Err(invalid(error)),
         Err(_) if looks_like_source(raw) => {
             if constraint {
-                return Err(Error::message("source requirements cannot be constraints"));
+                return Err(Error::message(SOURCE_CONSTRAINT_ERROR));
             }
             let base = location.map_or_else(|| Path::new("."), Location::directory);
             return translate_source(raw, base, inputs);
@@ -451,7 +455,7 @@ fn parse_requirement(
     };
     if constraint {
         if matches!(requirement.version_or_url, Some(VersionOrUrl::Url(_))) {
-            return Err(Error::message("source requirements cannot be constraints"));
+            return Err(Error::message(SOURCE_CONSTRAINT_ERROR));
         }
         if !requirement.extras.is_empty() {
             return Err(Error::message(format!(

@@ -310,7 +310,8 @@ A bare wheel/sdist archive URL or a non-git VCS scheme (``hg+``/``bzr+``/``svn+`
     $ pipdeptree from-index --requirements requirements.txt
     URL requirements are not supported by the index resolver: foo @ https://h/foo-1.0-py3-none-any.whl
 
-An unpinned git ref fails the same way, and so does a constraint that carries extras or a URL.
+An unpinned git ref fails the same way, and so does a constraint that carries extras or names a source: a URL, a local
+path or an ``-e`` line.
 
 The resolver can pin a package whose name or version is longer than 255 bytes. pipdeptree stops with an error such as
 ``package 'version' is longer than 255 bytes`` instead of rendering it.

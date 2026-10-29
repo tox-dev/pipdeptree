@@ -1115,6 +1115,14 @@ fn rejects_invalid_index_arguments(#[case] args: &[&str], #[case] expected: &str
     InvalidSource::ConstraintPath,
     "source requirements cannot be constraints"
 )]
+#[case::constraint_editable(
+    InvalidSource::ConstraintEditable,
+    "source requirements cannot be constraints"
+)]
+#[case::constraint_editable_vcs(
+    InvalidSource::ConstraintEditableVcs,
+    "source requirements cannot be constraints"
+)]
 #[case::constraint_extras(InvalidSource::ConstraintExtras, "cannot constrain extras")]
 #[case::missing_local(InvalidSource::MissingLocal, "No such file or directory")]
 #[case::local_without_pyproject(
@@ -1136,6 +1144,24 @@ fn rejects_invalid_requirement_files(#[case] source: InvalidSource, #[case] expe
         }
         InvalidSource::ConstraintPath => {
             fs::write(&constraints, "./missing").unwrap();
+            "-c constraints.txt"
+        }
+        InvalidSource::ConstraintEditable => {
+            fs::create_dir(&local).unwrap();
+            fs::write(
+                local.join("pyproject.toml"),
+                "[project]\nname = \"local\"\n",
+            )
+            .unwrap();
+            fs::write(&constraints, "-e ./local").unwrap();
+            "-c constraints.txt"
+        }
+        InvalidSource::ConstraintEditableVcs => {
+            fs::write(
+                &constraints,
+                "-e git+https://example.com/demo.git@0123456789abcdef0123456789abcdef01234567#egg=demo",
+            )
+            .unwrap();
             "-c constraints.txt"
         }
         InvalidSource::ConstraintExtras => {
@@ -1258,6 +1284,8 @@ enum InvalidSource {
     Recursive,
     ConstraintSource,
     ConstraintPath,
+    ConstraintEditable,
+    ConstraintEditableVcs,
     ConstraintExtras,
     MissingLocal,
     LocalWithoutPyproject,
