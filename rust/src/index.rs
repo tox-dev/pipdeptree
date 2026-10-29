@@ -16,7 +16,7 @@ use tempfile::tempdir;
 use url::Url;
 
 use crate::Error;
-use crate::metadata::{Discovered, Package, ResolvedDeclaration, ResolvedEdge};
+use crate::metadata::{Discovered, DiscoveryWarning, Package, ResolvedDeclaration, ResolvedEdge};
 
 const RESOLVER_IMPORT_ERROR: &str =
     "The from-index subcommand requires nab, nab-index and nab-project";
@@ -32,6 +32,7 @@ struct Inputs {
     vcs_sources: Vec<VcsSource>,
     indexes: Option<Vec<Index>>,
     parsed_files: HashSet<(PathBuf, bool)>,
+    warnings: Vec<DiscoveryWarning>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -143,6 +144,7 @@ pub fn resolve(
     pyproject_files: &[PathBuf],
     index_url: Option<&str>,
     extra_index_urls: &[String],
+    warnings: &mut Vec<DiscoveryWarning>,
 ) -> Result<Discovered, Error> {
     let indexes = resolve_indexes(index_url, extra_index_urls);
     let result =
@@ -167,6 +169,7 @@ pub fn resolve(
             for requirement in requirements {
                 parse_requirement(requirement, None, false, &mut inputs)?;
             }
+            warnings.append(&mut inputs.warnings);
             let directory = tempdir()?;
             let path = directory.path().join("pyproject.toml");
             fs::write(&path, render_pyproject(&inputs))?;
@@ -330,6 +333,22 @@ fn parse_requirements_line(
         return add_local_source(value, base, true, inputs);
     }
     if line.starts_with('-') {
+        // pip applies an index option here to the whole install, while the resolve reads its
+        // indexes from the command line and environment, so skipping one changes the index used.
+        let (option, flag) = match line.split([' ', '\t', '=']).next() {
+            Some(option @ ("--index-url" | "--extra-index-url")) => (option, option),
+            Some(option) if option.starts_with("-i") => ("-i", "--index-url"),
+            _ => return Ok(()),
+        };
+        inputs.warnings.push(DiscoveryWarning {
+            message: format!(
+                "Warning: {}:{}: from-index ignores {option} in requirements files; pass {flag} on \
+                 the command line\n",
+                location.file.display(),
+                location.line
+            ),
+            failure: true,
+        });
         return Ok(());
     }
     let requirement = line.split(" --hash=").next().unwrap_or(line).trim();

@@ -121,7 +121,9 @@ pipdeptree parses the file as a standard requirements file, so a real-world one 
 Each directive maps as follows: the ``-r base.txt`` include is read inline, the ``-c constraints.txt`` pins bound
 the resolve, the marker and the ``[http2]`` extra reach the resolver intact, the comment drops out, and the
 ``--hash`` line resolves ``requests`` while pipdeptree ignores the hash (the resolver verifies nothing from the
-index). The same applies to ``--index-url`` and other pip-specific options.
+index). The same applies to ``--index-url`` and other pip-specific options. The resolve takes its indexes from the
+command line and the environment only (see below), so an ``-i``, ``--index-url`` or ``--extra-index-url`` line prints a
+warning with the file and line number; ``--warn fail`` turns it into exit code 1.
 
 Resolve from a pyproject.toml
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

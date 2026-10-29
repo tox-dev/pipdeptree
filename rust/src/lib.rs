@@ -8,7 +8,7 @@ use pyo3::{Bound, Py, PyResult, Python, pyfunction, pymodule, wrap_pyfunction};
 
 use crate::environment::Runtime;
 use crate::graph::{FilterError, FilterSpec, Graph};
-use crate::metadata::Discovered;
+use crate::metadata::{Discovered, DiscoveryWarning};
 use crate::options::{Command, Format, Options, WarningMode};
 
 mod environment;
@@ -303,16 +303,18 @@ fn prepare_graph(
         .map_err(|error| failure(1, format!("{error}\n")))?;
     let mut stderr = runtime.resolved_message.clone().unwrap_or_default();
     let mut warned = false;
-    let discovered = match packages(py, options, &runtime) {
-        Ok(discovered) => discovered,
-        Err(error) => return Err(failure(1, format!("{stderr}{error}\n"))),
-    };
+    let mut warnings = Vec::new();
+    let mut discovered = packages(py, options, &runtime, &mut warnings);
+    if let Ok(discovered) = &mut discovered {
+        warnings.append(&mut discovered.warnings);
+    }
     if ctx.warning_mode != WarningMode::Silence {
-        for warning in &discovered.warnings {
+        for warning in &warnings {
             stderr.push_str(&style_warning(&warning.message, ctx.color));
             warned |= warning.failure;
         }
     }
+    let discovered = discovered.map_err(|error| failure(1, format!("{stderr}{error}\n")))?;
     let mut graph = Graph::new(
         discovered.packages,
         discovered.resolved_edges,
@@ -423,7 +425,12 @@ const fn failure(code: i32, stderr: String) -> Execution {
     }
 }
 
-fn packages(py: Python<'_>, options: &Options, runtime: &Runtime) -> Result<Discovered, Error> {
+fn packages(
+    py: Python<'_>,
+    options: &Options,
+    runtime: &Runtime,
+    warnings: &mut Vec<DiscoveryWarning>,
+) -> Result<Discovered, Error> {
     match &options.command {
         None => {
             let mut fields = options.metadata.clone();
@@ -456,6 +463,7 @@ fn packages(py: Python<'_>, options: &Options, runtime: &Runtime) -> Result<Disc
             pyproject_files,
             index_url.as_deref(),
             extra_index_url,
+            warnings,
         ),
     }
 }
