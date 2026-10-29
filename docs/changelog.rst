@@ -6,6 +6,93 @@
 
 .. towncrier release notes start
 
+.. _release-4-2-13:
+
+*********************
+ 4.2.13 (2026-10-29)
+*********************
+
+.. _release-4-2-13-fixed:
+
+Fixed
+-----
+
+- On Windows, freeze output now writes an editable location as ``-e file:///C:/proj`` instead of ``-e C:\proj``, which
+  pip read as ``C:proj`` and rejected. This covers an editable install with no version control, one with no remote or an
+  invalid remote, and one whose lookup timed out. On other platforms, a location that holds a backslash also becomes a
+  ``file://`` URL (:pr:`862`) by :user:`gaborbernat`.
+- Read ``direct_url.json``, ``RECORD``, ``.egg-link`` files, ``.hg/hgrc`` and ``.svn/entries`` only when they are
+  regular files of at most 16 MiB, as ``METADATA`` already was. A FIFO in place of ``direct_url.json`` or ``RECORD``
+  made ``--freeze`` or ``--computed size`` wait for a writer, and a link to ``/dev/zero`` or a multi-gigabyte file made
+  them allocate until the allocator or the OOM killer stopped the run. Freeze now prints the version pin for such a
+  package, its size counts as zero, and an unreadable ``.egg-link``, ``hgrc`` or ``entries`` file counts as absent
+  (:pr:`855`) by :user:`gaborbernat`.
+- Stop waiting for a command at its timeout even when a process it started still holds its output open. A ``poetry``
+  wrapper script that ran the real command without ``exec`` used to keep the environment probe waiting until that
+  command exited, past the 5 second timeout; the same applied to the VCS commands that freeze runs and to ``dot``. Such
+  a command now counts as timed out at the deadline, also when it exited first and left the other process running.
+  pipdeptree does not stop that process (:pr:`849`) by :user:`gaborbernat`.
+- ``-o cyclonedx-json`` writes each ``--computed`` value as plain text, with one property per name for
+  ``unique-deps-names``. Before, a string kept its JSON quotes (``"\"2.1 KB\""``) and a list became one JSON array
+  string. ``--depth`` help names the formats it applies to, and ``pipdeptree.render()`` no longer calls ``svg`` and
+  ``ps`` binary formats when it rejects them by Bernát Gábor.
+- ``-o json`` lists the ``metadata`` fields of each package in the order given to ``--metadata``, as the other formats
+  and pipdeptree 3.x do. Since 4.0.0 it sorted them by name by Bernát Gábor.
+- ``from-index --requirements`` errors on Windows now name the requirements file as a plain ``C:\...`` path instead of
+  the ``\\?\C:\...`` form. This covers ``file:line: invalid requirement``, ``recursive requirements include`` and the
+  nesting depth error by Bernát Gábor.
+- ``from-index --requirements`` now prints a warning for each ``-i``, ``--index-url`` or ``--extra-index-url`` line in a
+  requirements file, naming the file, the line and the command-line flag to use instead. The resolve still ignores these
+  lines, and ``--warn fail`` makes the run exit with code 1. Before, it skipped them without a word, so a pip-compile
+  file for a private index resolved against PyPI with no hint why (:pr:`853`) by :user:`gaborbernat`.
+- ``from-index`` now rejects an ``-e`` / ``--editable`` line in a constraints file with ``source requirements cannot be
+  constraints``, the error a plain path or URL constraint already gets. Before, the editable project joined the resolve
+  as an extra top-level requirement, so its dependencies could change the versions picked for the real requirements. pip
+  refuses the same file (:pr:`850`) by :user:`gaborbernat`.
+- ``from-index`` now resolves a local project given as a bare ``file:`` URL, such as ``file:///abs/path`` or ``-e
+  file:///abs/path``, on the command line or in a requirements file. Before, it read the URL as a relative path and
+  failed with ``No such file or directory (os error 2)``. A relative ``file:`` URL, bare or as ``name @ file:./pkg``,
+  now resolves against the working directory as pip does, where the named form used to read ``file:pkg`` as ``/pkg``. A
+  local source that cannot be read now fails with an error that names its path (:pr:`851`) by :user:`gaborbernat`.
+- ``from-index`` now treats an empty ``PIP_EXTRA_INDEX_URL`` as unset and reads the extra indexes from
+  ``UV_EXTRA_INDEX_URL``, as it already did for ``PIP_INDEX_URL`` and ``UV_INDEX_URL``. Before, the empty value left the
+  resolve with no extra index, so a package that only the ``UV_EXTRA_INDEX_URL`` index served failed to resolve by
+  Bernát Gábor.
+- ``meson setup`` works on systems that ship ``python3`` without a ``python`` command. The stable ABI check now runs
+  under the interpreter that runs Meson, the same one the build targets, instead of the first ``python`` on ``PATH``
+  (:pr:`856`) by :user:`gaborbernat`.
+
+.. _release-4-2-13-security:
+
+Security
+--------
+
+- Percent-encode whitespace and control characters in the URLs, VCS remotes and subdirectories of freeze output, and
+  write an editable location that holds one as a ``file://`` URL. Before, an installed distribution could add a line
+  such as ``--index-url`` to the requirements file through its ``direct_url.json``, ``.egg-link`` or a shipped checkout,
+  and an escape sequence reached the terminal. An editable location with a space now installs with ``pip install -r``
+  instead of pip reading only the text before the space (:pr:`844`) by :user:`gaborbernat`.
+- Print the warnings the ``from-index`` resolver logs, such as a skipped release whose metadata does not parse, as a
+  pipdeptree warning that ``--warn silence`` hides, with control characters replaced by U+FFFD. The same replacement now
+  applies to Python errors the resolver raises. Before, Python wrote these warnings to stderr with the index's escape
+  sequences intact, even under ``--warn silence`` (:pr:`847`) by :user:`gaborbernat`.
+- Reject a ``Requires-Dist`` marker, or a lock package ``marker``, longer than 1024 bytes or with more than 16 ``extra``
+  comparisons before parsing it. Parsing builds a decision diagram that can double in size with each clause of ``extra``
+  alternatives, and a marker of about 900 bytes took 12 seconds and 15 GB of memory to parse. Installed metadata reports
+  such a marker with the ``Invalid requirement found`` warning; ``from-lock`` stops with an error naming the package.
+  pipdeptree also collects the extras a marker names by visiting each node of the parsed marker once, instead of
+  converting it to disjunctive normal form, and ``from-lock`` stops with an error when the ``name`` of a
+  ``dependencies`` entry is not a project name (:pr:`860`) by :user:`gaborbernat`.
+- Skip the interpreter that ``poetry env info --executable`` reports when it lies inside the project in the working
+  directory, such as a ``.venv`` next to the ``pyproject.toml``. With no virtual or conda environment active, a plain
+  ``pipdeptree`` and ``--python auto`` used to run that interpreter, so a cloned repository that committed both ran its
+  own program as the user. A plain run now inspects the interpreter running pipdeptree, and ``--python auto`` fails to
+  detect an environment. To inspect that environment, activate it or pass its interpreter to ``--python`` by Bernát
+  Gábor.
+- Stop ``from-index`` with an error when the resolver pins a package name or version longer than 255 bytes, as
+  ``from-lock`` already does. The text, JSON and freeze outputs copy a version once per edge, so an index could make
+  them print megabytes from one long version (:pr:`843`) by :user:`gaborbernat`.
+
 .. _release-4-2-12:
 
 *********************
