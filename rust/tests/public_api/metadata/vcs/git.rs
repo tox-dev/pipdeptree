@@ -113,7 +113,22 @@ fn reports_git_failures(
 #[case::host(GitRemote::Value("host:path"), "git+ssh://host/path", true)]
 #[case::user(
     GitRemote::Value("user_name@host:path"),
-    "git+ssh://user_name@host/path",
+    "git+ssh://host/path@commit",
+    true
+)]
+#[case::git_user(
+    GitRemote::Value("git@host:path"),
+    "git+ssh://git@host/path@commit",
+    true
+)]
+#[case::credentials(
+    GitRemote::Value("https://ci:token@host/path"),
+    "git+https://host/path@commit",
+    true
+)]
+#[case::environment_credentials(
+    GitRemote::Value("https://${USER}:${TOKEN}@host/path"),
+    "git+https://${USER}:${TOKEN}@host/path@commit",
     true
 )]
 #[case::empty_path(GitRemote::Value("host:"), "invalid URI", false)]

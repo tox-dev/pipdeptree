@@ -163,7 +163,7 @@ fn bool_field(object: &Map<String, Value>, name: &str) -> Result<Option<bool>, S
     })
 }
 
-fn redact_url(url: &str, preserve_git: bool) -> String {
+pub(super) fn redact_url(url: &str, preserve_git: bool) -> String {
     let Some((scheme, rest)) = url.split_once("://") else {
         return url.to_string();
     };
