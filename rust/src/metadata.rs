@@ -722,6 +722,20 @@ const fn oversized_identity(name: &str, version: &str) -> Option<&'static str> {
     }
 }
 
+// pep508_rs parses a marker into a decision diagram whose size can double with each `extra`
+// comparison, so a marker over either limit is rejected before parsing.
+pub const MAX_MARKER_LENGTH: usize = 1024;
+pub const MAX_MARKER_EXTRAS: usize = 16;
+
+pub fn oversized_marker(marker: &str) -> bool {
+    marker.len() > MAX_MARKER_LENGTH
+        || marker
+            .split(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
+            .filter(|word| *word == "extra")
+            .count()
+            > MAX_MARKER_EXTRAS
+}
+
 // Package strings reach terminals, which act on ESC, BEL, CR and C1 sequences, and `dot`, which
 // stops reading a line at NUL. U+FFFD keeps the tampering visible where dropping the character
 // would hide it.

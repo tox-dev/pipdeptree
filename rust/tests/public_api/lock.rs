@@ -1,9 +1,10 @@
 use std::fs;
+use std::time::{Duration, Instant};
 
 use rstest::rstest;
 use tempfile::tempdir;
 
-use super::common::{execute, stdout};
+use super::common::{execute, extra_clauses, stdout};
 
 #[rstest]
 #[case::long("from-lock")]
@@ -46,34 +47,65 @@ fn renders_pep_751_lock(#[case] command: &str) {
     );
 }
 
-#[test]
-fn keeps_environment_variable_references_in_dependency_urls_literal() {
+#[rstest]
+#[case::marker("child ; extra == 'x'")]
+#[case::url("child @ https://example.invalid/child.whl")]
+#[case::specifier("child>=1")]
+fn rejects_dependency_names_that_are_not_project_names(#[case] name: &str) {
     let output = execute_lock(
         &format!(
-            concat!(
-                "[[packages]]\n",
-                "name = \"root\"\n",
-                "version = \"1\"\n",
-                "dependencies = [\n",
-                // Cargo sets CARGO_PKG_NAME, so expanding it would merge this edge with the next one.
-                "  {{name = \"child @ https://example.invalid/${{CARGO_PKG_NAME}}\"}},\n",
-                "  {{name = \"child @ https://example.invalid/{}\"}},\n",
-                "]\n",
-            ),
-            env!("CARGO_PKG_NAME")
+            "[[packages]]\nname = \"root\"\nversion = \"1\"\ndependencies = [{{name = \"{name}\"}}]\n"
         ),
         &[],
     );
 
     assert_eq!(
-        stdout(&output),
-        concat!(
-            "root==1\n",
-            "├── child [candidate: ?]\n",
-            "└── child [candidate: ?]\n",
+        (
+            output.code,
+            output.stdout.is_empty(),
+            output.stderr.as_str()
+        ),
+        (
+            1,
+            true,
+            "package 'root' has a dependency whose name is not a project name\n"
         )
     );
 }
+
+#[rstest]
+#[case::sixteen_extras(8, 0, ("root==1\n", ""))]
+#[case::length_at_limit(8, 1024, ("root==1\n", ""))]
+#[case::length_over_limit(8, 1025, OVERSIZED_MARKER)]
+#[case::eighteen_extras(9, 0, OVERSIZED_MARKER)]
+#[case::seventeen_clauses(17, 0, OVERSIZED_MARKER)]
+fn caps_package_markers_before_parsing(
+    #[case] clauses: usize,
+    #[case] width: usize,
+    #[case] expected: (&str, &str),
+) {
+    let marker = format!("{} or python_version >= '3'", extra_clauses(clauses));
+    let content =
+        format!("[[packages]]\nname = \"root\"\nversion = \"1\"\nmarker = \"{marker:<width$}\"\n");
+
+    let start = Instant::now();
+    let output = execute_lock(&content, &[]);
+    let elapsed = start.elapsed();
+
+    assert_eq!(
+        (
+            (stdout(&output), output.stderr.as_str()),
+            elapsed < Duration::from_secs(1)
+        ),
+        (expected, true),
+        "took {elapsed:?}"
+    );
+}
+
+const OVERSIZED_MARKER: (&str, &str) = (
+    "",
+    "package 'root' has a marker longer than 1024 bytes or with more than 16 extra comparisons\n",
+);
 
 fn execute_lock(content: &str, options: &[&str]) -> _pipdeptree::Execution {
     let directory = tempdir().unwrap();
@@ -250,7 +282,7 @@ fn replaces_control_characters_in_lock_strings() {
             "[[packages]]\n",
             "name = \"root\\u001b[2K\"\n",
             "version = \"1\\u0007\"\n",
-            "dependencies = [{name = \"child\\u009b\"}]\n",
+            "dependencies = [{name = \"child\"}]\n",
         ),
         &[],
     );
@@ -259,13 +291,27 @@ fn replaces_control_characters_in_lock_strings() {
         (output.code, stdout(&output), output.stderr.as_str()),
         (
             0,
-            "root\u{fffd}[2K==1\u{fffd}\n",
+            "root\u{fffd}[2K==1\u{fffd}\n└── child [candidate: ?]\n",
             concat!(
                 "Warning: dependency problems found:\n",
-                "* Invalid requirement found in root\u{fffd}[2K: child\u{fffd}\n",
+                "* root\u{fffd}[2K==1\u{fffd}\n",
+                "  - child [required: Any, installed: ?]\n",
                 "------------------------------------------------------------------------\n\n",
             )
         )
+    );
+}
+
+#[test]
+fn replaces_control_characters_in_the_rejected_dependency_error() {
+    let output = execute_lock(
+        "[[packages]]\nname = \"root\\u001b[2K\"\ndependencies = [{name = \"child\\u009b\"}]\n",
+        &[],
+    );
+
+    assert_eq!(
+        output.stderr,
+        "package 'root\u{fffd}[2K' has a dependency whose name is not a project name\n"
     );
 }
 

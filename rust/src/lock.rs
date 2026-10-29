@@ -3,11 +3,14 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
-use pep508_rs::{MarkerEnvironment, MarkerTree};
+use pep508_rs::{MarkerEnvironment, MarkerTree, PackageName};
 use serde::Deserialize;
 
 use crate::Error;
-use crate::metadata::{Discovered, Package, canonicalize_name, printable};
+use crate::metadata::{
+    Discovered, MAX_MARKER_EXTRAS, MAX_MARKER_LENGTH, Package, canonicalize_name, oversized_marker,
+    printable,
+};
 
 #[derive(Debug, Deserialize)]
 struct Lock {
@@ -57,6 +60,16 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
         Ok(packages) => packages,
         Err(error) => return Err(Error::message(format!("malformed TOML: {error}"))),
     };
+    if let Some(package) = packages
+        .iter()
+        .find(|package| package.marker.as_deref().is_some_and(oversized_marker))
+    {
+        return Err(Error::message(format!(
+            "package '{}' has a marker longer than {MAX_MARKER_LENGTH} bytes or with more than \
+             {MAX_MARKER_EXTRAS} extra comparisons",
+            Package::synthetic(package_name(package)?, &package.version, &[])?.name
+        )));
+    }
     // A lock may hold several entries per package, disambiguated by their environment marker.
     let packages = packages
         .into_iter()
@@ -74,12 +87,10 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
     packages
         .into_iter()
         .map(|package| {
-            let name = package
-                .name
-                .ok_or_else(|| Error::message("package is missing 'name'"))?;
+            let name = package_name(&package)?;
             let requires = package
                 .dependencies
-                .into_iter()
+                .iter()
                 .map(|dependency| {
                     versions
                         .get(&canonicalize_name(&dependency.name))
@@ -95,10 +106,29 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
                         )
                 })
                 .collect::<Vec<_>>();
-            Package::synthetic(&name, &package.version, &requires)
+            let synthetic = Package::synthetic(name, &package.version, &requires)?;
+            // The graph parses each name as a requirement, so a marker or URL in it would get there.
+            if package
+                .dependencies
+                .iter()
+                .any(|dependency| PackageName::from_str(&dependency.name).is_err())
+            {
+                return Err(Error::message(format!(
+                    "package '{}' has a dependency whose name is not a project name",
+                    synthetic.name
+                )));
+            }
+            Ok(synthetic)
         })
         .collect::<Result<Vec<_>, _>>()
         .map(Discovered::new)
+}
+
+fn package_name(package: &LockPackage) -> Result<&str, Error> {
+    package
+        .name
+        .as_deref()
+        .ok_or_else(|| Error::message("package is missing 'name'"))
 }
 
 // The Display form of a toml error quotes the source line, and the lock path can be a symlink to
