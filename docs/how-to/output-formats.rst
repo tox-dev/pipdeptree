@@ -230,7 +230,10 @@ Where the text tree ends a line in ``(*)``, the object carries ``"repeated": tru
 mermaid
 -------
 
-`Mermaid <https://mermaid.js.org>`_ flowchart diagram:
+`Mermaid <https://mermaid.js.org>`_ flowchart diagram. Quotes, ``#``, ``&``, ``<``, ``>``, backticks and control
+characters in node labels appear as `entity codes
+<https://mermaid.js.org/syntax/flowchart.html#entity-codes-to-escape-characters>`_ such as ``#34;``. A package whose name
+is empty or holds characters other than ASCII letters, digits, ``-``, ``_`` and ``.`` gets a ``package_<n>`` node id:
 
 .. code-block:: console
 
