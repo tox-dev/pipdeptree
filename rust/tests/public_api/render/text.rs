@@ -1,3 +1,7 @@
+use std::time::{Duration, Instant};
+
+use _pipdeptree::SystemProcessRunner;
+
 use super::{
     crossed_cycle_site, execute, layered_site, lock_file, path, render_site, text, write_requiring,
 };
@@ -207,5 +211,48 @@ fn expands_a_repeated_subtree_again_where_depth_leaves_more_levels() {
             "    - d [required: Any, installed: 1]\n",
             "      - e [required: Any, installed: 1]\n",
         )
+    );
+}
+
+// A package appears on a line for every edge that reaches it, so building its metadata suffix
+// on every line costs the edges times the stored value's length, blanks included.
+#[rstest]
+#[case::forward(&[])]
+#[case::reverse(&["--reverse"])]
+#[case::rich(&["--output", "rich"])]
+fn builds_padded_metadata_suffix_once_per_package(#[case] args: &[&str]) {
+    let license = format!("License-Expression: a{}b\n", " ".repeat(500_000));
+    let requires = (0..1000)
+        .map(|number| format!("Requires-Dist: leaf!={number}\n"))
+        .collect::<Vec<_>>()
+        .concat();
+    let site = super::PackageSite::new();
+    site.write(
+        "app-1.dist-info",
+        &format!("Name: app\nVersion: 1\n{license}{requires}"),
+    );
+    site.write(
+        "leaf-1.dist-info",
+        &format!("Name: leaf\nVersion: 1\n{license}"),
+    );
+
+    let args = [
+        &["--path", super::path(site.path()), "--metadata", "license"],
+        args,
+    ]
+    .concat();
+    let (output, elapsed) = super::with_python(|python| {
+        let start = Instant::now();
+        let output = super::execute_with_runner(&SystemProcessRunner, python, &args, false);
+        (output, start.elapsed())
+    });
+
+    assert_eq!(
+        (
+            text(&output).matches(" (a b License)").count(),
+            elapsed < Duration::from_secs(3),
+        ),
+        (1 + 1000, true),
+        "took {elapsed:?}"
     );
 }
