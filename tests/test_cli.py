@@ -343,11 +343,12 @@ def test_cli_index_builds_dynamic_local_source(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     _write_dynamic_project(tmp_path / "local", "local", tmp_path / "built")
-    (tmp_path / "index").mkdir()
+    index: Final = tmp_path / "index"
+    index.mkdir()
     monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.chdir(tmp_path)
 
-    code: Final = entry_point(["from-index", "./local", "--index-url", (tmp_path / "index").as_uri()])
+    code: Final = entry_point(["from-index", "./local", "--index-url", index.as_uri()])
 
     assert (code, capsys.readouterr().out) == (0, "local==1\n")
 
