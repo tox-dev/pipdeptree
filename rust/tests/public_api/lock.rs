@@ -142,6 +142,35 @@ fn freezes_resolved_packages() {
     );
 }
 
+#[rstest]
+#[case::line_break_in_version(
+    "aaa",
+    "1.0\\n--index-url file:///x",
+    "aaa===1.0?--index-url?file????x\n"
+)]
+#[case::option_as_name("--index-url=file:///x", "1", "?-index-url?file????x==1\n")]
+#[case::comment_as_name("# coding: utf-7", "1", "??coding??utf-7==1\n")]
+fn freezes_lock_values_on_one_line(
+    #[case] name: &str,
+    #[case] version: &str,
+    #[case] expected: &str,
+) {
+    let directory = tempdir().unwrap();
+    let lock = directory.path().join("pylock.toml");
+    fs::write(
+        &lock,
+        format!("[[packages]]\nname = \"{name}\"\nversion = \"{version}\"\n"),
+    )
+    .unwrap();
+
+    let output = execute(&["--freeze", "from-lock", lock.to_str().unwrap()]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, expected, "")
+    );
+}
+
 #[test]
 fn selects_lock_entries_by_marker() {
     let directory = tempdir().unwrap();

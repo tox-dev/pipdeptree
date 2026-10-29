@@ -1,3 +1,4 @@
+use std::fmt::{Display, Write as _};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -47,6 +48,38 @@ fn render_site() -> PackageSite {
         "Name: other\nVersion: 1\nRequires-Dist: child\n",
     );
     site.write("graph-1.dist-info", "Name: graph\nVersion: 1\n");
+    site
+}
+
+fn write_requiring(site: &PackageSite, name: &str, requires: &[impl Display]) {
+    let mut metadata = format!("Name: {name}\nVersion: 1\n");
+    for child in requires {
+        writeln!(metadata, "Requires-Dist: {child}").unwrap();
+    }
+    site.write(&format!("{name}-1.dist-info"), &metadata);
+}
+
+// Each package requires every later one, so the graph has count * (count - 1) / 2 edges and
+// 2^(count - 1) paths from the first package to the last.
+fn layered_site(count: usize) -> PackageSite {
+    let site = PackageSite::new();
+    let names = (0..count)
+        .map(|index| format!("p{index:02}"))
+        .collect::<Vec<_>>();
+    for (index, name) in names.iter().enumerate() {
+        write_requiring(&site, name, &names[index + 1..]);
+    }
+    site
+}
+
+// a requires x and y, x requires y, and y requires w and x: the first walk into y meets x on
+// the path, so the edge y -> x only shows when y is reached through a.
+fn crossed_cycle_site() -> PackageSite {
+    let site = PackageSite::new();
+    write_requiring(&site, "a", &["x", "y"]);
+    write_requiring(&site, "w", &[] as &[&str]);
+    write_requiring(&site, "x", &["y"]);
+    write_requiring(&site, "y", &["w", "x"]);
     site
 }
 

@@ -56,17 +56,8 @@ Run ``pipdeptree`` with no arguments to see the full dependency tree of your env
         │   ├── packaging [required: >=24.0, installed: 26.2]
         │   └── pyproject_hooks [required: Any, installed: 1.2.0]
         ├── installer [required: >=1.0, installed: 1.0.1]
-        ├── nab-index [required: ==0.0.14, installed: 0.0.14]
-        │   ├── nab-provider [required: ==0.0.14, installed: 0.0.14]
-        │   │   ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
-        │   │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
-        │   ├── packaging [required: >=24.0, installed: 26.2]
-        │   ├── truststore [required: >=0.10, installed: 0.10.4]
-        │   ├── typing_extensions [required: >=4.6, installed: 4.16.0]
-        │   └── urllib3 [required: >=2.0, installed: 2.7.0]
-        ├── nab-provider [required: ==0.0.14, installed: 0.0.14]
-        │   ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
-        │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
+        ├── nab-index [required: ==0.0.14, installed: 0.0.14] (*)
+        ├── nab-provider [required: ==0.0.14, installed: 0.0.14] (*)
         ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
         ├── pyproject_hooks [required: >=1.2, installed: 1.2.0]
         ├── tomli [required: >=2.0, installed: 2.4.1]
@@ -98,7 +89,8 @@ The top-level line contains the package name and version, such as ``pytest-cov==
 its dependencies. ``[required: >=7, installed: 9.1.1]`` gives the parent's constraint and the installed version.
 
 A dependency appears multiple times when several packages require it, as with ``pluggy`` above. pipdeptree warns when
-their version requirements conflict.
+their version requirements conflict. Its own dependencies print once per top-level package: ``(*)`` ends each later line
+for it and stands for the dependencies already shown.
 
 The dependency graph for the above output looks like this:
 

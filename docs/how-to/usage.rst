@@ -164,7 +164,8 @@ By default the resolve runs against PyPI. Point it at an internal index with ``-
 PyPI as the primary and appends each extra after it. When a flag is absent, the value falls back to the environment:
 ``--index-url`` reads ``PIP_INDEX_URL`` then ``UV_INDEX_URL``, and ``--extra-index-url`` reads
 ``PIP_EXTRA_INDEX_URL`` then ``UV_EXTRA_INDEX_URL`` (both whitespace separated, like pip and uv). With nothing set
-the resolve uses PyPI.
+the resolve uses PyPI. pipdeptree drops a user name and password from these URLs before the resolve: Nab sends no
+credentials, so an index that requires authentication does not work with ``from-index``.
 
 The resolver searches indexes in order and uses the first index that contains a package. pip merges index results and
 picks the highest version. Put the trusted index for each package first.
@@ -601,17 +602,8 @@ By default, pipdeptree shows the full dependency tree of your environment:
         │   ├── packaging [required: >=24.0, installed: 26.2]
         │   └── pyproject_hooks [required: Any, installed: 1.2.0]
         ├── installer [required: >=1.0, installed: 1.0.1]
-        ├── nab-index [required: ==0.0.14, installed: 0.0.14]
-        │   ├── nab-provider [required: ==0.0.14, installed: 0.0.14]
-        │   │   ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
-        │   │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
-        │   ├── packaging [required: >=24.0, installed: 26.2]
-        │   ├── truststore [required: >=0.10, installed: 0.10.4]
-        │   ├── typing_extensions [required: >=4.6, installed: 4.16.0]
-        │   └── urllib3 [required: >=2.0, installed: 2.7.0]
-        ├── nab-provider [required: ==0.0.14, installed: 0.0.14]
-        │   ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
-        │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
+        ├── nab-index [required: ==0.0.14, installed: 0.0.14] (*)
+        ├── nab-provider [required: ==0.0.14, installed: 0.0.14] (*)
         ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
         ├── pyproject_hooks [required: >=1.2, installed: 1.2.0]
         ├── tomli [required: >=2.0, installed: 2.4.1]
@@ -702,9 +694,7 @@ Use ``--exclude`` (``-e``) to hide specific packages:
     │   ├── truststore [required: >=0.10, installed: 0.10.4]
     │   ├── typing_extensions [required: >=4.6, installed: 4.16.0]
     │   └── urllib3 [required: >=2.0, installed: 2.7.0]
-    ├── nab-provider [required: ==0.0.14, installed: 0.0.14]
-    │   ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
-    │   └── typing_extensions [required: >=4.6, installed: 4.16.0]
+    ├── nab-provider [required: ==0.0.14, installed: 0.0.14] (*)
     ├── nab-resolver [required: ==0.0.14, installed: 0.0.14]
     ├── pyproject_hooks [required: >=1.2, installed: 1.2.0]
     ├── tomli [required: >=2.0, installed: 2.4.1]
@@ -927,6 +917,14 @@ Display computed package information with ``--computed`` (``-c``):
 - ``unique-deps-count`` -- number of dependencies exclusive to this package (hidden when there are none)
 - ``unique-deps-names`` -- names of dependencies exclusive to this package (hidden when there are none)
 - ``unique-deps-size`` -- total installed size of exclusive dependencies (hidden when there are none)
+
+The size sums the regular files a distribution's ``RECORD`` lists. A row counts only when it resolves, after
+following symbolic links, inside the installation prefix that holds the site directory: ``<prefix>`` for
+``<prefix>/lib/pythonX.Y/site-packages`` and ``<prefix>/Lib/site-packages``, ``PythonXY`` for a Windows user site
+``PythonXY/site-packages``, and the scanned directory itself for any other layout, such as ``pip install --target``.
+Console scripts under ``bin`` or ``Scripts`` and data files under ``share`` therefore count, while absolute paths and
+links that leave the prefix add nothing. A dist-info directory linked in from elsewhere, as in a Nix profile, also counts
+files under the prefix of its real location.
 
 Unique dependencies are transitive: if removing a package would orphan a dependency, and that orphaned dependency
 would in turn orphan its own dependencies, the renderer counts all of them. Rich output marks unique dependencies
