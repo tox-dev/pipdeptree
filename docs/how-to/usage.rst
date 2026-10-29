@@ -915,6 +915,14 @@ Display computed package information with ``--computed`` (``-c``):
 - ``unique-deps-names`` -- names of dependencies exclusive to this package (hidden when there are none)
 - ``unique-deps-size`` -- total installed size of exclusive dependencies (hidden when there are none)
 
+The size sums the regular files a distribution's ``RECORD`` lists. A row counts only when it resolves, after
+following symbolic links, inside the installation prefix that holds the site directory: ``<prefix>`` for
+``<prefix>/lib/pythonX.Y/site-packages`` and ``<prefix>/Lib/site-packages``, ``PythonXY`` for a Windows user site
+``PythonXY/site-packages``, and the scanned directory itself for any other layout, such as ``pip install --target``.
+Console scripts under ``bin`` or ``Scripts`` and data files under ``share`` therefore count, while absolute paths and
+links that leave the prefix add nothing. A dist-info directory linked in from elsewhere, as in a Nix profile, also counts
+files under the prefix of its real location.
+
 Unique dependencies are transitive: if removing a package would orphan a dependency, and that orphaned dependency
 would in turn orphan its own dependencies, the renderer counts all of them. Rich output marks unique dependencies
 with a ⭐ icon (alongside ✗ or ⚠ if applicable).

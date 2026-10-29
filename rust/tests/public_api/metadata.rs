@@ -1,7 +1,9 @@
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use rstest::{fixture, rstest};
 use serde_json::{Value, json};
+use tempfile::TempDir;
 
 use super::common::{PackageSite, execute, execute_in, execute_with_python, stdout, with_python};
 
@@ -70,6 +72,146 @@ fn renders_selected_metadata_and_size() {
             "",
         )
     );
+}
+
+#[rstest]
+#[case::site_file(
+    "lib/python3.14/site-packages",
+    "demo.py",
+    "lib/python3.14/site-packages/demo.py",
+    4
+)]
+#[case::posix_script("lib/python3.14/site-packages", "../../../bin/demo", "bin/demo", 4)]
+#[case::dist_packages_data(
+    "lib/python3/dist-packages",
+    "../../../share/demo/data",
+    "share/demo/data",
+    4
+)]
+#[case::pypy_script("lib/pypy3.11/site-packages", "../../../bin/demo", "bin/demo", 4)]
+#[case::windows_script("Lib/site-packages", "../../Scripts/demo.exe", "Scripts/demo.exe", 4)]
+#[case::windows_user_script(
+    "Python314/site-packages",
+    "../Scripts/demo.exe",
+    "Python314/Scripts/demo.exe",
+    4
+)]
+#[case::above_prefix("lib/python3.14/site-packages", "../../../../outside", "../outside", 0)]
+#[case::above_target_directory("target", "../outside", "outside", 0)]
+fn counts_record_rows_inside_the_installation_prefix(
+    #[case] site: &str,
+    #[case] row: &str,
+    #[case] file: &str,
+    #[case] size: u64,
+) {
+    let root = tempfile::tempdir().unwrap();
+    let prefix = root.path().join("env");
+    let site = prefix.join(site);
+    let file = prefix.join(file);
+    fs::create_dir_all(file.parent().unwrap()).unwrap();
+    fs::write(&file, "data").unwrap();
+
+    assert_eq!(
+        sized_distribution(&site, &format!("{row},,\n")),
+        json!(size)
+    );
+}
+
+#[rstest]
+fn ignores_absolute_record_rows_outside_the_site(outside_file: (TempDir, PathBuf)) {
+    let (_outside, file) = outside_file;
+    let site = PackageSite::new();
+    site.write_file("demo.py", "data");
+
+    assert_eq!(
+        sized_distribution(site.path(), &format!("demo.py,,\n{},,\n", file.display())),
+        json!(4)
+    );
+}
+
+#[test]
+fn ignores_record_rows_that_are_not_regular_files() {
+    let site = PackageSite::new();
+    fs::create_dir(site.path().join("demo")).unwrap();
+    site.write_file("demo/__init__.py", "data");
+
+    assert_eq!(
+        sized_distribution(site.path(), "demo,,\ndemo/__init__.py,,\n"),
+        json!(4)
+    );
+}
+
+#[cfg(unix)]
+#[rstest]
+fn ignores_record_rows_linked_outside_the_site(outside_file: (TempDir, PathBuf)) {
+    let (_outside, file) = outside_file;
+    let site = PackageSite::new();
+    site.write_file("demo.py", "data");
+    std::os::unix::fs::symlink(&file, site.path().join("link.py")).unwrap();
+
+    assert_eq!(
+        sized_distribution(site.path(), "demo.py,,\nlink.py,,\n"),
+        json!(4)
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn counts_files_of_a_distribution_linked_into_the_site() {
+    let profile = tempfile::tempdir().unwrap();
+    let store = tempfile::tempdir().unwrap();
+    let real_site = store.path().join("lib/python3.14/site-packages");
+    let real_metadata = real_site.join("demo-1.dist-info");
+    fs::create_dir_all(&real_metadata).unwrap();
+    fs::write(real_metadata.join("METADATA"), "Name: demo\nVersion: 1\n").unwrap();
+    fs::write(
+        real_metadata.join("RECORD"),
+        "demo.py,,\n../../../bin/demo,,\n",
+    )
+    .unwrap();
+    fs::write(real_site.join("demo.py"), "data").unwrap();
+    fs::create_dir(store.path().join("bin")).unwrap();
+    fs::write(store.path().join("bin/demo"), "data").unwrap();
+    let site = profile.path().join("lib/python3.14/site-packages");
+    fs::create_dir_all(&site).unwrap();
+    std::os::unix::fs::symlink(&real_metadata, site.join("demo-1.dist-info")).unwrap();
+    std::os::unix::fs::symlink(real_site.join("demo.py"), site.join("demo.py")).unwrap();
+    fs::create_dir(profile.path().join("bin")).unwrap();
+    std::os::unix::fs::symlink(
+        store.path().join("bin/demo"),
+        profile.path().join("bin/demo"),
+    )
+    .unwrap();
+
+    assert_eq!(size_raw(&site), json!(8));
+}
+
+#[fixture]
+fn outside_file() -> (TempDir, PathBuf) {
+    let directory = tempfile::tempdir().unwrap();
+    let file = directory.path().join("secret");
+    fs::write(&file, "x".repeat(100)).unwrap();
+    (directory, file)
+}
+
+fn sized_distribution(site: &Path, record: &str) -> Value {
+    let metadata = site.join("demo-1.dist-info");
+    fs::create_dir_all(&metadata).unwrap();
+    fs::write(metadata.join("METADATA"), "Name: demo\nVersion: 1\n").unwrap();
+    fs::write(metadata.join("RECORD"), record).unwrap();
+    size_raw(site)
+}
+
+fn size_raw(site: &Path) -> Value {
+    let output = execute(&[
+        "--path",
+        site.to_str().unwrap(),
+        "--computed",
+        "size-raw",
+        "--json",
+    ]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    value[0]["package"]["computed"]["size_raw"].clone()
 }
 
 #[rstest]
