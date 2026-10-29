@@ -102,6 +102,10 @@ pub struct SystemProcessRunner;
 
 impl ProcessRunner for SystemProcessRunner {
     fn run(&self, request: &ProcessRequest) -> Result<ProcessOutput, ProcessError> {
+        #[cfg(unix)]
+        let mut command = Command::new(resolve_program(request)?);
+        // Windows searches PATH in the parent, before the child changes directory.
+        #[cfg(not(unix))]
         let mut command = Command::new(&request.program);
         command
             .args(&request.args)
@@ -163,6 +167,30 @@ impl ProcessRunner for SystemProcessRunner {
             })
         })
     }
+}
+
+// A Unix child searches PATH after it changes into current_dir, so an empty or relative PATH entry
+// would find a program inside that directory. Search from pipdeptree's own directory instead.
+#[cfg(unix)]
+fn resolve_program(request: &ProcessRequest) -> Result<PathBuf, ProcessError> {
+    use std::env;
+    use std::os::unix::ffi::OsStrExt as _;
+    use std::os::unix::fs::PermissionsExt as _;
+    use std::path;
+
+    let search = env::var_os("PATH")
+        .filter(|_| request.current_dir.is_some() && !request.program.as_bytes().contains(&b'/'));
+    let Some(search) = search else {
+        return Ok(PathBuf::from(&request.program));
+    };
+    env::split_paths(&search)
+        .filter_map(|entry| path::absolute(entry.join(&request.program)).ok())
+        .find(|candidate| {
+            candidate.metadata().is_ok_and(|metadata| {
+                metadata.is_file() && metadata.permissions().mode() & 0o111 != 0
+            })
+        })
+        .ok_or(ProcessError::NotFound)
 }
 
 fn wait(child: &mut Child, timeout: Option<Duration>) -> Result<ExitStatus, ProcessError> {
