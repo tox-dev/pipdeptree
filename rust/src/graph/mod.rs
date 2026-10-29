@@ -309,14 +309,13 @@ impl Graph {
             .target
             .expect("tree walks only descend into installed packages");
         let indices = incoming.children.get_or_init(|| {
-            let key = (node, incoming.requested_extras());
-            let mut selected = self.selected.lock().unwrap_or_else(PoisonError::into_inner);
-            if let Some(indices) = selected.get(&key) {
-                return Arc::clone(indices);
-            }
-            let indices = Arc::<[usize]>::from(self.selected_children(node, &key.1));
-            selected.insert(key, Arc::clone(&indices));
-            indices
+            Arc::clone(
+                self.selected
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .entry((node, incoming.requested_extras()))
+                    .or_insert_with_key(|(_, extras)| self.selected_children(node, extras).into()),
+            )
         });
         Children {
             graph: self,
@@ -574,7 +573,7 @@ impl Graph {
         })
     }
 
-    // Strongly connected components, each listed ahead of the components it depends on.
+    // Groups of packages that all reach one another (SCCs), each ahead of the groups it depends on.
     pub(crate) fn components(&self) -> Vec<Vec<usize>> {
         let mut outgoing = vec![Vec::new(); self.nodes.len()];
         let mut incoming = vec![Vec::new(); self.nodes.len()];
@@ -653,8 +652,7 @@ impl Graph {
             .join(" => ")
     }
 
-    // An explicit stack instead of recursion: a cycle can span every package in the input. A
-    // branch that dead-ends before reaching start pops back to its parent.
+    // An explicit stack instead of recursion: a cycle can span every package in the input.
     fn extend_cycle(
         &self,
         start: usize,

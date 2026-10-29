@@ -90,7 +90,8 @@ impl Graph {
             })
             .collect::<HashSet<_>>();
         // Grouping the activating extras under their shared requirement checks the extras it
-        // requests once, where a check per activating extra would record each of them m times.
+        // requests once; a check per activating extra would record each of them once for every
+        // extra that activates the requirement.
         let mut activated = HashMap::<_, (&Dependency, Vec<_>)>::default();
         for pair in &satisfied {
             let node = &self.nodes[pair.0];

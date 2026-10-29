@@ -108,8 +108,8 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
         .map(Discovered::new)
 }
 
-// The Display form of a toml error quotes the source line, and the lock path can be a symlink to any
-// readable file, so only the position and the parser's message are reported.
+// The Display form of a toml error quotes the source line, and the lock path can be a symlink to
+// any readable file, so the error reports only the position and the parser's message.
 fn parse_error(content: &str, error: &toml::de::Error) -> Error {
     let before = &content[..error.span().map_or(0, |span| span.start)];
     let line_start = before.rfind('\n').map_or(0, |index| index + 1);

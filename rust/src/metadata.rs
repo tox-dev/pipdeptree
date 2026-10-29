@@ -568,7 +568,7 @@ fn classify(
     let kind = fs::metadata(entry).ok()?.file_type();
     let name = entry.file_name()?.to_string_lossy();
     if kind.is_file() && name.ends_with(".egg-link") {
-        // Its first line reaches the freeze output, so a linked egg-link could print any readable file.
+        // Its first line reaches the freeze output: through a link, that of any readable file.
         return (!entry.is_symlink()).then(|| Found::EggLink(search, entry.to_path_buf()));
     }
     let (metadata_file, package_metadata_dir) = if kind.is_dir() && name.ends_with(".dist-info") {
@@ -678,8 +678,9 @@ pub const fn oversized_identity(name: &str, version: &str) -> Option<&'static st
     }
 }
 
-// Package strings reach terminals, which run ESC, BEL, CR and C1 sequences, and dot, which stops
-// reading a line at NUL. U+FFFD keeps the tampering visible where dropping the character would hide it.
+// Package strings reach terminals, which act on ESC, BEL, CR and C1 sequences, and `dot`, which
+// stops reading a line at NUL. U+FFFD keeps the tampering visible where dropping the character
+// would hide it.
 pub fn printable(value: &str) -> String {
     value
         .chars()
@@ -694,9 +695,10 @@ pub fn printable(value: &str) -> String {
 }
 
 // Freeze output is a pip requirements file, read line by line: a line break starts a new line, a
-// leading '-' an option and '#' a comment, and a "coding:" in a comment on the first two lines makes
-// pip decode the whole file with that codec (PEP 263). Valid project names and versions use none of
-// these characters, so anything outside their alphabet, and a leading non-alphanumeric, become '?'.
+// leading '-' an option and '#' a comment, and a "coding:" in a comment on the first two lines
+// makes pip decode the whole file with that codec (PEP 263). Valid project names and versions use
+// none of these characters, so '?' replaces anything outside their alphabet and a leading
+// non-alphanumeric.
 fn requirement_text(value: &str) -> String {
     value
         .char_indices()
