@@ -26,7 +26,7 @@ pub use vcs::reset_caches as reset_vcs_caches;
 const MAX_LICENSE_NAME: usize = 64;
 // An installed name and version form the .dist-info directory name, which common file systems cap
 // at 255 bytes, so a package installed on one of them stays within this limit.
-pub const MAX_IDENTITY_LENGTH: usize = 255;
+const MAX_IDENTITY_LENGTH: usize = 255;
 const ARCHIVE_SUFFIXES: [&str; 5] = ["egg", "pyz", "pyzw", "whl", "zip"];
 
 #[derive(Debug)]
@@ -96,9 +96,14 @@ struct Headers(Vec<Header>);
 impl Package {
     // A package resolved from a lock file or index has no on-disk dist-info: metadata() and
     // license() therefore report N/A.
-    pub fn synthetic(name: &str, version: &str, requires: &[String]) -> Self {
+    pub fn synthetic(name: &str, version: &str, requires: &[String]) -> Result<Self, Error> {
+        if let Some(field) = oversized_identity(name, version) {
+            return Err(Error::message(format!(
+                "package '{field}' is longer than {MAX_IDENTITY_LENGTH} bytes"
+            )));
+        }
         let name = printable(name);
-        Self {
+        Ok(Self {
             key: canonicalize_name(&name),
             name,
             version: printable(version),
@@ -112,7 +117,7 @@ impl Package {
             size: OnceLock::new(),
             frozen: OnceLock::new(),
             license: OnceLock::new(),
-        }
+        })
     }
 
     pub fn metadata(&self, field: &str) -> Vec<String> {
@@ -219,32 +224,36 @@ impl Package {
     }
 
     fn direct_specifier(&self, direct: &DirectUrl) -> String {
-        let mut result = format!("{} @ ", requirement_text(&self.name));
+        let mut url = String::new();
         match &direct.info {
             DirectInfo::Vcs(info) => {
-                result.push_str(&info.vcs);
-                result.push('+');
-                result.push_str(&direct.redacted_url());
+                url.push_str(&info.vcs);
+                url.push('+');
+                url.push_str(&direct.redacted_url());
                 if let Some(commit) = info.reference() {
-                    result.push('@');
-                    result.push_str(commit);
+                    url.push('@');
+                    url.push_str(commit);
                 }
             }
             DirectInfo::Archive(info) => {
-                result.push_str(&direct.redacted_url());
+                url.push_str(&direct.redacted_url());
                 if let Some(hash) = info.hash_fragment() {
-                    result.push('#');
-                    result.push_str(&hash);
+                    url.push('#');
+                    url.push_str(&hash);
                 }
             }
-            DirectInfo::Directory { .. } => result.push_str(&direct.redacted_url()),
+            DirectInfo::Directory { .. } => url.push_str(&direct.redacted_url()),
         }
         if let Some(subdirectory) = &direct.subdirectory {
-            result.push(if result.contains('#') { '&' } else { '#' });
-            result.push_str("subdirectory=");
-            result.push_str(subdirectory);
+            url.push(if url.contains('#') { '&' } else { '#' });
+            url.push_str("subdirectory=");
+            url.push_str(subdirectory);
         }
-        result
+        format!(
+            "{} @ {}",
+            requirement_text(&self.name),
+            requirement_url(&url)
+        )
     }
 
     fn regular_specifier(&self) -> String {
@@ -703,7 +712,7 @@ fn read_headers(path: &Path) -> Result<String, Error> {
 
 // Warnings and reverse renderers copy a package's name and version once per requirement or edge,
 // so an unbounded one makes the output grow with the product of its length and the edge count.
-pub const fn oversized_identity(name: &str, version: &str) -> Option<&'static str> {
+const fn oversized_identity(name: &str, version: &str) -> Option<&'static str> {
     if name.len() > MAX_IDENTITY_LENGTH {
         Some("name")
     } else if version.len() > MAX_IDENTITY_LENGTH {
@@ -747,6 +756,24 @@ fn requirement_text(value: &str) -> String {
             }
         })
         .collect()
+}
+
+// pip splits a requirements file with str.splitlines, which also breaks lines at U+001C to U+001E,
+// U+0085, U+2028 and U+2029, and splits a line at spaces into the requirement and its options. A
+// valid URL holds no raw whitespace or control characters, so percent-encoding them keeps the URL
+// in one argument of one line and keeps escape sequences away from the terminal.
+fn requirement_url(value: &str) -> String {
+    let mut result = String::with_capacity(value.len());
+    for character in value.chars() {
+        if character.is_control() || character.is_whitespace() {
+            for byte in character.encode_utf8(&mut [0; 4]).bytes() {
+                write!(result, "%{byte:02X}").expect("writing to a string cannot fail");
+            }
+        } else {
+            result.push(character);
+        }
+    }
+    result
 }
 
 // PEP 503: collapse each separator run to '-' and lowercase, keeping boundary separators.

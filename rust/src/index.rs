@@ -179,27 +179,20 @@ pub fn resolve(
 }
 
 fn resolve_indexes(index_url: Option<&str>, extra_index_urls: &[String]) -> Option<Vec<Index>> {
-    // Empty values fall through so `PIP_INDEX_URL=` keeps the PyPI default, like pip's or-chain.
+    // An empty variable counts as unset, so `PIP_INDEX_URL=` keeps the PyPI default like pip's
+    // or-chain, and `PIP_EXTRA_INDEX_URL=` leaves `UV_EXTRA_INDEX_URL` in effect.
+    let variable = |name| env::var(name).ok().filter(|value| !value.is_empty());
     let primary = index_url
         .map(ToOwned::to_owned)
         .filter(|value| !value.is_empty())
-        .or_else(|| {
-            env::var("PIP_INDEX_URL")
-                .ok()
-                .filter(|value| !value.is_empty())
-        })
-        .or_else(|| {
-            env::var("UV_INDEX_URL")
-                .ok()
-                .filter(|value| !value.is_empty())
-        });
+        .or_else(|| variable("PIP_INDEX_URL"))
+        .or_else(|| variable("UV_INDEX_URL"));
     let extras = if extra_index_urls.is_empty() {
-        env::var("PIP_EXTRA_INDEX_URL")
-            .or_else(|_| env::var("UV_EXTRA_INDEX_URL"))
-            .map_or_else(
-                |_| Vec::new(),
-                |value| value.split_whitespace().map(ToOwned::to_owned).collect(),
-            )
+        variable("PIP_EXTRA_INDEX_URL")
+            .or_else(|| variable("UV_EXTRA_INDEX_URL"))
+            .map_or_else(Vec::new, |value| {
+                value.split_whitespace().map(ToOwned::to_owned).collect()
+            })
     } else {
         extra_index_urls.to_vec()
     };
@@ -251,7 +244,7 @@ fn parse_requirements_file(
     // Each include recurses on the caller's thread, so a long chain of distinct files would
     // overflow its stack; hand-written layouts nest a few levels.
     const MAX_DEPTH: usize = 100;
-    let path = path.canonicalize()?;
+    let path = dunce::canonicalize(path)?;
     if stack.contains(&path) {
         return Err(Error::message(format!(
             "recursive requirements include: {}",
@@ -698,7 +691,7 @@ fn adapt_result(result: &pyo3::Bound<'_, pyo3::PyAny>) -> Result<Discovered, Err
     let packages = versions
         .iter()
         .map(|(name, version)| Package::synthetic(name, version, &[]))
-        .collect();
+        .collect::<Result<_, _>>()?;
     Ok(Discovered {
         packages,
         warnings: Vec::new(),

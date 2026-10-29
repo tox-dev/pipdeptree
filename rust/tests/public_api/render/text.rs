@@ -216,8 +216,8 @@ fn expands_a_repeated_subtree_again_where_depth_leaves_more_levels() {
 }
 
 // Every line that shows r -> hub asks which requirements hub would list for those extras, and
-// hub files 10,000 under them, across 20 packages so the list needs a real sort; selecting and
-// sorting it on each of the 20,000 lines overruns the budget.
+// hub files 75,000 under them, across 20 packages so the list needs a real sort; selecting and
+// sorting it on each of the 75,000 lines overruns the budget, in an optimized build too.
 #[rstest]
 #[case::text(&[], "required: <")]
 #[case::rich(&["--output", "rich"], "required: <")]
@@ -235,9 +235,9 @@ fn selects_the_children_of_an_edge_once(#[case] args: &[&str], #[case] requireme
     for (name, requires) in [
         (
             "r",
-            requirements(&format!("hub[{}]", extras.join(",")), 20000, ""),
+            requirements(&format!("hub[{}]", extras.join(",")), 75_000, ""),
         ),
-        ("hub", leaves(2000, &format!("; {marker}"))),
+        ("hub", leaves(15_000, &format!("; {marker}"))),
     ] {
         site.write(
             &format!("{name}-1.dist-info"),
@@ -251,7 +251,8 @@ fn selects_the_children_of_an_edge_once(#[case] args: &[&str], #[case] requireme
 
     assert_eq!(
         (text(&output).matches(requirement).count(), elapsed < BUDGET),
-        (20000 + 2000 * 5, true)
+        (75_000 + 15_000 * 5, true),
+        "took {elapsed:?}"
     );
 }
 
@@ -289,14 +290,17 @@ fn checks_each_rich_edge_for_conflicts_once() {
 }
 
 // A package appears on a line for every edge that reaches it, so building its metadata suffix
-// on every line costs the edges times the stored value's length, blanks included.
+// on every line costs the edges times the stored value's length, blanks included; the sizes
+// keep that cost over the budget in an optimized build too.
 #[rstest]
 #[case::forward(&[])]
 #[case::reverse(&["--reverse"])]
 #[case::rich(&["--output", "rich"])]
 fn builds_padded_metadata_suffix_once_per_package(#[case] args: &[&str]) {
-    let license = format!("License-Expression: a{}b\n", " ".repeat(500_000));
-    let requires = (0..1000)
+    const BLANKS: usize = 3_000_000;
+    const EDGES: usize = 20_000;
+    let license = format!("License-Expression: a{}b\n", " ".repeat(BLANKS));
+    let requires = (0..EDGES)
         .map(|number| format!("Requires-Dist: leaf!={number}\n"))
         .collect::<Vec<_>>()
         .concat();
@@ -324,9 +328,9 @@ fn builds_padded_metadata_suffix_once_per_package(#[case] args: &[&str]) {
     assert_eq!(
         (
             text(&output).matches(" (a b License)").count(),
-            elapsed < Duration::from_secs(3),
+            elapsed < Duration::from_secs(4),
         ),
-        (1 + 1000, true),
+        (1 + EDGES, true),
         "took {elapsed:?}"
     );
 }

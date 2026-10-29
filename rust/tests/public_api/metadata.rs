@@ -798,6 +798,14 @@ fn discovers_empty_runtime_path_from_current_directory() {
     r#"{"url":"https://example.com/demo\u001b[A.whl","subdirectory":"s\u0007","archive_info":{"hashes":{"sha256":"ab\u009bcd"}}}"#,
     "demo @ https://example.com/demo\u{fffd}[A.whl#sha256=ab\u{fffd}cd&subdirectory=s\u{fffd}\n"
 )]
+#[case::whitespace(
+    r#"{"url":"https://example.com/demo.whl --index-url\u2028https://evil","subdirectory":"s\t--x","archive_info":{}}"#,
+    "demo @ https://example.com/demo.whl%20--index-url%E2%80%A8https://evil#subdirectory=s%09--x\n"
+)]
+#[case::vcs_name_with_space(
+    r#"{"url":"https://example.com/demo","vcs_info":{"vcs":"git --x","commit_id":"abc"}}"#,
+    "demo @ git%20--x+https://example.com/demo@abc\n"
+)]
 fn freezes_direct_urls(#[case] direct_url: &str, #[case] expected: &str) {
     let site = PackageSite::new();
     let metadata = site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
@@ -935,6 +943,57 @@ fn freezes_editable_directories(#[case] file_url: bool) {
     );
 }
 
+#[rstest]
+#[case::space("my%20proj")]
+#[case::line_break_and_escape("x%0A--index-url%20https:evil%1B[31m")]
+#[case::unicode_line_separator("x%E2%80%A8--index-url%20https:evil")]
+fn freezes_editable_locations_that_need_encoding_as_file_urls(#[case] encoded: &str) {
+    let site = PackageSite::new();
+    let metadata = site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+    let url = format!(
+        "{}/{encoded}",
+        url::Url::from_file_path(site.path()).unwrap()
+    );
+    fs::write(
+        metadata.join("direct_url.json"),
+        format!(r#"{{"url":"{url}","dir_info":{{"editable":true}}}}"#),
+    )
+    .unwrap();
+
+    let output = execute_in(&site, &["--freeze"]);
+    let expected = format!("# Editable install with no version control (demo==1)\n-e {url}\n");
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, expected.as_str(), "")
+    );
+}
+
+#[test]
+fn freezes_unicode_editable_locations_as_paths() {
+    let site = PackageSite::new();
+    let metadata = site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+    fs::write(
+        metadata.join("direct_url.json"),
+        format!(
+            r#"{{"url":"{}/%E6%97%A5%E6%9C%AC","dir_info":{{"editable":true}}}}"#,
+            url::Url::from_file_path(site.path()).unwrap()
+        ),
+    )
+    .unwrap();
+
+    let output = execute_in(&site, &["--freeze"]);
+    let expected = format!(
+        "# Editable install with no version control (demo==1)\n-e {}\n",
+        site.path().join("日本").display()
+    );
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, expected.as_str(), "")
+    );
+}
+
 #[test]
 fn freezes_editable_comment_without_coding_declaration() {
     let site = PackageSite::new();
@@ -1002,6 +1061,35 @@ fn ignores_oversized_legacy_editable_links() {
     assert_eq!(
         (output.code, stdout(&output), output.stderr.as_str()),
         (0, "demo==1\n", "")
+    );
+}
+
+#[test]
+fn freezes_legacy_editable_targets_with_spaces_as_file_urls() {
+    let site = PackageSite::new();
+    let project = site.path().join("my proj --index-url=https:evil");
+    let metadata = project.join("demo-1.egg-info");
+    fs::create_dir_all(&metadata).unwrap();
+    fs::write(metadata.join("PKG-INFO"), "Name: demo\nVersion: 1\n").unwrap();
+    site.write_file("demo.egg-link", &format!("{}\n.\n", project.display()));
+
+    let output = execute(&[
+        "--path",
+        site.path().to_str().unwrap(),
+        "--path",
+        project.to_str().unwrap(),
+        "--warn",
+        "silence",
+        "--freeze",
+    ]);
+    let expected = format!(
+        "# Editable install with no version control (demo==1)\n-e {}\n",
+        url::Url::from_file_path(&project).unwrap()
+    );
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, expected.as_str(), "")
     );
 }
 

@@ -210,6 +210,22 @@ fn leaves_unrecorded_edges_without_a_required_version() {
 }
 
 #[rstest]
+#[case::name("long-name", "package 'name' is longer than 255 bytes\n")]
+#[case::version("long-version", "package 'version' is longer than 255 bytes\n")]
+fn rejects_pins_longer_than_the_identity_limit(#[case] requirement: &str, #[case] expected: &str) {
+    let output = resolved_output(&["from-index", requirement]);
+
+    assert_eq!(
+        (
+            output.code,
+            output.stdout.is_empty(),
+            output.stderr.as_str()
+        ),
+        (1, true, expected)
+    );
+}
+
+#[rstest]
 #[case::root(&[])]
 #[case::filtered(&["--packages", "parent[feature]"])]
 fn renders_parent_and_child_extras(#[case] flags: &[&str]) {
@@ -772,6 +788,14 @@ fn resolves_pyproject_indexes(
 #[case::uv_extras(
     &[],
     &[("UV_EXTRA_INDEX_URL", Some("https://uv.example/simple"))],
+    "[('pypi', 'https://pypi.org/simple'), ('extra-1', 'https://uv.example/simple')]"
+)]
+#[case::empty_pip_extras_fall_back(
+    &[],
+    &[
+        ("PIP_EXTRA_INDEX_URL", Some("")),
+        ("UV_EXTRA_INDEX_URL", Some("https://uv.example/simple")),
+    ],
     "[('pypi', 'https://pypi.org/simple'), ('extra-1', 'https://uv.example/simple')]"
 )]
 #[case::pip_credentials(

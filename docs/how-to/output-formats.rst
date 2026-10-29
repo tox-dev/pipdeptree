@@ -82,7 +82,10 @@ Freeze emits pip-compatible requirements with indentation for the hierarchy:
 
 Freeze replaces each character that cannot appear in a project name or version with ``?``: anything but ASCII letters,
 digits, ``.``, ``_``, ``-``, ``!`` and ``+``, and a first character that is not a letter or digit. A name or version
-therefore cannot add lines, options or comments to the requirements file.
+therefore cannot add lines, options or comments to the requirements file. URLs, VCS remotes and subdirectories keep
+their characters except whitespace and control characters, which freeze percent-encodes. Freeze writes an editable
+location that holds one of those as a ``file://`` URL, which pip decodes back to the path, and any other location as a
+plain path.
 
 json
 ----

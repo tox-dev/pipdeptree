@@ -431,6 +431,30 @@ def test_cli_index_local_source_native_path(
     assert (code, capsys.readouterr().out) == (0, "local==1\n")
 
 
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param("demo ==\n", "{path}:1: invalid requirement\n", id="invalid-line"),
+        pytest.param("-r requirements.txt\n", "recursive requirements include: {path}\n", id="recursive"),
+    ],
+)
+def test_cli_index_requirements_error_names_plain_path(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    content: str,
+    expected: str,
+) -> None:
+    requirements: Final = tmp_path / "requirements.txt"
+    requirements.write_text(content)
+    monkeypatch.chdir(tmp_path)
+
+    code: Final = entry_point(["from-index", "--requirements", "requirements.txt"])
+
+    assert (code, capsys.readouterr().err) == (1, expected.format(path=requirements.resolve()))
+
+
 def _write_dynamic_project(directory: Path, name: str, marker: Path, backend_path: str) -> None:
     (directory / backend_path).mkdir(parents=True)
     (directory / "pyproject.toml").write_text(
