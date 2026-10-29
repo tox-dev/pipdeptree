@@ -253,6 +253,22 @@ fn reports_resolver_logs_before_a_resolver_error(#[case] warn: &str, #[case] exp
 }
 
 #[rstest]
+#[case::name("long-name", "package 'name' is longer than 255 bytes\n")]
+#[case::version("long-version", "package 'version' is longer than 255 bytes\n")]
+fn rejects_pins_longer_than_the_identity_limit(#[case] requirement: &str, #[case] expected: &str) {
+    let output = resolved_output(&["from-index", requirement]);
+
+    assert_eq!(
+        (
+            output.code,
+            output.stdout.is_empty(),
+            output.stderr.as_str()
+        ),
+        (1, true, expected)
+    );
+}
+
+#[rstest]
 #[case::root(&[])]
 #[case::filtered(&["--packages", "parent[feature]"])]
 fn renders_parent_and_child_extras(#[case] flags: &[&str]) {

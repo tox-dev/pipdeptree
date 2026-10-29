@@ -777,7 +777,7 @@ fn adapt_result(result: &pyo3::Bound<'_, pyo3::PyAny>) -> Result<Discovered, Err
     let packages = versions
         .iter()
         .map(|(name, version)| Package::synthetic(name, version, &[]))
-        .collect();
+        .collect::<Result<_, _>>()?;
     Ok(Discovered {
         packages,
         warnings: Vec::new(),
