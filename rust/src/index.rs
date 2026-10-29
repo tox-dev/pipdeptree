@@ -244,7 +244,7 @@ fn parse_requirements_file(
     // Each include recurses on the caller's thread, so a long chain of distinct files would
     // overflow its stack; hand-written layouts nest a few levels.
     const MAX_DEPTH: usize = 100;
-    let path = path.canonicalize()?;
+    let path = dunce::canonicalize(path)?;
     if stack.contains(&path) {
         return Err(Error::message(format!(
             "recursive requirements include: {}",
