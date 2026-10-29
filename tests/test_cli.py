@@ -150,7 +150,7 @@ def test_cli_escapes_characters_stdout_cannot_encode(
     monkeypatch: pytest.MonkeyPatch,
     errors: str,
 ) -> None:
-    for directory, name, version in (("app-2.0", "app", "2.0"), ("cafe-0.1", "café", "0.1")):
+    for directory, name, version in (("app-2.0", "app", "2.0"), ("demo-0.1", "demoé", "0.1")):
         (tmp_path / f"{directory}.dist-info").mkdir()
         (tmp_path / f"{directory}.dist-info" / "METADATA").write_text(
             f"Name: {name}\nVersion: {version}\n", encoding="utf-8"
@@ -160,7 +160,7 @@ def test_cli_escapes_characters_stdout_cannot_encode(
 
     code = entry_point(["--path", str(tmp_path)])
 
-    assert (code, output.getvalue()) == (0, f"app==2.0{os.linesep}caf\\xe9==0.1{os.linesep}".encode())
+    assert (code, output.getvalue()) == (0, f"app==2.0{os.linesep}demo\\xe9==0.1{os.linesep}".encode())
 
 
 def test_cli_error(
