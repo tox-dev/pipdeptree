@@ -46,6 +46,40 @@ fn renders_pep_751_lock(#[case] command: &str) {
     );
 }
 
+// Cargo sets CARGO_PKG_NAME for the test process, so the reference has a value to expand to.
+#[test]
+fn keeps_environment_variable_references_in_dependency_urls_literal() {
+    let directory = tempdir().unwrap();
+    let lock = directory.path().join("pylock.toml");
+    fs::write(
+        &lock,
+        format!(
+            concat!(
+                "[[packages]]\n",
+                "name = \"root\"\n",
+                "version = \"1\"\n",
+                "dependencies = [\n",
+                "  {{name = \"child @ https://example.invalid/${{CARGO_PKG_NAME}}\"}},\n",
+                "  {{name = \"child @ https://example.invalid/{}\"}},\n",
+                "]\n",
+            ),
+            env!("CARGO_PKG_NAME")
+        ),
+    )
+    .unwrap();
+
+    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+
+    assert_eq!(
+        stdout(&output),
+        concat!(
+            "root==1\n",
+            "├── child [candidate: ?]\n",
+            "└── child [candidate: ?]\n",
+        )
+    );
+}
+
 #[rstest]
 #[case::malformed("not = toml", "malformed TOML")]
 #[case::missing_packages("name = \"demo\"", "missing 'packages' array")]
@@ -216,6 +250,56 @@ fn rejects_unsupported_lock_versions() {
         (
             output.code,
             output.stderr.contains("unsupported lock-version")
+        ),
+        (1, true)
+    );
+}
+
+#[test]
+fn replaces_control_characters_in_lock_strings() {
+    let directory = tempdir().unwrap();
+    let lock = directory.path().join("pylock.toml");
+    fs::write(
+        &lock,
+        concat!(
+            "[[packages]]\n",
+            "name = \"root\\u001b[2K\"\n",
+            "version = \"1\\u0007\"\n",
+            "dependencies = [{name = \"child\\u009b\"}]\n",
+        ),
+    )
+    .unwrap();
+
+    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (
+            0,
+            "root\u{fffd}[2K==1\u{fffd}\n",
+            concat!(
+                "Warning: dependency problems found:\n",
+                "* Invalid requirement found in root\u{fffd}[2K: child\u{fffd}\n",
+                "------------------------------------------------------------------------\n\n",
+            )
+        )
+    );
+}
+
+#[test]
+fn replaces_control_characters_in_unsupported_lock_versions() {
+    let directory = tempdir().unwrap();
+    let lock = directory.path().join("pylock.toml");
+    fs::write(&lock, "lock-version = \"2\\u001b[2K\"\npackages = []\n").unwrap();
+
+    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+
+    assert_eq!(
+        (
+            output.code,
+            output
+                .stderr
+                .contains("unsupported lock-version: 2\u{fffd}[2K")
         ),
         (1, true)
     );
