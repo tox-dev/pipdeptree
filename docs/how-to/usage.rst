@@ -297,6 +297,9 @@ A bare wheel/sdist archive URL or a non-git VCS scheme (``hg+``/``bzr+``/``svn+`
 
 An unpinned git ref fails the same way, and so does a constraint that carries extras or a URL.
 
+The resolver can pin a package whose name or version is longer than 255 bytes. pipdeptree stops with an error such as
+``package 'version' is longer than 255 bytes`` instead of rendering it.
+
 The installed-environment display options inspect on-disk files, so ``from-index`` does not accept them:
 
 .. code-block:: console

@@ -26,7 +26,7 @@ pub use vcs::reset_caches as reset_vcs_caches;
 const MAX_LICENSE_NAME: usize = 64;
 // An installed name and version form the .dist-info directory name, which common file systems cap
 // at 255 bytes, so a package installed on one of them stays within this limit.
-pub const MAX_IDENTITY_LENGTH: usize = 255;
+const MAX_IDENTITY_LENGTH: usize = 255;
 const ARCHIVE_SUFFIXES: [&str; 5] = ["egg", "pyz", "pyzw", "whl", "zip"];
 
 #[derive(Debug)]
@@ -96,9 +96,14 @@ struct Headers(Vec<Header>);
 impl Package {
     // A package resolved from a lock file or index has no on-disk dist-info: metadata() and
     // license() therefore report N/A.
-    pub fn synthetic(name: &str, version: &str, requires: &[String]) -> Self {
+    pub fn synthetic(name: &str, version: &str, requires: &[String]) -> Result<Self, Error> {
+        if let Some(field) = oversized_identity(name, version) {
+            return Err(Error::message(format!(
+                "package '{field}' is longer than {MAX_IDENTITY_LENGTH} bytes"
+            )));
+        }
         let name = printable(name);
-        Self {
+        Ok(Self {
             key: canonicalize_name(&name),
             name,
             version: printable(version),
@@ -112,7 +117,7 @@ impl Package {
             size: OnceLock::new(),
             frozen: OnceLock::new(),
             license: OnceLock::new(),
-        }
+        })
     }
 
     pub fn metadata(&self, field: &str) -> Vec<String> {
@@ -683,7 +688,7 @@ fn read_headers(path: &Path) -> Result<String, Error> {
 
 // Warnings and reverse renderers copy a package's name and version once per requirement or edge,
 // so an unbounded one makes the output grow with the product of its length and the edge count.
-pub const fn oversized_identity(name: &str, version: &str) -> Option<&'static str> {
+const fn oversized_identity(name: &str, version: &str) -> Option<&'static str> {
     if name.len() > MAX_IDENTITY_LENGTH {
         Some("name")
     } else if version.len() > MAX_IDENTITY_LENGTH {

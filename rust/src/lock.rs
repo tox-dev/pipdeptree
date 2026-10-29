@@ -7,9 +7,7 @@ use pep508_rs::{MarkerEnvironment, MarkerTree};
 use serde::Deserialize;
 
 use crate::Error;
-use crate::metadata::{
-    Discovered, MAX_IDENTITY_LENGTH, Package, canonicalize_name, oversized_identity, printable,
-};
+use crate::metadata::{Discovered, Package, canonicalize_name, printable};
 
 #[derive(Debug, Deserialize)]
 struct Lock {
@@ -79,11 +77,6 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
             let name = package
                 .name
                 .ok_or_else(|| Error::message("package is missing 'name'"))?;
-            if let Some(field) = oversized_identity(&name, &package.version) {
-                return Err(Error::message(format!(
-                    "package '{field}' is longer than {MAX_IDENTITY_LENGTH} bytes"
-                )));
-            }
             let requires = package
                 .dependencies
                 .into_iter()
@@ -102,7 +95,7 @@ pub fn load(path: &Path, marker: &MarkerEnvironment) -> Result<Discovered, Error
                         )
                 })
                 .collect::<Vec<_>>();
-            Ok(Package::synthetic(&name, &package.version, &requires))
+            Package::synthetic(&name, &package.version, &requires)
         })
         .collect::<Result<Vec<_>, _>>()
         .map(Discovered::new)

@@ -191,6 +191,10 @@ def resolved(
     Path(resolve_module.capture).write_text(text)
     target = targets[0]
     pins = {"parent": Version("1"), "child": Version("2")}
+    if '"long-name"' in source:
+        pins["p" * 256] = Version("1")
+    if '"long-version"' in source:
+        pins["child"] = Version("1" * 256)
     dependencies = {"parent": ("child", "external")}
     declarations = {
         "parent": {
