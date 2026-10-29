@@ -24,6 +24,9 @@ use editable::{EggLinks, file_url_to_path};
 pub use vcs::reset_caches as reset_vcs_caches;
 
 const MAX_LICENSE_NAME: usize = 64;
+// An installed name and version form the .dist-info directory name, which common file systems cap
+// at 255 bytes, so a package installed on one of them stays within this limit.
+pub const MAX_IDENTITY_LENGTH: usize = 255;
 const ARCHIVE_SUFFIXES: [&str; 5] = ["egg", "pyz", "pyzw", "whl", "zip"];
 
 #[derive(Debug)]
@@ -265,6 +268,9 @@ impl Package {
             return Ok(None);
         };
         let version = metadata.first("version").unwrap_or("").to_string();
+        if oversized_identity(&name, &version).is_some() {
+            return Ok(None);
+        }
         let requires = metadata
             .get_all("requires-dist")
             .map_or_else(Vec::new, <[String]>::to_vec);
@@ -657,6 +663,18 @@ fn read_headers(path: &Path) -> Result<String, Error> {
             headers.truncate(headers.len() - 2);
             headers.push('\n');
         }
+    }
+}
+
+// Warnings and reverse renderers copy a package's name and version once per requirement or edge,
+// so an unbounded one makes the output grow with the product of its length and the edge count.
+pub const fn oversized_identity(name: &str, version: &str) -> Option<&'static str> {
+    if name.len() > MAX_IDENTITY_LENGTH {
+        Some("name")
+    } else if version.len() > MAX_IDENTITY_LENGTH {
+        Some("version")
+    } else {
+        None
     }
 }
 

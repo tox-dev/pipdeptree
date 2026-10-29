@@ -127,6 +127,41 @@ fn reports_parse_errors_without_the_source_line(#[case] content: &str, #[case] e
     assert_eq!((output.code, output.stderr.as_str()), (1, expected));
 }
 
+#[rstest]
+#[case::name_at_limit(255, 1, 0, "")]
+#[case::version_at_limit(1, 255, 0, "")]
+#[case::name_over_limit(256, 1, 1, "package 'name' is longer than 255 bytes\n")]
+#[case::version_over_limit(1, 256, 1, "package 'version' is longer than 255 bytes\n")]
+fn limits_lock_name_and_version_length(
+    #[case] name: usize,
+    #[case] version: usize,
+    #[case] code: i32,
+    #[case] expected: &str,
+) {
+    let directory = tempdir().unwrap();
+    let lock = directory.path().join("pylock.toml");
+    fs::write(
+        &lock,
+        format!(
+            "[[packages]]\nname = \"{}\"\nversion = \"{}\"\n",
+            "p".repeat(name),
+            "1".repeat(version)
+        ),
+    )
+    .unwrap();
+
+    let output = execute(&["from-lock", lock.to_str().unwrap()]);
+
+    assert_eq!(
+        (
+            output.code,
+            output.stdout.is_empty(),
+            output.stderr.as_str()
+        ),
+        (code, code == 1, expected)
+    );
+}
+
 #[test]
 fn freezes_resolved_packages() {
     let directory = tempdir().unwrap();
