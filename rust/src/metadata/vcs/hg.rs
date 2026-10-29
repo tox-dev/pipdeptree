@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 
+use crate::metadata::read_bounded;
 use crate::process::ProcessRunner;
 
 use super::shared::{
@@ -53,7 +54,7 @@ fn default_path(root: &Path) -> Option<String> {
     let hgrc = store.join("hgrc");
     (fs::symlink_metadata(&store).ok()?.is_dir() && fs::symlink_metadata(&hgrc).ok()?.is_file())
         .then_some(())?;
-    let content = fs::read_to_string(hgrc).ok()?;
+    let content = read_bounded(&hgrc).ok()?;
     let mut in_paths = false;
     let mut remote = None;
     for line in content.lines() {

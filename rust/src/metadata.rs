@@ -191,7 +191,7 @@ impl Package {
         let Some(metadata_dir) = &self.metadata_dir else {
             return self.regular_specifier();
         };
-        if let Ok(content) = fs::read_to_string(metadata_dir.join("direct_url.json"))
+        if let Ok(content) = read_bounded(&metadata_dir.join("direct_url.json"))
             && let Ok(direct) = DirectUrl::parse(&content)
         {
             if direct.editable() {
@@ -295,7 +295,7 @@ impl Package {
             return 0;
         };
         let site = metadata_dir.parent().unwrap_or(metadata_dir);
-        let Ok(file) = fs::File::open(metadata_dir.join("RECORD")) else {
+        let Ok(record) = read_bounded(&metadata_dir.join("RECORD")) else {
             return 0;
         };
         // RECORD rows come from whoever built the distribution, so a row counts only when it
@@ -320,7 +320,7 @@ impl Package {
         let mut directories = HashMap::<PathBuf, Option<PathBuf>>::new();
         csv::ReaderBuilder::new()
             .has_headers(false)
-            .from_reader(file)
+            .from_reader(record.as_bytes())
             .records()
             .filter_map(Result::ok)
             .filter_map(|row| {
@@ -650,18 +650,38 @@ fn path_warnings(
     warnings
 }
 
-fn read_headers(path: &Path) -> Result<String, Error> {
-    // Older PKG-INFO files fold the whole description into a header, so the cap leaves room for a
-    // long one. Without it, a file with no line break, such as a large sparse one, is read whole.
-    const MAX_HEADER_BYTES: u64 = 16 * 1024 * 1024;
-    // Opening a FIFO blocks until another process opens it for writing, so check before opening.
-    if !fs::metadata(path)?.is_file() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "not a regular file").into());
+fn read_bounded(path: &Path) -> io::Result<String> {
+    let mut reader = open_bounded(path)?;
+    let mut content = String::new();
+    io::Read::read_to_string(&mut reader, &mut content)?;
+    if reader.limit() == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::FileTooLarge,
+            "file too large",
+        ));
     }
+    Ok(content)
+}
+
+// Files under site-packages and in a checkout come from whoever built or unpacked them. Opening a
+// FIFO blocks until another process opens it for writing, so check before opening. The cap stops a
+// file with no end, such as a link to /dev/zero, or a huge one from being read whole; older
+// PKG-INFO files fold the whole description into a header, so it leaves room for a long one.
+fn open_bounded(path: &Path) -> io::Result<io::Take<fs::File>> {
+    const MAX_FILE_BYTES: u64 = 16 * 1024 * 1024;
+    if !fs::metadata(path)?.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "not a regular file",
+        ));
+    }
+    Ok(io::Read::take(fs::File::open(path)?, MAX_FILE_BYTES + 1))
+}
+
+fn read_headers(path: &Path) -> Result<String, Error> {
     // METADATA bodies embed whole package descriptions; the headers end at the first blank
     // line, so stop reading there instead of loading the full file.
-    let mut reader =
-        io::BufReader::new(io::Read::take(fs::File::open(path)?, MAX_HEADER_BYTES + 1));
+    let mut reader = io::BufReader::new(open_bounded(path)?);
     let mut headers = String::new();
     loop {
         let start = headers.len();
