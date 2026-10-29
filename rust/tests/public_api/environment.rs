@@ -246,6 +246,51 @@ fn ignores_environment_without_an_interpreter() {
     });
 }
 
+#[rstest]
+#[case::virtual_environment("VIRTUAL_ENV")]
+#[case::conda("CONDA_PREFIX")]
+fn ignores_empty_environment_variable(#[case] variable: &str) {
+    let directory = tempfile::tempdir().unwrap();
+    let planted = directory
+        .path()
+        .join(if cfg!(windows) && variable == "VIRTUAL_ENV" {
+            "Scripts"
+        } else if cfg!(unix) {
+            "bin"
+        } else {
+            ""
+        })
+        .join(format!("python{}", std::env::consts::EXE_SUFFIX));
+    fs::create_dir_all(planted.parent().unwrap()).unwrap();
+    fs::write(&planted, "").unwrap();
+    let mut processes = MockProcesses::new();
+    processes
+        .expect_run()
+        .withf(|request| request.program == OsStr::new("poetry"))
+        .return_once(|_| Err(ProcessError::NotFound));
+
+    with_python(|python| {
+        temp_env::with_vars(
+            [
+                ("VIRTUAL_ENV", None::<&str>),
+                ("CONDA_PREFIX", None::<&str>),
+                (variable, Some("")),
+            ],
+            || {
+                let current = std::env::current_dir().unwrap();
+                std::env::set_current_dir(directory.path()).unwrap();
+                let output = execute_with_runner(&processes, python, &["--python", "auto"], false);
+                std::env::set_current_dir(current).unwrap();
+
+                assert_eq!(
+                    (output.code, output.stderr.as_str()),
+                    (1, "Unable to detect virtual environment.\n")
+                );
+            },
+        );
+    });
+}
+
 #[test]
 fn detects_pypy_virtual_environments() {
     let site = PackageSite::new();
