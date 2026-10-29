@@ -93,15 +93,22 @@ struct Nab {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     constraints: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    build_policy: Option<&'static str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     vcs: Option<VcsPolicy>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     local_sources: Vec<LocalSource>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     vcs_sources: Vec<VcsSource>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    package_rules: Vec<PackageRule>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     indexes: Vec<Index>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
+struct PackageRule {
+    r#match: [String; 1],
+    build_policy: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -444,13 +451,23 @@ fn render_pyproject(inputs: &Inputs) -> String {
         tool: has_nab.then(|| Tool {
             nab: Nab {
                 constraints: inputs.constraints.clone(),
-                build_policy: has_sources.then_some("build-remote"),
                 vcs: (!inputs.vcs_sources.is_empty()).then_some(VcsPolicy {
                     policy: "allow",
                     allowed_schemes: GIT_SCHEMES,
                 }),
                 local_sources: inputs.local_sources.clone(),
                 vcs_sources: inputs.vcs_sources.clone(),
+                // The resolver's default policy already builds a listed local source. A listed clone
+                // needs build-remote, which set for the whole resolve would also run the backend of
+                // every sdist downloaded from the index, so grant it to the named clones alone.
+                package_rules: inputs
+                    .vcs_sources
+                    .iter()
+                    .map(|source| PackageRule {
+                        r#match: [source.name.clone()],
+                        build_policy: "build-remote",
+                    })
+                    .collect(),
                 indexes,
             },
         }),
