@@ -100,12 +100,14 @@ fn format_result(location: &Path, package: &str, version: &str, result: VcsResul
     )
 }
 
-// pip decodes a file URL back to the path, so a location that needs encoding becomes one. A legacy
-// link may name a relative target, which the link lookup resolved against the working directory.
+// pip decodes a file URL back to the path, so a location that needs encoding becomes one. pip splits
+// an option line with POSIX shlex, which drops every backslash and with it each Windows path
+// separator (pypa/pip#10121), so a location holding one becomes a URL too. A legacy link may name a
+// relative target, which the link lookup resolved against the working directory.
 fn requirement_location(location: &Path) -> String {
     let display = location.display().to_string();
     let encoded = requirement_url(&display);
-    if encoded == display {
+    if encoded == display && !display.contains('\\') {
         return display;
     }
     std::path::absolute(location)

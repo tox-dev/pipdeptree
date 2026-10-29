@@ -6,9 +6,12 @@ import os
 import re
 import runpy
 import shutil
+import subprocess  # ruff: ignore[suspicious-subprocess-import] # pip only runs as a child process
 import sys
 import tarfile
 import tempfile
+import textwrap
+import venv
 import webbrowser
 import zipfile
 from functools import partial
@@ -593,3 +596,48 @@ def test_cli_defaults_to_rich_on_terminals(
     out = capsys.readouterr().out
 
     assert (code, "\x1b[" in out, "┗━━" in out) == (0, True, True)
+
+
+def test_cli_freeze_editable_installs_with_pip(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    project = tmp_path / "proj"
+    project.mkdir()
+    # pip installs an editable project offline only when it needs no build requirements.
+    (project / "backend.py").write_text(
+        textwrap.dedent("""\
+            import pathlib
+            import zipfile
+
+
+            def build_editable(wheel_directory, config_settings=None, metadata_directory=None):
+                with zipfile.ZipFile(pathlib.Path(wheel_directory) / "demo-1-py3-none-any.whl", "w") as wheel:
+                    wheel.writestr("demo-1.dist-info/METADATA", "Metadata-Version: 2.1\\nName: demo\\nVersion: 1\\n")
+                    wheel.writestr("demo-1.dist-info/WHEEL", "Wheel-Version: 1\\nRoot-Is-Purelib: true\\n")
+                    wheel.writestr("demo-1.dist-info/RECORD", "")
+                return "demo-1-py3-none-any.whl"
+        """),
+        encoding="utf-8",
+    )
+    (project / "pyproject.toml").write_text(
+        '[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["."]\n', encoding="utf-8"
+    )
+    builder = venv.EnvBuilder(with_pip=True)
+    environment = tmp_path / "venv"
+    python = builder.ensure_directories(environment).env_exe
+    builder.create(environment)
+    subprocess.run([python, "-m", "pip", "install", "-q", "--no-index", "-e", str(project)], check=True)
+    entry_point(["--python", python, "--freeze", "--packages", "demo"])
+    requirements = tmp_path / "requirements.txt"
+    requirements.write_text(capsys.readouterr().out, encoding="utf-8")
+
+    install = subprocess.run(
+        [python, "-m", "pip", "install", "--dry-run", "--no-deps", "--no-index", "-r", str(requirements)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert (install.returncode, "Would install demo-1" in install.stdout) == (0, True), install.stderr

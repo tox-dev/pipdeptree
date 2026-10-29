@@ -84,8 +84,9 @@ Freeze replaces each character that cannot appear in a project name or version w
 digits, ``.``, ``_``, ``-``, ``!`` and ``+``, and a first character that is not a letter or digit. A name or version
 therefore cannot add lines, options or comments to the requirements file. URLs, VCS remotes and subdirectories keep
 their characters except whitespace and control characters, which freeze percent-encodes. Freeze writes an editable
-location that holds one of those as a ``file://`` URL, which pip decodes back to the path, and any other location as a
-plain path.
+location that holds one of those, or a backslash as every Windows path does, as a ``file://`` URL, which pip decodes
+back to the path, and any other location as a plain path. pip drops each backslash from an option line (`pypa/pip#10121
+<https://github.com/pypa/pip/issues/10121>`_), so it would read ``-e C:\proj`` as ``-e C:proj``.
 
 json
 ----
