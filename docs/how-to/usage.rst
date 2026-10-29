@@ -856,16 +856,15 @@ dependency tree as a string without ``argv`` or stdout:
     data = pipdeptree.render(output_format="json")   # JSON string, e.g. for json.loads
     sub = pipdeptree.render(packages="rich", reverse=True)
 
-``output_format`` accepts ``text`` (default), ``json``, ``json-tree``, ``mermaid`` and ``dot`` (Graphviz source).
-The programmatic renderer raises ``ValueError`` for binary Graphviz formats such as ``png`` or ``svg``. Use ``dot`` to
-get the source, or use the command-line interface for binary rendering.
+``output_format`` accepts ``text`` (default), ``json``, ``json-tree``, ``cyclonedx-json``, ``mermaid`` and ``dot``
+(Graphviz source). The programmatic renderer raises ``ValueError`` for the Graphviz formats that the ``dot`` executable
+renders, such as ``png`` or ``svg``. Use ``dot`` to get the source, or use the command-line interface to render it.
 
 The return value is a ``str``, so ``print``, slicing and comparisons behave as usual. The default ``text`` format
-implements notebook display hooks: the result renders as a Mermaid dependency diagram without a
-Graphviz binary, falling back to an HTML ``<pre>`` and then plain text on front-ends that do not render Mermaid.
-``str(render())`` and
-``print(render())`` give the plain text tree. The other formats (``json``, ``json-tree``, ``mermaid``, ``dot``)
-return a plain string with no rich display, so their JSON or source shows verbatim.
+implements notebook display hooks: the result renders as a Mermaid dependency diagram without a Graphviz binary,
+falling back to an HTML ``<pre>`` and then plain text on front-ends that do not render Mermaid. ``str(render())`` and
+``print(render())`` give the plain text tree. The other formats (``json``, ``json-tree``, ``cyclonedx-json``,
+``mermaid``, ``dot``) return a plain string with no rich display, so their JSON or source shows verbatim.
 
 Unlike the CLI, :func:`pipdeptree.render` defaults to ``warn="silence"`` so a notebook cell stays free of stderr noise;
 pass ``warn="suppress"`` to show warnings or ``warn="fail"`` to fail on them.
@@ -873,7 +872,8 @@ pass ``warn="suppress"`` to show warnings or ``warn="fail"`` to fail on them.
 Depth limiting
 --------------
 
-Limit how deep the tree renders with ``-d``:
+Limit how deep the tree renders with ``-d``. The limit applies to ``text``, ``rich``, ``freeze`` and the Graphviz
+formats; ``json``, ``json-tree``, ``mermaid`` and ``cyclonedx-json`` always contain the whole graph.
 
 .. code-block:: console
 

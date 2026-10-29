@@ -159,9 +159,10 @@ fn render_with_mermaid_py(
     ))
 }
 
-// Binary Graphviz targets that the string-returning render() API cannot hand back; kept here so the
-// output-format vocabulary lives on the Rust side of the boundary rather than in the Python shim.
-const BINARY_GRAPHVIZ: &[&str] = &["png", "svg", "pdf", "jpeg", "jpg", "gif", "bmp", "ps"];
+// Graphviz formats rendered by the dot executable, which the string-returning render() API does not
+// run; kept here so the output-format vocabulary lives on the Rust side of the boundary rather than
+// in the Python shim.
+const RENDERED_GRAPHVIZ: &[&str] = &["png", "svg", "pdf", "jpeg", "jpg", "gif", "bmp", "ps"];
 const RENDER_FORMATS: &[&str] = &[
     "text",
     "json",
@@ -194,11 +195,11 @@ fn format_flags_py(output_format: &str, summary: bool) -> PyResult<Vec<String>> 
         "cyclonedx-json" => &["--output", "cyclonedx-json"],
         "mermaid" => &["--mermaid"],
         "dot" => &["--graph-output", "dot"],
-        _ if BINARY_GRAPHVIZ.contains(&output_format) => {
-            return Err(PyValueError::new_err(
-                "binary Graphviz formats cannot be returned as a string; use output_format='dot' \
-                 for the Graphviz source, or run the pipdeptree CLI for binary output",
-            ));
+        _ if RENDERED_GRAPHVIZ.contains(&output_format) => {
+            return Err(PyValueError::new_err(format!(
+                "Graphviz {output_format} output needs the dot executable, which render() does not \
+                 run; use output_format='dot' for the Graphviz source, or run the pipdeptree CLI"
+            )));
         }
         _ => {
             return Err(PyValueError::new_err(format!(

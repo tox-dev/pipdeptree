@@ -411,8 +411,10 @@ combined with ``-o cyclonedx-json``.
 
 Installed package metadata supplies licenses and repeated ``pipdeptree:provides-extra`` properties automatically. Valid
 SPDX ``License-Expression`` values become CycloneDX license expressions; other license labels become named licenses, one
-per license classifier. ``--metadata`` and ``--computed`` add properties under ``pipdeptree:metadata:FIELD`` and
-``pipdeptree:computed:FIELD`` respectively.
+per license classifier. ``--metadata`` adds one ``pipdeptree:metadata:FIELD`` property per value of each field.
+``--computed`` adds ``pipdeptree:computed:NAME`` properties, where ``NAME`` is the key ``-o json`` uses: ``size``,
+``size_raw``, ``unique_deps_count``, ``unique_deps_names`` or ``unique_deps_size``. ``unique_deps_names`` repeats once
+per dependency name.
 
 Missing distributions remain identifiable as unversioned components marked ``pipdeptree:missing: true``. Their own
 dependency graph is unknown, so they have no dependency entry and are listed in a ``compositions`` entry with

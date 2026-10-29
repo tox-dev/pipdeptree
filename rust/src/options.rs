@@ -179,7 +179,7 @@ pub struct Options {
         value_name = "D",
         allow_hyphen_values = true,
         global = true,
-        help = "Limit tree depth"
+        help = "Limit tree depth (text, rich, freeze and graphviz output only)"
     )]
     pub depth: Option<usize>,
 

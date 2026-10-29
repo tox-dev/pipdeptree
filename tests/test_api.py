@@ -245,7 +245,7 @@ def test_render_extras_disabled_by_default(package_path: Path, monkeypatch: pyte
             lambda: pipdeptree.render(summary=True, output_format="mermaid"), "summary output_format", id="summary"
         ),
         pytest.param(lambda: pipdeptree.render(output_format="xml"), "unknown output_format", id="unknown"),
-        pytest.param(lambda: pipdeptree.render(output_format="png"), "binary Graphviz formats", id="binary"),
+        pytest.param(lambda: pipdeptree.render(output_format="png"), "Graphviz png output needs", id="graphviz"),
         pytest.param(lambda: pipdeptree.render(warn="unknown"), "invalid value", id="native"),
         pytest.param(
             lambda: pipdeptree.render(python="/does/not/exist"), "Failed to query custom interpreter", id="python"
