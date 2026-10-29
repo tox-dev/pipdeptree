@@ -237,8 +237,8 @@ fn rich_table(
 }
 
 // The longest simple path through a cycle takes time exponential in the cycle's size to find,
-// so a cycle counts as all of its members. The condensed graph is acyclic and one pass from the
-// dependencies up measures it: components arrive dependents first, and an edge inside a
+// so a cycle counts as all of its members. The condensed graph is acyclic, so one pass from the
+// dependencies up measures it. `components` lists dependents first, and an edge inside a
 // component reads a depth of zero.
 fn max_depth(graph: &Graph) -> usize {
     let mut depth = vec![0; graph.nodes.len()];

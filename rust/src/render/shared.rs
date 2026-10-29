@@ -3,14 +3,14 @@ use std::collections::BTreeSet;
 use crate::Error;
 use crate::graph::{Dependency, Graph};
 
-// The nested formats spend one stack frame per level, and a stack overflow kills the host
-// process without a message, so deeper trees fail with an error before the stack runs out.
-const MAX_TREE_DEPTH: usize = 200;
-
 pub(super) fn check_tree_depth(level: usize) -> Result<(), Error> {
+    // The nested formats spend one stack frame per level, and a stack overflow kills the host
+    // process without a message, so deeper trees fail with an error before the stack runs out.
+    const MAX_TREE_DEPTH: usize = 200;
     if level > MAX_TREE_DEPTH {
         return Err(Error::message(format!(
-            "dependency tree nests deeper than {MAX_TREE_DEPTH} levels, render it with --output json"
+            "dependency tree nests deeper than {MAX_TREE_DEPTH} levels, \
+             render it with --output json"
         )));
     }
     Ok(())
