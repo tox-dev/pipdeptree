@@ -1,7 +1,7 @@
 use std::ffi::{CStr, OsString};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard, Once, PoisonError};
+use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError};
 
 use _pipdeptree::{
     Application, Execution, ProcessError, ProcessOutput, ProcessRequest, ProcessRunner,
@@ -14,7 +14,7 @@ use rstest::fixture;
 use tempfile::{TempDir, tempdir};
 
 static PYTHON_LOCK: Mutex<()> = Mutex::new(());
-static RESOLVER: Once = Once::new();
+static RESOLVER: OnceLock<PyResult<()>> = OnceLock::new();
 
 pub const VERSION: &str = env!("PIPDEPTREE_VERSION");
 
@@ -115,10 +115,12 @@ pub fn execute_with_runner(
 
 pub fn install_resolver(python: Python<'_>, capture: &Path) -> PyResult<()> {
     // create_autospec has to see the real function, so the patch happens once per process; each
-    // test then re-points the capture file the stub writes the generated project to.
-    let mut installed = Ok(());
-    RESOLVER.call_once(|| installed = patch_resolver(python));
-    installed?;
+    // test then re-points the capture file the stub writes the generated project to. A failed
+    // patch stays cached so every later test reports it instead of reaching the real resolver.
+    RESOLVER
+        .get_or_init(|| patch_resolver(python))
+        .as_ref()
+        .map_err(|err| err.clone_ref(python))?;
     let locals = PyDict::new(python);
     locals.set_item("capture", capture)?;
     python.run(
