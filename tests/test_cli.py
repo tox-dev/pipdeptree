@@ -160,7 +160,7 @@ def test_cli_escapes_characters_stdout_cannot_encode(
 
     code = entry_point(["--path", str(tmp_path)])
 
-    assert (code, output.getvalue()) == (0, b"app==2.0\ncaf\\xe9==0.1\n")
+    assert (code, output.getvalue()) == (0, f"app==2.0{os.linesep}caf\\xe9==0.1{os.linesep}".encode())
 
 
 def test_cli_error(
