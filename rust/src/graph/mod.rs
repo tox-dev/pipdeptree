@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 use std::str::FromStr;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -21,7 +21,8 @@ pub use filter::FilterSpec;
 
 #[derive(Debug)]
 pub struct Dependency {
-    pub requirement: Requirement<VerbatimUrl>,
+    // A requirement fills one slot per extra that activates it, and those slots share it.
+    pub requirement: Arc<Requirement<VerbatimUrl>>,
     pub target: Option<usize>,
     pub activated_by: Option<String>,
     pub declaration: Option<ResolvedDeclaration>,
@@ -205,8 +206,10 @@ impl Graph {
         if let Some(edges) = resolved_edges {
             mandatory.extend(edges.into_iter().map(|edge| {
                 Dependency {
-                    requirement: Requirement::<VerbatimUrl>::from_str(&edge.child)
-                        .expect("nab dependency names are valid PEP 508 names"),
+                    requirement: Arc::new(
+                        Requirement::<VerbatimUrl>::from_str(&edge.child)
+                            .expect("nab dependency names are valid PEP 508 names"),
+                    ),
                     target: index.get(&edge.child).copied(),
                     activated_by: None,
                     declaration: edge.declaration,
@@ -229,7 +232,7 @@ impl Graph {
             };
             let dependency = Dependency {
                 target: index.get(requirement.name.as_ref()).copied(),
-                requirement,
+                requirement: Arc::new(requirement),
                 activated_by: None,
                 declaration: None,
                 version_spec: OnceLock::new(),
