@@ -165,27 +165,23 @@ pub(super) fn redact_url(url: &str, preserve_git: bool) -> String {
     let Some((scheme, rest)) = url.split_once("://") else {
         return url.to_string();
     };
-    if scheme.is_empty()
-        || !scheme
-            .chars()
-            .all(|character| character.is_ascii_alphabetic() || character == '+')
+    if !scheme.starts_with(|character: char| character.is_ascii_alphabetic())
+        || !scheme.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '+' | '-' | '.')
+        })
     {
         return url.to_string();
     }
-    // Credentials live in the authority; an @ later in the URL is path or fragment data.
-    let (authority, path) = rest
-        .split_once('/')
-        .map_or((rest, None), |(authority, path)| (authority, Some(path)));
-    let Some((credentials, host)) = authority.split_once('@') else {
+    // Credentials live in the authority; an @ later in the URL is path, query or fragment data.
+    let (authority, tail) = rest.split_at(rest.find(['/', '?', '#']).unwrap_or(rest.len()));
+    // The host follows the last @, as pip and urllib split it, so a password may hold an @.
+    let Some((credentials, host)) = authority.rsplit_once('@') else {
         return url.to_string();
     };
     if (preserve_git && credentials == "git") || environment_credentials(credentials) {
         return url.to_string();
     }
-    path.map_or_else(
-        || format!("{scheme}://{host}"),
-        |path| format!("{scheme}://{host}/{path}"),
-    )
+    format!("{scheme}://{host}{tail}")
 }
 
 fn environment_credentials(value: &str) -> bool {

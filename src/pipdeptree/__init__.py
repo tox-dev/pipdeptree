@@ -123,9 +123,11 @@ def _render_args(options: _RenderOptions) -> list[str]:
 
 
 def _summary_html(text: str) -> str:
+    # The engine ends each row with "\n" and keeps other line breaks, such as U+2028, inside a value, so
+    # str.splitlines() would split one row into several.
     rows = "".join(
         f"<tr><td>{escape(label)}</td><td>{escape(value.strip())}</td></tr>"
-        for line in text.splitlines()
+        for line in text.removesuffix("\n").split("\n")
         for label, _, value in (line.partition(":"),)
     )
     return f"<table>\n<tr><th>metric</th><th>value</th></tr>\n{rows}\n</table>"

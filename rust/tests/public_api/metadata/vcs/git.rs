@@ -54,6 +54,11 @@ fn freezes_editable_git_subdirectories() {
     None,
     "# Editable git install with no remote (demo==1)"
 )]
+#[case::unstartable_remote(
+    Err(ProcessError::Failed("permission denied".to_string())),
+    None,
+    "# Editable git install with no remote (demo==1)"
+)]
 #[case::missing_git(Err(ProcessError::NotFound), None, "-e ")]
 #[case::empty_commit(
     Ok(process_output("remote.origin.url https://example.com/repo")),
@@ -70,10 +75,15 @@ fn freezes_editable_git_subdirectories() {
     Some(Err(ProcessError::NotFound)),
     "-e "
 )]
-#[case::failed_commit(
+#[case::timed_out_remote(
+    Err(ProcessError::TimedOut),
+    None,
+    "# Editable git install whose lookup timed out (demo==1)"
+)]
+#[case::timed_out_commit(
     Ok(process_output("remote.origin.url https://example.com/repo")),
     Some(Err(ProcessError::TimedOut)),
-    "# Editable git install with no remote (demo==1)"
+    "# Editable git install whose lookup timed out (demo==1)"
 )]
 fn reports_git_failures(
     #[case] remote: Result<ProcessOutput, ProcessError>,

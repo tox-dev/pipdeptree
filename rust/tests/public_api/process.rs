@@ -224,6 +224,63 @@ fn reports_process_start_failures() {
     assert!(matches!(error, ProcessError::Failed(message) if !message.is_empty()));
 }
 
+#[cfg(unix)]
+#[test]
+fn skips_programs_in_the_working_directory() {
+    let project = tempfile::tempdir().unwrap();
+    write_probe(project.path(), 0o755);
+    let search = format!("{}:", std::env::var("PATH").unwrap());
+
+    let error = temp_env::with_var("PATH", Some(search), || {
+        SystemProcessRunner
+            .run(
+                &ProcessRequest::new("pipdeptree-path-probe", std::iter::empty::<&str>())
+                    .in_directory(project.path()),
+            )
+            .unwrap_err()
+    });
+
+    assert_eq!(error, ProcessError::NotFound);
+}
+
+#[cfg(unix)]
+#[test]
+fn skips_programs_without_execute_permission() {
+    let (skipped, found, project) = (
+        tempfile::tempdir().unwrap(),
+        tempfile::tempdir().unwrap(),
+        tempfile::tempdir().unwrap(),
+    );
+    write_probe(skipped.path(), 0o644);
+    write_probe(found.path(), 0o755);
+    let search = std::env::join_paths(
+        [skipped.path().to_path_buf(), found.path().to_path_buf()]
+            .into_iter()
+            .chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+
+    let output = temp_env::with_var("PATH", Some(search), || {
+        SystemProcessRunner
+            .run(
+                &ProcessRequest::new("pipdeptree-path-probe", std::iter::empty::<&str>())
+                    .in_directory(project.path()),
+            )
+            .unwrap()
+    });
+
+    assert_eq!((output.success, output.stdout), (true, b"probe\n".to_vec()));
+}
+
+#[cfg(unix)]
+fn write_probe(directory: &std::path::Path, mode: u32) {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let probe = directory.join("pipdeptree-path-probe");
+    std::fs::write(&probe, "#!/bin/sh\necho probe\n").unwrap();
+    std::fs::set_permissions(&probe, std::fs::Permissions::from_mode(mode)).unwrap();
+}
+
 const fn python() -> &'static str {
     if cfg!(windows) {
         "python.exe"
