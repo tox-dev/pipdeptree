@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 
+use crate::metadata::read_bounded;
 use crate::process::ProcessRunner;
 
 use super::shared::{
@@ -64,7 +65,7 @@ fn legacy_info(location: &Path) -> Option<(String, String)> {
     (fs::symlink_metadata(&administrative).ok()?.is_dir()
         && fs::symlink_metadata(&entries).ok()?.is_file())
     .then_some(())?;
-    let content = fs::read_to_string(entries).ok()?;
+    let content = read_bounded(&entries).ok()?;
     parse_entries(&content)
 }
 

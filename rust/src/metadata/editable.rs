@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
+
+use super::read_bounded;
 
 pub(super) fn file_url_to_path(value: &str) -> Option<PathBuf> {
     let url = url::Url::parse(value).ok()?;
@@ -17,7 +18,7 @@ impl EggLinks {
 
     pub(super) fn insert(&mut self, search: usize, path: &Path) {
         let Some((name, target)) = path.file_name().and_then(|name| {
-            fs::read_to_string(path)
+            read_bounded(path)
                 .ok()?
                 .lines()
                 .next()

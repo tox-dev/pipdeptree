@@ -5,7 +5,9 @@ use rstest::{fixture, rstest};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 
-use super::common::{PackageSite, execute, execute_in, execute_with_python, stdout, with_python};
+use super::common::{
+    PackageSite, execute, execute_in, execute_with_python, stdout, with_python, write_oversized,
+};
 
 mod vcs;
 
@@ -136,6 +138,35 @@ fn size_raw(site: &Path) -> Value {
     ]);
     let value: Value = serde_json::from_slice(&output.stdout).unwrap();
     value[0]["package"]["computed"]["size_raw"].clone()
+}
+
+#[rstest]
+#[cfg_attr(unix, case::fifo(make_fifo))]
+#[cfg_attr(unix, case::device(link_to_device))]
+#[case::oversized(write_oversized)]
+fn counts_nothing_for_an_unreadable_record(#[case] create: fn(&Path, &str)) {
+    let site = PackageSite::new();
+    site.write_file("demo.py", "data");
+    let metadata = site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+    create(&metadata.join("RECORD"), "demo.py,,\n");
+
+    assert_eq!(size_raw(site.path()), json!(0));
+}
+
+#[cfg(unix)]
+fn make_fifo(path: &Path, _: &str) {
+    assert!(
+        std::process::Command::new("mkfifo")
+            .arg(path)
+            .status()
+            .unwrap()
+            .success()
+    );
+}
+
+#[cfg(unix)]
+fn link_to_device(path: &Path, _: &str) {
+    std::os::unix::fs::symlink("/dev/zero", path).unwrap();
 }
 
 #[rstest]
@@ -828,6 +859,26 @@ fn falls_back_for_invalid_direct_urls(#[case] direct_url: &str) {
     );
 }
 
+#[rstest]
+#[cfg_attr(unix, case::fifo(make_fifo))]
+#[cfg_attr(unix, case::device(link_to_device))]
+#[case::oversized(write_oversized)]
+fn falls_back_for_unreadable_direct_urls(#[case] create: fn(&Path, &str)) {
+    let site = PackageSite::new();
+    let metadata = site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
+    create(
+        &metadata.join("direct_url.json"),
+        r#"{"url":"https://example.com/demo.whl","archive_info":{}}"#,
+    );
+
+    let output = execute_in(&site, &["--freeze"]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, "demo==1\n", "")
+    );
+}
+
 #[test]
 fn falls_back_for_non_utf8_direct_urls() {
     let site = PackageSite::new();
@@ -991,6 +1042,25 @@ fn freezes_legacy_editable() {
     assert_eq!(
         (output.code, stdout(&output), output.stderr.as_str()),
         (0, expected.as_str(), "")
+    );
+}
+
+#[test]
+fn ignores_oversized_legacy_editable_links() {
+    let site = PackageSite::new();
+    let metadata = site.path().join("demo-1.egg-info");
+    fs::create_dir(&metadata).unwrap();
+    fs::write(metadata.join("PKG-INFO"), "Name: demo\nVersion: 1\n").unwrap();
+    write_oversized(
+        &site.path().join("demo.egg-link"),
+        &format!("{}\n", site.path().display()),
+    );
+
+    let output = execute_in(&site, &["--freeze"]);
+
+    assert_eq!(
+        (output.code, stdout(&output), output.stderr.as_str()),
+        (0, "demo==1\n", "")
     );
 }
 

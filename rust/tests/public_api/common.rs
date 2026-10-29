@@ -339,3 +339,8 @@ impl PackageSite {
         fs::write(self.path().join(path), content).unwrap();
     }
 }
+
+// Trailing spaces keep JSON valid and name no RECORD file, so only the 16 MiB read cap rejects it.
+pub fn write_oversized(path: &Path, content: &str) {
+    fs::write(path, format!("{content}{}", " ".repeat(16 << 20))).unwrap();
+}

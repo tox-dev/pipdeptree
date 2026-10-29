@@ -940,7 +940,8 @@ Display computed package information with ``--computed`` (``-c``):
 The size sums the regular files a distribution's ``RECORD`` lists. A row counts only when it resolves, after
 following symbolic links, inside the installation prefix that holds the site directory: ``<prefix>`` for
 ``<prefix>/lib/pythonX.Y/site-packages`` and ``<prefix>/Lib/site-packages``, ``PythonXY`` for a Windows user site
-``PythonXY/site-packages``, and the scanned directory itself for any other layout, such as ``pip install --target``.
+``PythonXY/site-packages``, and the scanned directory itself for any other layout, such as ``pip install --target``. A
+``RECORD`` that is not a regular file or is larger than 16 MiB counts as zero.
 
 Console scripts under ``bin`` or ``Scripts`` and data files under ``share`` therefore count, while absolute paths and
 links that leave the prefix add nothing. A dist-info directory linked in from elsewhere, as in a Nix profile, also
