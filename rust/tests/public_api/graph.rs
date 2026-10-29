@@ -114,7 +114,6 @@ fn keeps_duplicate_requirement_edges() {
     );
 }
 
-// Cargo sets CARGO_PKG_NAME for the test process, so the reference has a value to expand to.
 #[test]
 fn keeps_environment_variable_references_in_direct_urls_literal() {
     let site = PackageSite::new();
@@ -124,6 +123,7 @@ fn keeps_environment_variable_references_in_direct_urls_literal() {
             concat!(
                 "Name: root\n",
                 "Version: 1\n",
+                // Cargo sets CARGO_PKG_NAME, so expanding it would merge this edge with the next one.
                 "Requires-Dist: child @ https://example.invalid/${{CARGO_PKG_NAME}}\n",
                 "Requires-Dist: child @ https://example.invalid/{}\n",
             ),

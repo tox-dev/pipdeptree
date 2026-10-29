@@ -623,26 +623,12 @@ fn query_ignores_modules_in_working_directory(#[case] module: &str) {
     )
     .unwrap();
 
-    let output = query_from(directory.path(), &["--freeze"]);
+    let output = freeze_from(directory.path());
 
     assert_eq!((output.code, marker.exists()), (0, false));
 }
 
-#[test]
-fn query_ignores_distributions_in_working_directory() {
-    let directory = tempfile::tempdir().unwrap();
-    write_package(directory.path(), "planted");
-
-    let output = query_from(directory.path(), &["--freeze"]);
-
-    assert_eq!(
-        (output.code, stdout(&output).contains("planted")),
-        (0, false)
-    );
-}
-
-fn query_from(working_directory: &Path, args: &[&str]) -> _pipdeptree::Execution {
-    let environment = tempfile::tempdir().unwrap();
+fn freeze_from(working_directory: &Path) -> _pipdeptree::Execution {
     with_python(|python| {
         let executable: String = python
             .import("sys")
@@ -651,12 +637,15 @@ fn query_from(working_directory: &Path, args: &[&str]) -> _pipdeptree::Execution
             .unwrap()
             .extract()
             .unwrap();
-        let created = std::process::Command::new(executable)
-            .args(["-m", "venv", "--without-pip"])
-            .arg(environment.path())
-            .status()
-            .unwrap();
-        assert!(created.success());
+        let environment = tempfile::tempdir().unwrap();
+        assert!(
+            std::process::Command::new(executable)
+                .args(["-m", "venv", "--without-pip"])
+                .arg(environment.path())
+                .status()
+                .unwrap()
+                .success()
+        );
         let interpreter = environment
             .path()
             .join(if cfg!(windows) { "Scripts" } else { "bin" })
@@ -665,9 +654,22 @@ fn query_from(working_directory: &Path, args: &[&str]) -> _pipdeptree::Execution
         std::env::set_current_dir(working_directory).unwrap();
         let output = execute_with_python(
             python,
-            &[&["--python", interpreter.to_str().unwrap()], args].concat(),
+            &["--python", interpreter.to_str().unwrap(), "--freeze"],
         );
         std::env::set_current_dir(current).unwrap();
         output
     })
+}
+
+#[test]
+fn query_ignores_distributions_in_working_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    write_package(directory.path(), "planted");
+
+    let output = freeze_from(directory.path());
+
+    assert_eq!(
+        (output.code, stdout(&output).contains("planted")),
+        (0, false)
+    );
 }

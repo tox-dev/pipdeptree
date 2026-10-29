@@ -264,8 +264,8 @@ resolve_module.resolve_for_targets = create_autospec(
 "#
 );
 
-// Tests that also set environment variables call temp_env inside this, never around it: taking the
-// two locks in both orders deadlocks parallel runs.
+// Tests that also set environment variables call temp_env inside the closure, because parallel runs
+// deadlock when one test takes the two locks in the opposite order.
 pub fn with_python<Result>(test: impl FnOnce(Python<'_>) -> Result) -> Result {
     let _guard = python_lock();
     Python::initialize();

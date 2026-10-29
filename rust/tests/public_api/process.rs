@@ -177,10 +177,10 @@ fn adds_process_environment() {
                 python(),
                 [
                     "-c",
-                    "import os; print(os.environ['PIPDEPTREE_PROCESS_TEST'])",
+                    "import os; print(os.environ['PIPDEPTREE_ADDED_TEST'])",
                 ],
             )
-            .with_environment([("PIPDEPTREE_PROCESS_TEST", "present")]),
+            .with_environment([("PIPDEPTREE_ADDED_TEST", "present")]),
         )
         .unwrap();
 
