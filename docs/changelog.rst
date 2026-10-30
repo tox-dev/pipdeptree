@@ -35,12 +35,12 @@ Fixed
 - ``-o cyclonedx-json`` writes each ``--computed`` value as plain text, with one property per name for
   ``unique-deps-names``. Before, a string kept its JSON quotes (``"\"2.1 KB\""``) and a list became one JSON array
   string. ``--depth`` help names the formats it applies to, and ``pipdeptree.render()`` no longer calls ``svg`` and
-  ``ps`` binary formats when it rejects them by Bernát Gábor.
+  ``ps`` binary formats when it rejects them (:pr:`852`) by :user:`gaborbernat`.
 - ``-o json`` lists the ``metadata`` fields of each package in the order given to ``--metadata``, as the other formats
-  and pipdeptree 3.x do. Since 4.0.0 it sorted them by name by Bernát Gábor.
+  and pipdeptree 3.x do. Since 4.0.0 it sorted them by name (:pr:`854`) by :user:`gaborbernat`.
 - ``from-index --requirements`` errors on Windows now name the requirements file as a plain ``C:\...`` path instead of
   the ``\\?\C:\...`` form. This covers ``file:line: invalid requirement``, ``recursive requirements include`` and the
-  nesting depth error by Bernát Gábor.
+  nesting depth error (:pr:`846`) by :user:`gaborbernat`.
 - ``from-index --requirements`` now prints a warning for each ``-i``, ``--index-url`` or ``--extra-index-url`` line in a
   requirements file, naming the file, the line and the command-line flag to use instead. The resolve still ignores these
   lines, and ``--warn fail`` makes the run exit with code 1. Before, it skipped them without a word, so a pip-compile
@@ -56,8 +56,8 @@ Fixed
   local source that cannot be read now fails with an error that names its path (:pr:`851`) by :user:`gaborbernat`.
 - ``from-index`` now treats an empty ``PIP_EXTRA_INDEX_URL`` as unset and reads the extra indexes from
   ``UV_EXTRA_INDEX_URL``, as it already did for ``PIP_INDEX_URL`` and ``UV_INDEX_URL``. Before, the empty value left the
-  resolve with no extra index, so a package that only the ``UV_EXTRA_INDEX_URL`` index served failed to resolve by
-  Bernát Gábor.
+  resolve with no extra index, so a package that only the ``UV_EXTRA_INDEX_URL`` index served failed to resolve
+  (:pr:`845`) by :user:`gaborbernat`.
 - ``meson setup`` works on systems that ship ``python3`` without a ``python`` command. The stable ABI check now runs
   under the interpreter that runs Meson, the same one the build targets, instead of the first ``python`` on ``PATH``
   (:pr:`856`) by :user:`gaborbernat`.
@@ -87,8 +87,8 @@ Security
   directory, such as a ``.venv`` next to the ``pyproject.toml``. With no virtual or conda environment active, a plain
   ``pipdeptree`` and ``--python auto`` used to run that interpreter, so a cloned repository that committed both ran its
   own program as the user. A plain run now inspects the interpreter running pipdeptree, and ``--python auto`` fails to
-  detect an environment. To inspect that environment, activate it or pass its interpreter to ``--python`` by Bernát
-  Gábor.
+  detect an environment. To inspect that environment, activate it or pass its interpreter to ``--python`` (:pr:`848`) by
+  :user:`gaborbernat`.
 - Stop ``from-index`` with an error when the resolver pins a package name or version longer than 255 bytes, as
   ``from-lock`` already does. The text, JSON and freeze outputs copy a version once per edge, so an index could make
   them print megabytes from one long version (:pr:`843`) by :user:`gaborbernat`.
