@@ -88,15 +88,15 @@ build = [
   "setuptools-scm",
 ]
 release-news = [
-  "release-creator>=4.1",
+  "release-creator>=4.3.2",
   "towncrier>=26.9",
 ]
 release-notes = [
-  "release-creator>=4.1",
+  "release-creator>=4.3.2",
 ]
 release-prepare = [
   "prek>=0.5",
-  "release-creator>=4.1",
+  "release-creator>=4.3.2",
   "towncrier>=26.9",
 ]
 release-preview = [
@@ -104,7 +104,7 @@ release-preview = [
   { include-group = "release-prepare" },
 ]
 release-wheel = [
-  "release-creator>=4.1",
+  "release-creator>=4.3.2",
   "wheel>=0.46",
 ]
 
@@ -232,5 +232,5 @@ matrix.overrides.implementations.pypy.platforms = [
   "macos_arm64",
   "windows_amd64"
 ]
-# temporary, delete after 2026-11-02
-packages.release-creator.uploaded-prior-to = 2026-10-26T18:24:46Z
+# temporary, delete after 2026-11-06
+packages.release-creator.uploaded-prior-to = 2026-10-30T15:13:19Z
