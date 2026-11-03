@@ -6,6 +6,8 @@
 [![Documentation](https://readthedocs.org/projects/pipdeptree/badge/?version=latest&style=flat-square)](https://pipdeptree.readthedocs.io)
 [![PyPI - License](https://img.shields.io/pypi/l/pipdeptree?style=flat-square)](https://opensource.org/licenses/MIT)
 [![check](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yaml/badge.svg)](https://github.com/tox-dev/pipdeptree/actions/workflows/check.yaml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/tox-dev/pipdeptree/badge)](https://scorecard.dev/viewer/?uri=github.com/tox-dev/pipdeptree)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16252/badge)](https://www.bestpractices.dev/projects/16252)
 
 pipdeptree displays installed Python packages as a dependency tree.
 [`pip freeze`](https://pip.pypa.io/en/stable/cli/pip_freeze/) shows a flat list; `pipdeptree` adds parent-child
