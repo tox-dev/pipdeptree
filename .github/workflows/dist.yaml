@@ -87,7 +87,7 @@ jobs:
         with:
           cache: false
       - name: 🐍 Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: latest-known
           python-version: "3.15"
@@ -104,7 +104,7 @@ jobs:
         env:
           ARCH: ${{ matrix.platform.arch }}
           BUILD: ${{ matrix.build }}
-          CIBUILDWHEEL_COMMIT: b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1, keep in step with the Build wheels step
+          CIBUILDWHEEL_COMMIT: f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5, keep in step with the Build wheels step
         run: |
           set -euo pipefail
           curl --proto '=https' --tlsv1.2 -fsSL --retry 3 \
@@ -177,13 +177,13 @@ jobs:
           print("flags=" + " ".join(flags))
           EOF
       - name: 📦 Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@57a765127aae73adf7d0e24a7fe0f067f2d3ea3e # 6.2.1
+        uses: tox-dev/github-workflows/install-locked-tools@bceb5c005e19823dc8835f536f53f172ae223927 # 6.5.0
         with:
           groups: release-wheel
           venv: ${{ runner.temp }}/release-tools
       - name: 📦 Export hashed build constraints
         id: constraints
-        uses: tox-dev/github-workflows/export-build-constraints@57a765127aae73adf7d0e24a7fe0f067f2d3ea3e # 6.2.1
+        uses: tox-dev/github-workflows/export-build-constraints@bceb5c005e19823dc8835f536f53f172ae223927 # 6.5.0
         with:
           lock: pylock.build.toml
           target-platform: ${{ matrix.platform.lock_platform }}
@@ -261,19 +261,19 @@ jobs:
       - name: ⚙️ Set stable build timestamp
         run: git log -1 --format='SOURCE_DATE_EPOCH=%ct' "$GITHUB_SHA^{commit}" >> "$GITHUB_ENV"
       - name: 🐍 Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: latest-known
           python-version: "3.15"
           enable-cache: false
       - name: 📦 Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@57a765127aae73adf7d0e24a7fe0f067f2d3ea3e # 6.2.1
+        uses: tox-dev/github-workflows/install-locked-tools@bceb5c005e19823dc8835f536f53f172ae223927 # 6.5.0
         with:
           groups: release-notes
           venv: ${{ runner.temp }}/release-tools
       - name: 📦 Export hashed build constraints
         id: constraints
-        uses: tox-dev/github-workflows/export-build-constraints@57a765127aae73adf7d0e24a7fe0f067f2d3ea3e # 6.2.1
+        uses: tox-dev/github-workflows/export-build-constraints@bceb5c005e19823dc8835f536f53f172ae223927 # 6.5.0
         with:
           lock: pylock.build.toml
           target-platform: linux_x86_64
