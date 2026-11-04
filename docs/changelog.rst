@@ -6,6 +6,14 @@
 
 .. towncrier release notes start
 
+.. _release-4-2-14:
+
+*********************
+ 4.2.14 (2026-11-04)
+*********************
+
+No significant changes.
+
 .. _release-4-2-13:
 
 *********************
