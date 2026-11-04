@@ -38,7 +38,7 @@ jobs:
           python-version: "3.15"
           enable-cache: false
       - name: 📦 Install resolver dependencies
-        run: uv pip install --target .python-packages 'nab>=0.0.17' 'nab-index>=0.0.17' 'nab-project>=0.0.17'
+        run: uv pip install --target .python-packages --exclude-newer "7 days" 'nab>=0.0.19' 'nab-index>=0.0.19' 'nab-project>=0.0.19'
       - name: 🧹 Check formatting
         run: cargo fmt --all --check
       - name: 🧹 Check lints
