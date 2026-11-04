@@ -33,12 +33,9 @@ jobs:
           - os: windows-11-arm
             arch: ARM64
             lock_platform: windows_arm64
-        exclude:
-          # PyPy ships no Windows arm64 interpreter, and cibuildwheel stops a job whose selector matches nothing.
-          - build: pp311
-            platform:
-              os: windows-11-arm
-              arch: ARM64
+        # PyPy ships no Windows arm64 interpreter, and cibuildwheel stops a job whose selector matches nothing.
+        # Intel macOS wheels build only on tag pushes; the arm64 build covers PR packaging (#829 was an arm64 issue).
+        exclude: ${{ fromJSON(startsWith(github.ref, 'refs/tags/') && '[{"build":"pp311","platform":{"os":"windows-11-arm","arch":"ARM64"}}]' || '[{"build":"pp311","platform":{"os":"windows-11-arm","arch":"ARM64"}},{"build":"gil"},{"build":"free-threaded"}]') }}
         include:
           - build: cp315
             targets: "3.15.0:cpython"
