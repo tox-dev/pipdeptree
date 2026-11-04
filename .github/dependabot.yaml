@@ -26,6 +26,8 @@ updates:
     labels:
       - dependencies
       - skip news
+    cooldown:
+      default-days: 7
   - package-ecosystem: rust-toolchain
     directory: /
     patterns:
@@ -34,6 +36,8 @@ updates:
     labels:
       - dependencies
       - skip news
+    cooldown:
+      default-days: 7
   - package-ecosystem: pre-commit
     directory: /
     patterns:
