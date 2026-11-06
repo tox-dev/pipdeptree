@@ -121,9 +121,17 @@ jobs:
           PYTEST_ADDOPTS: "-vv --durations=20"
           DIFF_AGAINST: HEAD
   # The one context branch protection requires, so a matrix that grows or renames its cells needs no ruleset edit.
+  release:
+    name: 🏷️ Release dry run
+    uses: $/.github/workflows/prepare-release.yaml
+    permissions:
+      contents: read
+      pull-requests: read
+    with:
+      dry-run: true
   check:
     name: 🚦 ${{ github.event_name == 'pull_request' && 'Required checks pass' || 'Non-PR checks pass' }}
-    needs: [dist, rust, test]
+    needs: [dist, rust, test, release]
     if: always()
     runs-on: ubuntu-26.04
     steps:
