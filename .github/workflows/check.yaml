@@ -129,9 +129,14 @@ jobs:
       pull-requests: read
     with:
       dry-run: true
+  hooks:
+    name: 🧹 Hooks under the cooldown
+    uses: tox-dev/github-workflows/.github/workflows/cooled-hooks.yaml@e9dabf0e11825edd2b7ac6c152d9f4900f188815 # 6.7.0
+    permissions:
+      contents: read
   check:
     name: 🚦 ${{ github.event_name == 'pull_request' && 'Required checks pass' || 'Non-PR checks pass' }}
-    needs: [dist, rust, test, release]
+    needs: [dist, rust, test, release, hooks]
     if: always()
     runs-on: ubuntu-26.04
     steps:
