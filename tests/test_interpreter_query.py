@@ -42,11 +42,14 @@ def test_query_ignores_distribution_in_working_directory(
     assert (code, "planted" in capsys.readouterr().out) == (0, False)
 
 
+_PYTHON: Final[str] = "python.exe" if sys.platform == "win32" else "python"
+
+
 @pytest.mark.parametrize(
-    ("variable", "scripts"),
+    ("variable", "scripts", "executable"),
     [
-        pytest.param("VIRTUAL_ENV", "Scripts" if sys.platform == "win32" else "bin", id="venv"),
-        pytest.param("CONDA_PREFIX", "." if sys.platform == "win32" else "bin", id="conda"),
+        pytest.param("VIRTUAL_ENV", "Scripts" if sys.platform == "win32" else "bin", _PYTHON, id="venv"),
+        pytest.param("CONDA_PREFIX", "." if sys.platform == "win32" else "bin", _PYTHON, id="conda"),
     ],
 )
 def test_detection_ignores_empty_environment_variable(
@@ -56,9 +59,10 @@ def test_detection_ignores_empty_environment_variable(
     capsys: pytest.CaptureFixture[str],
     variable: str,
     scripts: str,
+    executable: str,
 ) -> None:
     (working_directory / scripts).mkdir(exist_ok=True)
-    (working_directory / scripts / ("python.exe" if sys.platform == "win32" else "python")).write_text("")
+    (working_directory / scripts / executable).write_text("")
     for name in ("VIRTUAL_ENV", "CONDA_PREFIX"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv(variable, "")
