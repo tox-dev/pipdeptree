@@ -40,27 +40,41 @@ def _completed(stdout: str = "") -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(args=(), returncode=0, stdout=stdout)
 
 
-@pytest.mark.parametrize("format_changes", [pytest.param(False, id="unchanged"), pytest.param(True, id="formatted")])
-@pytest.mark.parametrize("previous", [pytest.param("4.2.9", id="later-release"), pytest.param("", id="first-release")])
+@pytest.mark.parametrize(
+    "docstrfmt_failures",
+    [
+        pytest.param([], id="unchanged"),
+        pytest.param([subprocess.CalledProcessError(1, "prek")], id="formatted"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("previous", "previous_args"),
+    [
+        pytest.param("4.2.9", ("--previous", "4.2.9"), id="later-release"),
+        pytest.param("", (), id="first-release"),
+    ],
+)
 def test_release_preview_checks_notes_and_packages(
     mocker: MockerFixture,
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
-    format_changes: bool,
+    docstrfmt_failures: list[subprocess.CalledProcessError],
     previous: str,
+    previous_args: tuple[str, ...],
 ) -> None:
     mocker.patch.object(sys, "argv", ["release", "--bump", "patch"])
-    mocker.patch("tools.release.TemporaryDirectory", return_value=nullcontext(str(tmp_path)))
+    mocker.patch("tools.release.TemporaryDirectory", autospec=True, return_value=nullcontext(str(tmp_path)))
     outputs = [""] * 15
     outputs[1:4] = ["4.2.9\n", "4.2.10\n", previous]
     outputs[9] = "### Bug fixes\n\n- Fixed output.\n"
     outputs[12] = "1792696343\n"
     responses: list[subprocess.CompletedProcess[str] | subprocess.CalledProcessError] = [
-        _completed(output) for output in outputs
+        *(_completed(output) for output in outputs[:7]),
+        *docstrfmt_failures,
+        *(_completed(output) for output in outputs[7:]),
     ]
-    if format_changes:
-        responses.insert(7, subprocess.CalledProcessError(1, "prek"))
     run = mocker.patch("tools.release.subprocess.run", autospec=True, side_effect=responses)
+    retries = len(docstrfmt_failures)
 
     main()
 
@@ -77,20 +91,28 @@ def test_release_preview_checks_notes_and_packages(
         "--repository",
         "tox-dev/pipdeptree",
     )
-    assert commands.count(("prek", "run", "docstrfmt", "--files", "docs/changelog.rst")) == 1 + format_changes
-    assert commands[9 + format_changes][:4] == ("release-creator", "notes", "--changelog", "docs/changelog.rst")
-    if previous:
-        assert commands[9 + format_changes][-2:] == ("--previous", previous)
-    else:
-        assert "--previous" not in commands[9 + format_changes]
-    assert commands[10 + format_changes][:3] == ("uv", "venv", "--python")
-    assert commands[11 + format_changes][:3] == ("uv", "pip", "sync")
-    assert "pylock.build.toml" in commands[11 + format_changes]
-    assert commands[12 + format_changes] == ("git", "log", "-1", "--format=%ct")
-    assert commands[13 + format_changes][:3] == ("uv", "build", "--sdist")
-    assert "--no-build-isolation" in commands[13 + format_changes]
-    assert run.call_args_list[13 + format_changes].kwargs["env"]["PIPDEPTREE_VERSION"] == "4.2.10"
-    assert run.call_args_list[13 + format_changes].kwargs["env"]["SOURCE_DATE_EPOCH"] == "1792696343"
+    assert commands.count(("prek", "run", "docstrfmt", "--files", "docs/changelog.rst")) == 1 + retries
+    assert commands[9 + retries] == (
+        "release-creator",
+        "notes",
+        "--changelog",
+        "docs/changelog.rst",
+        "--tag",
+        "4.2.10",
+        "--repository",
+        "tox-dev/pipdeptree",
+        "--artifact-url",
+        "https://pypi.org/project/pipdeptree/4.2.10/",
+        *previous_args,
+    )
+    assert commands[10 + retries][:3] == ("uv", "venv", "--python")
+    assert commands[11 + retries][:3] == ("uv", "pip", "sync")
+    assert "pylock.build.toml" in commands[11 + retries]
+    assert commands[12 + retries] == ("git", "log", "-1", "--format=%ct")
+    assert commands[13 + retries][:3] == ("uv", "build", "--sdist")
+    assert "--no-build-isolation" in commands[13 + retries]
+    env = run.call_args_list[13 + retries].kwargs["env"]
+    assert (env["PIPDEPTREE_VERSION"], env["SOURCE_DATE_EPOCH"]) == ("4.2.10", "1792696343")
     assert commands[-1] == (sys.executable, "tools/check_release_wheels.py", "dist")
     assert all(call.kwargs["stdout"] is sys.stderr for call in run.call_args_list if not call.kwargs["capture_output"])
     assert all(command[:2] != ("git", "push") for command in commands)
