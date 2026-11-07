@@ -26,20 +26,30 @@ def make_wheel(tmp_path: Path) -> Callable[[str, dict[str, bytes]], Path]:
 
 
 @pytest.mark.parametrize(
-    ("name", "extension", "libraries"),
+    ("name", "extension", "libraries", "magic"),
     [
-        pytest.param("pipdeptree-1-cp311-abi3-manylinux_2_28_x86_64.whl", "pipdeptree/_rust.abi3.so", {}, id="plain"),
-        pytest.param("pipdeptree-1-cp311-abi3-macosx_11_0_arm64.whl", "pipdeptree/_rust.abi3.so", {}, id="macos"),
+        pytest.param(
+            "pipdeptree-1-cp311-abi3-manylinux_2_28_x86_64.whl", "pipdeptree/_rust.abi3.so", {}, b"\x7fELF", id="plain"
+        ),
+        pytest.param(
+            "pipdeptree-1-cp311-abi3-macosx_11_0_arm64.whl",
+            "pipdeptree/_rust.abi3.so",
+            {},
+            b"\xcf\xfa\xed\xfe",
+            id="macos",
+        ),
         pytest.param(
             "pipdeptree-1-cp311-abi3-musllinux_1_2_x86_64.whl",
             "pipdeptree/_rust.abi3.so",
             {"pipdeptree.libs/libgcc_s-0cd532bd.so.1": b"\x7fELF"},
+            b"\x7fELF",
             id="musllinux",
         ),
         pytest.param(
             "pipdeptree-1-pp311-pypy311_pp80-win_amd64.whl",
             "pipdeptree/_rust.pypy311-pp80-win_amd64.pyd",
             {"pipdeptree.libs/vcruntime140-052ad6a20d375957e82aa6a3c441ea54.dll": b"MZ"},
+            b"MZ",
             id="windows-pypy",
         ),
     ],
@@ -49,8 +59,8 @@ def test_release_wheels_accept_expected_libraries(
     name: str,
     extension: str,
     libraries: dict[str, bytes],
+    magic: bytes,
 ) -> None:
-    magic = b"\xcf\xfa\xed\xfe" if "macosx_" in name else b"MZ" if "win_" in name else b"\x7fELF"
     directory = make_wheel(name, {extension: magic, **libraries})
 
     assert main([str(directory)]) == 1
