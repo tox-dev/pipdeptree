@@ -7,10 +7,9 @@ import shutil
 import subprocess  # ruff:ignore[suspicious-subprocess-import]  # Meson supplies the Cargo executable.
 import sys
 from pathlib import Path
-from typing import Final
 
 
-def main() -> None:
+def _main() -> None:
     cargo, source, destination, artifact, features, depfile, version = sys.argv[1:]
     output = Path(destination)
     # A caller that points CARGO_TARGET_DIR somewhere shared keeps the dependency graph compiled between builds
@@ -51,7 +50,7 @@ def _artifact(target: Path, name: str) -> Path:
 
 
 if __name__ == "__main__":
-    main()
+    _main()
 
 
-__all__: Final = []
+__all__ = []
