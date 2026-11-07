@@ -32,13 +32,9 @@ def _main() -> None:
         raise RuntimeError(msg)
     built = _artifact(target, artifact)
     shutil.copyfile(built, output)
-    _write_depfile(built, output, Path(depfile))
-
-
-def _write_depfile(built: Path, output: Path, depfile: Path) -> None:
     # Rewrite Cargo's dep-info so Meson tracks the Rust sources without enumerating them.
-    _, _, sources = built.with_suffix(".d").read_text(encoding="utf-8").partition(": ")
-    depfile.write_text(f"{output}: {sources}", encoding="utf-8")
+    sources = built.with_suffix(".d").read_text(encoding="utf-8").partition(": ")[2]
+    Path(depfile).write_text(f"{output}: {sources}", encoding="utf-8")
 
 
 def _artifact(target: Path, name: str) -> Path:
