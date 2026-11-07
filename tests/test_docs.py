@@ -93,7 +93,7 @@ def _check_document(
         if example.exit_code is not None and code != example.exit_code:
             failures.append(f"{command}\nexpected exit code {example.exit_code}, got {code}")
     if update:
-        document.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        document.write_text("".join(f"{line}\n" for line in lines), encoding="utf-8")
     failures.reverse()
     return failures
 
