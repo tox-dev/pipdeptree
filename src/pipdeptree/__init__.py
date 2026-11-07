@@ -80,7 +80,7 @@ def render(  # ruff:ignore[too-many-arguments]  # The public keyword API predate
         text = _report(*_render(args))
         if not summary:
             return text
-        return _SummaryResult(text, html=_summary_html(text)) if output_format == "text" else text
+        return _SummaryResult(text) if output_format == "text" else text
     # One engine run yields both representations; a notebook's mermaid display would otherwise
     # rediscover the whole environment through a second call.
     text, mermaid, warnings, code = _render_with_mermaid(args)
@@ -138,21 +138,22 @@ def _report(text: str, warnings: str, code: int) -> str:
 
 
 class _SummaryResult(str):  # ruff:ignore[subclass-builtin]  # Notebook results must retain concrete str behavior.
-    __slots__ = ("_html",)
-
-    _html: str
-
-    def __new__(cls, text: str, *, html: str) -> Self:
-        self = super().__new__(cls, text)
-        self._html = html
-        return self
+    __slots__ = ()
 
     def _repr_mimebundle_(
         self,
         include: Container[str] | None = None,
         exclude: Container[str] | None = None,
     ) -> dict[str, str]:
-        return _filter_bundle({"text/html": self._html, "text/plain": str(self)}, include, exclude)
+        # The engine ends each row with "\n" and keeps other line breaks, such as U+2028, inside a value, so
+        # str.splitlines() would split one row into several.
+        rows = "".join(
+            f"<tr><td>{escape(label)}</td><td>{escape(value.strip())}</td></tr>"
+            for line in self.removesuffix("\n").split("\n")
+            for label, _, value in (line.partition(":"),)
+        )
+        html = f"<table>\n<tr><th>metric</th><th>value</th></tr>\n{rows}\n</table>"
+        return _filter_bundle({"text/html": html, "text/plain": str(self)}, include, exclude)
 
 
 def _filter_bundle(
@@ -163,17 +164,6 @@ def _filter_bundle(
     if include is not None:
         bundle = {key: value for key, value in bundle.items() if key in include}
     return bundle if exclude is None else {key: value for key, value in bundle.items() if key not in exclude}
-
-
-def _summary_html(text: str) -> str:
-    # The engine ends each row with "\n" and keeps other line breaks, such as U+2028, inside a value, so
-    # str.splitlines() would split one row into several.
-    rows = "".join(
-        f"<tr><td>{escape(label)}</td><td>{escape(value.strip())}</td></tr>"
-        for line in text.removesuffix("\n").split("\n")
-        for label, _, value in (line.partition(":"),)
-    )
-    return f"<table>\n<tr><th>metric</th><th>value</th></tr>\n{rows}\n</table>"
 
 
 class _RenderResult(str):  # ruff:ignore[subclass-builtin]  # Notebook results must retain concrete str behavior.
