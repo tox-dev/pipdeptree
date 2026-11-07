@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from typing import Final
 
 import pytest
 
 import pipdeptree
 from pipdeptree import _rust
 
-_STUB = Path(pipdeptree.__file__).parent / "_rust.pyi"
+_STUB: Final[Path] = Path(pipdeptree.__file__).parent / "_rust.pyi"
 
 
 def _stub_signatures() -> dict[str, list[str]]:

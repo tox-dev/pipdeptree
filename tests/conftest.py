@@ -9,7 +9,7 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-_ROOT: Final = Path(__file__).parents[1]
+_ROOT: Final[Path] = Path(__file__).parents[1]
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 # The text formats of https://graphviz.org/docs/outputs/; dot writes PostScript labels as Latin-1, so whether the output
 # decodes as UTF-8 cannot tell a text format from an image.
-_GRAPHVIZ_TEXT_FORMATS: Final = frozenset({
+_GRAPHVIZ_TEXT_FORMATS: Final[frozenset[str]] = frozenset({
     "canon",
     "cmap",
     "cmapx",

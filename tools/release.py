@@ -11,7 +11,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Final
 
-_ROOT: Final = Path(__file__).resolve().parent.parent
+_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 
 def main() -> None:
