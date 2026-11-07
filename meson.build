@@ -17,6 +17,7 @@ py.install_sources(
   files(
     'src/pipdeptree/__init__.py',
     'src/pipdeptree/__main__.py',
+    'src/pipdeptree/_api.py',
     'src/pipdeptree/_runner.py',
     'src/pipdeptree/_rust.pyi',
     'src/pipdeptree/py.typed',
