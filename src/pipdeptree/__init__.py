@@ -46,6 +46,7 @@ def render(  # ruff:ignore[too-many-arguments]  # The public keyword API predate
     :param output_format: ``text``, ``json``, ``json-tree``, ``cyclonedx-json``, ``mermaid`` or ``dot``.
         With ``summary=True``, use ``text``, ``rich`` or ``json``.
     :param summary: Return an environment health report instead of a dependency tree.
+
     :param reverse: Show packages beneath the dependencies that require them.
     :param depth: Maximum rendered tree depth. Only ``text`` and ``dot`` apply it.
     :param extras: Extras mode. ``True`` means ``"explicit"``; named modes are ``"none"``, ``"explicit"`` and
@@ -54,6 +55,7 @@ def render(  # ruff:ignore[too-many-arguments]  # The public keyword API predate
     :param user_only: Include only packages installed in the user site.
     :param python: Python interpreter whose environment to inspect.
     :param encoding: Encoding used to select text tree characters.
+
     :param warn: Warning mode: ``silence``, ``suppress`` or ``fail``. ``suppress`` writes warnings to
         :data:`sys.stderr`; ``fail`` raises :exc:`ValueError` when pipdeptree finds a problem.
     :raises ValueError: If an option is invalid, a Graphviz format other than ``dot`` is requested, or
