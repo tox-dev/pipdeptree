@@ -20,12 +20,6 @@ def _stub_signatures() -> dict[str, list[str]]:
     }
 
 
-def _stub_exports() -> list[str]:
-    body = ast.parse(_STUB.read_text(encoding="utf-8")).body
-    (assign,) = [node for node in body if isinstance(node, ast.Assign)]
-    return list(ast.literal_eval(assign.value))
-
-
 def _runtime_params(signature: str) -> list[str]:
     inner = signature.strip().removeprefix("(").removesuffix(")")
     parts = [part.strip() for part in inner.split(",") if part.strip() and part.strip() != "*"]
@@ -35,6 +29,12 @@ def _runtime_params(signature: str) -> list[str]:
 def test_rust_stub_lists_every_extension_function() -> None:
     runtime = {name for name in dir(_rust) if callable(getattr(_rust, name)) and not name.startswith("_")}
     assert set(_stub_exports()) == runtime == set(_stub_signatures())
+
+
+def _stub_exports() -> list[str]:
+    body = ast.parse(_STUB.read_text(encoding="utf-8")).body
+    (assign,) = [node for node in body if isinstance(node, ast.Assign)]
+    return list(ast.literal_eval(assign.value))
 
 
 @pytest.mark.parametrize("name", _stub_signatures())

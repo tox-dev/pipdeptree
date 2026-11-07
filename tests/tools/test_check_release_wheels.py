@@ -1,5 +1,3 @@
-"""Release wheels carry only the native libraries needed by their platform."""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

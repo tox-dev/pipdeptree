@@ -13,10 +13,9 @@ from html import escape
 from math import inf
 from typing import TYPE_CHECKING
 
-from pipdeptree._rust import format_flags as _format_flags
-from pipdeptree._rust import render as _render
-from pipdeptree._rust import render_with_mermaid as _render_with_mermaid
-
+from ._rust import format_flags as _format_flags
+from ._rust import render as _render
+from ._rust import render_with_mermaid as _render_with_mermaid
 from .version import __version__
 
 if TYPE_CHECKING:
@@ -59,7 +58,7 @@ def render(  # ruff:ignore[too-many-arguments]  # The public keyword API predate
         :data:`sys.stderr`; ``fail`` raises :exc:`ValueError` when pipdeptree finds a problem.
     :raises ValueError: If an option is invalid, a Graphviz format other than ``dot`` is requested, or
         ``warn="fail"`` and the environment has dependency problems.
-    :return: The rendered output. Text and text-summary results also provide notebook display hooks.
+    :returns: The rendered output. Text and text-summary results also provide notebook display hooks.
     """
     args = _render_args(
         _RenderOptions(
@@ -88,14 +87,6 @@ def render(  # ruff:ignore[too-many-arguments]  # The public keyword API predate
     return _RenderResult(_report(text, warnings, code), mermaid=mermaid)
 
 
-def _report(text: str, warnings: str, code: int) -> str:
-    if code != 0:
-        raise ValueError(warnings.strip())
-    if warnings:
-        sys.stderr.write(warnings)
-    return text
-
-
 def _render_args(options: _RenderOptions) -> list[str]:
     format_args = _format_flags(options.output_format, options.summary)
     args = ["--warn", options.warn, "--encoding", options.encoding, *format_args]
@@ -122,18 +113,7 @@ def _render_args(options: _RenderOptions) -> list[str]:
     return args
 
 
-def _summary_html(text: str) -> str:
-    # The engine ends each row with "\n" and keeps other line breaks, such as U+2028, inside a value, so
-    # str.splitlines() would split one row into several.
-    rows = "".join(
-        f"<tr><td>{escape(label)}</td><td>{escape(value.strip())}</td></tr>"
-        for line in text.removesuffix("\n").split("\n")
-        for label, _, value in (line.partition(":"),)
-    )
-    return f"<table>\n<tr><th>metric</th><th>value</th></tr>\n{rows}\n</table>"
-
-
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _RenderOptions:
     packages: str | None
     exclude: str | None
@@ -149,27 +129,12 @@ class _RenderOptions:
     warn: str
 
 
-class _RenderResult(str):  # ruff:ignore[subclass-builtin]  # Notebook results must retain concrete str behavior.
-    __slots__ = ("_mermaid",)
-
-    _mermaid: str
-
-    def __new__(cls, text: str, *, mermaid: str) -> Self:
-        self = super().__new__(cls, text)
-        self._mermaid = mermaid
-        return self
-
-    def _repr_mimebundle_(
-        self,
-        include: Container[str] | None = None,
-        exclude: Container[str] | None = None,
-    ) -> dict[str, str]:
-        bundle = {
-            "text/html": f"<pre>{escape(str(self))}</pre>",
-            "text/plain": str(self),
-            "text/vnd.mermaid": self._mermaid,
-        }
-        return _filter_bundle(bundle, include, exclude)
+def _report(text: str, warnings: str, code: int) -> str:
+    if code != 0:
+        raise ValueError(warnings.strip())
+    if warnings:
+        sys.stderr.write(warnings)
+    return text
 
 
 class _SummaryResult(str):  # ruff:ignore[subclass-builtin]  # Notebook results must retain concrete str behavior.
@@ -198,6 +163,40 @@ def _filter_bundle(
     if include is not None:
         bundle = {key: value for key, value in bundle.items() if key in include}
     return bundle if exclude is None else {key: value for key, value in bundle.items() if key not in exclude}
+
+
+def _summary_html(text: str) -> str:
+    # The engine ends each row with "\n" and keeps other line breaks, such as U+2028, inside a value, so
+    # str.splitlines() would split one row into several.
+    rows = "".join(
+        f"<tr><td>{escape(label)}</td><td>{escape(value.strip())}</td></tr>"
+        for line in text.removesuffix("\n").split("\n")
+        for label, _, value in (line.partition(":"),)
+    )
+    return f"<table>\n<tr><th>metric</th><th>value</th></tr>\n{rows}\n</table>"
+
+
+class _RenderResult(str):  # ruff:ignore[subclass-builtin]  # Notebook results must retain concrete str behavior.
+    __slots__ = ("_mermaid",)
+
+    _mermaid: str
+
+    def __new__(cls, text: str, *, mermaid: str) -> Self:
+        self = super().__new__(cls, text)
+        self._mermaid = mermaid
+        return self
+
+    def _repr_mimebundle_(
+        self,
+        include: Container[str] | None = None,
+        exclude: Container[str] | None = None,
+    ) -> dict[str, str]:
+        bundle = {
+            "text/html": f"<pre>{escape(str(self))}</pre>",
+            "text/plain": str(self),
+            "text/vnd.mermaid": self._mermaid,
+        }
+        return _filter_bundle(bundle, include, exclude)
 
 
 __all__ = [

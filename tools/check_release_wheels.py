@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Reject unreviewed libraries before trusted publishing uploads the wheels."""
+    # Reject unreviewed libraries before trusted publishing uploads the wheels.
     parser = argparse.ArgumentParser(description="validate release wheel libraries")
     parser.add_argument("directory", type=Path)
     directory = parser.parse_args(argv).directory

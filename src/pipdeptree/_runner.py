@@ -7,7 +7,7 @@ import tempfile
 import webbrowser
 from typing import TYPE_CHECKING, Final
 
-from pipdeptree._rust import execute
+from ._rust import execute
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -50,7 +50,7 @@ _GRAPHVIZ_TEXT_FORMATS: Final = frozenset({
 
 
 def main(args: Sequence[str] | None = None) -> int | None:
-    """Return the CLI exit code; help and version requests exit after writing their output."""
+    # Return the CLI exit code; help and version requests exit after writing their output.
     argv = list(sys.argv[1:] if args is None else args)
     if not any(value == "--encoding" or value.startswith("--encoding=") for value in argv):
         argv[:0] = ["--encoding", sys.stdout.encoding or "utf-8"]

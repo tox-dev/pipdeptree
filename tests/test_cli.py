@@ -381,6 +381,23 @@ def test_cli_index_local_source_leaves_index_sdist_unbuilt(
     assert (built.exists(), "remote: every version in range was rejected" in capsys.readouterr().err) == (False, True)
 
 
+def _write_dynamic_project(directory: Path, name: str, marker: Path, backend_path: str) -> None:
+    (directory / backend_path).mkdir(parents=True)
+    (directory / "pyproject.toml").write_text(
+        f'[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["{backend_path}"]\n'
+        f'[project]\nname = "{name}"\nversion = "1"\ndynamic = ["dependencies"]\n'
+    )
+    (directory / "PKG-INFO").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: 1\n")
+    (directory / backend_path / "backend.py").write_text(
+        f"import os\nopen({str(marker)!r}, 'w').close()\n"
+        "def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):\n"
+        f"    os.mkdir(os.path.join(metadata_directory, '{name}-1.dist-info'))\n"
+        f"    with open(os.path.join(metadata_directory, '{name}-1.dist-info', 'METADATA'), 'w') as metadata:\n"
+        f"        metadata.write('Metadata-Version: 2.1\\nName: {name}\\nVersion: 1\\n')\n"
+        f"    return '{name}-1.dist-info'\n"
+    )
+
+
 @pytest.mark.parametrize(
     ("mode", "expected"),
     [
@@ -482,23 +499,6 @@ def test_cli_index_requirements_error_names_plain_path(
     code: Final = entry_point(["from-index", "--requirements", "requirements.txt"])
 
     assert (code, capsys.readouterr().err) == (1, expected.format(path=requirements.resolve()))
-
-
-def _write_dynamic_project(directory: Path, name: str, marker: Path, backend_path: str) -> None:
-    (directory / backend_path).mkdir(parents=True)
-    (directory / "pyproject.toml").write_text(
-        f'[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["{backend_path}"]\n'
-        f'[project]\nname = "{name}"\nversion = "1"\ndynamic = ["dependencies"]\n'
-    )
-    (directory / "PKG-INFO").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: 1\n")
-    (directory / backend_path / "backend.py").write_text(
-        f"import os\nopen({str(marker)!r}, 'w').close()\n"
-        "def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):\n"
-        f"    os.mkdir(os.path.join(metadata_directory, '{name}-1.dist-info'))\n"
-        f"    with open(os.path.join(metadata_directory, '{name}-1.dist-info', 'METADATA'), 'w') as metadata:\n"
-        f"        metadata.write('Metadata-Version: 2.1\\nName: {name}\\nVersion: 1\\n')\n"
-        f"    return '{name}-1.dist-info'\n"
-    )
 
 
 def test_module_entrypoint(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

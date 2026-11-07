@@ -5,11 +5,12 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Final
 
 from pipdeptree.version import __version__
 
-company = "tox-dev"
-name = "pipdeptree"
+company: Final[str] = "tox-dev"
+name: Final[str] = "pipdeptree"
 version = ".".join(__version__.split(".")[:2])
 release = __version__
 globals()["copyright"] = f"2014-{datetime.now(tz=UTC).year}, {company}"
@@ -30,34 +31,34 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
 }
 
-autosectionlabel_prefix_document = True
+autosectionlabel_prefix_document: Final[bool] = True
 # Release categories repeat across versions and have explicit per-release targets.
-autosectionlabel_maxdepth = 1
+autosectionlabel_maxdepth: Final[int] = 1
 
 templates_path = []
 unused_docs = []
-source_suffix = ".rst"
+source_suffix: Final[str] = ".rst"
 exclude_patterns = ["_build", "changelog/*"]  # towncrier assembles the fragments; they are not pages
 
-main_doc = "index"
+main_doc: Final[str] = "index"
 pygments_style = "default"
 project = name
-today_fmt = "%B %d, %Y"
+today_fmt: Final[str] = "%B %d, %Y"
 
-html_theme = "furo"
+html_theme: Final[str] = "furo"
 html_title, html_last_updated_fmt = project, datetime.now(tz=UTC).isoformat()
 pygments_style, pygments_dark_style = "sphinx", "monokai"
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
-html_favicon = "_static/pipdeptree.svg"
+html_favicon: Final[str] = "_static/pipdeptree.svg"
 html_theme_options = {
     "light_logo": "pipdeptree.svg",
     "dark_logo": "pipdeptree.svg",
 }
-html_show_sourcelink = False
+html_show_sourcelink: Final[bool] = False
 
-towncrier_draft_autoversion_mode = "draft"
-towncrier_draft_include_empty = True
+towncrier_draft_autoversion_mode: Final[str] = "draft"
+towncrier_draft_include_empty: Final[bool] = True
 towncrier_draft_working_directory = Path(__file__).parent.parent
 
 extlinks = {

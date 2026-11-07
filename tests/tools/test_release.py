@@ -1,5 +1,3 @@
-"""The local release command must never publish during a preview."""
-
 from __future__ import annotations
 
 import subprocess  # ruff:ignore[suspicious-subprocess-import]  # The subprocess boundary is mocked in these tests.
@@ -36,6 +34,10 @@ def test_release_dispatch_starts_only_protected_workflow(mocker: MockerFixture) 
         "-f",
         "bump=minor",
     )
+
+
+def _completed(stdout: str = "") -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(args=(), returncode=0, stdout=stdout)
 
 
 @pytest.mark.parametrize("format_changes", [pytest.param(False, id="unchanged"), pytest.param(True, id="formatted")])
@@ -120,7 +122,3 @@ def test_release_subprocess_error_stops_dispatch(mocker: MockerFixture) -> None:
         main()
 
     run.assert_called_once()
-
-
-def _completed(stdout: str = "") -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(args=(), returncode=0, stdout=stdout)

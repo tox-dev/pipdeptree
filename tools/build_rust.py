@@ -37,9 +37,8 @@ def main() -> None:
 
 
 def _write_depfile(built: Path, output: Path, depfile: Path) -> None:
-    """Rewrite Cargo's dep-info so Meson tracks the Rust sources without enumerating them."""
-    dependencies = built.with_suffix(".d").read_text(encoding="utf-8")
-    _, _, sources = dependencies.partition(": ")
+    # Rewrite Cargo's dep-info so Meson tracks the Rust sources without enumerating them.
+    _, _, sources = built.with_suffix(".d").read_text(encoding="utf-8").partition(": ")
     depfile.write_text(f"{output}: {sources}", encoding="utf-8")
 
 
