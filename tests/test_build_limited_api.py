@@ -5,10 +5,12 @@ import runpy
 import sys
 import sysconfig
 from pathlib import Path
-from typing import Final
-from unittest.mock import create_autospec
+from typing import TYPE_CHECKING, Final
 
 import pytest
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.mark.parametrize(
@@ -23,6 +25,7 @@ import pytest
 )
 def test_build_limited_api(
     monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
     capsys: pytest.CaptureFixture[str],
     environment: dict[str, str],
     implementation: str,
@@ -32,7 +35,7 @@ def test_build_limited_api(
     monkeypatch.setattr(os, "environ", environment)
     monkeypatch.setattr(sys.implementation, "name", implementation)
     monkeypatch.setattr(
-        sysconfig, "get_config_var", create_autospec(sysconfig.get_config_var, return_value=gil_disabled)
+        sysconfig, "get_config_var", mocker.create_autospec(sysconfig.get_config_var, return_value=gil_disabled)
     )
     script: Final = Path(__file__).resolve().parents[1] / "tools/limited_api.py"
 
