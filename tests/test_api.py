@@ -187,7 +187,7 @@ def test_render_summary_notebook_bundle_keeps_license_line_separator(
 
     html = cast("MimeBundle", pipdeptree.render(summary=True))._repr_mimebundle_()["text/html"]
 
-    assert re.findall(r"<tr><td>(.*?)</td><td>(.*?)</td></tr>", html) == [
+    assert re.findall(r"<tr><td>(?P<label>.*?)</td><td>(?P<value>.*?)</td></tr>", html) == [
         ("total packages", "1"),
         ("direct dependencies", "1"),
         ("transitive dependencies", "0"),
