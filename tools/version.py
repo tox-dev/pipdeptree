@@ -36,7 +36,14 @@ def _from_git(root: Path) -> str | None:
         return None
     try:
         completed: Final = subprocess.run(
-            ["git", "describe", "--tags", "--long", "--match", "[0-9]*"],  # ruff:ignore[start-process-with-partial-path]  # Git comes off PATH, as for any build.
+            [  # ruff:ignore[start-process-with-partial-path]  # Git comes off PATH, as for any build.
+                "git",
+                "describe",
+                "--tags",
+                "--long",
+                "--match",
+                "[0-9]*",
+            ],
             capture_output=True,
             text=True,
             cwd=root,
