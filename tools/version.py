@@ -34,20 +34,16 @@ def _resolve() -> str:
 def _from_git(root: Path) -> str | None:
     if not (root / ".git").exists():
         return None
-    described: Final[str | None]
-    if (described := _git(root, "describe", "--tags", "--long", "--match", "[0-9]*")) is None:
-        return None
-    tag: Final[str]
-    distance: Final[str]
-    commit: Final[str]
-    tag, distance, commit = described.rsplit("-", 2)
-    return tag if int(distance) == 0 else f"{tag}.dev{distance}+{commit}"
-
-
-def _git(root: Path, *args: str) -> str | None:
     try:
-        completed: Final = subprocess.run(  # ruff:ignore[subprocess-without-shell-equals-true]  # Fixed argument list.
-            ["git", *args],  # ruff:ignore[start-process-with-partial-path]  # Git comes off PATH, as for any build.
+        completed: Final = subprocess.run(
+            [  # ruff:ignore[start-process-with-partial-path]  # Git comes off PATH, as for any build.
+                "git",
+                "describe",
+                "--tags",
+                "--long",
+                "--match",
+                "[0-9]*",
+            ],
             capture_output=True,
             text=True,
             cwd=root,
@@ -55,11 +51,14 @@ def _git(root: Path, *args: str) -> str | None:
         )
     except FileNotFoundError:  # Git is absent, as in a container building from an unpacked sdist.
         return None
-    return completed.stdout.strip() if completed.returncode == 0 else None
+    if completed.returncode != 0:
+        return None
+    tag, distance, commit = completed.stdout.strip().rsplit("-", 2)
+    return tag if int(distance) == 0 else f"{tag}.dev{distance}+{commit}"
 
 
 if __name__ == "__main__":
     main()
 
 
-__all__: Final = []
+__all__ = []

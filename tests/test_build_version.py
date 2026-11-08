@@ -5,40 +5,43 @@ import subprocess  # ruff:ignore[suspicious-subprocess-import]  # Integration te
 from pathlib import Path
 from shutil import which
 from typing import TYPE_CHECKING, Final
-from unittest.mock import create_autospec
 
 import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Protocol
+
+    from pytest_mock import MockerFixture
+
+    class Git(Protocol):
+        def __call__(self, *args: str) -> str: ...
 
 
 @pytest.mark.usefixtures("repository", "package_metadata")
 @pytest.mark.parametrize(
-    ("release", "override", "expected"),
+    ("release", "expected"),
     [
-        pytest.param("4.2.3", None, "4.2.3", id="release"),
-        pytest.param("4.3.0rc1", None, "4.3.0rc1", id="prerelease"),
-        pytest.param("4.2.3", "5.0.0rc1", "5.0.0rc1", id="override"),
+        pytest.param("4.2.3", "4.2.3", id="release"),
+        pytest.param("4.3.0rc1", "4.3.0rc1", id="prerelease"),
     ],
 )
-def test_build_version_tag(
-    build_version: Callable[[], str],
-    git: Callable[..., str],
-    monkeypatch: pytest.MonkeyPatch,
-    release: str,
-    override: str | None,
-    expected: str,
-) -> None:
+def test_build_version_tag(build_version: Callable[[], str], git: Git, release: str, expected: str) -> None:
     git("tag", release)
-    if override is not None:
-        monkeypatch.setenv("PIPDEPTREE_VERSION", override)
 
     assert build_version() == expected
 
 
+@pytest.mark.usefixtures("repository", "package_metadata")
+def test_build_version_override(build_version: Callable[[], str], git: Git, monkeypatch: pytest.MonkeyPatch) -> None:
+    git("tag", "4.2.3")
+    monkeypatch.setenv("PIPDEPTREE_VERSION", "5.0.0rc1")
+
+    assert build_version() == "5.0.0rc1"
+
+
 @pytest.mark.usefixtures("repository")
-def test_build_version_after_tag(build_version: Callable[[], str], git: Callable[..., str]) -> None:
+def test_build_version_after_tag(build_version: Callable[[], str], git: Git) -> None:
     git("tag", "4.2.3")
     git("commit", "--allow-empty", "-m", "After release")
 
@@ -46,7 +49,7 @@ def test_build_version_after_tag(build_version: Callable[[], str], git: Callable
 
 
 @pytest.mark.usefixtures("repository")
-def test_build_version_without_release_tag(build_version: Callable[[], str], git: Callable[..., str]) -> None:
+def test_build_version_without_release_tag(build_version: Callable[[], str], git: Git) -> None:
     git("tag", "unrelated")
 
     assert build_version() == "0.0.0"
@@ -60,30 +63,29 @@ def test_build_version_without_release_tag(build_version: Callable[[], str], git
         pytest.param("Name: pipdeptree\n", "0.0.0", id="missing-version"),
         pytest.param("Version: \n", "0.0.0", id="empty-version"),
         pytest.param("Name: pipdeptree\n\nVersion: 9.9.9\n", "0.0.0", id="description-is-not-metadata"),
-        pytest.param(None, "0.0.0", id="missing-metadata"),
     ],
 )
-def test_build_version_metadata(
-    build_version: Callable[[], str], tmp_path: Path, metadata: str | None, expected: str
-) -> None:
-    if metadata is not None:
-        (tmp_path / "PKG-INFO").write_text(metadata, encoding="utf-8")
+def test_build_version_metadata(build_version: Callable[[], str], tmp_path: Path, metadata: str, expected: str) -> None:
+    (tmp_path / "PKG-INFO").write_text(metadata, encoding="utf-8")
 
     assert build_version() == expected
 
 
+def test_build_version_without_metadata(build_version: Callable[[], str]) -> None:
+    assert build_version() == "0.0.0"
+
+
 @pytest.mark.usefixtures("repository", "package_metadata")
-@pytest.mark.parametrize("git_available", [pytest.param(True, id="untagged"), pytest.param(False, id="missing-git")])
-def test_build_version_metadata_fallback(
-    build_version: Callable[[], str],
-    git: Callable[..., str],
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    git_available: bool,
+def test_build_version_metadata_fallback_untagged(build_version: Callable[[], str]) -> None:
+    assert build_version() == "4.1.0"
+
+
+@pytest.mark.usefixtures("repository", "package_metadata")
+def test_build_version_metadata_fallback_missing_git(
+    build_version: Callable[[], str], git: Git, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    if not git_available:
-        git("tag", "4.2.3")
-        monkeypatch.setenv("PATH", "")
+    git("tag", "4.2.3")
+    monkeypatch.setenv("PATH", "")
 
     assert build_version() == "4.1.0"
 
@@ -106,11 +108,17 @@ def build_version(
 
 @pytest.fixture
 def meson_version(
-    project_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    project_root: Path,
+    tmp_path: Path,
+    mocker: MockerFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> Callable[[], str]:
     def resolve() -> str:
         with monkeypatch.context() as context:
-            context.setattr(Path, "resolve", create_autospec(Path.resolve, return_value=tmp_path / "tools/version.py"))
+            context.setattr(
+                Path, "resolve", mocker.create_autospec(Path.resolve, return_value=tmp_path / "tools/version.py")
+            )
             runpy.run_path(str(project_root / "tools/version.py"), run_name="tools.version")["main"]()
         return capsys.readouterr().out.strip()
 
@@ -147,7 +155,7 @@ def cargo_build_script(project_root: Path, tmp_path_factory: pytest.TempPathFact
 
 
 @pytest.fixture(params=[pytest.param(False, id="git-directory"), pytest.param(True, id="git-file")])
-def repository(request: pytest.FixtureRequest, git: Callable[..., str], tmp_path: Path) -> None:
+def repository(request: pytest.FixtureRequest, git: Git, tmp_path: Path) -> None:
     if request.param:
         git("init", "--separate-git-dir", str(tmp_path.parent / f"{tmp_path.name}.git"))
     else:
@@ -156,7 +164,7 @@ def repository(request: pytest.FixtureRequest, git: Callable[..., str], tmp_path
 
 
 @pytest.fixture
-def git(tmp_path: Path) -> Callable[..., str]:
+def git(tmp_path: Path) -> Git:
     executable: Final = which("git")
     assert executable is not None
 
@@ -187,7 +195,7 @@ def package_metadata(tmp_path: Path) -> None:
 
 
 @pytest.fixture
-def parent_repository(git: Callable[..., str], tmp_path: Path) -> None:
+def parent_repository(git: Git, tmp_path: Path) -> None:
     git("-C", str(tmp_path.parent), "init")
     git("-C", str(tmp_path.parent), "commit", "--allow-empty", "-m", "Parent repository")
     git("-C", str(tmp_path.parent), "tag", "--force", "9.9.9")

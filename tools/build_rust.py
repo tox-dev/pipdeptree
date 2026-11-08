@@ -7,10 +7,9 @@ import shutil
 import subprocess  # ruff:ignore[suspicious-subprocess-import]  # Meson supplies the Cargo executable.
 import sys
 from pathlib import Path
-from typing import Final
 
 
-def main() -> None:
+def _main() -> None:
     cargo, source, destination, artifact, features, depfile, version = sys.argv[1:]
     output = Path(destination)
     # A caller that points CARGO_TARGET_DIR somewhere shared keeps the dependency graph compiled between builds
@@ -33,14 +32,9 @@ def main() -> None:
         raise RuntimeError(msg)
     built = _artifact(target, artifact)
     shutil.copyfile(built, output)
-    _write_depfile(built, output, Path(depfile))
-
-
-def _write_depfile(built: Path, output: Path, depfile: Path) -> None:
-    """Rewrite Cargo's dep-info so Meson tracks the Rust sources without enumerating them."""
-    dependencies = built.with_suffix(".d").read_text(encoding="utf-8")
-    _, _, sources = dependencies.partition(": ")
-    depfile.write_text(f"{output}: {sources}", encoding="utf-8")
+    # Rewrite Cargo's dep-info so Meson tracks the Rust sources without enumerating them.
+    sources = built.with_suffix(".d").read_text(encoding="utf-8").partition(": ")[2]
+    Path(depfile).write_text(f"{output}: {sources}", encoding="utf-8")
 
 
 def _artifact(target: Path, name: str) -> Path:
@@ -52,7 +46,7 @@ def _artifact(target: Path, name: str) -> Path:
 
 
 if __name__ == "__main__":
-    main()
+    _main()
 
 
-__all__: Final = []
+__all__ = []

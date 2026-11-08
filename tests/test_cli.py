@@ -16,7 +16,6 @@ import webbrowser
 import zipfile
 from functools import partial
 from typing import TYPE_CHECKING, Final
-from unittest.mock import MagicMock, create_autospec
 
 import pytest
 
@@ -25,6 +24,8 @@ from pipdeptree import __version__
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from pathlib import Path
+
+    from pytest_mock import MockerFixture, MockType
 
 
 @pytest.mark.parametrize(
@@ -64,11 +65,11 @@ def test_cli_formats(
 
 
 @pytest.mark.parametrize(
-    ("tty", "no_color", "expected_width"),
+    ("tty", "environment", "expected_width"),
     [
-        pytest.param(True, False, 40, id="terminal"),
-        pytest.param(True, True, 40, id="terminal-no-color"),
-        pytest.param(False, False, 69, id="redirected"),
+        pytest.param(True, {}, 40, id="terminal"),
+        pytest.param(True, {"NO_COLOR": "1"}, 40, id="terminal-no-color"),
+        pytest.param(False, {}, 69, id="redirected"),
     ],
 )
 def test_cli_summary_terminal_width(
@@ -76,10 +77,11 @@ def test_cli_summary_terminal_width(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    mocker: MockerFixture,
     expected_width: int,
     *,
     tty: bool,
-    no_color: bool,
+    environment: dict[str, str],
 ) -> None:
     (tmp_path / "demo-1.dist-info").mkdir()
     (tmp_path / "demo-1.dist-info" / "METADATA").write_text(
@@ -87,14 +89,15 @@ def test_cli_summary_terminal_width(
     )
     monkeypatch.setattr(sys.stdout, "isatty", lambda: tty)
     monkeypatch.setattr(
-        shutil, "get_terminal_size", create_autospec(shutil.get_terminal_size, return_value=os.terminal_size((40, 24)))
+        shutil,
+        "get_terminal_size",
+        mocker.create_autospec(shutil.get_terminal_size, return_value=os.terminal_size((40, 24))),
     )
     monkeypatch.delenv("TERM", raising=False)
     monkeypatch.delenv("FORCE_COLOR", raising=False)
-    if no_color:
-        monkeypatch.setenv("NO_COLOR", "1")
-    else:
-        monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
 
     code: Final = entry_point(["--path", str(tmp_path), "--warn", "silence", "--summary", "-o", "rich"])
     lines: Final = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out).splitlines()
@@ -223,6 +226,7 @@ def test_cli_graphviz_binary_terminal(
     package_path: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
     capsysbinary: pytest.CaptureFixture[bytes],
     *,
     graphviz_format: str,
@@ -231,7 +235,7 @@ def test_cli_graphviz_binary_terminal(
     expected: bytes,
 ) -> None:
     named_temporary_file = tempfile.NamedTemporaryFile
-    opener = create_autospec(webbrowser.open, return_value=opened)
+    opener = mocker.create_autospec(webbrowser.open, return_value=opened)
     monkeypatch.setattr(tempfile, "NamedTemporaryFile", partial(named_temporary_file, dir=tmp_path))
     monkeypatch.setattr(webbrowser, "open", opener)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
@@ -250,8 +254,8 @@ def test_cli_graphviz_binary_terminal(
 
 
 @pytest.fixture
-def browser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-    opener = create_autospec(webbrowser.open, return_value=True)
+def browser(monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture) -> MockType:
+    opener = mocker.create_autospec(webbrowser.open, return_value=True)
     monkeypatch.setattr(webbrowser, "open", opener)
     return opener
 
@@ -269,7 +273,7 @@ def test_cli_graphviz_text_terminal(
     entry_point: Callable[[Sequence[str] | None], int | None],
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    browser: MagicMock,
+    browser: MockType,
     capsysbinary: pytest.CaptureFixture[bytes],
     format_args: list[str],
     expected: bytes,
@@ -286,7 +290,7 @@ def test_cli_graphviz_text_terminal(
 def test_cli_help_with_graphviz_format(
     entry_point: Callable[[Sequence[str] | None], int | None],
     monkeypatch: pytest.MonkeyPatch,
-    browser: MagicMock,
+    browser: MockType,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     # pytest installs the capture stream only when the test body starts, so a fixture cannot patch it.
@@ -379,6 +383,23 @@ def test_cli_index_local_source_leaves_index_sdist_unbuilt(
     entry_point(["from-index", "./local", "--index-url", index.as_uri()])
 
     assert (built.exists(), "remote: every version in range was rejected" in capsys.readouterr().err) == (False, True)
+
+
+def _write_dynamic_project(directory: Path, name: str, marker: Path, backend_path: str) -> None:
+    (directory / backend_path).mkdir(parents=True)
+    (directory / "pyproject.toml").write_text(
+        f'[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["{backend_path}"]\n'
+        f'[project]\nname = "{name}"\nversion = "1"\ndynamic = ["dependencies"]\n'
+    )
+    (directory / "PKG-INFO").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: 1\n")
+    (directory / backend_path / "backend.py").write_text(
+        f"import os\nopen({str(marker)!r}, 'w').close()\n"
+        "def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):\n"
+        f"    os.mkdir(os.path.join(metadata_directory, '{name}-1.dist-info'))\n"
+        f"    with open(os.path.join(metadata_directory, '{name}-1.dist-info', 'METADATA'), 'w') as metadata:\n"
+        f"        metadata.write('Metadata-Version: 2.1\\nName: {name}\\nVersion: 1\\n')\n"
+        f"    return '{name}-1.dist-info'\n"
+    )
 
 
 @pytest.mark.parametrize(
@@ -484,23 +505,6 @@ def test_cli_index_requirements_error_names_plain_path(
     assert (code, capsys.readouterr().err) == (1, expected.format(path=requirements.resolve()))
 
 
-def _write_dynamic_project(directory: Path, name: str, marker: Path, backend_path: str) -> None:
-    (directory / backend_path).mkdir(parents=True)
-    (directory / "pyproject.toml").write_text(
-        f'[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["{backend_path}"]\n'
-        f'[project]\nname = "{name}"\nversion = "1"\ndynamic = ["dependencies"]\n'
-    )
-    (directory / "PKG-INFO").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: 1\n")
-    (directory / backend_path / "backend.py").write_text(
-        f"import os\nopen({str(marker)!r}, 'w').close()\n"
-        "def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):\n"
-        f"    os.mkdir(os.path.join(metadata_directory, '{name}-1.dist-info'))\n"
-        f"    with open(os.path.join(metadata_directory, '{name}-1.dist-info', 'METADATA'), 'w') as metadata:\n"
-        f"        metadata.write('Metadata-Version: 2.1\\nName: {name}\\nVersion: 1\\n')\n"
-        f"    return '{name}-1.dist-info'\n"
-    )
-
-
 def test_module_entrypoint(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     monkeypatch.setattr(sys, "argv", ["pipdeptree", "--version"])
 
@@ -532,9 +536,7 @@ def test_cli_uses_implementation_version_marker(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     implementation = sys.implementation.version
-    suffix = (
-        "" if implementation.releaselevel == "final" else f"{implementation.releaselevel[0]}{implementation.serial}"
-    )
+    suffix = {"final": ""}.get(implementation.releaselevel, f"{implementation.releaselevel[0]}{implementation.serial}")
     version = f"{implementation.major}.{implementation.minor}.{implementation.micro}{suffix}"
     root = tmp_path / "root-1.dist-info"
     root.mkdir()

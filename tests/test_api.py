@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import itertools
 import json
 import py_compile
 import re
 import sys
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Final, cast
 
 import pytest
 
@@ -37,41 +38,80 @@ def test_render_formats(output_format: str, expected: str) -> None:
     assert expected in pipdeptree.render(packages="pipdeptree", output_format=output_format)
 
 
-@pytest.mark.parametrize("output_format", ["text", "json", "json-tree", "cyclonedx-json", "mermaid", "dot"])
-@pytest.mark.parametrize("module_kind", ["source", "package", "bytecode"])
+def _fallback_source(tmp_path: Path) -> str:
+    marker = tmp_path / "imported"
+    return f"from pathlib import Path\nPath({str(marker)!r}).write_text('imported')\n__version__ = '9.8.7.6'\n"
+
+
+def _write_source_module(tmp_path: Path) -> None:
+    (tmp_path / "fallbackdemo.py").write_text(_fallback_source(tmp_path))
+
+
+def _write_package_module(tmp_path: Path) -> None:
+    (tmp_path / "fallbackdemo").mkdir()
+    (tmp_path / "fallbackdemo" / "__init__.py").write_text(_fallback_source(tmp_path))
+
+
+def _write_bytecode_module(tmp_path: Path) -> None:
+    source = tmp_path / "fallbackdemo.py"
+    source.write_text(_fallback_source(tmp_path))
+    py_compile.compile(str(source), cfile=str(tmp_path / "fallbackdemo.pyc"), doraise=True)
+    source.unlink()
+
+
+_MODULE_LAYOUTS: Final[list[pytest.ParameterSet]] = [
+    pytest.param(_write_source_module, id="source"),
+    pytest.param(_write_package_module, id="package"),
+    pytest.param(_write_bytecode_module, id="bytecode"),
+]
+
+
+def _install_fallback_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, write_module: Callable[[Path], None]
+) -> Path:
+    metadata = tmp_path / "root-1.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text("Name: root\nVersion: 1\nRequires-Dist: fallbackdemo>=2\n")
+    write_module(tmp_path)
+    monkeypatch.setattr(sys, "path", [str(tmp_path)])
+    return tmp_path / "imported"
+
+
+@pytest.mark.parametrize(
+    "output_format",
+    [
+        pytest.param("text", id="text"),
+        pytest.param("json", id="json"),
+        pytest.param("json-tree", id="json-tree"),
+        pytest.param("cyclonedx-json", id="cyclonedx-json"),
+        pytest.param("mermaid", id="mermaid"),
+        pytest.param("dot", id="dot"),
+    ],
+)
+@pytest.mark.parametrize("write_module", _MODULE_LAYOUTS)
 def test_render_ignores_module_versions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     output_format: str,
-    module_kind: str,
+    write_module: Callable[[Path], None],
 ) -> None:
-    metadata = tmp_path / "root-1.dist-info"
-    metadata.mkdir()
-    (metadata / "METADATA").write_text("Name: root\nVersion: 1\nRequires-Dist: fallbackdemo>=2\n")
-    marker = tmp_path / "imported"
-    source = tmp_path / "fallbackdemo.py"
-    if module_kind == "package":
-        package = tmp_path / "fallbackdemo"
-        package.mkdir()
-        source = package / "__init__.py"
-    source.write_text(
-        f"from pathlib import Path\nPath({str(marker)!r}).write_text('imported')\n__version__ = '9.8.7.6'\n"
-    )
-    if module_kind == "bytecode":
-        py_compile.compile(str(source), cfile=str(tmp_path / "fallbackdemo.pyc"), doraise=True)
-        source.unlink()
-    monkeypatch.setattr(sys, "path", [str(tmp_path)])
+    marker = _install_fallback_module(tmp_path, monkeypatch, write_module)
 
     result = pipdeptree.render(output_format=output_format)
 
+    assert (marker.exists(), "9.8.7.6" in result, "fallbackdemo" in result) == (False, False, True)
+
+
+@pytest.mark.parametrize("write_module", _MODULE_LAYOUTS)
+def test_render_text_reports_unknown_installed_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, write_module: Callable[[Path], None]
+) -> None:
+    marker = _install_fallback_module(tmp_path, monkeypatch, write_module)
+
+    assert "installed: ?" in pipdeptree.render()
+    with pytest.raises(ValueError, match="fallbackdemo"):
+        pipdeptree.render(warn="fail")
     assert not marker.exists()
-    assert "9.8.7.6" not in result
-    assert "fallbackdemo" in result
-    if output_format == "text":
-        assert "installed: ?" in result
-        with pytest.raises(ValueError, match="fallbackdemo"):
-            pipdeptree.render(warn="fail")
-        assert not marker.exists()
 
 
 def test_render_text_notebook_bundle() -> None:
@@ -147,7 +187,7 @@ def test_render_summary_notebook_bundle_keeps_license_line_separator(
 
     html = cast("MimeBundle", pipdeptree.render(summary=True))._repr_mimebundle_()["text/html"]
 
-    assert re.findall(r"<tr><td>(.*?)</td><td>(.*?)</td></tr>", html) == [
+    assert re.findall(r"<tr><td>(?P<label>.*?)</td><td>(?P<value>.*?)</td></tr>", html) == [
         ("total packages", "1"),
         ("direct dependencies", "1"),
         ("transitive dependencies", "0"),
@@ -262,11 +302,12 @@ def test_render_summary_json_is_valid() -> None:
 
 
 def test_render_raises_on_trees_past_the_nesting_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    for position in range(202):
-        dist_info = tmp_path / f"p{position:05}-1.dist-info"
+    names = [f"p{position:05}" for position in range(202)]
+    requirements = {parent: f"Requires-Dist: {child}\n" for parent, child in itertools.pairwise(names)}
+    for name in names:
+        dist_info = tmp_path / f"{name}-1.dist-info"
         dist_info.mkdir()
-        requires = f"Requires-Dist: p{position + 1:05}\n" if position < 201 else ""
-        (dist_info / "METADATA").write_text(f"Name: p{position:05}\nVersion: 1\n{requires}")
+        (dist_info / "METADATA").write_text(f"Name: {name}\nVersion: 1\n{requirements.get(name, '')}")
     monkeypatch.setattr(sys, "path", [str(tmp_path)])
 
     with pytest.raises(ValueError, match="nests deeper than 200 levels"):
