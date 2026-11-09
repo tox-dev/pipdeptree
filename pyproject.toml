@@ -1,11 +1,12 @@
 [build-system]
-build-backend = "mesonpy"
+build-backend = "python_sbom.backend"
 requires = [
   "hatch-fancy-pypi-readme>=23.2",
   "meson>=1.12.1",
   "meson-python>=0.22.1",
   "ninja>=1.13.2",
   "patchelf>=0.11; sys_platform=='linux'",
+  "python-sbom>=0.2",
   "scikit-build-core>=0.10",
   "setuptools-scm",
 ]
@@ -83,6 +84,7 @@ build = [
   "meson-python>=0.22.1",
   "ninja>=1.13.2",
   "patchelf>=0.11; sys_platform=='linux'",
+  "python-sbom>=0.2",
   "scikit-build-core>=0.10",
   "setuptools>=80",
   "setuptools-scm",
@@ -215,6 +217,10 @@ type = [
   { directory = "packaging", name = "Packaging", showcontent = true },
 ]
 
+[tool.python-sbom]
+build-backend = "mesonpy"
+supplier = { name = "tox-dev", url = [ "https://github.com/tox-dev" ] }
+
 [tool.nab]
 mode = "universal"
 base-group = "project-runtime"
@@ -242,6 +248,9 @@ matrix.overrides.implementations.pypy.platforms = [
 # expires 2026-11-09
 # expires 2026-11-09
 packages.release-creator.uploaded-prior-to = 2026-11-02T21:45:00Z
+# python-sbom 0.2.0 needs a seven-day cutoff exception.
+# expires 2026-11-16
+packages.python-sbom.uploaded-prior-to = 2026-11-09T19:56:00Z
 
 [tool.simplint]
 docstring-style = "rst"

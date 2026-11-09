@@ -169,7 +169,8 @@ jobs:
         uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
         env:
           CIBW_ARCHS: ${{ matrix.platform.arch }}
-          CIBW_BUILD_FRONTEND: "uv; args: --build-constraint .release-build-constraints.txt --require-hashes"
+          # python-sbom 0.2.0 is younger than the one-week cutoff below; drop the exception once it expires on 2026-11-16
+          CIBW_BUILD_FRONTEND: "uv; args: --build-constraint .release-build-constraints.txt --require-hashes --exclude-newer-package python-sbom=2026-11-09T19:56:00Z"
           UV_PYTHON: ""
           # Install the toolchain and its components up front. Left to rust-toolchain.toml, the first cargo
           # call in each container provisions them on demand, which races and conflicts on the cargo-clippy
@@ -214,6 +215,22 @@ jobs:
             fi
             "$wheel" tags --python-tag cp311 --remove "${wheels[@]}"
           fi
+      # python_sbom.backend wrote an SBOM during the build, but repair and the retag above rename the wheel and may
+      # bundle libraries, so describe the wheels again as they will be published. embed lists the packages of the
+      # environment it runs in, so it runs from one installed from the same hashed build constraints the build used.
+      - name: 📝 Write the SBOM into the finished wheels
+        shell: bash
+        env:
+          CONSTRAINTS_PATH: ${{ steps.constraints.outputs.path }}
+        run: |
+          uv venv --python 3.15 "$RUNNER_TEMP/build-env"
+          uv pip install --python "$RUNNER_TEMP/build-env" --require-hashes -r "$CONSTRAINTS_PATH"
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            embed="$RUNNER_TEMP/build-env/Scripts/python-sbom.exe"
+          else
+            embed="$RUNNER_TEMP/build-env/bin/python-sbom"
+          fi
+          "$embed" embed dist/*.whl
       - name: 📤 Store wheels
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -255,7 +272,8 @@ jobs:
           CONSTRAINTS_PATH: ${{ steps.constraints.outputs.path }}
         run: |
           uv build --sdist --python 3.15 --out-dir dist \
-            --build-constraints "$CONSTRAINTS_PATH" --require-build-hashes
+            --build-constraints "$CONSTRAINTS_PATH" --require-build-hashes \
+            --exclude-newer-package python-sbom=2026-11-09T19:56:00Z
       - name: 📤 Store source distribution
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
