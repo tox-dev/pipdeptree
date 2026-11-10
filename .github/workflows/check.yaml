@@ -24,7 +24,7 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}/.python-packages
     steps:
       - name: 📥 Check out code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: 📦 Install Graphviz
@@ -32,7 +32,7 @@ jobs:
         background: true
         run: sudo apt-get install graphviz -y
       - name: 🐍 Install uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: latest-known
           python-version: "3.15"
@@ -44,7 +44,7 @@ jobs:
       - name: 🧹 Check lints
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: 🦀 Install coverage tool
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@v2.88.0
         with:
           tool: cargo-llvm-cov
       - name: ⏳ Wait for Graphviz
@@ -96,12 +96,12 @@ jobs:
           }
           dot -V
       - name: 📥 Check out code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: 🐍 Install uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: latest-known
           python-version: "3.15"
@@ -131,7 +131,7 @@ jobs:
       dry-run: true
   hooks:
     name: 🧹 Hooks under the cooldown
-    uses: tox-dev/github-workflows/.github/workflows/cooled-hooks.yaml@4dfe685cec83f9ace2d4412cd28f5adee4c5506f # 6.7.3
+    uses: tox-dev/github-workflows/.github/workflows/cooled-hooks.yaml@81a3fc661be49ecdc4ea4af99a69fa3879b3d7a1 # 6.8.1
     permissions:
       contents: read
   check:
@@ -141,6 +141,6 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - name: 🚦 Require all needed jobs to pass
-        uses: tox-dev/github-workflows/required-checks@bceb5c005e19823dc8835f536f53f172ae223927 # 6.5.0
+        uses: tox-dev/github-workflows/required-checks@6.8.1
         with:
           needs: ${{ toJSON(needs) }}
