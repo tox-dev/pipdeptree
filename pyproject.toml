@@ -245,8 +245,7 @@ matrix.overrides.implementations.pypy.platforms = [
   "windows_amd64"
 ]
 # release-creator 4.4.0 needs a seven-day cutoff exception.
-# expires 2026-11-09
-# expires 2026-11-09
+# expires 2026-11-16
 packages.release-creator.uploaded-prior-to = 2026-11-02T21:45:00Z
 # python-sbom 0.2.0 needs a seven-day cutoff exception.
 # expires 2026-11-16
