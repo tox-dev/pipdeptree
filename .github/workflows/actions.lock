@@ -6,11 +6,11 @@ workflows:
     '.github/workflows/check.yaml':
         - 'actions/checkout@v7.0.1'
         - 'astral-sh/setup-uv@v10.3.3'
-        - 'taiki-e/install-action@v2.88.0'
+        - 'taiki-e/install-action@v2.90.0'
         - 'tox-dev/github-workflows@6.8.1'
     '.github/workflows/codeql.yaml': []
     '.github/workflows/dist.yaml':
-        - 'actions-rust-lang/setup-rust-toolchain@v2.0.0'
+        - 'actions-rust-lang/setup-rust-toolchain@v2.0.1'
         - 'actions/checkout@v7.0.1'
         - 'actions/upload-artifact@v7.0.2'
         - 'astral-sh/setup-uv@v10.3.3'
@@ -29,13 +29,13 @@ workflows:
     '.github/workflows/scorecard.yaml': []
     '.github/workflows/upgrade-release-tools.yaml': []
 dependencies:
-    'actions-rust-lang/setup-rust-toolchain@v2.0.0':
-        ref: 'v2.0.0'
-        commit: 'sha1-ecabd13d1c56bd1345c230e542e9144811ad706f'
+    'actions-rust-lang/setup-rust-toolchain@v2.0.1':
+        ref: 'v2.0.1'
+        commit: 'sha1-a188e68d0fd2bd36ad51dccb2b07ba6e75105f30'
         owner_id: 103899579
         repo_id: 482610590
         uses:
-            - 'swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6'
+            - 'swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0'
     'actions/checkout@v7.0.1':
         ref: 'v7.0.1'
         commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
@@ -80,14 +80,14 @@ dependencies:
         repo_id: 178055147
         uses:
             - 'actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405'
-    'swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6':
-        ref: 'v2.9.2'
-        commit: 'sha1-6323deb102c322ba6fcbdcafc7e3dddab59af2b6'
+    'swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0':
+        ref: 'v2.9.3'
+        commit: 'sha1-d1527c8f67ef9af357290475d4af4b0fab8f12e0'
         owner_id: 580492
         repo_id: 298565987
-    'taiki-e/install-action@v2.88.0':
-        ref: 'v2.88.0'
-        commit: 'sha1-86f7a0ffb25f40114606501a311ebcfaf882ea32'
+    'taiki-e/install-action@v2.90.0':
+        ref: 'v2.90.0'
+        commit: 'sha1-b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2'
         owner_id: 43724913
         repo_id: 442947557
     'tox-dev/github-workflows@6.8.1':

@@ -55,7 +55,7 @@ jobs:
         run: git log -1 --format='SOURCE_DATE_EPOCH=%ct' "$GITHUB_SHA^{commit}" >> "$GITHUB_ENV"
       - name: 🦀 Install Rust toolchain
         if: runner.os != 'Linux'
-        uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
+        uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
         with:
           cache: false
       - name: 🐍 Install uv
