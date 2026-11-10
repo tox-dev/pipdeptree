@@ -46,7 +46,7 @@ jobs:
     runs-on: ${{ matrix.platform.os }}
     steps:
       - name: 📥 Check out code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # The build reads the version off the tags.
           persist-credentials: false
@@ -55,11 +55,11 @@ jobs:
         run: git log -1 --format='SOURCE_DATE_EPOCH=%ct' "$GITHUB_SHA^{commit}" >> "$GITHUB_ENV"
       - name: 🦀 Install Rust toolchain
         if: runner.os != 'Linux'
-        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
         with:
           cache: false
       - name: 🐍 Install uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: latest-known
           python-version: "3.15"
@@ -149,13 +149,13 @@ jobs:
           print("flags=" + " ".join(flags))
           EOF
       - name: 📦 Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@bceb5c005e19823dc8835f536f53f172ae223927 # 6.5.0
+        uses: tox-dev/github-workflows/install-locked-tools@6.8.1
         with:
           groups: release-wheel
           venv: ${{ runner.temp }}/release-tools
       - name: 📦 Export hashed build constraints
         id: constraints
-        uses: tox-dev/github-workflows/export-build-constraints@bceb5c005e19823dc8835f536f53f172ae223927 # 6.5.0
+        uses: tox-dev/github-workflows/export-build-constraints@6.8.1
         with:
           lock: pylock.build.toml
           target-platform: ${{ matrix.platform.lock_platform }}
@@ -166,7 +166,7 @@ jobs:
           CONSTRAINTS_PATH: ${{ steps.constraints.outputs.path }}
         run: cp "$CONSTRAINTS_PATH" .release-build-constraints.txt
       - name: 🏗️ Build wheels
-        uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
+        uses: pypa/cibuildwheel@v4.3.5
         env:
           CIBW_ARCHS: ${{ matrix.platform.arch }}
           # python-sbom 0.2.0 is younger than the one-week cutoff below; drop the exception once it expires on 2026-11-16
@@ -232,7 +232,7 @@ jobs:
           fi
           "$embed" embed dist/*.whl
       - name: 📤 Store wheels
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: dists-${{ matrix.platform.os }}-${{ matrix.build }}
           path: dist/*
@@ -243,26 +243,26 @@ jobs:
       UV_EXCLUDE_NEWER: "1 week"
     steps:
       - name: 📥 Check out code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # The build reads the version off the tags.
           persist-credentials: false
       - name: ⚙️ Set stable build timestamp
         run: git log -1 --format='SOURCE_DATE_EPOCH=%ct' "$GITHUB_SHA^{commit}" >> "$GITHUB_ENV"
       - name: 🐍 Install uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: latest-known
           python-version: "3.15"
           enable-cache: false
       - name: 📦 Install locked release tools
-        uses: tox-dev/github-workflows/install-locked-tools@bceb5c005e19823dc8835f536f53f172ae223927 # 6.5.0
+        uses: tox-dev/github-workflows/install-locked-tools@6.8.1
         with:
           groups: release-notes
           venv: ${{ runner.temp }}/release-tools
       - name: 📦 Export hashed build constraints
         id: constraints
-        uses: tox-dev/github-workflows/export-build-constraints@bceb5c005e19823dc8835f536f53f172ae223927 # 6.5.0
+        uses: tox-dev/github-workflows/export-build-constraints@6.8.1
         with:
           lock: pylock.build.toml
           target-platform: linux_x86_64
@@ -275,7 +275,7 @@ jobs:
             --build-constraints "$CONSTRAINTS_PATH" --require-build-hashes \
             --exclude-newer-package python-sbom=2026-11-09T19:56:00Z
       - name: 📤 Store source distribution
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: dists-sdist
           path: dist/*
