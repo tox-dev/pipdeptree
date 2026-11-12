@@ -7,7 +7,7 @@ from typing import Final
 import pytest
 
 import pipdeptree
-from pipdeptree import _rust
+from pipdeptree import _rust  # ruff:ignore[import-private-name]  # paired test inspects the extension
 
 _STUB: Final[Path] = Path(pipdeptree.__file__).parent / "_rust.pyi"
 

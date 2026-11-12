@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import subprocess  # ruff: ignore[suspicious-subprocess-import] # peak RSS needs a child process
+import subprocess  # ruff:ignore[suspicious-subprocess-import]  # Peak RSS needs a child process.
 import sys
 from typing import TYPE_CHECKING
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3  # ruff:ignore[shebang-not-executable]  # Executable, it would run the python3 on PATH.
+#!/usr/bin/env python3  # ruff:ignore[shebang-not-executable]  # Meson uses its interpreter for this script.
 """Prints whether the build may target the stable ABI."""
 
 from __future__ import annotations

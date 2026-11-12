@@ -6,7 +6,7 @@ import os
 import re
 import runpy
 import shutil
-import subprocess  # ruff: ignore[suspicious-subprocess-import] # pip only runs as a child process
+import subprocess  # ruff:ignore[suspicious-subprocess-import]  # pip only runs as a child process.
 import sys
 import tarfile
 import tempfile
@@ -15,6 +15,7 @@ import venv
 import webbrowser
 import zipfile
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
 import pytest
@@ -23,7 +24,6 @@ from pipdeptree import __version__
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
-    from pathlib import Path
 
     from pytest_mock import MockerFixture, MockType
 
@@ -512,6 +512,13 @@ def test_module_entrypoint(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Captu
         runpy.run_module("pipdeptree", run_name="__main__")
 
     assert capsys.readouterr().out == f"{__version__}\n"
+
+
+def test_file_entrypoint() -> None:
+    script = Path(__file__).resolve().parents[1] / "src/pipdeptree/__main__.py"
+    result = subprocess.run([sys.executable, str(script), "--version"], capture_output=True, text=True, check=False)
+
+    assert (result.returncode, result.stdout, result.stderr) == (0, f"{__version__}\n", "")
 
 
 def test_cli_json_is_valid(
