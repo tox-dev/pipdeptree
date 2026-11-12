@@ -24,6 +24,9 @@ if TYPE_CHECKING:
         ) -> dict[str, str]: ...
 
 
+_SUMMARY_ROW_PATTERN: Final[re.Pattern[str]] = re.compile(r"<tr><td>(?P<label>.*?)</td><td>(?P<value>.*?)</td></tr>")
+
+
 @pytest.mark.parametrize(
     ("output_format", "expected"),
     [
@@ -187,7 +190,7 @@ def test_render_summary_notebook_bundle_keeps_license_line_separator(
 
     html = cast("MimeBundle", pipdeptree.render(summary=True))._repr_mimebundle_()["text/html"]
 
-    assert re.findall(r"<tr><td>(?P<label>.*?)</td><td>(?P<value>.*?)</td></tr>", html) == [
+    assert _SUMMARY_ROW_PATTERN.findall(html) == [
         ("total packages", "1"),
         ("direct dependencies", "1"),
         ("transitive dependencies", "0"),

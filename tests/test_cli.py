@@ -27,6 +27,8 @@ if TYPE_CHECKING:
 
     from pytest_mock import MockerFixture, MockType
 
+_ANSI_ESCAPE_PATTERN: Final[re.Pattern[str]] = re.compile(r"\x1b\[[0-9;]*m")
+
 
 @pytest.mark.parametrize(
     ("args", "expected"),
@@ -100,7 +102,7 @@ def test_cli_summary_terminal_width(
         monkeypatch.setenv(name, value)
 
     code: Final = entry_point(["--path", str(tmp_path), "--warn", "silence", "--summary", "-o", "rich"])
-    lines: Final = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out).splitlines()
+    lines: Final = _ANSI_ESCAPE_PATTERN.sub("", capsys.readouterr().out).splitlines()
 
     assert (code, {len(line) for line in lines}) == (0, {expected_width})
 
