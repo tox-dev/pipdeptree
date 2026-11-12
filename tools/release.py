@@ -134,7 +134,7 @@ def _run(
     capture_output: bool = False,
     env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # ruff:ignore[subprocess-without-shell-equals-true]  # Arguments never pass through a shell.
+    return subprocess.run(  # ruff:ignore[subprocess-without-shell-equals-true]  # Release commands use trusted inputs.
         command,
         cwd=cwd,
         input=stdin_text,
