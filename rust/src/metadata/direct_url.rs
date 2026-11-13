@@ -192,13 +192,10 @@ fn environment_credentials(value: &str) -> bool {
 }
 
 fn environment_reference(value: &str) -> bool {
-    value
-        .strip_prefix("${")
-        .and_then(|value| value.strip_suffix('}'))
-        .is_some_and(|name| {
-            !name.is_empty()
-                && name.chars().all(|character| {
-                    character.is_ascii_alphanumeric() || matches!(character, '_' | '-')
-                })
-        })
+    value.strip_circumfix("${", '}').is_some_and(|name| {
+        !name.is_empty()
+            && name.chars().all(|character| {
+                character.is_ascii_alphanumeric() || matches!(character, '_' | '-')
+            })
+    })
 }

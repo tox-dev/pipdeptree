@@ -204,9 +204,8 @@ impl InterpreterInfo {
             let expression =
                 CString::new(INTERPRETER_INFO).expect("interpreter query has no null bytes");
             let value = py.eval(&expression, Some(&globals), None)?;
-            let encoded: String = PyModule::import(py, "json")?
-                .call_method1("dumps", (value,))?
-                .extract()?;
+            let serialized = PyModule::import(py, "json")?.call_method1("dumps", (value,))?;
+            let encoded: String = serialized.extract()?;
             serde_json::from_str(&encoded).map_err(|error| PyValueError::new_err(error.to_string()))
         })();
         sys.setattr("path", &reported_paths)?;

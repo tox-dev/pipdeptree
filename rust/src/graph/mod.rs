@@ -480,10 +480,7 @@ impl Graph {
                     counts[target] += 1;
                 }
             }
-            (
-                counts,
-                (0..self.nodes.len()).map(|_| OnceLock::new()).collect(),
-            )
+            (counts, Vec::from_fn(self.nodes.len(), |_| OnceLock::new()))
         });
         cache[index].get_or_init(|| {
             let mut parent_counts = full_counts.clone();
@@ -683,9 +680,7 @@ impl Graph {
                 }
                 None => {
                     stack.pop();
-                    if !stack.is_empty() {
-                        path.pop();
-                    }
+                    path.pop();
                 }
             }
         }
@@ -721,14 +716,12 @@ impl Graph {
 
     fn expanded_children_cache(&self) -> &[Vec<usize>] {
         self.expanded.get_or_init(|| {
-            (0..self.nodes.len())
-                .map(|index| {
-                    self.requested_extras.get(&index).map_or_else(
-                        || self.selected_children(index, &BTreeSet::new()),
-                        |extras| self.selected_children(index, extras),
-                    )
-                })
-                .collect()
+            Vec::from_fn(self.nodes.len(), |index| {
+                self.requested_extras.get(&index).map_or_else(
+                    || self.selected_children(index, &BTreeSet::new()),
+                    |extras| self.selected_children(index, extras),
+                )
+            })
         })
     }
 

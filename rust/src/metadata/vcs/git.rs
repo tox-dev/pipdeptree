@@ -33,7 +33,7 @@ impl super::Vcs for Git {
             location,
             ExitStatusPolicy::RequireSuccess,
         ) {
-            Ok(root) => Ok(Some(PathBuf::from(root)).filter(|root| !root.as_os_str().is_empty())),
+            Ok(root) => Ok(Some(PathBuf::from(root)).filter(|root| !root.is_empty())),
             Err(CommandError::TimedOut) => Err(VcsError::TimedOut),
             Err(CommandError::NotFound | CommandError::Failed) => Ok(None),
         }

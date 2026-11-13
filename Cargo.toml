@@ -6,7 +6,7 @@ description = "Display Python package dependency trees"
 repository = "https://github.com/tox-dev/pipdeptree"
 license = "MIT"
 edition = "2024"
-rust-version = "1.99"
+rust-version = "1.100"
 
 [lib]
 name = "_pipdeptree"
@@ -54,6 +54,9 @@ default = ["extension-module"]
 all = "warn"
 pedantic = "warn"
 nursery = "warn"
+
+[lints.cargo]
+unused_dependencies = "warn"
 
 [lints.rust]
 unsafe_code = "forbid"

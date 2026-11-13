@@ -105,7 +105,7 @@ pub(super) fn command(
         ProcessError::NotFound => CommandError::NotFound,
         ProcessError::Failed(_) => CommandError::Failed,
         ProcessError::TimedOut => {
-            STALL_REMAINING.set(STALL_REMAINING.get().saturating_sub(timeout));
+            STALL_REMAINING.update(|remaining| remaining.saturating_sub(timeout));
             CommandError::TimedOut
         }
     })?;

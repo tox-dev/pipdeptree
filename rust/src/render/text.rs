@@ -34,7 +34,7 @@ pub(super) fn render(
         unicode: is_unicode(&options.encoding),
         path: HashSet::new(),
         expanded: HashMap::new(),
-        suffixes: vec![OnceCell::new(); graph.nodes.len()],
+        suffixes: Vec::from_fn(graph.nodes.len(), |_| OnceCell::new()),
         lines: Vec::new(),
     };
     if options.reverse && style != TextStyle::Frozen {
@@ -299,13 +299,12 @@ impl TreeRenderer<'_> {
         let activating_extras = dependency.activating_extras();
         let extra = activating_extras
             .as_ref()
-            .map_or_else(String::new, |extra| format!(", extra: {extra}"));
+            .map_or_default(|extra| format!(", extra: {extra}"));
         let detail = if self.options.resolved() {
             let required = dependency
                 .declaration
                 .as_ref()
-                .map(|_| format!("required: {}, ", required_version(dependency)))
-                .unwrap_or_default();
+                .map_or_default(|_| format!("required: {}, ", required_version(dependency)));
             if self.style == TextStyle::Rich {
                 format!("{required}candidate: {installed}")
             } else {
@@ -361,7 +360,7 @@ impl TreeRenderer<'_> {
             };
             let extra = activating_extras
                 .as_ref()
-                .map_or_else(String::new, |extra| format!(" [extra: {extra}]"));
+                .map_or_default(|extra| format!(" [extra: {extra}]"));
             format!("{marker}{star} {name} {detail}{extra}{suffix}")
         } else {
             format!("{name} [{detail}]{suffix}")

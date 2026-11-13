@@ -86,7 +86,7 @@ pub(super) fn dependency(label: &DependencyLabel<'_>) -> String {
     };
     let extra = label
         .extra
-        .map_or_else(String::new, |extra| format!(" [extra: {extra}]"));
+        .map_or_default(|extra| format!(" [extra: {extra}]"));
     format!(
         "{marker}{star} {} {detail}{}{}",
         paint(label.name, AnsiColor::Cyan),

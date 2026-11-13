@@ -1,3 +1,4 @@
+use std::assert_matches;
 use std::ffi::OsString;
 use std::time::{Duration, Instant};
 
@@ -293,7 +294,7 @@ fn reports_process_start_failures() {
         ))
         .unwrap_err();
 
-    assert!(matches!(error, ProcessError::Failed(message) if !message.is_empty()));
+    assert_matches!(error, ProcessError::Failed(message) if !message.is_empty());
 }
 
 #[cfg(unix)]

@@ -126,8 +126,7 @@ impl Package {
             // "GPL v3 (GPLv3+)") keeps the parentheses it carries.
             let license = self.license();
             let value = license
-                .strip_prefix('(')
-                .and_then(|value| value.strip_suffix(')'))
+                .strip_circumfix('(', ')')
                 .unwrap_or(&license)
                 .to_string();
             return vec![if value.to_ascii_lowercase().contains("license") {
@@ -269,7 +268,7 @@ impl Package {
     fn from_metadata(
         metadata_dir: Option<PathBuf>,
         metadata_file: &Path,
-        retained_fields: Option<&HashSet<String>>,
+        retained_fields: &HashSet<String>,
     ) -> Result<Option<Self>, Error> {
         let mut metadata = Headers::parse_selected(&read_headers(metadata_file)?, retained_fields);
         let Some(name) = metadata.first("name").map(ToOwned::to_owned) else {
@@ -281,10 +280,8 @@ impl Package {
         }
         let requires = metadata
             .get_all("requires-dist")
-            .map_or_else(Vec::new, <[String]>::to_vec);
-        if let Some(retained_fields) = retained_fields {
-            metadata.retain(retained_fields);
-        }
+            .map_or_default(<[String]>::to_vec);
+        metadata.retain(retained_fields);
         Ok(Some(Self {
             key: canonicalize_name(&name),
             name,
@@ -363,9 +360,7 @@ impl Package {
             site.ancestors()
                 .nth(level)
                 .and_then(Path::file_name)
-                .map_or_else(String::new, |name| {
-                    name.to_string_lossy().to_ascii_lowercase()
-                })
+                .map_or_default(|name| name.to_string_lossy().to_ascii_lowercase())
         });
         let levels = if !matches!(own.as_str(), "site-packages" | "dist-packages") {
             0
@@ -385,7 +380,7 @@ impl Package {
 }
 
 impl Headers {
-    fn parse_selected(content: &str, retained_fields: Option<&HashSet<String>>) -> Self {
+    fn parse_selected(content: &str, retained_fields: &HashSet<String>) -> Self {
         let mut headers: Vec<Header> = Vec::new();
         let mut current: Option<(usize, usize)> = None;
         // read_headers already stops at the body separator, so every line here is a header.
@@ -403,12 +398,11 @@ impl Headers {
                 continue;
             };
             let key = key.to_ascii_lowercase();
-            if retained_fields.is_some_and(|fields| {
-                !matches!(
-                    key.as_str(),
-                    "name" | "provides-extra" | "requires-dist" | "version"
-                ) && !fields.contains(&key)
-            }) {
+            if !matches!(
+                key.as_str(),
+                "name" | "provides-extra" | "requires-dist" | "version"
+            ) && !retained_fields.contains(&key)
+            {
                 current = None;
                 continue;
             }
@@ -470,23 +464,24 @@ pub fn discover_selected(
     if summary {
         retained_fields.insert("requires-python".to_string());
     }
-    discover_with_fields(paths, Some(&retained_fields))
+    discover_with_fields(paths, &retained_fields)
 }
 
 fn discover_with_fields(
     paths: &[PathBuf],
-    retained_fields: Option<&HashSet<String>>,
+    retained_fields: &HashSet<String>,
 ) -> Result<Discovered, Error> {
-    let search_paths = paths
+    let search_paths: Result<Vec<_>, _> = paths
         .iter()
         .map(|path| {
-            if path.as_os_str().is_empty() {
+            if path.is_empty() {
                 std::env::current_dir()
             } else {
                 Ok(path.clone())
             }
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect();
+    let search_paths = search_paths?;
     let mut legacy_editables = EggLinks::new(search_paths.len());
     let mut invalid_paths = BTreeSet::new();
     let mut duplicates = BTreeMap::<PathBuf, Vec<(String, String, String, PathBuf)>>::new();
@@ -531,7 +526,7 @@ fn discover_with_fields(
                 ));
             }
             Found::Package(package, path) => {
-                seen.insert(package.key.clone(), (package.version.clone(), path.clone()));
+                seen.insert(package.key.clone(), (package.version.clone(), path));
                 packages.push(*package);
             }
         }
@@ -572,7 +567,7 @@ fn classify(
     search: usize,
     path: &Path,
     entry: &Path,
-    retained_fields: Option<&HashSet<String>>,
+    retained_fields: &HashSet<String>,
 ) -> Option<Found> {
     // DirEntry::metadata does not traverse links; symlinked dist-info directories are a normal
     // layout (Nix, Debian, symlink installs), so stat the target.

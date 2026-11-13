@@ -20,18 +20,14 @@ impl FilterSpec {
     // that global-extra activation consumes, so the same string is not re-parsed per phase.
     pub fn from_options(options: &Options) -> (Self, HashMap<String, BTreeSet<String>>) {
         let (include, extras) = parse_packages(options.packages.as_deref());
-        let exclude = options
-            .exclude
-            .as_deref()
-            .map(|value| {
-                value
-                    .split(',')
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty())
-                    .map(ToOwned::to_owned)
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
+        let exclude = options.exclude.as_deref().map_or_default(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>()
+        });
         let spec = Self {
             include,
             exclude,

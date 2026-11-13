@@ -29,7 +29,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<Vec<u8>, Error>
         let package = &graph.nodes[index].package;
         let mut component = package_component(package)?;
         let reference = component.bom_ref.clone().expect("package has a reference");
-        let mut properties = component.properties.take().map_or_else(Vec::new, |p| p.0);
+        let mut properties = component.properties.take().map_or_default(|props| props.0);
         let mut children = BTreeSet::new();
         for dependency in graph.expanded_children(index) {
             let child = if let Some(target) = dependency.target {
@@ -202,10 +202,7 @@ fn licenses(package: &Package) -> Option<Licenses> {
         let license = package.license();
         if license != "(N/A)" {
             licenses.push(LicenseChoice::license(
-                license
-                    .strip_prefix('(')
-                    .and_then(|value| value.strip_suffix(')'))
-                    .unwrap_or(&license),
+                license.strip_circumfix('(', ')').unwrap_or(&license),
             ));
         }
     }
