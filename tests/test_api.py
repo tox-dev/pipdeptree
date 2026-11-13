@@ -41,6 +41,10 @@ def test_render_formats(output_format: str, expected: str) -> None:
     assert expected in pipdeptree.render(packages="pipdeptree", output_format=output_format)
 
 
+def test_render_definition_location() -> None:
+    assert pipdeptree.render.__module__ == "pipdeptree"
+
+
 def _fallback_source(tmp_path: Path) -> str:
     marker = tmp_path / "imported"
     return f"from pathlib import Path\nPath({str(marker)!r}).write_text('imported')\n__version__ = '9.8.7.6'\n"
