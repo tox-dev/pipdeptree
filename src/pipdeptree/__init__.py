@@ -1,3 +1,4 @@
+# simplint: ignore[unused-dependency]  # ruff: ignore[commented-out-code]  # the Rust core imports the nab modules
 """
 Programmatic access to pipdeptree.
 
