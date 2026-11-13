@@ -55,6 +55,9 @@ all = "warn"
 pedantic = "warn"
 nursery = "warn"
 
+[lints.cargo]
+unused_dependencies = "warn"
+
 [lints.rust]
 unsafe_code = "forbid"
 
