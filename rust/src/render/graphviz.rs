@@ -42,32 +42,22 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
         }
         if options.reverse {
             for (parent, dependency) in graph.parents(index) {
-                if reachable
-                    .as_ref()
-                    .is_none_or(|depths| depths.contains_key(&parent))
-                {
-                    body.push(format!(
-                        "\t{} -> {} [label=\"{}\"]\n",
-                        package_id,
-                        dot_id(&graph.nodes[parent].package.key),
-                        dot_label_component(&edge_label(dependency))
-                    ));
-                }
+                body.push(format!(
+                    "\t{} -> {} [label=\"{}\"]\n",
+                    package_id,
+                    dot_id(&graph.nodes[parent].package.key),
+                    dot_label_component(&edge_label(dependency))
+                ));
             }
         } else {
             for dependency in graph.expanded_children(index) {
-                if let Some(target) = dependency.target {
-                    if reachable
-                        .as_ref()
-                        .is_none_or(|depths| depths.contains_key(&target))
-                    {
-                        body.push(format!(
-                            "\t{} -> {} [label=\"{}\"]\n",
-                            package_id,
-                            dot_id(dependency.key()),
-                            dot_label_component(&edge_label(dependency))
-                        ));
-                    }
+                if dependency.target.is_some() {
+                    body.push(format!(
+                        "\t{} -> {} [label=\"{}\"]\n",
+                        package_id,
+                        dot_id(dependency.key()),
+                        dot_label_component(&edge_label(dependency))
+                    ));
                 } else {
                     body.push(format!(
                         "\t{} [label=\"{}\\n(missing)\" style=dashed]\n",

@@ -680,9 +680,7 @@ impl Graph {
                 }
                 None => {
                     stack.pop();
-                    if !stack.is_empty() {
-                        path.pop();
-                    }
+                    path.pop();
                 }
             }
         }

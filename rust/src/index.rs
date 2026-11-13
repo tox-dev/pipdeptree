@@ -153,26 +153,27 @@ pub fn resolve(
     // Nab logs what it skips while reading the index, such as a release whose metadata does not
     // parse, quoting that metadata. Without a handler, Python's last-resort handler writes the
     // record to stderr unescaped and regardless of --warn.
-    let queue = PyModule::import(py, "queue")?
-        .getattr("SimpleQueue")?
-        .call0()?;
+    let queue_class = PyModule::import(py, "queue")?.getattr("SimpleQueue")?;
+    let queue = queue_class.call0()?;
     let handler = PyModule::import(py, "logging.handlers")?
         .getattr("QueueHandler")?
         .call1((&queue,))?;
     handler.call_method1("setLevel", ("WARNING",))?;
     let logging = PyModule::import(py, "logging")?;
     // The top-level loggers Nab's modules log under, as listed in nab.output._NAB_LOGGERS.
-    let loggers = [
+    let names = [
         "nab",
         "nab_markersets",
         "nab_provider",
         "nab_project",
         "nab_index",
         "nab_resolver",
-    ]
-    .into_iter()
-    .map(|name| logging.call_method1("getLogger", (name,)))
-    .collect::<PyResult<Vec<_>>>()?;
+    ];
+    let get_logger = |name| logging.call_method1("getLogger", (name,));
+    let loggers = names
+        .into_iter()
+        .map(get_logger)
+        .collect::<PyResult<Vec<_>>>()?;
     for logger in &loggers {
         logger.call_method1("addHandler", (&handler,))?;
     }
@@ -777,10 +778,8 @@ fn adapt_result(result: &pyo3::Bound<'_, pyo3::PyAny>) -> Result<Discovered, Err
         let version = item.get_item(1)?.str()?.to_string_lossy().into_owned();
         versions.insert(name, version);
     }
-    let dependencies = target
-        .getattr("lock")?
-        .getattr("dependencies")?
-        .extract::<HashMap<String, Vec<String>>>()?;
+    let lock = target.getattr("lock")?;
+    let dependencies: HashMap<String, Vec<String>> = lock.getattr("dependencies")?.extract()?;
     let requirements = target.call_method0("dependency_requirements")?;
     let mut resolved_edges = HashMap::new();
     for (parent, children) in dependencies {
@@ -792,21 +791,22 @@ fn adapt_result(result: &pyo3::Bound<'_, pyo3::PyAny>) -> Result<Discovered, Err
             for record in records.try_iter()? {
                 let record = record?;
                 found = true;
+                let requirement_text = record.getattr("requirement_text")?.extract()?;
+                let dependency_specifier = record.getattr("dependency_specifier")?.extract()?;
+                let requirement_condition = record.getattr("requirement_condition")?.extract()?;
+                let dependency_extras = record.getattr("dependency_extras")?.extract()?;
+                let for_parent_extras = record.getattr("required_for_parent_extras")?.extract()?;
+                let without_parent_value = record.getattr("required_without_parent_extras")?;
+                let without_parent = without_parent_value.extract()?;
                 edges.push(ResolvedEdge {
                     child: child.clone(),
                     declaration: Some(ResolvedDeclaration {
-                        requirement_text: record.getattr("requirement_text")?.extract()?,
-                        dependency_specifier: record.getattr("dependency_specifier")?.extract()?,
-                        requirement_condition: record
-                            .getattr("requirement_condition")?
-                            .extract()?,
-                        dependency_extras: record.getattr("dependency_extras")?.extract()?,
-                        required_for_parent_extras: record
-                            .getattr("required_for_parent_extras")?
-                            .extract()?,
-                        required_without_parent_extras: record
-                            .getattr("required_without_parent_extras")?
-                            .extract()?,
+                        requirement_text,
+                        dependency_specifier,
+                        requirement_condition,
+                        dependency_extras,
+                        required_for_parent_extras: for_parent_extras,
+                        required_without_parent_extras: without_parent,
                     }),
                 });
             }

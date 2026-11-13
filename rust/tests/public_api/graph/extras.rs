@@ -75,6 +75,26 @@ fn activates_extras_without_provides_extra() {
 }
 
 #[test]
+fn ignores_invalid_extra_marker_names() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        "Name: root\nVersion: 1\nRequires-Dist: child; extra == 'not valid'\n",
+    );
+    site.write("child-1.dist-info", "Name: child\nVersion: 1\n");
+
+    let output = execute_in(
+        &site,
+        &["--packages", "root", "--extras", "active", "--json"],
+    );
+
+    assert_eq!(
+        (output.code, visible_names(&output), output.stderr.as_str()),
+        (0, vec!["root".to_string()], "")
+    );
+}
+
+#[test]
 fn rejects_unbalanced_package_extras() {
     let site = PackageSite::new();
     site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
@@ -252,6 +272,29 @@ fn judges_each_active_extra_sharing_a_requirement() {
     assert_eq!(
         (output.code, extras, output.stderr.as_str()),
         (0, vec!["one"], "")
+    );
+}
+
+#[test]
+fn rejects_shared_extra_when_multiple_dependencies_are_missing() {
+    let site = PackageSite::new();
+    site.write(
+        "root-1.dist-info",
+        concat!(
+            "Name: root\nVersion: 1\n",
+            "Requires-Dist: first; extra == 'feature'\n",
+            "Requires-Dist: second; extra == 'feature'\n",
+        ),
+    );
+
+    let output = execute_in(
+        &site,
+        &["--packages", "root", "--extras", "active", "--json"],
+    );
+
+    assert_eq!(
+        (output.code, visible_names(&output), output.stderr.as_str()),
+        (0, vec!["root".to_string()], "")
     );
 }
 
