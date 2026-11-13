@@ -126,8 +126,7 @@ impl Package {
             // "GPL v3 (GPLv3+)") keeps the parentheses it carries.
             let license = self.license();
             let value = license
-                .strip_prefix('(')
-                .and_then(|value| value.strip_suffix(')'))
+                .strip_circumfix('(', ')')
                 .unwrap_or(&license)
                 .to_string();
             return vec![if value.to_ascii_lowercase().contains("license") {
@@ -531,7 +530,7 @@ fn discover_with_fields(
                 ));
             }
             Found::Package(package, path) => {
-                seen.insert(package.key.clone(), (package.version.clone(), path.clone()));
+                seen.insert(package.key.clone(), (package.version.clone(), path));
                 packages.push(*package);
             }
         }

@@ -202,10 +202,7 @@ fn licenses(package: &Package) -> Option<Licenses> {
         let license = package.license();
         if license != "(N/A)" {
             licenses.push(LicenseChoice::license(
-                license
-                    .strip_prefix('(')
-                    .and_then(|value| value.strip_suffix(')'))
-                    .unwrap_or(&license),
+                license.strip_circumfix('(', ')').unwrap_or(&license),
             ));
         }
     }

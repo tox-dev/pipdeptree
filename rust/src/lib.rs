@@ -152,8 +152,7 @@ fn render_with_mermaid_py(
         String::from_utf8(output.stdout).expect("text output is UTF-8"),
         output
             .mermaid
-            .map(|mermaid| String::from_utf8(mermaid).expect("mermaid output is UTF-8"))
-            .unwrap_or_default(),
+            .map_or_default(|mermaid| String::from_utf8(mermaid).expect("mermaid output is UTF-8")),
         output.stderr,
         output.code,
     ))
