@@ -231,7 +231,7 @@ fn resolve_requirements(
                 inputs.requirements.extend(
                     read_pyproject(require_file(path)?)?
                         .project
-                        .map_or_else(Vec::new, |project| project.dependencies),
+                        .map_or_default(|project| project.dependencies),
                 );
             }
             for path in requirement_files {
@@ -264,9 +264,7 @@ fn resolve_indexes(index_url: Option<&str>, extra_index_urls: &[String]) -> Opti
     let extras = if extra_index_urls.is_empty() {
         variable("PIP_EXTRA_INDEX_URL")
             .or_else(|| variable("UV_EXTRA_INDEX_URL"))
-            .map_or_else(Vec::new, |value| {
-                value.split_whitespace().map(ToOwned::to_owned).collect()
-            })
+            .map_or_default(|value| value.split_whitespace().map(ToOwned::to_owned).collect())
     } else {
         extra_index_urls.to_vec()
     };

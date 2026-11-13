@@ -280,7 +280,7 @@ impl Package {
         }
         let requires = metadata
             .get_all("requires-dist")
-            .map_or_else(Vec::new, <[String]>::to_vec);
+            .map_or_default(<[String]>::to_vec);
         if let Some(retained_fields) = retained_fields {
             metadata.retain(retained_fields);
         }
@@ -362,9 +362,7 @@ impl Package {
             site.ancestors()
                 .nth(level)
                 .and_then(Path::file_name)
-                .map_or_else(String::new, |name| {
-                    name.to_string_lossy().to_ascii_lowercase()
-                })
+                .map_or_default(|name| name.to_string_lossy().to_ascii_lowercase())
         });
         let levels = if !matches!(own.as_str(), "site-packages" | "dist-packages") {
             0
@@ -479,7 +477,7 @@ fn discover_with_fields(
     let search_paths = paths
         .iter()
         .map(|path| {
-            if path.as_os_str().is_empty() {
+            if path.is_empty() {
                 std::env::current_dir()
             } else {
                 Ok(path.clone())

@@ -299,7 +299,7 @@ impl TreeRenderer<'_> {
         let activating_extras = dependency.activating_extras();
         let extra = activating_extras
             .as_ref()
-            .map_or_else(String::new, |extra| format!(", extra: {extra}"));
+            .map_or_default(|extra| format!(", extra: {extra}"));
         let detail = if self.options.resolved() {
             let required = dependency
                 .declaration
@@ -360,7 +360,7 @@ impl TreeRenderer<'_> {
             };
             let extra = activating_extras
                 .as_ref()
-                .map_or_else(String::new, |extra| format!(" [extra: {extra}]"));
+                .map_or_default(|extra| format!(" [extra: {extra}]"));
             format!("{marker}{star} {name} {detail}{extra}{suffix}")
         } else {
             format!("{name} [{detail}]{suffix}")

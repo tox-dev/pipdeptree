@@ -13,7 +13,7 @@ pub(super) struct EggLinks(Vec<HashMap<String, PathBuf>>);
 
 impl EggLinks {
     pub(super) fn new(paths: usize) -> Self {
-        Self((0..paths).map(|_| HashMap::new()).collect())
+        Self(Vec::from_fn(paths, |_| HashMap::new()))
     }
 
     pub(super) fn insert(&mut self, search: usize, path: &Path) {
