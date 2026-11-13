@@ -73,17 +73,6 @@ _MODULE_LAYOUTS: Final[list[pytest.ParameterSet]] = [
 ]
 
 
-def _install_fallback_module(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, write_module: Callable[[Path], None]
-) -> Path:
-    metadata = tmp_path / "root-1.dist-info"
-    metadata.mkdir()
-    (metadata / "METADATA").write_text("Name: root\nVersion: 1\nRequires-Dist: fallbackdemo>=2\n")
-    write_module(tmp_path)
-    monkeypatch.setattr(sys, "path", [str(tmp_path)])
-    return tmp_path / "imported"
-
-
 @pytest.mark.parametrize(
     "output_format",
     [
@@ -107,6 +96,17 @@ def test_render_ignores_module_versions(
     result = pipdeptree.render(output_format=output_format)
 
     assert (marker.exists(), "9.8.7.6" in result, "fallbackdemo" in result) == (False, False, True)
+
+
+def _install_fallback_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, write_module: Callable[[Path], None]
+) -> Path:
+    metadata = tmp_path / "root-1.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text("Name: root\nVersion: 1\nRequires-Dist: fallbackdemo>=2\n")
+    write_module(tmp_path)
+    monkeypatch.setattr(sys, "path", [str(tmp_path)])
+    return tmp_path / "imported"
 
 
 @pytest.mark.parametrize("write_module", _MODULE_LAYOUTS)
