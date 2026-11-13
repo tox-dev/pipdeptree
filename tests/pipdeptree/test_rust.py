@@ -26,12 +26,6 @@ def _stub_signatures() -> dict[str, list[str]]:
     }
 
 
-def _runtime_params(signature: str) -> list[str]:
-    inner = signature.strip().removeprefix("(").removesuffix(")")
-    parts = [part.strip() for part in inner.split(",") if part.strip() and part.strip() != "*"]
-    return [part.lstrip("*").split("=", 1)[0].split(":", 1)[0].strip() for part in parts]
-
-
 def test_rust_stub_lists_every_extension_function() -> None:
     runtime = {name for name in dir(rust) if callable(getattr(rust, name)) and not name.startswith("_")}
     assert set(_stub_exports()) == runtime == set(_stub_signatures())
@@ -46,6 +40,12 @@ def _stub_exports() -> list[str]:
 @pytest.mark.parametrize("name", _stub_signatures())
 def test_rust_stub_signature_matches_runtime(name: str) -> None:
     assert _stub_signatures()[name] == _runtime_params(getattr(rust, name).__text_signature__)
+
+
+def _runtime_params(signature: str) -> list[str]:
+    inner = signature.strip().removeprefix("(").removesuffix(")")
+    parts = [part.strip() for part in inner.split(",") if part.strip() and part.strip() != "*"]
+    return [part.lstrip("*").split("=", 1)[0].split(":", 1)[0].strip() for part in parts]
 
 
 @pytest.mark.parametrize(
