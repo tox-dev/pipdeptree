@@ -38,11 +38,41 @@ impl FilterSpec {
     }
 }
 
+// Reverse mode renders uninstalled requirements as roots of their own, so the include and
+// exclude patterns must decide which of them appear, just as they do for installed packages.
+#[derive(Debug)]
+pub(super) struct MissingFilter {
+    include: Vec<Pattern>,
+    exclude: Vec<Pattern>,
+}
+
+impl MissingFilter {
+    fn new(spec: &FilterSpec) -> Self {
+        let compile = |patterns: &[String]| {
+            patterns
+                .iter()
+                .filter_map(|pattern| Pattern::new(&canonicalize_name(pattern)).ok())
+                .collect()
+        };
+        Self {
+            include: compile(&spec.include),
+            exclude: compile(&spec.exclude),
+        }
+    }
+
+    pub(super) fn keeps(&self, name: &str) -> bool {
+        let name = canonicalize_name(name);
+        (self.include.is_empty() || self.include.iter().any(|pattern| pattern.matches(&name)))
+            && !self.exclude.iter().any(|pattern| pattern.matches(&name))
+    }
+}
+
 impl Graph {
     pub fn apply_filters(&mut self, spec: &FilterSpec) -> Result<(), FilterError> {
         // The expanded, reverse-edge and unique caches depend on extras, not visibility; only
         // the cycle components change when filters hide nodes.
         self.cycles.take();
+        self.missing_filter = None;
         let canonical_excludes = spec
             .exclude
             .iter()
@@ -99,6 +129,9 @@ impl Graph {
             for index in exclude_matches {
                 self.visible[index] = false;
             }
+        }
+        if spec.reverse {
+            self.missing_filter = Some(MissingFilter::new(spec));
         }
         Ok(())
     }
