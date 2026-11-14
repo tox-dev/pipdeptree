@@ -8,15 +8,15 @@ the notebook rich-display protocol while retaining normal :class:`str` behavior.
 
 from __future__ import annotations
 
-import sys  # simplint: ignore[init-module-content]  # retain render in root
-from dataclasses import dataclass  # simplint: ignore[init-module-content]  # retain render in root
-from html import escape  # simplint: ignore[init-module-content]  # retain render in root
-from math import inf  # simplint: ignore[init-module-content]  # retain render in root
-from typing import TYPE_CHECKING  # simplint: ignore[init-module-content]  # retain render in root
+import sys
+from dataclasses import dataclass
+from html import escape
+from math import inf
+from typing import TYPE_CHECKING
 
-from ._rust import format_flags as _format_flags  # simplint: ignore[init-module-content]  # retain render in root
-from ._rust import render as _render  # simplint: ignore[init-module-content]  # retain render in root
-from ._rust import (  # simplint: ignore[init-module-content]  # retain render in root
+from ._rust import format_flags as _format_flags
+from ._rust import render as _render
+from ._rust import (
     render_with_mermaid as _render_with_mermaid,
 )
 from .version import __version__
