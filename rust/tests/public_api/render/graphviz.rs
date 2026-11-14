@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use super::super::common::MockProcesses;
-use super::{PackageSite, execute, execute_with, render_site, text};
+use super::{PackageSite, execute, execute_with, render_site, text, write_requiring};
 use _pipdeptree::{ProcessError, ProcessOutput};
 use rstest::rstest;
 
@@ -198,4 +198,47 @@ fn escapes_backslashes_in_graphviz_labels(#[case] version: &str, #[case] escaped
     let dot = execute(&site, &["--graph-output", "dot"]);
 
     assert!(text(&dot).contains(&format!("demo [label=\"demo\\n{escaped}\"]\n")));
+}
+
+// app needs the missing gone and the installed mid, so in reverse mode app sits one level below
+// the missing root gone but two levels below the installed root base.
+fn missing_parent_site() -> PackageSite {
+    let site = PackageSite::new();
+    write_requiring(&site, "app", &["gone", "mid"]);
+    write_requiring(&site, "mid", &["base"]);
+    write_requiring(&site, "base", &[] as &[&str]);
+    site
+}
+
+#[rstest]
+#[case::depth_zero(
+    "0",
+    concat!(
+        "digraph {\n",
+        "\tbase [label=\"base\\n1\"]\n",
+        "\tgone [label=\"gone\\n(missing)\" style=dashed]\n",
+        "}\n",
+    )
+)]
+#[case::depth_one(
+    "1",
+    concat!(
+        "digraph {\n",
+        "\tapp [label=\"app\\n1\"]\n",
+        "\tbase -> mid [label=\"any\"]\n",
+        "\tbase [label=\"base\\n1\"]\n",
+        "\tgone -> app [style=dashed]\n",
+        "\tgone [label=\"gone\\n(missing)\" style=dashed]\n",
+        "\tmid [label=\"mid\\n1\"]\n",
+        "}\n",
+    )
+)]
+fn limits_reverse_graphviz_below_missing_roots(#[case] depth: &str, #[case] expected: &str) {
+    let site = missing_parent_site();
+    let output = execute(
+        &site,
+        &["--graph-output", "dot", "--reverse", "--depth", depth],
+    );
+
+    assert_eq!(text(&output), format!("{expected}\n"));
 }

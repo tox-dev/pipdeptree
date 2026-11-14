@@ -74,13 +74,15 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
         }
     }
     if options.reverse {
+        // A missing requirement is a root of the reverse graph, so --depth 0 leaves its edges out.
+        let draw_edges = options.depth != Some(0);
         for (name, dependents) in graph.missing_dependents() {
             body.push(format!(
                 "\t{} [label=\"{}\\n(missing)\" style=dashed]\n",
                 dot_id(name),
                 dot_label_component(name)
             ));
-            for (parent, _) in dependents {
+            for (parent, _) in dependents.into_iter().filter(|_| draw_edges) {
                 body.push(format!(
                     "\t{} -> {} [style=dashed]\n",
                     dot_id(name),
@@ -160,6 +162,17 @@ fn reachable_with_depth(graph: &Graph, options: &Options) -> Option<HashMap<usiz
         .into_iter()
         .map(|root| (root, 0))
         .collect::<VecDeque<_>>();
+    // Reverse mode draws each missing requirement as a root, so the packages that need it sit one
+    // level below it.
+    if options.reverse && limit > 0 {
+        queue.extend(
+            graph
+                .missing_dependents()
+                .into_values()
+                .flatten()
+                .map(|(parent, _)| (parent, 1)),
+        );
+    }
     while let Some((index, depth)) = queue.pop_front() {
         if result.contains_key(&index) {
             continue;
