@@ -2941,7 +2941,7 @@ sha256 = "04e15df7083642d5b791e51f597cffef8a92d770ecf5160c529b5a7b53b40100"
 
 [tool.nab]
 nab-version = "0.0.27"
-created-at = 2026-11-16T08:12:18.536776+00:00
+created-at = 2026-11-16T19:02:25.384504+00:00
 command-line = [
     "nab",
     "lock",
@@ -2964,6 +2964,6 @@ platforms = [
 
 [tool.nab.validation]
 version = 1
-all-inputs-sha256 = "7f6d5533223dc260612707e3a56249d680dd3b26f1191288b95f19db74134d80"
-selection-inputs-sha256 = "d1c114fabbfb80640673724a300ef776d4fad57b4c8b9cf439befcd98cc8e929"
+all-inputs-sha256 = "74bca10f213b0e46b057052feb325c524135b696e9566eef77d3c7e59c8e1063"
+selection-inputs-sha256 = "0894b6164489a56db792d72ecd26352cb767b08bdf7ed7438576882f71b1b7e4"
 contents-sha256 = "8a32a8eac7ebcf1d55e1a4c3cd10b85b527753729958f7faf920bee33c5e8488"

@@ -584,7 +584,7 @@ sha256 = "04e15df7083642d5b791e51f597cffef8a92d770ecf5160c529b5a7b53b40100"
 
 [tool.nab]
 nab-version = "0.0.27"
-created-at = 2026-11-16T08:12:20.649565+00:00
+created-at = 2026-11-16T19:02:27.505409+00:00
 command-line = [
     "nab",
     "lock",
@@ -626,6 +626,6 @@ cli-project-overrides = [
 
 [tool.nab.validation]
 version = 1
-all-inputs-sha256 = "c4d89f1efc34a8b7755973fbd073470f61773616a053a347da1cb16b106e9198"
-selection-inputs-sha256 = "1804b7428dd2878b2824a2074031c620ca9de9f36121ae17ec4f62a9b72abc54"
+all-inputs-sha256 = "ceb4469f4edbe90fee6748d8834500c2a9b3da756381506d806d810bb4322b6c"
+selection-inputs-sha256 = "1b8957b6806ec000f2f265f7dd0f6823cdfb0bf45e785a41b3d89585f1457c45"
 contents-sha256 = "4eeef6eb87b8e31b530b7b82253215303cbec8ef96f275c4343ddc223623e05c"
