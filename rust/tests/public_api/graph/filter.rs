@@ -25,6 +25,29 @@ fn selects_missing_requirements_in_reverse_filters() {
     );
 }
 
+#[rstest]
+#[case::include(&["--reverse", "--packages", "real"], "real==1\n└── holder==1 [requires: real]\n")]
+#[case::exclude(&["--reverse", "--exclude", "ghost"], "real==1\n└── holder==1 [requires: real]\n")]
+#[case::graphviz(
+    &["--reverse", "--packages", "real", "-o", "graphviz-dot"],
+    "digraph {\n\tholder [label=\"holder\\n1\"]\n\treal -> holder [label=\"any\"]\n\treal [label=\"real\\n1\"]\n}\n\n"
+)]
+fn hides_unselected_missing_requirements_in_reverse_filters(
+    #[case] args: &[&str],
+    #[case] expected: &str,
+) {
+    let site = PackageSite::new();
+    site.write(
+        "holder-1.dist-info",
+        "Name: holder\nVersion: 1\nRequires-Dist: ghost\nRequires-Dist: real\n",
+    );
+    site.write("real-1.dist-info", "Name: real\nVersion: 1\n");
+
+    let output = execute_in(&site, args);
+
+    assert_eq!((output.code, stdout(&output)), (0, expected));
+}
+
 #[test]
 fn keeps_shared_dependencies_of_excluded_packages() {
     let site = PackageSite::new();
@@ -76,7 +99,7 @@ fn keeps_separator_boundaries_in_patterns() {
 )]
 #[case::reverse(
     &["--packages", "child", "--reverse", "--json"],
-    &["child", "root", "top", "missing"]
+    &["child", "root", "top"]
 )]
 #[case::reverse_exclude(
     &["--exclude", "root", "--exclude-dependencies", "--reverse", "--json"],

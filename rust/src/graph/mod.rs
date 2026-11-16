@@ -70,6 +70,7 @@ pub struct Graph {
     cycles: OnceLock<Vec<Vec<usize>>>,
     unique_dependencies: OnceLock<UniqueDependencyCache>,
     pub warnings: Vec<String>,
+    missing_filter: Option<filter::MissingFilter>,
 }
 
 pub struct Children<'a> {
@@ -196,6 +197,7 @@ impl Graph {
             cycles: OnceLock::new(),
             unique_dependencies: OnceLock::new(),
             warnings,
+            missing_filter: None,
         };
         if extras_mode != ExtrasMode::None {
             graph.collect_requested_extras();
@@ -426,6 +428,9 @@ impl Graph {
                         .push((parent, dependency));
                 }
             }
+        }
+        if let Some(filter) = &self.missing_filter {
+            missing.retain(|name, _| filter.keeps(name));
         }
         for parents in missing.values_mut() {
             parents.sort_by(|(left, _), (right, _)| {
