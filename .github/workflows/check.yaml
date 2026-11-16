@@ -131,7 +131,7 @@ jobs:
       dry-run: true
   hooks:
     name: 🧹 Hooks under the cooldown
-    uses: tox-dev/github-workflows/.github/workflows/cooled-hooks.yaml@81a3fc661be49ecdc4ea4af99a69fa3879b3d7a1 # 6.8.1
+    uses: tox-dev/github-workflows/.github/workflows/cooled-hooks.yaml@ef0cd88bef592260a48345753b8b509b209ab189 # 6.8.3
     permissions:
       contents: read
   check:
@@ -141,6 +141,6 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - name: 🚦 Require all needed jobs to pass
-        uses: tox-dev/github-workflows/required-checks@6.8.1
+        uses: tox-dev/github-workflows/required-checks@6.8.3
         with:
           needs: ${{ toJSON(needs) }}

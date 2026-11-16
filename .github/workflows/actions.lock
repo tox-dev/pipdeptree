@@ -7,7 +7,7 @@ workflows:
         - 'actions/checkout@v7.0.1'
         - 'astral-sh/setup-uv@v10.3.3'
         - 'taiki-e/install-action@v2.90.0'
-        - 'tox-dev/github-workflows@6.8.1'
+        - 'tox-dev/github-workflows@6.8.3'
     '.github/workflows/codeql.yaml': []
     '.github/workflows/dist.yaml':
         - 'actions-rust-lang/setup-rust-toolchain@v2.0.1'
@@ -15,11 +15,11 @@ workflows:
         - 'actions/upload-artifact@v7.0.2'
         - 'astral-sh/setup-uv@v10.3.3'
         - 'pypa/cibuildwheel@v4.3.5'
-        - 'tox-dev/github-workflows@6.8.1'
+        - 'tox-dev/github-workflows@6.8.3'
     '.github/workflows/news.yaml':
         - 'actions/checkout@v7.0.1'
         - 'astral-sh/setup-uv@v10.3.3'
-        - 'tox-dev/github-workflows@6.8.1'
+        - 'tox-dev/github-workflows@6.8.3'
     '.github/workflows/prepare-release.yaml': []
     '.github/workflows/release.yaml':
         - 'actions/checkout@v7.0.1'
@@ -90,8 +90,8 @@ dependencies:
         commit: 'sha1-b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2'
         owner_id: 43724913
         repo_id: 442947557
-    'tox-dev/github-workflows@6.8.1':
-        ref: '6.8.1'
-        commit: 'sha1-81a3fc661be49ecdc4ea4af99a69fa3879b3d7a1'
+    'tox-dev/github-workflows@6.8.3':
+        ref: '6.8.3'
+        commit: 'sha1-ef0cd88bef592260a48345753b8b509b209ab189'
         owner_id: 20345659
         repo_id: 1426182029
