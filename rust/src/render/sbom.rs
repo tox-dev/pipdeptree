@@ -76,6 +76,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<Vec<u8>, Error>
         dependencies.push(BomDependency {
             dependency_ref: reference,
             dependencies: children.into_iter().collect(),
+            provides: Vec::new(),
         });
     }
     let bom = Bom {
@@ -96,7 +97,7 @@ pub(super) fn render(graph: &Graph, options: &Options) -> Result<Vec<u8>, Error>
         ..Bom::default()
     };
     let mut output = Vec::new();
-    bom.output_as_json_v1_5(&mut output)
+    bom.output_as_json(&mut output, SpecVersion::V1_5)
         .expect("CycloneDX 1.5 model can be serialized to memory");
     // The library omits empty dependsOn arrays. An explicit empty array distinguishes known
     // leaves from missing distributions, whose dependency graph is unknown and has no entry.
