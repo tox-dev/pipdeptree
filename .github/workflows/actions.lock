@@ -6,7 +6,7 @@ workflows:
     '.github/workflows/check.yaml':
         - 'actions/checkout@v7.0.1'
         - 'astral-sh/setup-uv@v10.3.3'
-        - 'taiki-e/install-action@v2.90.0'
+        - 'taiki-e/install-action@v2.90.3'
         - 'tox-dev/github-workflows@6.8.3'
     '.github/workflows/codeql.yaml': []
     '.github/workflows/dist.yaml':
@@ -85,9 +85,9 @@ dependencies:
         commit: 'sha1-d1527c8f67ef9af357290475d4af4b0fab8f12e0'
         owner_id: 580492
         repo_id: 298565987
-    'taiki-e/install-action@v2.90.0':
-        ref: 'v2.90.0'
-        commit: 'sha1-b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2'
+    'taiki-e/install-action@v2.90.3':
+        ref: 'v2.90.3'
+        commit: 'sha1-cfdb7ed4ccc7c7dce37759eae89dc5674b469b39'
         owner_id: 43724913
         repo_id: 442947557
     'tox-dev/github-workflows@6.8.3':
