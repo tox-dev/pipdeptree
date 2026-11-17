@@ -169,8 +169,7 @@ jobs:
         uses: pypa/cibuildwheel@v4.3.5
         env:
           CIBW_ARCHS: ${{ matrix.platform.arch }}
-          # python-sbom 0.2.0 is younger than the one-week cutoff below; drop the exception once it expires on 2026-11-16
-          CIBW_BUILD_FRONTEND: "uv; args: --build-constraint .release-build-constraints.txt --require-hashes --exclude-newer-package python-sbom=2026-11-09T19:56:00Z"
+          CIBW_BUILD_FRONTEND: "uv; args: --build-constraint .release-build-constraints.txt --require-hashes"
           UV_PYTHON: ""
           # Install the toolchain and its components up front. Left to rust-toolchain.toml, the first cargo
           # call in each container provisions them on demand, which races and conflicts on the cargo-clippy
@@ -272,8 +271,7 @@ jobs:
           CONSTRAINTS_PATH: ${{ steps.constraints.outputs.path }}
         run: |
           uv build --sdist --python 3.15 --out-dir dist \
-            --build-constraints "$CONSTRAINTS_PATH" --require-build-hashes \
-            --exclude-newer-package python-sbom=2026-11-09T19:56:00Z
+            --build-constraints "$CONSTRAINTS_PATH" --require-build-hashes
       - name: 📤 Store source distribution
         uses: actions/upload-artifact@v7.0.2
         with:
