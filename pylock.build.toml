@@ -375,7 +375,7 @@ sha256 = "f7162d580a96386a8eb096da06215f981f547d1490f03055ef99e323bc2da427"
 
 [[packages]]
 name = "python-sbom"
-version = "0.2.0"
+version = "0.3.1"
 requires-python = ">=3.11"
 dependencies = [
     { name = "installer" },
@@ -386,22 +386,22 @@ dependencies = [
 index = "https://pypi.org/simple/"
 
 [packages.sdist]
-name = "python_sbom-0.2.0.tar.gz"
-upload-time = 2026-11-09T19:55:28.285589+00:00
-url = "https://files.pythonhosted.org/packages/bf/53/5bfde63647ca663bea12754720a79e650183660c16a0dedb3f758afbe352/python_sbom-0.2.0.tar.gz"
-size = 272435
+name = "python_sbom-0.3.1.tar.gz"
+upload-time = 2026-11-10T00:30:46.773335+00:00
+url = "https://files.pythonhosted.org/packages/e7/c8/433fce09ca6d9580e71b1bcde4db4da5c1f77039536deca9d373f1b7886e/python_sbom-0.3.1.tar.gz"
+size = 289516
 
 [packages.sdist.hashes]
-sha256 = "f91f502985245c88ab6625b6c383b55145d156b3c2bf4ce572b97204974c698b"
+sha256 = "37d0fa3d0a16fddc3d88099e147e164ddb3055e8bc3424506ef41dd80f723a73"
 
 [[packages.wheels]]
-name = "python_sbom-0.2.0-py3-none-any.whl"
-upload-time = 2026-11-09T19:55:26.743445+00:00
-url = "https://files.pythonhosted.org/packages/d8/f9/4135abb36765cd0cc90fb05f09de143b7667aedfeec6a96fd5cb3b1cf75f/python_sbom-0.2.0-py3-none-any.whl"
-size = 202661
+name = "python_sbom-0.3.1-py3-none-any.whl"
+upload-time = 2026-11-10T00:30:44.860017+00:00
+url = "https://files.pythonhosted.org/packages/4d/14/f144bdd2ced56c3ffb5e6f85761a8ed203955de25f56803cebf584db2b71/python_sbom-0.3.1-py3-none-any.whl"
+size = 205103
 
 [packages.wheels.hashes]
-sha256 = "9e28fb50a1dd6e16d1c58f0731505a8ea9e29dc7bc5e002b6600381a2b1d2415"
+sha256 = "fd7a64f0293c033ac8ed8946c3c2513e936eacb7c297fe5110e5bb06d42aafc9"
 
 [[packages]]
 name = "scikit-build-core"
@@ -583,8 +583,8 @@ size = 11280
 sha256 = "04e15df7083642d5b791e51f597cffef8a92d770ecf5160c529b5a7b53b40100"
 
 [tool.nab]
-nab-version = "0.0.27"
-created-at = 2026-11-16T19:02:27.505409+00:00
+nab-version = "0.0.28"
+created-at = 2026-11-17T17:17:15.699685+00:00
 command-line = [
     "nab",
     "lock",
@@ -626,6 +626,6 @@ cli-project-overrides = [
 
 [tool.nab.validation]
 version = 1
-all-inputs-sha256 = "ceb4469f4edbe90fee6748d8834500c2a9b3da756381506d806d810bb4322b6c"
-selection-inputs-sha256 = "1b8957b6806ec000f2f265f7dd0f6823cdfb0bf45e785a41b3d89585f1457c45"
-contents-sha256 = "4eeef6eb87b8e31b530b7b82253215303cbec8ef96f275c4343ddc223623e05c"
+all-inputs-sha256 = "d581d49dd458e9a1aa62bf5a52f30543fb7e1980e89245f1fba20d1737259c8b"
+selection-inputs-sha256 = "f7394e09696494baa1d3b35003b33f5017327ae3e30fc9470a83095f37d993f3"
+contents-sha256 = "fb96b025b0ce3586648387f5594c2d7c899e6ccf64e4a53d0efcdc8289bd719b"
