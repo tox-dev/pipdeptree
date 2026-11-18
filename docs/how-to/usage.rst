@@ -977,7 +977,8 @@ Including extras
 ----------------
 
 The default, ``--extras explicit``, follows an optional dependency when a parent requests that extra with
-``name[extra]``. Use ``--extras active`` to show optional groups whose complete dependency set is present:
+``name[extra]``. Use ``--extras active`` to show optional groups whose dependencies are all installed at versions that
+satisfy them.
 
 .. code-block:: console
 
