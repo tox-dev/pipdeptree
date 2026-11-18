@@ -8,6 +8,12 @@ the notebook rich-display protocol while retaining normal :class:`str` behavior.
 
 from __future__ import annotations
 
+__lazy_modules__ = [
+    "html",
+    f"{__spec__.parent}._rust",  # ty: ignore[missing-union-attribute]  # imported modules have a spec
+    f"{__spec__.parent}.version",  # ty: ignore[missing-union-attribute]  # imported modules have a spec
+]
+
 import sys
 from dataclasses import dataclass
 from html import escape

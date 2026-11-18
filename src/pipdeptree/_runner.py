@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+__lazy_modules__ = [
+    "shutil",
+    "tempfile",
+    "webbrowser",
+    f"{__spec__.parent}._rust",  # ty: ignore[missing-union-attribute]  # imported modules have a spec
+]
+
 import os
 import shutil
 import sys
