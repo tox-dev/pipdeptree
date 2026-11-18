@@ -179,9 +179,9 @@ of three values:
     with ``extra: signedtoken``. A request for ``A[x]`` that pulls in ``B[y]`` adds dependencies gated by ``B[y]``.
 
 ``active``
-    Show the ``explicit`` extras and unrequested extras whose dependencies are present. Packaging metadata does not
-    record which command requested a package, so this treats a satisfiable extra like a requested one. The same package
-    can appear under multiple parents.
+    Show the ``explicit`` extras and unrequested extras whose dependencies are installed at versions that satisfy them.
+    Packaging metadata does not record which command requested a package, so this treats a satisfiable extra like a
+    requested one. The same package can appear under multiple parents.
 
 ``none``
     Omit optional edges.

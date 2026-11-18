@@ -106,7 +106,10 @@ impl Graph {
         let mut dependents = HashMap::<(usize, String), Vec<_>>::default();
         let mut unsatisfied = VecDeque::new();
         for (requirement, (dependency, _)) in &activated {
-            let Some(target) = dependency.target else {
+            let Some(target) = dependency
+                .target
+                .filter(|_| !dependency.is_conflicting(self))
+            else {
                 unsatisfied.push_back(*requirement);
                 continue;
             };
