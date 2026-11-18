@@ -197,9 +197,9 @@ dependencies = [
 
 [[package]]
 name = "cyclonedx-bom"
-version = "0.8.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3132b69ba8c13808bd2fa5748ac5b9816eb4f4e1f0bff6b7f9254a5940dcdeef"
+checksum = "c7f8e9344d60bee3c88033b26d7b233815ae12855bdce5370b66368ae13ac8ac"
 dependencies = [
  "base64",
  "cyclonedx-bom-macros",
@@ -1302,9 +1302,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "1.1.8+spec-1.1.0"
+version = "1.2.1+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20489e00e4d8741d6be680764cc12e270655e375a20d1011e844a9c3379e678d"
+checksum = "d5755c51863cdac711f1956baf8eb9588e060755f7d3c4c979e70ea1e1f32cd7"
 dependencies = [
  "indexmap",
  "serde_core",
