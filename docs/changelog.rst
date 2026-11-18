@@ -6,6 +6,38 @@
 
 .. towncrier release notes start
 
+.. _release-4-2-15:
+
+*********************
+ 4.2.15 (2026-11-18)
+*********************
+
+.. _release-4-2-15-fixed:
+
+Fixed
+-----
+
+- ``--extras active`` now leaves an extra off when an installed dependency does not satisfy its version specifier.
+  Before, an extra declaring ``bar>=99`` turned on with ``bar 1.0`` installed, so ``--warn fail`` failed on a conflict
+  from an unrequested extra (:pr:`903`) by :user:`gaborbernat`.
+- ``--reverse`` now applies ``--packages`` and ``--exclude`` to missing requirements, as it did before the Rust engine.
+  Before, every requirement missing from a shown package was listed as a root even when no pattern matched it, and
+  ``--exclude`` could not hide one (:pr:`895`) by :user:`kavyalavti` and kavyalavti.
+- ``-o graphviz-*`` with ``--reverse`` and ``--depth`` now treats a missing requirement as a root, as the text tree
+  does. Before, ``--depth 0`` still drew the edges from it, a package that needed only missing requirements showed up as
+  a root of its own, and a package reached only through a missing requirement within the limit got an edge but no
+  labeled node, so ``dot`` drew it as a bare name (:pr:`882`) by :user:`abhishekcpp007` and :user:`gaborbernat`.
+
+.. _release-4-2-15-packaging:
+
+Packaging
+---------
+
+- Building pipdeptree from source now requires Rust 1.100 (:pr:`891`) by :user:`gaborbernat`.
+- Every wheel now carries a `PEP 770 <https://peps.python.org/pep-0770/>`_ CycloneDX SBOM in its ``.dist-info/sboms``
+  directory, written by `python-sbom <https://github.com/tox-dev/python-sbom>`_, which wraps meson-python and describes
+  each release wheel again after its repair (:pr:`883`) by :user:`gaborbernat`.
+
 .. _release-4-2-14:
 
 *********************
