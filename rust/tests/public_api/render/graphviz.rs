@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use super::super::common::MockProcesses;
-use super::{PackageSite, execute, execute_with, render_site, text};
+use super::{PackageSite, execute, execute_with, render_site, text, write_requiring};
 use _pipdeptree::{ProcessError, ProcessOutput};
 use rstest::rstest;
 
@@ -198,4 +198,71 @@ fn escapes_backslashes_in_graphviz_labels(#[case] version: &str, #[case] escaped
     let dot = execute(&site, &["--graph-output", "dot"]);
 
     assert!(text(&dot).contains(&format!("demo [label=\"demo\\n{escaped}\"]\n")));
+}
+
+#[rstest]
+#[case::depth_zero(
+    "0",
+    concat!(
+        "digraph {\n",
+        "\tabsent [label=\"absent\\n(missing)\" style=dashed]\n",
+        "\tbase [label=\"base\\n1\"]\n",
+        "}\n",
+    )
+)]
+#[case::depth_one(
+    "1",
+    concat!(
+        "digraph {\n",
+        "\tabsent -> app [style=dashed]\n",
+        "\tabsent -> solo [style=dashed]\n",
+        "\tabsent [label=\"absent\\n(missing)\" style=dashed]\n",
+        "\tapp [label=\"app\\n1\"]\n",
+        "\tbase -> mid [label=\"any\"]\n",
+        "\tbase -> top [label=\"any\"]\n",
+        "\tbase [label=\"base\\n1\"]\n",
+        "\tmid [label=\"mid\\n1\"]\n",
+        "\tsolo [label=\"solo\\n1\"]\n",
+        "\ttop [label=\"top\\n1\"]\n",
+        "}\n",
+    )
+)]
+#[case::depth_two(
+    "2",
+    concat!(
+        "digraph {\n",
+        "\tabsent -> app [style=dashed]\n",
+        "\tabsent -> solo [style=dashed]\n",
+        "\tabsent [label=\"absent\\n(missing)\" style=dashed]\n",
+        "\tapp [label=\"app\\n1\"]\n",
+        "\tbase -> mid [label=\"any\"]\n",
+        "\tbase -> top [label=\"any\"]\n",
+        "\tbase [label=\"base\\n1\"]\n",
+        "\tmid -> app [label=\"any\"]\n",
+        "\tmid [label=\"mid\\n1\"]\n",
+        "\tpeak [label=\"peak\\n1\"]\n",
+        "\tsolo -> top [label=\"any\"]\n",
+        "\tsolo [label=\"solo\\n1\"]\n",
+        "\ttop -> peak [label=\"any\"]\n",
+        "\ttop [label=\"top\\n1\"]\n",
+        "}\n",
+    )
+)]
+fn limits_reverse_graphviz_below_missing_roots(#[case] depth: &str, #[case] expected: &str) {
+    // In reverse mode the missing absent is a root, so app and solo, which need it, sit one
+    // level below it even though app reaches the installed root base only through mid. absent
+    // sorts before base, so top must still get its depth from base rather than from solo.
+    let site = PackageSite::new();
+    write_requiring(&site, "app", &["absent", "mid"]);
+    write_requiring(&site, "solo", &["absent"]);
+    write_requiring(&site, "mid", &["base"]);
+    write_requiring(&site, "base", &[] as &[&str]);
+    write_requiring(&site, "top", &["solo", "base"]);
+    write_requiring(&site, "peak", &["top"]);
+    let output = execute(
+        &site,
+        &["--graph-output", "dot", "--reverse", "--depth", depth],
+    );
+
+    assert_eq!(text(&output), format!("{expected}\n"));
 }

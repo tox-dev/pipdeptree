@@ -2,7 +2,7 @@ use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 
 use crate::Error;
-use crate::graph::Graph;
+use crate::graph::{Graph, ReverseRoot};
 use crate::options::Options;
 use crate::process::{ProcessError, ProcessRequest, ProcessRunner};
 
@@ -80,6 +80,10 @@ pub(super) fn render(graph: &Graph, options: &Options) -> String {
                 dot_id(name),
                 dot_label_component(name)
             ));
+            // A missing requirement is a reverse root, so --depth 0 leaves its edges out.
+            if options.depth == Some(0) {
+                continue;
+            }
             for (parent, _) in dependents {
                 body.push(format!(
                     "\t{} -> {} [style=dashed]\n",
@@ -155,11 +159,31 @@ pub(super) fn pipe(
 fn reachable_with_depth(graph: &Graph, options: &Options) -> Option<HashMap<usize, usize>> {
     let limit = options.depth?;
     let mut result = HashMap::new();
-    let mut queue = graph
-        .roots(options.reverse, false)
-        .into_iter()
-        .map(|root| (root, 0))
-        .collect::<VecDeque<_>>();
+    let mut queue = if options.reverse {
+        // A missing requirement is a reverse root without a node, so the packages that need it
+        // start one level below it.
+        let mut seeds = graph
+            .reverse_roots(false)
+            .into_iter()
+            .flat_map(|root| match root {
+                ReverseRoot::Installed(index) => vec![(index, 0)],
+                ReverseRoot::Missing { parents, .. } => {
+                    parents.into_iter().map(|(parent, _)| (parent, 1)).collect()
+                }
+            })
+            .filter(|(_, depth)| *depth <= limit)
+            .collect::<Vec<_>>();
+        // reverse_roots orders by name; the walk keeps the first depth it sees, so shallower
+        // seeds must come first.
+        seeds.sort_by_key(|(_, depth)| *depth);
+        VecDeque::from(seeds)
+    } else {
+        graph
+            .roots(false, false)
+            .into_iter()
+            .map(|root| (root, 0))
+            .collect()
+    };
     while let Some((index, depth)) = queue.pop_front() {
         if result.contains_key(&index) {
             continue;
