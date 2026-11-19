@@ -453,7 +453,7 @@ impl Graph {
         let mut missing = missing.into_iter().peekable();
         let mut result = Vec::new();
         for index in self
-            .roots(true, list_all)
+            .roots_below(true, list_all, &missing_parents)
             .into_iter()
             .filter(|index| list_all || !missing_parents.contains(index))
         {
@@ -511,6 +511,12 @@ impl Graph {
     }
 
     pub fn roots(&self, reverse: bool, list_all: bool) -> Vec<usize> {
+        self.roots_below(reverse, list_all, &HashSet::default())
+    }
+
+    // `shown` holds packages already rendered under another entry, such as the dependents of a
+    // missing requirement in reverse mode; what they reach needs no root of its own.
+    fn roots_below(&self, reverse: bool, list_all: bool, shown: &HashSet<usize>) -> Vec<usize> {
         let visible = self.visible_indices().collect::<Vec<_>>();
         if list_all {
             return visible;
@@ -527,12 +533,32 @@ impl Graph {
                 })
                 .collect::<HashSet<_>>()
         };
-        let roots = visible
+        let mut roots = visible
             .iter()
             .copied()
             .filter(|index| !branch.contains(index))
             .collect::<Vec<_>>();
-        if roots.is_empty() { visible } else { roots }
+        // Cycle members all sit in `branch`, so a cycle that no root reaches would vanish; each
+        // unreached component lists all of its members as roots.
+        let mut reached = vec![false; self.nodes.len()];
+        self.mark_into(roots.iter().chain(shown).copied(), reverse, &mut reached);
+        if visible.iter().all(|index| reached[*index]) {
+            return roots;
+        }
+        let mut components = self.components();
+        if reverse {
+            components.reverse();
+        }
+        // Components come dependents first, so an unreached one met here has no unreached
+        // component above it.
+        for component in components {
+            if !reached[component[0]] {
+                self.mark_into(component.iter().copied(), reverse, &mut reached);
+                roots.extend(component);
+            }
+        }
+        roots.sort_unstable();
+        roots
     }
 
     pub fn visible_indices(&self) -> impl Iterator<Item = usize> + '_ {
