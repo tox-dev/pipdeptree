@@ -63,8 +63,9 @@ pub(super) fn format_size(bytes: u64) -> String {
     let bytes = u128::from(bytes);
     let mut divisor = 1024_u128;
     for unit in ["KB", "MB"] {
-        if bytes < divisor * 1024 {
-            let tenths = (bytes * 10 + divisor / 2) / divisor;
+        let tenths = (bytes * 10 + divisor / 2) / divisor;
+        // Rounding can carry a value just under the next unit to 1024.0, which is one of the next.
+        if tenths < 10_240 {
             return format!("{}.{:01} {unit}", tenths / 10, tenths % 10);
         }
         divisor *= 1024;

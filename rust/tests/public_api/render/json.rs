@@ -74,7 +74,10 @@ fn keeps_metadata_fields_in_command_line_order() {
 #[rstest]
 #[case::bytes(0, "0 B")]
 #[case::kilobytes(1_536, "1.5 KB")]
+#[case::largest_kilobytes(1_048_524, "1023.9 KB")]
+#[case::rounds_up_to_megabytes(1_048_575, "1.0 MB")]
 #[case::megabytes(1_572_864, "1.5 MB")]
+#[case::rounds_up_to_gigabytes(1_073_741_823, "1.0 GB")]
 #[case::gigabytes(1_610_612_736, "1.5 GB")]
 fn formats_computed_sizes(#[case] bytes: u64, #[case] expected: &str) {
     let site = sized_site(bytes);
