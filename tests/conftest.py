@@ -68,7 +68,7 @@ def package_path(tmp_path: Path) -> Path:
 @pytest.fixture
 def conflicting_documentation_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("conflicting")
-    packages: Final = {
+    packages: Final[dict[str, str]] = {
         "Jinja2-2.11.2.dist-info": "Name: Jinja2\nVersion: 2.11.2\nRequires-Dist: MarkupSafe>=0.23\n",
         "MarkupSafe-0.22.dist-info": "Name: MarkupSafe\nVersion: 0.22\n",
     }
@@ -81,7 +81,7 @@ def conflicting_documentation_path(tmp_path_factory: pytest.TempPathFactory) -> 
 
 @pytest.fixture
 def documentation_path(tmp_path: Path) -> Path:
-    package_metadata: Final = {
+    package_metadata: Final[dict[str, str]] = {
         "pipdeptree": ("License-Expression: MIT\nSummary: Display installed Python package dependencies as a tree\n"),
         "pytest": "License-Expression: MIT\nRequires-Python: >=3.10\n",
         "iniconfig": "License-Expression: MIT\n",

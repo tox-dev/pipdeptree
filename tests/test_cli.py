@@ -101,8 +101,8 @@ def test_cli_summary_terminal_width(
     for name, value in environment.items():
         monkeypatch.setenv(name, value)
 
-    code: Final = entry_point(["--path", str(tmp_path), "--warn", "silence", "--summary", "-o", "rich"])
-    lines: Final = _ANSI_ESCAPE_PATTERN.sub("", capsys.readouterr().out).splitlines()
+    code: Final[int | None] = entry_point(["--path", str(tmp_path), "--warn", "silence", "--summary", "-o", "rich"])
+    lines: Final[list[str]] = _ANSI_ESCAPE_PATTERN.sub("", capsys.readouterr().out).splitlines()
 
     assert (code, {len(line) for line in lines}) == (0, {expected_width})
 
@@ -163,7 +163,7 @@ def test_cli_escapes_characters_stdout_cannot_encode(
         (tmp_path / f"{directory}.dist-info" / "METADATA").write_text(
             f"Name: {name}\nVersion: {version}\n", encoding="utf-8"
         )
-    output: Final = io.BytesIO()
+    output: Final[io.BytesIO] = io.BytesIO()
     monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(output, encoding="ascii", errors=errors, write_through=True))
 
     code = entry_point(["--path", str(tmp_path)])
@@ -320,13 +320,13 @@ def test_cli_index_empty_project(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    project: Final = tmp_path / "pyproject.toml"
+    project: Final[Path] = tmp_path / "pyproject.toml"
     project.write_text('[project]\nname = "empty"\nversion = "1"\ndependencies = []\n')
 
-    code: Final = entry_point(["from-index", "--pyproject", str(project), "--json"])
-    captured: Final = capsys.readouterr()
+    code: Final[int | None] = entry_point(["from-index", "--pyproject", str(project), "--json"])
+    out, err = capsys.readouterr()
 
-    assert (code, json.loads(captured.out), captured.err) == (0, [], "")
+    assert (code, json.loads(out), err) == (0, [], "")
 
 
 @pytest.mark.parametrize(
@@ -350,7 +350,7 @@ def test_cli_index_workspace_above_project(
         (tmp_path / name / "pyproject.toml").write_text(
             f'[project]\nname = "{name}"\nversion = "1"\ndependencies = {dependencies}\n'
         )
-    index: Final = tmp_path / "index"
+    index: Final[Path] = tmp_path / "index"
     index.mkdir()
     with zipfile.ZipFile(index / "member-2-py3-none-any.whl", "w") as wheel:
         wheel.writestr("member-2.dist-info/METADATA", "Metadata-Version: 2.1\nName: member\nVersion: 2\n")
@@ -359,7 +359,7 @@ def test_cli_index_workspace_above_project(
     for name in ("TMPDIR", "TMP", "TEMP"):
         monkeypatch.setenv(name, str(tmp_path))
 
-    code: Final = entry_point(["from-index", *source, "--index-url", index.as_uri()])
+    code: Final[int | None] = entry_point(["from-index", *source, "--index-url", index.as_uri()])
 
     assert (code, capsys.readouterr().out) == (0, expected)
 
@@ -370,13 +370,13 @@ def test_cli_index_local_source_leaves_index_sdist_unbuilt(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    built: Final = tmp_path / "built"
+    built: Final[Path] = tmp_path / "built"
     _write_dynamic_project(tmp_path / "remote-1", "remote", built, "hooks")
-    index: Final = tmp_path / "index"
+    index: Final[Path] = tmp_path / "index"
     index.mkdir()
     with tarfile.open(index / "remote-1.tar.gz", "w:gz") as archive:
         archive.add(tmp_path / "remote-1", "remote-1")
-    local: Final = tmp_path / "local"
+    local: Final[Path] = tmp_path / "local"
     local.mkdir()
     (local / "pyproject.toml").write_text('[project]\nname = "local"\nversion = "1"\ndependencies = ["remote"]\n')
     monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
@@ -420,12 +420,12 @@ def test_cli_index_warns_about_requirements_index_option(
     mode: str,
     expected: tuple[int, bool],
 ) -> None:
-    requirements: Final = tmp_path / "requirements.txt"
+    requirements: Final[Path] = tmp_path / "requirements.txt"
     requirements.write_text("-i https://private.example/simple\n")
     monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
 
-    code: Final = entry_point(["--warn", mode, "from-index", "--requirements", str(requirements)])
-    warning: Final = ":1: from-index ignores -i in requirements files; pass --index-url on the command line\n"
+    code: Final[int | None] = entry_point(["--warn", mode, "from-index", "--requirements", str(requirements)])
+    warning: Final[str] = ":1: from-index ignores -i in requirements files; pass --index-url on the command line\n"
 
     assert (code, capsys.readouterr().err.endswith(warning)) == expected
 
@@ -445,12 +445,12 @@ def test_cli_index_builds_dynamic_local_source(
     backend_path: str,
 ) -> None:
     _write_dynamic_project(tmp_path / "local", "local", tmp_path / "built", backend_path)
-    index: Final = tmp_path / "index"
+    index: Final[Path] = tmp_path / "index"
     index.mkdir()
     monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.chdir(tmp_path)
 
-    code: Final = entry_point(["from-index", "./local", "--index-url", index.as_uri()])
+    code: Final[int | None] = entry_point(["from-index", "./local", "--index-url", index.as_uri()])
 
     assert (code, capsys.readouterr().out) == (0, "local==1\n")
 
@@ -473,12 +473,12 @@ def test_cli_index_local_source_native_path(
     (tmp_path / "local").mkdir()
     (tmp_path / "local" / "pyproject.toml").write_text('[project]\nname = "local"\nversion = "1"\n')
     (tmp_path / "requirements.txt").write_text(f"{tmp_path / 'local'}\n")
-    index: Final = tmp_path / "index"
+    index: Final[Path] = tmp_path / "index"
     index.mkdir()
     monkeypatch.setenv("NAB_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.chdir(tmp_path)
 
-    code: Final = entry_point(["from-index", *source(tmp_path), "--index-url", index.as_uri()])
+    code: Final[int | None] = entry_point(["from-index", *source(tmp_path), "--index-url", index.as_uri()])
 
     assert (code, capsys.readouterr().out) == (0, "local==1\n")
 
@@ -498,11 +498,11 @@ def test_cli_index_requirements_error_names_plain_path(
     content: str,
     expected: str,
 ) -> None:
-    requirements: Final = tmp_path / "requirements.txt"
+    requirements: Final[Path] = tmp_path / "requirements.txt"
     requirements.write_text(content)
     monkeypatch.chdir(tmp_path)
 
-    code: Final = entry_point(["from-index", "--requirements", "requirements.txt"])
+    code: Final[int | None] = entry_point(["from-index", "--requirements", "requirements.txt"])
 
     assert (code, capsys.readouterr().err) == (1, expected.format(path=requirements.resolve()))
 

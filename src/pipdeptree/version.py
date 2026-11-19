@@ -6,10 +6,10 @@ __lazy_modules__ = ["typing"]
 
 from typing import Final
 
-from ._rust import version as _version
+from ._rust import version as native_version
 
 #: Version string from the Rust extension.
-version: Final[str] = _version()
+version: Final[str] = native_version()
 #: The version the Rust extension was built with, as shown by ``pipdeptree --version``.
 __version__: Final[str] = version
 #: Dot-separated version parts with numeric parts converted to integers.

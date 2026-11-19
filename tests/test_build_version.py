@@ -133,7 +133,7 @@ def project_root() -> Path:
 @pytest.fixture
 def cargo_version(cargo_build_script: Path, tmp_path: Path) -> Callable[[], str]:
     def resolve() -> str:
-        result: Final = subprocess.run(
+        result: Final[subprocess.CompletedProcess[str]] = subprocess.run(
             [str(cargo_build_script)], cwd=tmp_path, capture_output=True, text=True, check=True
         )
         return next(
@@ -147,9 +147,9 @@ def cargo_version(cargo_build_script: Path, tmp_path: Path) -> Callable[[], str]
 
 @pytest.fixture(scope="session")
 def cargo_build_script(project_root: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
-    rustc: Final = which("rustc")
+    rustc: Final[str | None] = which("rustc")
     assert rustc is not None
-    executable: Final = tmp_path_factory.mktemp("build-version") / "build-version.exe"
+    executable: Final[Path] = tmp_path_factory.mktemp("build-version") / "build-version.exe"
     subprocess.run([rustc, "--edition=2024", str(project_root / "build.rs"), "-o", str(executable)], check=True)
     return executable
 
@@ -165,7 +165,7 @@ def repository(request: pytest.FixtureRequest, git: Git, tmp_path: Path) -> None
 
 @pytest.fixture
 def git(tmp_path: Path) -> Git:
-    executable: Final = which("git")
+    executable: Final[str | None] = which("git")
     assert executable is not None
 
     def run(*args: str) -> str:

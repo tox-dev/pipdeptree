@@ -19,10 +19,10 @@ def test_query_ignores_module_in_working_directory(
     working_directory: Path,
     module: str,
 ) -> None:
-    marker: Final = working_directory / "imported"
+    marker: Final[Path] = working_directory / "imported"
     (working_directory / f"{module}.py").write_text(f"open({str(marker)!r}, 'w').close()\n")
 
-    code: Final = entry_point(["--python", str(interpreter), "--freeze"])
+    code: Final[int | None] = entry_point(["--python", str(interpreter), "--freeze"])
 
     assert (code, marker.exists()) == (0, False)
 
@@ -33,11 +33,11 @@ def test_query_ignores_distribution_in_working_directory(
     working_directory: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    dist_info: Final = working_directory / "planted-1.dist-info"
+    dist_info: Final[Path] = working_directory / "planted-1.dist-info"
     dist_info.mkdir()
     (dist_info / "METADATA").write_text("Name: planted\nVersion: 1\n")
 
-    code: Final = entry_point(["--python", str(interpreter), "--freeze"])
+    code: Final[int | None] = entry_point(["--python", str(interpreter), "--freeze"])
 
     assert (code, "planted" in capsys.readouterr().out) == (0, False)
 
@@ -67,7 +67,7 @@ def test_detection_ignores_empty_environment_variable(
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv(variable, "")
 
-    code: Final = entry_point(["--packages", "pipdeptree", "--depth", "0"])
+    code: Final[int | None] = entry_point(["--packages", "pipdeptree", "--depth", "0"])
 
     assert (code, capsys.readouterr().out.startswith("pipdeptree==")) == (0, True)
 
@@ -77,9 +77,13 @@ def test_query_ignores_optional_stdlib_module_on_path(tmp_path: Path, module: st
     (tmp_path / "demo-1.dist-info").mkdir()
     (tmp_path / "demo-1.dist-info" / "METADATA").write_text("Name: demo\nVersion: 1\n")
     (tmp_path / f"{module}.py").write_text("open(__file__ + '.ran', 'w').close()\nraise ImportError\n")
-    script: Final = f"import sys, pipdeptree\nsys.path[:] = [{str(tmp_path)!r}]\nprint(pipdeptree.render(), end='')"
+    script: Final[str] = (
+        f"import sys, pipdeptree\nsys.path[:] = [{str(tmp_path)!r}]\nprint(pipdeptree.render(), end='')"
+    )
 
-    result: Final = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=True)
+    result: Final[subprocess.CompletedProcess[str]] = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, check=True
+    )
 
     assert (result.stdout, (tmp_path / f"{module}.py.ran").exists()) == ("demo==1\n", False)
 
@@ -92,7 +96,7 @@ def interpreter(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def working_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    directory: Final = tmp_path / "work"
+    directory: Final[Path] = tmp_path / "work"
     directory.mkdir()
     monkeypatch.chdir(directory)
     return directory

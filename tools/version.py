@@ -17,7 +17,7 @@ def _resolve() -> str:
     pretend: Final[str | None]
     if (pretend := os.environ.get("PIPDEPTREE_VERSION")) is not None:
         return pretend
-    root: Final = Path(__file__).resolve().parent.parent
+    root: Final[Path] = Path(__file__).resolve().parent.parent
     from_git: Final[str | None]
     if (from_git := _from_git(root)) is not None:
         return from_git
@@ -35,7 +35,7 @@ def _from_git(root: Path) -> str | None:
     if not (root / ".git").exists():
         return None
     try:
-        completed: Final = subprocess.run(
+        completed: Final[subprocess.CompletedProcess[str]] = subprocess.run(
             [  # ruff:ignore[start-process-with-partial-path]  # Git comes off PATH, as for any build.
                 "git",
                 "describe",
