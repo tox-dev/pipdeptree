@@ -239,6 +239,25 @@ fn measures_depth_through_reachable_cycles() {
 }
 
 #[test]
+fn measures_depth_through_cycles_no_root_reaches() {
+    let site = PackageSite::new();
+    site.write("root-1.dist-info", "Name: root\nVersion: 1\n");
+    site.write(
+        "loop-a-1.dist-info",
+        "Name: loop-a\nVersion: 1\nRequires-Dist: loop-b\n",
+    );
+    site.write(
+        "loop-b-1.dist-info",
+        "Name: loop-b\nVersion: 1\nRequires-Dist: loop-a\n",
+    );
+
+    let output = execute(&site, &["--summary", "--output", "json"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    assert_eq!(value["max_depth"].as_u64(), Some(2));
+}
+
+#[test]
 fn measures_depth_of_mutually_dependent_packages() {
     let site = PackageSite::new();
     let count: u64 = 24;

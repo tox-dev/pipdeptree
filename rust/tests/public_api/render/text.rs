@@ -190,6 +190,83 @@ fn keeps_every_edge_of_a_cycle(#[case] args: &[&str], #[case] expected: &str) {
     assert_eq!(text(&output), expected);
 }
 
+// Nothing outside x and y requires them, so no root of the rest of the environment reaches them.
+#[rstest]
+#[case::text(
+    &[("a", &[] as &[&str]), ("x", &["y"]), ("y", &["x", "z"]), ("z", &[])],
+    &[] as &[&str],
+    concat!(
+        "a==1\n",
+        "x==1\n",
+        "└── y [required: Any, installed: 1]\n",
+        "    ├── x [required: Any, installed: 1] (*)\n",
+        "    └── z [required: Any, installed: 1]\n",
+        "y==1\n",
+        "├── x [required: Any, installed: 1]\n",
+        "│   └── y [required: Any, installed: 1] (*)\n",
+        "└── z [required: Any, installed: 1]\n",
+    )
+)]
+#[case::freeze(
+    &[("a", &[] as &[&str]), ("x", &["y"]), ("y", &["x", "z"]), ("z", &[])],
+    &["--freeze"],
+    "a==1\nx==1\n  y==1\n    x==1\n    z==1\ny==1\n  x==1\n    y==1\n  z==1\n"
+)]
+#[case::reverse(
+    &[("a", &[] as &[&str]), ("w", &["x"]), ("x", &["y"]), ("y", &["x"])],
+    &["--reverse"],
+    concat!(
+        "a==1\n",
+        "x==1\n",
+        "├── w==1 [requires: x]\n",
+        "└── y==1 [requires: x]\n",
+        "    └── x==1 [requires: y] (*)\n",
+        "y==1\n",
+        "└── x==1 [requires: y]\n",
+        "    ├── w==1 [requires: x]\n",
+        "    └── y==1 [requires: x] (*)\n",
+    )
+)]
+#[case::reverse_freeze(
+    &[("a", &[] as &[&str]), ("w", &["x"]), ("x", &["y"]), ("y", &["x"])],
+    &["--reverse", "--freeze"],
+    "a==1\nx==1\n  w==1\n  y==1\n    x==1\ny==1\n  x==1\n    w==1\n    y==1\n"
+)]
+#[case::reverse_below_missing(
+    &[("a", &[] as &[&str]), ("x", &["m", "y"]), ("y", &["x"])],
+    &["--reverse"],
+    concat!(
+        "a==1\n",
+        "m==?\n",
+        "└── x==1 [requires: m]\n",
+        "    └── y==1 [requires: x]\n",
+        "        └── x==1 [requires: y] (*)\n",
+    )
+)]
+#[case::only_cycles(
+    &[("x", &["y"] as &[&str]), ("y", &["x", "z"]), ("z", &[])],
+    &["--depth", "0"],
+    "x==1\ny==1\n"
+)]
+#[case::self_requirement(
+    &[("a", &[] as &[&str]), ("s", &["s"])],
+    &[] as &[&str],
+    "a==1\ns==1\n└── s [required: Any, installed: 1] (*)\n"
+)]
+fn lists_a_cycle_no_root_reaches(
+    #[case] packages: &[(&str, &[&str])],
+    #[case] args: &[&str],
+    #[case] expected: &str,
+) {
+    let site = super::PackageSite::new();
+    for (name, requires) in packages {
+        write_requiring(&site, name, requires);
+    }
+    let output = execute(&site, args);
+
+    assert_eq!(text(&output), expected);
+}
+
 #[test]
 fn expands_a_repeated_subtree_again_where_depth_leaves_more_levels() {
     let site = super::PackageSite::new();

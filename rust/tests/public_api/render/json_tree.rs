@@ -1,4 +1,7 @@
-use super::{crossed_cycle_site, execute, layered_site, lock_file, path, render_site, text};
+use super::{
+    PackageSite, crossed_cycle_site, execute, layered_site, lock_file, path, render_site, text,
+    write_requiring,
+};
 use rstest::rstest;
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -191,6 +194,27 @@ fn keeps_every_edge_of_a_json_tree_cycle() {
         edges,
         BTreeSet::from([("a", "x"), ("a", "y"), ("x", "y"), ("y", "w"), ("y", "x")])
     );
+}
+
+#[rstest]
+#[case::forward(&["--json-tree"] as &[&str])]
+#[case::reverse(&["--json-tree", "--reverse"])]
+fn lists_a_cycle_no_root_reaches_in_json_tree(#[case] args: &[&str]) {
+    let site = PackageSite::new();
+    write_requiring(&site, "a", &[] as &[&str]);
+    write_requiring(&site, "x", &["y"]);
+    write_requiring(&site, "y", &["x"]);
+
+    let output = execute(&site, args);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let roots = value
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry["key"].as_str().unwrap())
+        .collect::<Vec<_>>();
+
+    assert_eq!(roots, ["a", "x", "y"]);
 }
 
 #[test]

@@ -116,7 +116,7 @@ impl Graph {
         let exclude_matches = self.matching_many(&spec.exclude);
         if !spec.include.is_empty() {
             let mut included = vec![false; self.nodes.len()];
-            self.mark_into(&include_matches, spec.reverse, &mut included);
+            self.mark_into(include_matches, spec.reverse, &mut included);
             self.visible = included;
         }
         if spec.exclude_dependencies {
@@ -188,8 +188,13 @@ impl Graph {
         }
     }
 
-    fn mark_into(&self, seeds: &HashSet<usize>, reverse: bool, marked: &mut [bool]) {
-        let mut queue = seeds.iter().copied().collect::<VecDeque<_>>();
+    pub(super) fn mark_into(
+        &self,
+        seeds: impl IntoIterator<Item = usize>,
+        reverse: bool,
+        marked: &mut [bool],
+    ) {
+        let mut queue = seeds.into_iter().collect::<VecDeque<_>>();
         while let Some(index) = queue.pop_front() {
             if marked[index] {
                 continue;
