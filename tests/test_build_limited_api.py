@@ -37,7 +37,7 @@ def test_build_limited_api(
     monkeypatch.setattr(
         sysconfig, "get_config_var", mocker.create_autospec(sysconfig.get_config_var, return_value=gil_disabled)
     )
-    script: Final = Path(__file__).resolve().parents[1] / "tools/limited_api.py"
+    script: Final[Path] = Path(__file__).resolve().parents[1] / "tools/limited_api.py"
 
     runpy.run_path(str(script), run_name="tools.limited_api")["main"]()
 

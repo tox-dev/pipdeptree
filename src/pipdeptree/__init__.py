@@ -20,11 +20,8 @@ from html import escape
 from math import inf
 from typing import TYPE_CHECKING
 
-from ._rust import format_flags as _format_flags
-from ._rust import render as _render
-from ._rust import (
-    render_with_mermaid as _render_with_mermaid,
-)
+from ._rust import format_flags, render_with_mermaid
+from ._rust import render as render_native
 from .version import __version__
 
 if TYPE_CHECKING:
@@ -88,18 +85,18 @@ def render(  # ruff:ignore[too-many-arguments,non-empty-init-module]  # Keep the
         )
     )
     if summary or output_format != "text":
-        text = _report(*_render(args))
+        text = _report(*render_native(args))
         if not summary:
             return text
         return _SummaryResult(text) if output_format == "text" else text
     # One engine run yields both representations; a notebook's mermaid display would otherwise
     # rediscover the whole environment through a second call.
-    text, mermaid, warnings, code = _render_with_mermaid(args)
+    text, mermaid, warnings, code = render_with_mermaid(args)
     return _RenderResult(_report(text, warnings, code), mermaid=mermaid)
 
 
 def _render_args(options: _RenderOptions) -> list[str]:  # ruff:ignore[non-empty-init-module]  # Keep render at its import path.
-    format_args = _format_flags(options.output_format, options.summary)
+    format_args = format_flags(options.output_format, options.summary)
     args = ["--warn", options.warn, "--encoding", options.encoding, *format_args]
     for flag, value in (
         ("--packages", options.packages),

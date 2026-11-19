@@ -20,7 +20,7 @@ def main() -> None:
     parser.add_argument("--bump", choices=("auto", "major", "minor", "patch"), default="auto")
     parser.add_argument("--dispatch", action="store_true", help="start the protected GitHub release workflow")
     args = parser.parse_args()
-    repository: Final = "tox-dev/pipdeptree"
+    repository: Final[str] = "tox-dev/pipdeptree"
     if args.dispatch:
         _run(
             "gh",
@@ -95,7 +95,7 @@ def main() -> None:
         if previous:
             note_args.extend(("--previous", previous))
         notes = _run(*note_args, cwd=source, capture_output=True).stdout
-        build_environment: Final = Path(temporary_directory) / "build"
+        build_environment: Final[Path] = Path(temporary_directory) / "build"
         _run("uv", "venv", "--python", "3.15", str(build_environment), cwd=source)
         _run(
             "uv",
@@ -109,7 +109,7 @@ def main() -> None:
             "pylock.build.toml",
             cwd=source,
         )
-        epoch: Final = _run("git", "log", "-1", "--format=%ct", cwd=source, capture_output=True).stdout.strip()
+        epoch: Final[str] = _run("git", "log", "-1", "--format=%ct", cwd=source, capture_output=True).stdout.strip()
         _run(
             "uv",
             "build",
