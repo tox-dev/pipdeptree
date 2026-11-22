@@ -79,8 +79,8 @@ Run ``pipdeptree`` with no arguments to see the full dependency tree of your env
     ├── idna [required: >=2.5,<4, installed: 3.10]
     └── urllib3 [required: >=1.21.1,<3, installed: 2.7.0]
 
-Each top-level entry is a package with no parent depending on it. Indented lines show dependencies, with the required
-version range and the installed version.
+Each top-level entry is a package with no parent depending on it, or a member of a dependency cycle that no other
+package requires. Indented lines show dependencies, with the required version range and the installed version.
 
 Understanding the output
 ------------------------

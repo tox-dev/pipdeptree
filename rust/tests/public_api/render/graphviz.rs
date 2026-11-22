@@ -53,6 +53,26 @@ fn limits_graphviz_to_roots_at_depth_zero() {
 }
 
 #[rstest]
+#[case::forward(&[] as &[&str])]
+#[case::reverse(&["--reverse"])]
+fn keeps_a_cycle_no_root_reaches_at_depth_zero(#[case] args: &[&str]) {
+    let site = PackageSite::new();
+    write_requiring(&site, "a", &[] as &[&str]);
+    write_requiring(&site, "x", &["y"]);
+    write_requiring(&site, "y", &["x"]);
+
+    let output = execute(
+        &site,
+        &[&["--graph-output", "dot", "--depth", "0"], args].concat(),
+    );
+
+    assert_eq!(
+        text(&output),
+        "digraph {\n\ta [label=\"a\\n1\"]\n\tx [label=\"x\\n1\"]\n\ty [label=\"y\\n1\"]\n}\n\n"
+    );
+}
+
+#[rstest]
 #[case::png(
     "png",
     Ok(ProcessOutput { success: true, stdout: b"image".to_vec(), stderr: Vec::new() }),
