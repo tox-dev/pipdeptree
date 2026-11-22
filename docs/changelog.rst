@@ -6,6 +6,33 @@
 
 .. towncrier release notes start
 
+.. _release-4-2-16:
+
+*********************
+ 4.2.16 (2026-11-22)
+*********************
+
+.. _release-4-2-16-fixed:
+
+Fixed
+-----
+
+- Packages in a dependency cycle that no other package requires, such as ``poetry`` and ``poetry-plugin-export`` after
+  ``pip install poetry==1.8.5``, now show as top-level entries instead of vanishing from the tree, freeze, JSON tree and
+  depth-limited Graphviz output, in both directions, and count toward the summary's maximum depth (:pr:`910`) by
+  :user:`mansur-akhmadi`.
+- Sizes from ``--computed size`` and ``unique-deps-size`` and the ``--summary`` total that round to 1024 of a unit now
+  show as one of the next unit, so a package just under 1 MB reads ``1.0 MB`` instead of ``1024.0 KB`` (:pr:`906`) by
+  :user:`nilay-v3rma`.
+
+.. _release-4-2-16-performance:
+
+Performance
+-----------
+
+- Importing ``pipdeptree`` and opening CLI help are faster on Python 3.15 because modules load when their functions are
+  used (:pr:`904`) by :user:`gaborbernat`.
+
 .. _release-4-2-15:
 
 *********************
