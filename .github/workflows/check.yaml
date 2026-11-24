@@ -44,7 +44,7 @@ jobs:
       - name: 🧹 Check lints
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: 🦀 Install coverage tool
-        uses: taiki-e/install-action@v2.90.3
+        uses: taiki-e/install-action@v2.90.5
         with:
           tool: cargo-llvm-cov
       - name: ⏳ Wait for Graphviz
