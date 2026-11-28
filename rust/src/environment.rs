@@ -107,7 +107,7 @@ impl Runtime {
             .filter(|_| log_resolved && auto_detected)
             .map(|path| format!("(resolved python: {})\n", path.display()));
         let (info, queried) = if let Some(interpreter) = detected {
-            if same_file(&interpreter, &current.executable) {
+            if !is_program_name(&interpreter) && same_file(&interpreter, &current.executable) {
                 (current, false)
             } else {
                 (InterpreterInfo::query(processes, &interpreter)?, true)
@@ -213,10 +213,13 @@ impl InterpreterInfo {
     }
 
     fn query(processes: &dyn ProcessRunner, interpreter: &Path) -> Result<Self, Error> {
-        // The child starts in an empty directory, where nothing from the user's working directory
-        // can shadow a module or pose as an installed distribution; a relative interpreter path
-        // therefore resolves against the user's directory first.
-        let interpreter = std::path::absolute(interpreter).unwrap_or_else(|_| interpreter.into());
+        // Resolve explicit relative paths before the child changes into an empty directory.
+        // The process runner handles command lookup for bare names.
+        let interpreter = if is_program_name(interpreter) {
+            interpreter.to_path_buf()
+        } else {
+            comparable_path(interpreter)
+        };
         let output = processes
             .run(
                 &ProcessRequest::new(interpreter, ["-c".to_string(), interpreter_query()])
@@ -241,6 +244,11 @@ fn interpreter_query() -> String {
         "import sys\nsys.path[:] = [path for path in sys.path if path]\n\
          import json, os, platform, site\n_paths = sys.path\nprint(json.dumps({INTERPRETER_INFO}))"
     )
+}
+
+// Compare with the original spelling so `./python` remains an explicit path.
+fn is_program_name(interpreter: &Path) -> bool {
+    interpreter.file_name() == Some(interpreter.as_os_str())
 }
 
 fn same_file(left: &Path, right: &Path) -> bool {

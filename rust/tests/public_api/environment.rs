@@ -13,11 +13,18 @@ use super::common::{
     with_python,
 };
 
-#[test]
-fn queries_selected_interpreters() {
+#[rstest]
+#[case::absolute(false)]
+#[case::bare_name(true)]
+fn queries_selected_interpreters(#[case] bare_name: bool) {
     let site = PackageSite::new();
     site.write("demo-1.dist-info", "Name: demo\nVersion: 1\n");
     let interpreter = site.path().join("python");
+    let selection = if bare_name {
+        Path::new("python")
+    } else {
+        &interpreter
+    };
     let mut processes = MockProcesses::new();
     let info = interpreter_info(
         &[site.path()],
@@ -26,20 +33,16 @@ fn queries_selected_interpreters() {
         site.path(),
         site.path(),
     );
+    let program = selection.to_path_buf();
     processes
         .expect_run()
-        .withf(move |request| request.program == interpreter.as_os_str())
+        .withf(move |request| request.program == program.as_os_str())
         .return_once(move |_| Ok(process_output(info)));
 
     with_python(|python| {
         let output = Application::new(&processes).run(
             python,
-            &[
-                "--python",
-                site.path().join("python").to_str().unwrap(),
-                "--json",
-            ]
-            .map(ToString::to_string),
+            &["--python", selection.to_str().unwrap(), "--json"].map(ToString::to_string),
             false,
             true,
         );
