@@ -42,6 +42,18 @@ def test_query_ignores_distribution_in_working_directory(
     assert (code, "planted" in capsys.readouterr().out) == (0, False)
 
 
+def test_bare_interpreter_name_uses_path(
+    entry_point: Callable[[Sequence[str] | None], int | None],
+    interpreter: Path,
+    working_directory: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (working_directory / interpreter.name).touch()
+    monkeypatch.setenv("PATH", str(interpreter.parent))
+
+    assert entry_point(["--python", interpreter.name, "--freeze"]) == 0
+
+
 _PYTHON: Final[str] = "python.exe" if sys.platform == "win32" else "python"
 
 

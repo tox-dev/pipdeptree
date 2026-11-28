@@ -18,6 +18,9 @@ To inspect a specific interpreter regardless of what is active, pass its path to
 
     $ pipdeptree --python /path/to/venv/bin/python
 
+A bare interpreter name such as ``python3`` uses command lookup on ``PATH``. Use ``./python3`` to select an
+interpreter file in the working directory.
+
 Use ``--python auto`` to require an active virtual environment. The command fails when it cannot find one:
 
 .. code-block:: console
